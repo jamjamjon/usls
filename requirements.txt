@@ -1,0 +1,14 @@
+# BaiduSpider
+hydra-core
+numpy
+omegaconf
+# opencv-python
+packaging
+Pillow
+psutil
+Pygments
+pynvml
+PyYAML
+requests
+rich
+tqdm
