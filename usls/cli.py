@@ -86,6 +86,12 @@ CLI_MSG = '''
 	-----------------------------
 	> usls task=deduplicate input_dir=sth {mv_dir=sth}
 
+	-----------------------------
+	Label Class Modify
+	-----------------------------
+	> usls task=class_modify input_dir=sth to=7
+
+
 '''
 
 
@@ -114,6 +120,7 @@ TASKS = (
 	'is2v',
 	'classify',
 	'deduplicate',
+	'class_modify',
 )
 
 
