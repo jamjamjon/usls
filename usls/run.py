@@ -23,6 +23,7 @@ from usls.src.spider import spider_img_baidu
 from usls.src.dir_combine import dir_combine
 from usls.src.label_combine import combine_labels
 from usls.src.deduplicate import deduplicate
+from usls.src.class_modify import class_modify
 # ---------------------------------------------------------------------------------------------
 
 
@@ -302,7 +303,7 @@ def run(opt: DictConfig):
         spider_img_baidu(words)
 
     # -------------------------------------
-    #   spider image from baidu
+    #   de-duplicate
     # -------------------------------------
     if opt.task == 'deduplicate':
         assert opt.get('input_dir'), f"No `input_dir=???` args when task is `deduplicate`!"
@@ -315,5 +316,18 @@ def run(opt: DictConfig):
             info=False
         )
 
+    # -------------------------------------
+    #   class modify
+    # -------------------------------------
+    if opt.task == 'class_modify':
+        assert opt.get('input_dir'), f"No `input_dir=???` args when task is `class_modify`!"
+        input_dir = opt.input_dir
+        
+        assert opt.get('to'), f"No `to=???` args when task is `class_modify`!"
+        to = opt.to
 
+        class_modify(
+            input_dir=input_dir, 
+            to=to
+        )
 
