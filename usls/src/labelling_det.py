@@ -217,7 +217,13 @@ def draw_bboxes_from_file(img, label_path, width, height, colors, line_thickness
         # read label file
         with open(label_path) as f:
             for idx, line in enumerate(f):
-    
+                # print(f"> line: {line}")
+                # print(f"> len line: {len(line)}")
+
+                # if line == '':
+                #     print(f"> line: {line}")
+                #     print(f"> len line: {len(line)}")
+
                 # (id, cx, cy, w, h) => (id, name, xmin, ymin, xmax, ymax)
                 classId, centerX, centerY, bbox_width, bbox_height, *kpts_list = line.split()
                 bbox_width = float(bbox_width)
@@ -341,6 +347,11 @@ def edit_bbox(bbox_with_id, action):
     global IMAGE_PATH_LIST, IMG_IDX_CURRENT, INPUT_LABEL_DIR, IMG_CURRENT
 
 
+    # print(f'IMG_OBJECTS: {IMG_OBJECTS}')
+    # print(f'SELECTED_BBOX: {SELECTED_BBOX}')
+    # print(f'bbox_with_id: {IMG_OBJECTS[SELECTED_BBOX]}')
+
+
     img_height, img_width= IMG_CURRENT.shape[:2]
 
     ''' 
@@ -348,6 +359,8 @@ def edit_bbox(bbox_with_id, action):
     action = [`delete`] [`change_class:new_class_index`]
     '''
     
+    # print(f"---> action: {action}")
+
     if 'change_class' in action:
         new_class_index = int(action.split(':')[1])
 
@@ -367,7 +380,6 @@ def edit_bbox(bbox_with_id, action):
         # get get_corresponding label path
         ann_path = Path(INPUT_LABEL_DIR) / (Path(path).stem + '.txt')  
 
-
         with open(ann_path, 'r') as old_file:
             lines = old_file.readlines()
 
@@ -376,18 +388,51 @@ def edit_bbox(bbox_with_id, action):
         # 找出删除了的或者修改了类别的那一行idx
         ind = findIndex(bbox_with_id)
 
+
         # re-write label(.txt)
         with open(ann_path, 'w') as new_file:
             for idx, line in enumerate(lines):
                 if idx != ind:              # 如果未修改的行，直接写入
                     new_file.write(line)
-                
                 elif 'change_class' in action:  # 如果是修改的行，并且修的是类别，将更换后新的类别写入
+                    # print(f'> old line : {line}')
+
                     new_yolo_line = idxyxy2idcxcywh(new_class_index, (xmin, ymin), (xmax, ymax), img_width, img_height)
-                    new_file.write(new_yolo_line + '\n')
+                    # new_file.write(new_yolo_line + '\n')
+                    # print(f'idx: {idx}')
+                    # f_r = open(label_path, "r").read()   # read a
+                    # print(f_r)
+
+                    # if f_r[:-1] == '\n':
+                    #     # msg = line + '\n'
+                    #     msg = line
+                    # else:
+                    #     # msg = '\n' + line + '\n'
+                    #     msg = '\n' + line
+                    # new_file.write(new_yolo_line + '\n')
+
+                    new_label_line = str(new_class_index) + line[1:]
+                    # print(f'> new line : {new_label_line}')
+                    new_file.write(new_label_line)
+
                 
                 # 如果不属于以上情况，那么就是删除，则不写入该行
-                
+                else:
+                    # new_file.write('0 9 9 9 9')
+                    continue
+
+
+        # re-check
+        # remove last \n line
+        # if os.path.getsize(ann_path) > 0:
+        #     f_ = open(ann_path, 'r').read()   # read a
+        #     while f_[-1] == '\n':
+        #         f_ = f_[:-1] 
+
+        #     with open(ann_path, 'w') as f_w:
+        #         f_w.write(f_)
+
+
 
 
 # mouse callback function
@@ -713,10 +758,22 @@ def inspect( img_dir,
 
                     # save bbox right after get point_2  =>  label.txt
                     line = idxyxy2idcxcywh(CLS_IDX_CURRENT, POINT_1, POINT_2, img_width_current, img_height_current) # (x,y,x,y) => (x,y,w,h)
+                    # f.write(line + '\n') # append line
 
                     # save label
                     with open(label_path, 'a') as f:
-                        f.write(line + '\n') # append line
+
+                        if os.path.getsize(label_path) == 0:
+                            f.write(line)
+                        else:
+                            f_r = open(label_path, "r").read()   # read a
+                            if f_r[-1] == '\n':
+                                # msg = line + '\n'
+                                msg = line
+                            else:
+                                # msg = '\n' + line + '\n'
+                                msg = '\n' + line
+                            f.write(msg)
                     
                     # reset the points
                     POINT_1 = (-1, -1)
@@ -873,13 +930,13 @@ def inspect( img_dir,
         # ---------------------------------------
         # BACKSPACE => remove last bboxes in current image
         # ---------------------------------------
-        elif pressed_key == 8:
-            if not IS_BBOX_SELECTED:
-                print_info(f"Remove all bbox", ms=1000, where="Overlay")
-                if IMG_OBJECTS:
-                    # print(f"num: {len(IMG_OBJECTS)}")
-                    bbox_with_id = IMG_OBJECTS[-1]
-                    edit_bbox(bbox_with_id, 'delete')
+        # elif pressed_key == 8:
+        #     if not IS_BBOX_SELECTED:
+        #         print_info(f"Remove all bbox", ms=1000, where="Overlay")
+        #         if IMG_OBJECTS:
+        #             # print(f"num: {len(IMG_OBJECTS)}")
+        #             bbox_with_id = IMG_OBJECTS[-1]
+        #             edit_bbox(bbox_with_id, 'delete')
 
         # ---------------------------------------
         # c/C  =>  Remove all bboxes in this img, specifically, delete the annotation file(.txt)
