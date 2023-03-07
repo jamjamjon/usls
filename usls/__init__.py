@@ -2,7 +2,7 @@
 # -*- coding:utf-8 -*- 
 
 
-__version__ = '0.0.6'
+__version__ = '0.0.7'
 
 from usls.cli import cli
 from usls.run import run
