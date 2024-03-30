@@ -128,13 +128,6 @@ impl YOLO {
         })
     }
 
-    // pub fn run_with_dl(&mut self, dl: &Dataloader) -> Result<Vec<Results>> {
-    //     for (images, paths) in dataloader {
-    //         self.run(&images)
-    //     }
-    //     Ok(())
-    // }
-
     pub fn run(&mut self, xs: &[DynamicImage]) -> Result<Vec<Results>> {
         let xs_ = ops::letterbox(xs, self.height() as u32, self.width() as u32)?;
         let ys = self.engine.run(&[xs_])?;
@@ -296,10 +289,9 @@ impl YOLO {
 
                         // build image from ndarray
                         let mask_im: ImageBuffer<image::Luma<_>, Vec<f32>> =
-                            match ImageBuffer::from_raw(nw as u32, nh as u32, mask.into_raw_vec()) {
-                                Some(image) => image,
-                                None => panic!("can not create image from ndarray"),
-                            };
+                            ImageBuffer::from_raw(nw as u32, nh as u32, mask.into_raw_vec())
+                                .expect("Faild to create image from ndarray");
+
                         let mut mask_im = image::DynamicImage::from(mask_im); // -> dyn
 
                         // rescale masks

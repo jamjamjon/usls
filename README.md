@@ -1,35 +1,37 @@
 # usls
 
-A Rust library integrated with **ONNXRuntime**, providing a collection of **Computer Vison** and **Vision-Language** models including [YOLOv8](https://github.com/ultralytics/ultralytics) `(Classification, Segmentation, Detection and Pose Detection)`, [YOLOv9](https://github.com/WongKinYiu/yolov9), [RTDETR](https://arxiv.org/abs/2304.08069), [CLIP](https://github.com/openai/CLIP), [DINOv2](https://github.com/facebookresearch/dinov2), [FastSAM](https://github.com/CASIA-IVA-Lab/FastSAM), [YOLO-World](https://github.com/AILab-CVC/YOLO-World), [BLIP](https://arxiv.org/abs/2201.12086), and others. Many execution providers are supported, sunch as `CUDA`, `TensorRT` and `CoreML`.
+A Rust library integrated with **ONNXRuntime**, providing a collection of **Computer Vison** and **Vision-Language** models including [YOLOv8](https://github.com/ultralytics/ultralytics) `(Classification, Segmentation, Detection and Pose Detection)`, [YOLOv9](https://github.com/WongKinYiu/yolov9), [RTDETR](https://arxiv.org/abs/2304.08069), [CLIP](https://github.com/openai/CLIP), [DINOv2](https://github.com/facebookresearch/dinov2), [FastSAM](https://github.com/CASIA-IVA-Lab/FastSAM), [YOLO-World](https://github.com/AILab-CVC/YOLO-World), [BLIP](https://arxiv.org/abs/2201.12086), [PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR) and others. Many execution providers are supported, sunch as `CUDA`, `TensorRT` and `CoreML`.
 
 ## Supported Models
 
-|         Model         |         Example         |     CUDA(f32)     |     CUDA(f16)     |       TensorRT(f32)       |       TensorRT(f16)       |
-| :-------------------: | :----------------------: | :----------------: | :----------------: | :------------------------: | :-----------------------: |
-|   YOLOv8-detection   |   [demo](examples/yolov8)   |         ✅         |         ✅         |             ✅             |            ✅            |
-|      YOLOv8-pose      |   [demo](examples/yolov8)   |         ✅         |         ✅         |             ✅             |            ✅            |
-| YOLOv8-classification |   [demo](examples/yolov8)   |         ✅         |         ✅         |             ✅             |            ✅            |
-|  YOLOv8-segmentation  |   [demo](examples/yolov8)   |         ✅         |         ✅         |             ✅             |            ✅            |
-|      YOLOv8-OBB      |    ***TODO***    | ***TODO*** | ***TODO*** |     ***TODO***     |    ***TODO***    |
-|        YOLOv9        |   [demo](examples/yolov9)   |         ✅         |         ✅         |             ✅             |            ✅            |
-|        RT-DETR        |   [demo](examples/rtdetr)   |         ✅         |         ✅         |             ✅             |            ✅            |
-|        FastSAM        |  [demo](examples/fastsam)  |         ✅         |         ✅         |             ✅             |            ✅            |
-|      YOLO-World      | [demo](examples/yolo-world) |         ✅         |         ✅         |             ✅             |            ✅            |
-|        DINOv2        |   [demo](examples/dinov2)   |         ✅         |         ✅         |             ✅             |            ✅            |
-|         CLIP         |    [demo](examples/clip)    |         ✅         |         ✅         | ✅ visual<br />❌ textual | ✅ visual<br />❌ textual |
-|         BLIP         |    [demo](examples/blip)    |         ✅         |         ✅         | ✅ visual<br />❌ textual | ✅ visual<br />❌ textual |
-|     OCR(DB, SVTR)     |    ***TODO***    | ***TODO*** | ***TODO*** |     ***TODO***     |    ***TODO***    |
+|              Model              |         Example         | CUDA<br />f32 | CUDA<br />f16 |     TensorRT<br />f32     |     TensorRT<br />f16     |
+| :-----------------------------: | :----------------------: | :-----------: | :-----------: | :------------------------: | :-----------------------: |
+|   **YOLOv8-detection**   |   [demo](examples/yolov8)   |      ✅      |      ✅      |             ✅             |            ✅            |
+|      **YOLOv8-pose**      |   [demo](examples/yolov8)   |      ✅      |      ✅      |             ✅             |            ✅            |
+| **YOLOv8-classification** |   [demo](examples/yolov8)   |      ✅      |      ✅      |             ✅             |            ✅            |
+|  **YOLOv8-segmentation**  |   [demo](examples/yolov8)   |      ✅      |      ✅      |             ✅             |            ✅            |
+|      **YOLOv8-OBB**      |           TODO           |     TODO     |     TODO     |            TODO            |           TODO           |
+|        **YOLOv9**        |   [demo](examples/yolov9)   |      ✅      |      ✅      |             ✅             |            ✅            |
+|        **RT-DETR**        |   [demo](examples/rtdetr)   |      ✅      |      ✅      |             ✅             |            ✅            |
+|        **FastSAM**        |  [demo](examples/fastsam)  |      ✅      |      ✅      |             ✅             |            ✅            |
+|      **YOLO-World**      | [demo](examples/yolo-world) |      ✅      |      ✅      |             ✅             |            ✅            |
+|        **DINOv2**        |   [demo](examples/dinov2)   |      ✅      |      ✅      |             ✅             |            ✅            |
+|         **CLIP**         |    [demo](examples/clip)    |      ✅      |      ✅      | ✅ visual<br />❌ textual | ✅ visual<br />❌ textual |
+|         **BLIP**         |    [demo](examples/blip)    |      ✅      |      ✅      | ✅ visual<br />❌ textual | ✅ visual<br />❌ textual |
+|          [**DB(Text Detection)**](https://arxiv.org/abs/1911.08947)          |     [demo](examples/db)     |      ✅      |      ❌      |             ✅             |            ✅            |
+|        **SVTR, TROCR**        |           TODO           |     TODO     |     TODO     |            TODO            |           TODO           |
 
 ## Solution Models
 
 Additionally, this repo also provides some solution models such as pedestrian `fall detection`, `head detection`, `trash detection`, and more.
 
-|          Model          |             Example             |  
-| :---------------------: | :------------------------------: |
-| face-landmark detection |    [demo](examples/yolov8-face)    |
-|     head detection     |    [demo](examples/yolov8-head)    |
-|     fall detection     |  [demo](examples/yolov8-falldown)  |
-|    trash detection    | [demo](examples/yolov8-plastic-bag) | 
+|                           Model                           |             Example             |
+| :-------------------------------------------------------: | :------------------------------: |
+| **face-landmark detection**<br />**人脸 & 关键点检测** |    [demo](examples/yolov8-face)    |
+|         **head detection**<br />  **人头检测**         |    [demo](examples/yolov8-head)    |
+|         **fall detection**<br />  **摔倒检测**         |  [demo](examples/yolov8-falldown)  |
+|         **trash detection**<br />  **垃圾检测**         | [demo](examples/yolov8-plastic-bag) |
+| **text detection(PPOCR-det v3, v4)**<br />**PPOCR文本检测** |         [demo](examples/db)         |
 
 ## Demo
 
@@ -63,8 +65,8 @@ cargo add --git https://github.com/jamjamjon/usls
 cargo add usls 
 ```
 
-
 #### 3. Set `Options` and build model
+
 ```Rust
 let options = Options::default()
     .with_model("../models/yolov8m-seg-dyn-f16.onnx")
@@ -99,7 +101,6 @@ for (xs, _paths) in dl {
 let x = DataLoader::try_read("./assets/bus.jpg")?;
 let _y = model.run(&[x])?;
 ```
-
 
 ## Script: converte ONNX model from `float32` to `float16`
 

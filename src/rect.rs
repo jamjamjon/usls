@@ -120,6 +120,10 @@ impl Rect {
         self.height() * self.width()
     }
 
+    pub fn perimeter(&self) -> f32 {
+        (self.height() + self.width()) * 2.0
+    }
+
     pub fn is_empty(&self) -> bool {
         self.area() == 0.0
     }
@@ -149,6 +153,15 @@ impl Rect {
             && self.xmax() >= other.xmax()
             && self.ymin() <= other.ymin()
             && self.ymax() >= other.ymax()
+    }
+
+    pub fn expand(&mut self, x: f32, y: f32, max_x: f32, max_y: f32) -> Self {
+        Self::from_xyxy(
+            (self.xmin() - x).max(0.0f32).min(max_x),
+            (self.ymin() - y).max(0.0f32).min(max_y),
+            (self.xmax() + x).max(0.0f32).min(max_x),
+            (self.ymax() + y).max(0.0f32).min(max_y),
+        )
     }
 }
 
