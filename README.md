@@ -2,34 +2,34 @@
 
 A Rust library integrated with **ONNXRuntime**, providing a collection of **Computer Vison** and **Vision-Language** models including [YOLOv8](https://github.com/ultralytics/ultralytics) `(Classification, Segmentation, Detection and Pose Detection)`, [YOLOv9](https://github.com/WongKinYiu/yolov9), [RTDETR](https://arxiv.org/abs/2304.08069), [CLIP](https://github.com/openai/CLIP), [DINOv2](https://github.com/facebookresearch/dinov2), [FastSAM](https://github.com/CASIA-IVA-Lab/FastSAM), [YOLO-World](https://github.com/AILab-CVC/YOLO-World), [BLIP](https://arxiv.org/abs/2201.12086), and others. Many execution providers are supported, sunch as `CUDA`, `TensorRT` and `CoreML`.
 
-
 ## Supported Models
 
-|         Model         |         Example         |     CUDA(f32)     |     CUDA(f16)     |       TensorRT(f32)       |       TensorRT(f16)       | 
-| :-------------------: | :----------------------: | :----------------: | :----------------: | :------------------------: | :-----------------------: | 
-|   YOLOv8-detection   |   [demo](examples/yolov8)   |         ✅         |         ✅         |             ✅             |            ✅            |                    
-|      YOLOv8-pose      |   [demo](examples/yolov8)   |         ✅         |         ✅         |             ✅             |            ✅            |   
-| YOLOv8-classification |   [demo](examples/yolov8)   |         ✅         |         ✅         |             ✅             |            ✅            |               
-|  YOLOv8-segmentation  |   [demo](examples/yolov8)   |         ✅         |         ✅         |             ✅             |            ✅            |               
-|      YOLOv8-OBB      |    ***TODO***    | ***TODO*** | ***TODO*** |     ***TODO***     |    ***TODO***    |                                   |         
-|        YOLOv9        |   [demo](examples/yolov9)   |         ✅         |         ✅         |             ✅             |            ✅            |                           
-|        RT-DETR        |   [demo](examples/rtdetr)   |         ✅         |         ✅         |             ✅             |            ✅            |          
-|        FastSAM        |  [demo](examples/fastsam)  |         ✅         |         ✅         |             ✅             |            ✅            |     
-|      YOLO-World      | [demo](examples/yolo-world) |         ✅         |         ✅         |             ✅             |            ✅            |      
-|        DINOv2        |   [demo](examples/dinov2)   |         ✅         |         ✅         |             ✅             |            ✅            |      
-|         CLIP         |    [demo](examples/clip)    |         ✅         |         ✅         | ✅ visual<br />❌ textual | ✅ visual<br />❌ textual |                   
-|         BLIP         |    [demo](examples/blip)    |         ✅         |         ✅         | ✅ visual<br />❌ textual | ✅ visual<br />❌ textual |     
-|     OCR(DB, SVTR)     |    ***TODO***    | ***TODO*** | ***TODO*** |     ***TODO***     |    ***TODO***    |                                   |    
+|         Model         |         Example         |     CUDA(f32)     |     CUDA(f16)     |       TensorRT(f32)       |       TensorRT(f16)       |
+| :-------------------: | :----------------------: | :----------------: | :----------------: | :------------------------: | :-----------------------: |
+|   YOLOv8-detection   |   [demo](examples/yolov8)   |         ✅         |         ✅         |             ✅             |            ✅            |
+|      YOLOv8-pose      |   [demo](examples/yolov8)   |         ✅         |         ✅         |             ✅             |            ✅            |
+| YOLOv8-classification |   [demo](examples/yolov8)   |         ✅         |         ✅         |             ✅             |            ✅            |
+|  YOLOv8-segmentation  |   [demo](examples/yolov8)   |         ✅         |         ✅         |             ✅             |            ✅            |
+|      YOLOv8-OBB      |    ***TODO***    | ***TODO*** | ***TODO*** |     ***TODO***     |    ***TODO***    |
+|        YOLOv9        |   [demo](examples/yolov9)   |         ✅         |         ✅         |             ✅             |            ✅            |
+|        RT-DETR        |   [demo](examples/rtdetr)   |         ✅         |         ✅         |             ✅             |            ✅            |
+|        FastSAM        |  [demo](examples/fastsam)  |         ✅         |         ✅         |             ✅             |            ✅            |
+|      YOLO-World      | [demo](examples/yolo-world) |         ✅         |         ✅         |             ✅             |            ✅            |
+|        DINOv2        |   [demo](examples/dinov2)   |         ✅         |         ✅         |             ✅             |            ✅            |
+|         CLIP         |    [demo](examples/clip)    |         ✅         |         ✅         | ✅ visual<br />❌ textual | ✅ visual<br />❌ textual |
+|         BLIP         |    [demo](examples/blip)    |         ✅         |         ✅         | ✅ visual<br />❌ textual | ✅ visual<br />❌ textual |
+|     OCR(DB, SVTR)     |    ***TODO***    | ***TODO*** | ***TODO*** |     ***TODO***     |    ***TODO***    |
 
 ## Solution Models
+
 Additionally, this repo also provides some solution models such as pedestrian `fall detection`, `head detection`, `trash detection`, and more.
 
-|             Model             |             Example             |                                    Result                                    |
-| :---------------------------: | :------------------------------: | :--------------------------------------------------------------------------: |
-|    face-landmark detection    |    [demo](examples/yolov8-face)    |   <img src="./examples/yolov8-face/demo.jpg" width="400" height="300">  |
-|        head detection        |    [demo](examples/yolov8-head)    |   <img src="./examples/yolov8-head/demo.jpg" width="400" height="300">   |
-|      fall detection      |  [demo](examples/yolov8-falldown)  | <img src="./examples/yolov8-falldown/demo.jpg" width="400" height="300"> |
-| trash detection | [demo](examples/yolov8-plastic-bag) |  <img src="./examples/yolov8-trash/demo.jpg" width="400" height="260">  |
+|          Model          |             Example             |  
+| :---------------------: | :------------------------------: |
+| face-landmark detection |    [demo](examples/yolov8-face)    |
+|     head detection     |    [demo](examples/yolov8-head)    |
+|     fall detection     |  [demo](examples/yolov8-falldown)  |
+|    trash detection    | [demo](examples/yolov8-plastic-bag) | 
 
 ## Demo
 
@@ -44,52 +44,62 @@ cargo run -r --example yolov8   # fastsam, yolov9, blip, clip, dinov2, yolo-worl
 check **[ort guide](https://ort.pyke.io/setup/linking)**
 
 <details close>
-<summary>For Linux or MacOS users</summary>	
+<summary>For Linux or MacOS users</summary>
 
 - Firstly, download from latest release from [ONNXRuntime Releases](https://github.com/microsoft/onnxruntime/releases)
 - Then linking
-   ```shell
-   export ORT_DYLIB_PATH=/Users/qweasd/Desktop/onnxruntime-osx-arm64-1.17.1/lib/libonnxruntime.1.17.1.dylib
-   ```
+  ```shell
+  export ORT_DYLIB_PATH=/Users/qweasd/Desktop/onnxruntime-osx-arm64-1.17.1/lib/libonnxruntime.1.17.1.dylib
+  ```
+
 </details>
 
-#### 2. Add `usls` as a dependency to your project's `Cargo.toml:`
+#### 2. Add `usls` as a dependency to your project's `Cargo.toml`
 
-```
-[dependencies]
-usls = "0.0.1"
+```shell
+cargo add --git https://github.com/jamjamjon/usls
+
+# or
+cargo add usls 
 ```
 
-#### 3. Set model `Options` and build `model`, then you're ready to go.
+
+#### 3. Set `Options` and build model
+```Rust
+let options = Options::default()
+    .with_model("../models/yolov8m-seg-dyn-f16.onnx")
+    .with_trt(0) // using cuda(0) by default
+// when model with dynamic shapes
+    .with_i00((1, 2, 4).into()) // dynamic batch
+    .with_i02((416, 640, 800).into())   // dynamic height
+    .with_i03((416, 640, 800).into())   // dynamic width
+    .with_confs(&[0.4, 0.15]) // person: 0.4, others: 0.15
+    .with_dry_run(3)
+    .with_saveout("YOLOv8");    // save results
+let mut model = YOLO::new(&options)?;
+```
+
+#### 4. Prepare inputs, and then you're ready to go
+
+- Build `DataLoader` to load images
 
 ```Rust
-2use usls::{models::YOLO, Options};
+let dl = DataLoader::default()
+    .with_batch(model.batch.opt as usize)
+    .load("./assets/")?;
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // 1.build model
-    let options = Options::default()
-        .with_model("../models/yolov8m-seg-dyn-f16.onnx")
-        .with_trt(0) // using cuda(0) by default
-	// when model with dynamic shapes
-        .with_i00((1, 2, 4).into()) // dynamic batch
-        .with_i02((416, 640, 800).into())   // dynamic height
-        .with_i03((416, 640, 800).into())   // dynamic width
-        .with_confs(&[0.4, 0.15]) // person: 0.4, others: 0.15
-        .with_saveout("YOLOv8");    // save results
-    let mut model = YOLO::new(&options)?;
-
-    // 2.build dataloader
-    let dl = DataLoader::default()
-        .with_batch(model.batch.opt as usize)
-        .load("./assets/")?;
-
-    // 3.run
-    for (xs, _paths) in dl {
-        let _y = model.run(&xs)?;
-    }
-    Ok(())
+for (xs, _paths) in dl {
+    let _y = model.run(&xs)?;
 }
 ```
+
+- Or simply read one image
+
+```Rust
+let x = DataLoader::try_read("./assets/bus.jpg")?;
+let _y = model.run(&[x])?;
+```
+
 
 ## Script: converte ONNX model from `float32` to `float16`
 

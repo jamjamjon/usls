@@ -12,11 +12,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_profile(false);
     let mut model = YOLO::new(&options)?;
 
-    // build dataloader
-    let mut dl = DataLoader::default().load("./assets/kids.jpg")?;
+    // load image
+    let x = DataLoader::try_read("./assets/kids.jpg")?;
 
     // run
-    model.run(&dl.next().unwrap().0)?;
+    let _y = model.run(&[x])?;
 
     Ok(())
 }

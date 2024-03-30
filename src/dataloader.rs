@@ -1,5 +1,5 @@
-use crate::{CHECK_MARK, CROSS_MARK, SAFE_CROSS_MARK};
-use anyhow::Result;
+use crate::{CHECK_MARK, SAFE_CROSS_MARK};
+use anyhow::{anyhow, bail, Result};
 use image::DynamicImage;
 use std::collections::VecDeque;
 use std::path::{Path, PathBuf};
@@ -7,10 +7,9 @@ use walkdir::{DirEntry, WalkDir};
 
 #[derive(Debug, Clone)]
 pub struct DataLoader {
-    // source could be single image, folder with images (TODO: video, stream)
-    pub source: PathBuf,
-    pub batch: usize,
+    // source could be single image path, folder with images (TODO: video, stream)
     pub recursive: bool,
+    pub batch: usize,
     pub paths: VecDeque<PathBuf>,
 }
 
@@ -25,25 +24,14 @@ impl Iterator for DataLoader {
             let mut yps: Vec<PathBuf> = Vec::new();
             loop {
                 let path = self.paths.pop_front().unwrap();
-                match image::io::Reader::open(&path) {
+                match Self::try_read(&path) {
                     Err(err) => {
-                        println!(
-                            "{SAFE_CROSS_MARK} Faild to load image: {:?} -> {:?}",
-                            self.paths[0], err
-                        );
+                        println!("{SAFE_CROSS_MARK} {err}");
                     }
-                    Ok(p) => match p.decode() {
-                        Err(err) => {
-                            println!(
-                                "{SAFE_CROSS_MARK} Fail to load image: {:?} -> {:?}",
-                                self.paths[0], err
-                            );
-                        }
-                        Ok(x) => {
-                            yis.push(x);
-                            yps.push(path);
-                        }
-                    },
+                    Ok(x) => {
+                        yis.push(x);
+                        yps.push(path);
+                    }
                 }
                 if self.paths.is_empty() || yis.len() == self.batch {
                     break;
@@ -59,14 +47,13 @@ impl Default for DataLoader {
         Self {
             batch: 1,
             recursive: false,
-            source: Default::default(),
             paths: Default::default(),
         }
     }
 }
 
 impl DataLoader {
-    pub fn load<P: AsRef<Path>>(&self, source: P) -> Result<Self> {
+    pub fn load<P: AsRef<Path>>(&mut self, source: P) -> Result<Self> {
         let source = source.as_ref();
         let mut paths = VecDeque::new();
 
@@ -88,16 +75,27 @@ impl DataLoader {
                 }
             }
             // s if s.starts_with("rtsp://") || s.starts_with("rtmp://") || s.starts_with("http://")|| s.starts_with("https://") => todo!(),
-            s if !s.exists() => panic!("{CROSS_MARK} File not found: {s:?}"),
+            s if !s.exists() => bail!("{s:?} Not Exists"),
             _ => todo!(),
         }
-        println!("{CHECK_MARK} {} files found\n", &paths.len());
+        let n_new = paths.len();
+        self.paths.append(&mut paths);
+        println!(
+            "{CHECK_MARK} {n_new} files found ({} total)",
+            self.paths.len()
+        );
         Ok(Self {
-            paths,
-            source: source.into(),
+            paths: self.paths.to_owned(),
             batch: self.batch,
             recursive: self.recursive,
         })
+    }
+
+    pub fn try_read<P: AsRef<Path>>(path: P) -> Result<DynamicImage> {
+        image::io::Reader::open(&path)
+            .map_err(|_| anyhow!("Failed to open image at {:?}", path.as_ref()))?
+            .decode()
+            .map_err(|_| anyhow!("Failed to decode image at {:?}", path.as_ref()))
     }
 
     pub fn with_batch(mut self, x: usize) -> Self {
@@ -108,6 +106,10 @@ impl DataLoader {
     pub fn with_recursive(mut self, x: bool) -> Self {
         self.recursive = x;
         self
+    }
+
+    pub fn paths(&self) -> &VecDeque<PathBuf> {
+        &self.paths
     }
 
     fn _is_hidden(entry: &DirEntry) -> bool {

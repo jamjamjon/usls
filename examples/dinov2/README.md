@@ -16,7 +16,7 @@ cargo run -r --example dinov2
 
 [dinov2-b14](https://github.com/jamjamjon/assets/releases/download/v0.0.1/dinov2-b14.onnx)
 [dinov2-b14-dyn](https://github.com/jamjamjon/assets/releases/download/v0.0.1/dinov2-b14-dyn.onnx)
-[dinov2-b14-dyn-f16](https://github.com/jamjamjon/assets/releases/download/v0.0.1/dinov2-b14-dyn-f16.onnx)
+
 
 ### 2. Specify the ONNX model path in `main.rs`
 
@@ -24,14 +24,6 @@ cargo run -r --example dinov2
 let options = Options::default()
     .with_model("ONNX_PATH")    // <= modify this
     .with_profile(false);
-
-// build index
-let options = IndexOptions {
-    dimensions: 384, // 768 for vitb; 384 for vits
-    metric: MetricKind::L2sq,
-    quantization: ScalarKind::F16,
-    ..Default::default()
-};
 ```
 
 ### 3. Then, run
@@ -43,8 +35,7 @@ cargo run -r --example dinov2
 ## Results
 
 ```shell
-Top-1 distance: 0.0 => "./examples/dinov2/images/bus.jpg"
-Top-2 distance: 1.8332717 => "./examples/dinov2/images/dog.png"
-Top-3 distance: 1.9672602 => "./examples/dinov2/images/cat.png"
-Top-4 distance: 1.978817 => "./examples/dinov2/images/carrot.jpg"
+Top-1  0.0000000 /home/qweasd/Desktop/usls/examples/dinov2/images/bus.jpg
+Top-2  1.9059424 /home/qweasd/Desktop/usls/examples/dinov2/images/1.jpg
+Top-3  1.9736203 /home/qweasd/Desktop/usls/examples/dinov2/images/2.jpg
 ```
