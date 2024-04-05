@@ -47,7 +47,13 @@ impl Blip {
     }
 
     pub fn encode_images(&self, xs: &[DynamicImage]) -> Result<Array<f32, IxDyn>> {
-        let xs_ = ops::resize(xs, self.height.opt as u32, self.width.opt as u32, true)?;
+        let xs_ = ops::resize(xs, self.height.opt as u32, self.width.opt as u32)?;
+        let xs_ = ops::normalize(xs_, 0.0, 255.0);
+        let xs_ = ops::standardize(
+            xs_,
+            &[0.48145466, 0.4578275, 0.40821073],
+            &[0.26862954, 0.2613026, 0.2757771],
+        );
         let ys: Vec<Array<f32, IxDyn>> = self.visual.run(&[xs_])?;
         let ys = ys[0].to_owned();
         Ok(ys)

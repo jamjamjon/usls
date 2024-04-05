@@ -142,6 +142,18 @@ impl Point {
     pub fn sum(&self) -> f32 {
         self.x + self.y
     }
+
+    pub fn perpendicular_distance(&self, start: &Point, end: &Point) -> f32 {
+        let numerator = ((end.y - start.y) * self.x - (end.x - start.x) * self.y + end.x * start.y
+            - end.y * start.x)
+            .abs();
+        let denominator = ((end.y - start.y).powi(2) + (end.x - start.x).powi(2)).sqrt();
+        numerator / denominator
+    }
+
+    pub fn cross(&self, other: &Point) -> f32 {
+        self.x * other.y - self.y * other.x
+    }
 }
 
 #[cfg(test)]

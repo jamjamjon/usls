@@ -221,7 +221,9 @@ impl OrtEngine {
             .with_profile_max_shapes(spec_max)
             .build();
         if trt.is_available()? && trt.register(builder).is_ok() {
-            println!("{CHECK_MARK} Using TensorRT");
+            println!(
+                "{CHECK_MARK} Using TensorRT (Initial model serialization may require a wait)"
+            );
             Ok(trt)
         } else {
             println!("{CROSS_MARK} TensorRT initialization failed. Try CUDA...");

@@ -1,19 +1,21 @@
-use usls::{models::YOLO, DataLoader, Options};
+use usls::{models::YOLO, Annotator, DataLoader, Options};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // build model
     let options = Options::default()
         .with_model("../models/yolov8-head-f16.onnx")
-        .with_confs(&[0.3])
-        .with_saveout("YOLOv8-Head")
-        .with_profile(false);
+        .with_confs(&[0.3]);
     let mut model = YOLO::new(&options)?;
 
-    // build dataloader
-    let mut dl = DataLoader::default().load("./assets/kids.jpg")?;
+    // load image
+    let x = vec![DataLoader::try_read("./assets/kids.jpg")?];
 
     // run
-    model.run(&dl.next().unwrap().0)?;
+    let y = model.run(&x)?;
+
+    // annotate
+    let annotator = Annotator::default().with_saveout("YOLOv8-Head");
+    annotator.annotate(&x, &y);
 
     Ok(())
 }

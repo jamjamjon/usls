@@ -3,7 +3,7 @@ use image::DynamicImage;
 use ndarray::{s, Array, Axis, IxDyn};
 use regex::Regex;
 
-use crate::{ops, Annotator, Bbox, DynConf, MinOptMax, Options, OrtEngine, Rect, Results};
+use crate::{ops, Bbox, DynConf, MinOptMax, Options, OrtEngine, Rect, Ys};
 
 #[derive(Debug)]
 pub struct RTDETR {
@@ -11,9 +11,7 @@ pub struct RTDETR {
     height: MinOptMax,
     width: MinOptMax,
     batch: MinOptMax,
-    annotator: Annotator,
     confs: DynConf,
-    saveout: Option<String>,
     nc: usize,
     names: Option<Vec<String>>,
 }
@@ -43,7 +41,7 @@ impl RTDETR {
                 .expect("Failed to get num_classes, make it explicit with `--nc`")
                 .len(),
         );
-        let annotator = Annotator::default();
+        // let annotator = Annotator::default();
         let confs = DynConf::new(&options.confs, nc);
         engine.dry_run()?;
 
@@ -54,34 +52,19 @@ impl RTDETR {
             height,
             width,
             batch,
-            saveout: options.saveout.to_owned(),
-            annotator,
             names,
         })
     }
 
-    pub fn run(&mut self, xs: &[DynamicImage]) -> Result<Vec<Results>> {
-        let xs_ = ops::letterbox(xs, self.height() as u32, self.width() as u32)?;
+    pub fn run(&mut self, xs: &[DynamicImage]) -> Result<Vec<Ys>> {
+        let xs_ = ops::letterbox(xs, self.height() as u32, self.width() as u32, 144.0)?;
+        let xs_ = ops::normalize(xs_, 0.0, 255.0);
         let ys = self.engine.run(&[xs_])?;
         let ys = self.postprocess(ys, xs)?;
-        match &self.saveout {
-            None => {}
-            Some(saveout) => {
-                for (img0, y) in xs.iter().zip(ys.iter()) {
-                    let mut img = img0.to_rgb8();
-                    self.annotator.plot(&mut img, y);
-                    self.annotator.save(&img, saveout);
-                }
-            }
-        }
         Ok(ys)
     }
 
-    pub fn postprocess(
-        &self,
-        xs: Vec<Array<f32, IxDyn>>,
-        xs0: &[DynamicImage],
-    ) -> Result<Vec<Results>> {
+    pub fn postprocess(&self, xs: Vec<Array<f32, IxDyn>>, xs0: &[DynamicImage]) -> Result<Vec<Ys>> {
         const CXYWH_OFFSET: usize = 4; // cxcywh
         let preds = &xs[0];
 
@@ -129,11 +112,12 @@ impl RTDETR {
                 );
                 y_bboxes.push(y_bbox)
             }
-            let y = Results {
+            let y = Ys {
                 probs: None,
                 bboxes: Some(y_bboxes),
                 keypoints: None,
                 masks: None,
+                polygons: None,
             };
             ys.push(y);
         }
