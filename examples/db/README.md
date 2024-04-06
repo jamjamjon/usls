@@ -16,7 +16,6 @@ cargo run -r --example db
 ```Rust
 let options = Options::default()
     .with_model("ONNX_PATH")    // <= modify this
-    .with_profile(false);
 ```
 
 ### 3. Run
@@ -27,10 +26,10 @@ cargo run -r --example db
 
 ### Speed test
 
-| Model           | Image size | TensorRT<br />f16 | TensorRT<br />f32 | CUDA<br />f32 |
-| --------------- | ---------- | ----------------- | ----------------- | ------------- |
-| ppocr-v3-db-dyn | 640x640    | 1.8585ms          | 2.5739ms          | 4.3314ms      |
-| ppocr-v4-db-dyn | 640x640    | 2.0507ms          | 2.8264ms          | 6.6064ms      |
+| Model           | Image size | TensorRT<br />f16<br />batch=1<br />(ms) | TensorRT<br />f32<br />batch=1<br />(ms) | CUDA<br />f32<br />batch=1<br />(ms) |
+| --------------- | ---------- | ---------------------------------------- | ---------------------------------------- | ------------------------------------ |
+| ppocr-v3-db-dyn | 640x640    | 1.8585                                   | 2.5739                                   | 4.3314                               |
+| ppocr-v4-db-dyn | 640x640    | 2.0507                                   | 2.8264                                   | 6.6064                               |
 
 ***Test on RTX3060***
 

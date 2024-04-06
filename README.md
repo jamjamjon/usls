@@ -4,34 +4,35 @@ A Rust library integrated with **ONNXRuntime**, providing a collection of **Comp
 
 ## Supported Models
 
-|              Model              |         Example         | CUDA<br />f32 | CUDA<br />f16 |     TensorRT<br />f32     |     TensorRT<br />f16     |
-| :-----------------------------: | :----------------------: | :-----------: | :-----------: | :------------------------: | :-----------------------: |
-|   **YOLOv8-detection**   |   [demo](examples/yolov8)   |      ✅      |      ✅      |             ✅             |            ✅            |
-|      **YOLOv8-pose**      |   [demo](examples/yolov8)   |      ✅      |      ✅      |             ✅             |            ✅            |
-| **YOLOv8-classification** |   [demo](examples/yolov8)   |      ✅      |      ✅      |             ✅             |            ✅            |
-|  **YOLOv8-segmentation**  |   [demo](examples/yolov8)   |      ✅      |      ✅      |             ✅             |            ✅            |
-|      **YOLOv8-OBB**      |           TODO           |     TODO     |     TODO     |            TODO            |           TODO           |
-|        **YOLOv9**        |   [demo](examples/yolov9)   |      ✅      |      ✅      |             ✅             |            ✅            |
-|        **RT-DETR**        |   [demo](examples/rtdetr)   |      ✅      |      ✅      |             ✅             |            ✅            |
-|        **FastSAM**        |  [demo](examples/fastsam)  |      ✅      |      ✅      |             ✅             |            ✅            |
-|      **YOLO-World**      | [demo](examples/yolo-world) |      ✅      |      ✅      |             ✅             |            ✅            |
-|        **DINOv2**        |   [demo](examples/dinov2)   |      ✅      |      ✅      |             ✅             |            ✅            |
-|         **CLIP**         |    [demo](examples/clip)    |      ✅      |      ✅      | ✅ visual<br />❌ textual | ✅ visual<br />❌ textual |
-|         **BLIP**         |    [demo](examples/blip)    |      ✅      |      ✅      | ✅ visual<br />❌ textual | ✅ visual<br />❌ textual |
-|          [**DB(Text Detection)**](https://arxiv.org/abs/1911.08947)          |     [demo](examples/db)     |      ✅      |      ❌      |             ✅             |            ✅            |
-|        **SVTR, TROCR**        |           TODO           |     TODO     |     TODO     |            TODO            |           TODO           |
+|                               Model                               |         Example         | CUDA<br />f32 | CUDA<br />f16 |     TensorRT<br />f32     |     TensorRT<br />f16     |
+| :---------------------------------------------------------------: | :----------------------: | :-----------: | :-----------: | :------------------------: | :-----------------------: |
+|                    **YOLOv8-detection**                    |   [demo](examples/yolov8)   |      ✅      |      ✅      |             ✅             |            ✅            |
+|                       **YOLOv8-pose**                       |   [demo](examples/yolov8)   |      ✅      |      ✅      |             ✅             |            ✅            |
+|                  **YOLOv8-classification**                  |   [demo](examples/yolov8)   |      ✅      |      ✅      |             ✅             |            ✅            |
+|                   **YOLOv8-segmentation**                   |   [demo](examples/yolov8)   |      ✅      |      ✅      |             ✅             |            ✅            |
+|                       **YOLOv8-OBB**                       |           TODO           |     TODO     |     TODO     |            TODO            |           TODO           |
+|                         **YOLOv9**                         |   [demo](examples/yolov9)   |      ✅      |      ✅      |             ✅             |            ✅            |
+|                         **RT-DETR**                         |   [demo](examples/rtdetr)   |      ✅      |      ✅      |             ✅             |            ✅            |
+|                         **FastSAM**                         |  [demo](examples/fastsam)  |      ✅      |      ✅      |             ✅             |            ✅            |
+|                       **YOLO-World**                       | [demo](examples/yolo-world) |      ✅      |      ✅      |             ✅             |            ✅            |
+|                         **DINOv2**                         |   [demo](examples/dinov2)   |      ✅      |      ✅      |             ✅             |            ✅            |
+|                          **CLIP**                          |    [demo](examples/clip)    |      ✅      |      ✅      | ✅ visual<br />❌ textual | ✅ visual<br />❌ textual |
+|                          **BLIP**                          |    [demo](examples/blip)    |      ✅      |      ✅      | ✅ visual<br />❌ textual | ✅ visual<br />❌ textual |
+|   [**DB(Text Detection)**](https://arxiv.org/abs/1911.08947)   |     [demo](examples/db)     |      ✅      |      ❌      |             ✅             |            ✅            |
+| [**SVTR(Text Recognition)**](https://arxiv.org/abs/2205.00159) |    [demo](examples/svtr)    |      ✅      |      ❌      |             ✅             |            ✅            |
 
 ## Solution Models
 
 Additionally, this repo also provides some solution models such as pedestrian `fall detection`, `head detection`, `trash detection`, and more.
 
-|                           Model                           |             Example             |
-| :-------------------------------------------------------: | :------------------------------: |
-| **face-landmark detection**<br />**人脸 & 关键点检测** |    [demo](examples/yolov8-face)    |
-|         **head detection**<br />  **人头检测**         |    [demo](examples/yolov8-head)    |
-|         **fall detection**<br />  **摔倒检测**         |  [demo](examples/yolov8-falldown)  |
-|         **trash detection**<br />  **垃圾检测**         | [demo](examples/yolov8-plastic-bag) |
-| **text detection(PPOCR-det v3, v4)**<br />**PPOCR文本检测** |         [demo](examples/db)         |
+|                                       Model                                       |             Example             |
+| :--------------------------------------------------------------------------------: | :------------------------------: |
+|    **text detection<br />(PPOCR-det v3, v4)**<br />**通用文本检测**    |         [demo](examples/db)         |
+| **text recognition<br />(PPOCR-rec v3, v4)**<br />**中英文-文本识别** |        [demo](examples/svtr)        |
+|         **face-landmark detection**<br />**人脸 & 关键点检测**         |    [demo](examples/yolov8-face)    |
+|                 **head detection**<br />  **人头检测**                 |    [demo](examples/yolov8-head)    |
+|                 **fall detection**<br />  **摔倒检测**                 |  [demo](examples/yolov8-falldown)  |
+|                **trash detection**<br />  **垃圾检测**                | [demo](examples/yolov8-plastic-bag) |
 
 ## Demo
 
@@ -60,26 +61,41 @@ check **[ort guide](https://ort.pyke.io/setup/linking)**
 
 ```shell
 cargo add --git https://github.com/jamjamjon/usls
-
-# or
-cargo add usls 
 ```
 
 #### 3. Set `Options` and build model
 
 ```Rust
 let options = Options::default()
-    .with_model("../models/yolov8m-seg-dyn-f16.onnx")
-    .with_trt(0) // using cuda(0) by default
-// when model with dynamic shapes
-    .with_i00((1, 2, 4).into()) // dynamic batch
-    .with_i02((416, 640, 800).into())   // dynamic height
-    .with_i03((416, 640, 800).into())   // dynamic width
-    .with_confs(&[0.4, 0.15]) // person: 0.4, others: 0.15
-    .with_dry_run(3)
-    .with_saveout("YOLOv8");    // save results
+    .with_model("../models/yolov8m-seg-dyn-f16.onnx");
 let mut model = YOLO::new(&options)?;
 ```
+
+- If you want to run your model with TensorRT or CoreML
+    ```Rust
+    let options = Options::default()
+        .with_trt(0) // using cuda by default
+        // .with_coreml(0) 
+    ```
+
+
+- If your model has dynamic shapes
+    ```Rust
+    let options = Options::default()
+        .with_i00((1, 2, 4).into()) // dynamic batch
+        .with_i02((416, 640, 800).into())   // dynamic height
+        .with_i03((416, 640, 800).into())   // dynamic width
+    ```
+
+- If you want to set a confidence level for each category
+    ```Rust
+    let options = Options::default()
+        .with_confs(&[0.4, 0.15]) // person: 0.4, others: 0.15
+    ```
+
+- Go check [Options](src/options.rs) for more model options.
+
+
 
 #### 4. Prepare inputs, and then you're ready to go
 
@@ -98,9 +114,16 @@ for (xs, _paths) in dl {
 - Or simply read one image
 
 ```Rust
-let x = DataLoader::try_read("./assets/bus.jpg")?;
-let _y = model.run(&[x])?;
+let x = vec![DataLoader::try_read("./assets/bus.jpg")?];
+let y = model.run(&x)?;
 ```
+
+#### 5. Annotate and save results
+```Rust
+let annotator = Annotator::default().with_saveout("YOLOv8");
+annotator.annotate(&x, &y);
+```
+
 
 ## Script: converte ONNX model from `float32` to `float16`
 

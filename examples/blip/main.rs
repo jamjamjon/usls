@@ -3,13 +3,13 @@ use usls::{models::Blip, Options};
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // visual
     let options_visual = Options::default()
-        .with_model("../e/models/blip-visual-base.onnx")
+        .with_model("../models/blip-visual-base.onnx")
         .with_i00((1, 1, 4).into())
         .with_profile(false);
 
     // textual
     let options_textual = Options::default()
-        .with_model("../e/models/blip-textual-base.onnx")
+        .with_model("../models/blip-textual-base.onnx")
         .with_i00((1, 1, 4).into()) // input_id: batch
         .with_i01((1, 1, 4).into()) // input_id: seq_len
         .with_i10((1, 1, 4).into()) // attention_mask: batch

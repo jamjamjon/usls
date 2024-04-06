@@ -209,7 +209,6 @@ impl OrtEngine {
             .with_int8(int8_enable)
             .with_fp16(fp16_enable)
             .with_engine_cache(engine_cache_enable)
-            // .with_engine_cache_path(config_dir().to_str().unwrap())
             .with_engine_cache_path(format!(
                 "{}/{}",
                 config_dir().to_str().unwrap(),
@@ -345,7 +344,7 @@ impl OrtEngine {
     }
 
     pub fn width(&self) -> &MinOptMax {
-        &self.inputs_minoptmax[0][2]
+        &self.inputs_minoptmax[0][3]
     }
 
     pub fn is_batch_dyn(&self) -> bool {

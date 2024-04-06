@@ -151,6 +151,11 @@ impl Options {
         self
     }
 
+    pub fn with_vocab(mut self, vocab: &str) -> Self {
+        self.vocab = Some(auto_load(vocab).unwrap());
+        self
+    }
+
     pub fn with_unclip_ratio(mut self, x: f32) -> Self {
         self.unclip_ratio = x;
         self

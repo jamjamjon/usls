@@ -60,7 +60,6 @@ pub fn letterbox(
     width: u32,
     bg: f32,
 ) -> Result<Array<f32, IxDyn>> {
-    // TODO: return w_h_ratio?
     let mut ys = Array::ones((xs.len(), 3, height as usize, width as usize)).into_dyn();
     ys.fill(bg);
     for (idx, x) in xs.iter().enumerate() {
@@ -71,6 +70,31 @@ pub fn letterbox(
             h_new as u32,
             image::imageops::FilterType::CatmullRom,
         );
+        for (x, y, rgb) in img.pixels() {
+            let x = x as usize;
+            let y = y as usize;
+            let [r, g, b, _] = rgb.0;
+            ys[[idx, 0, y, x]] = r as f32;
+            ys[[idx, 1, y, x]] = g as f32;
+            ys[[idx, 2, y, x]] = b as f32;
+        }
+    }
+    Ok(ys)
+}
+
+pub fn resize_with_fixed_height(
+    xs: &[DynamicImage],
+    height: u32,
+    width: u32,
+    bg: f32,
+) -> Result<Array<f32, IxDyn>> {
+    let mut ys = Array::ones((xs.len(), 3, height as usize, width as usize)).into_dyn();
+    ys.fill(bg);
+    for (idx, x) in xs.iter().enumerate() {
+        let (w0, h0) = x.dimensions();
+        let h_new = height;
+        let w_new = height * w0 / h0;
+        let img = x.resize_exact(w_new, h_new, image::imageops::FilterType::CatmullRom);
         for (x, y, rgb) in img.pixels() {
             let x = x as usize;
             let y = y as usize;
