@@ -42,14 +42,14 @@ cargo run -r --example clip
 ## Results
 
 ```shell
-(82.24775%) ./examples/clip/images/carrot.jpg => 几个胡萝卜 
-[0.06708972, 0.0067733657, 0.0019306632, 0.8224775, 0.003044935, 0.083962336, 0.014721389]
+(90.11472%) ./examples/clip/images/carrot.jpg => 几个胡萝卜 
+[0.04573484, 0.0048218793, 0.0011618224, 0.90114725, 0.0036694852, 0.031348046, 0.0121166315]
 
-(85.56889%) ./examples/clip/images/doll.jpg => There is a doll with red hair and a clock on a table 
-[0.0786363, 0.0004783095, 0.00060898095, 0.06286741, 0.0006842306, 0.8556889, 0.0010357979]
+(94.07785%) ./examples/clip/images/peoples.jpg => Some people holding wine glasses in a restaurant 
+[0.050406333, 0.0011632168, 0.0019338318, 0.0013227565, 0.003916758, 0.00047858112, 0.9407785]
 
-(90.03625%) ./examples/clip/images/peoples.jpg => Some people holding wine glasses in a restaurant 
-[0.07473288, 0.0027821448, 0.0075673857, 0.010874652, 0.003041679, 0.0006387719, 0.9003625]
+(86.59852%) ./examples/clip/images/doll.jpg => There is a doll with red hair and a clock on a table 
+[0.07032883, 0.00053773675, 0.0006372929, 0.06066096, 0.0007378078, 0.8659852, 0.0011121632]
 ```
 
 

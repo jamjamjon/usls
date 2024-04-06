@@ -13,25 +13,25 @@ pub struct Options {
     pub i04: Option<MinOptMax>,
     pub i05: Option<MinOptMax>,
     pub i10: Option<MinOptMax>, // 2nd input, axis 0
-    pub i11: Option<MinOptMax>,
+    pub i11: Option<MinOptMax>, // 2nd input, axis 1
     pub i12: Option<MinOptMax>,
     pub i13: Option<MinOptMax>,
     pub i14: Option<MinOptMax>,
     pub i15: Option<MinOptMax>,
-    pub i20: Option<MinOptMax>, // 2nd input, axis 0
+    pub i20: Option<MinOptMax>,
     pub i21: Option<MinOptMax>,
     pub i22: Option<MinOptMax>,
     pub i23: Option<MinOptMax>,
     pub i24: Option<MinOptMax>,
     pub i25: Option<MinOptMax>,
-    pub i30: Option<MinOptMax>, // 2nd input, axis 0
+    pub i30: Option<MinOptMax>,
     pub i31: Option<MinOptMax>,
     pub i32_: Option<MinOptMax>,
     pub i33: Option<MinOptMax>,
     pub i34: Option<MinOptMax>,
     pub i35: Option<MinOptMax>,
 
-    // trt ep
+    // trt related
     pub trt_engine_cache_enable: bool,
     pub trt_int8_enable: bool,
     pub trt_fp16_enable: bool,
@@ -44,12 +44,13 @@ pub struct Options {
     pub kconfs: Vec<f32>,
     pub iou: f32,
     pub apply_nms: bool,
-    pub saveout: Option<String>,
     pub tokenizer: Option<String>,
     pub vocab: Option<String>,
     pub names: Option<Vec<String>>, // class names
     pub anchors_first: bool,        // otuput format: [bs, anchors/na, pos+nc+nm]
-    pub skeletons: Option<Vec<(usize, usize)>>,
+    pub min_width: Option<f32>,
+    pub min_height: Option<f32>,
+    pub unclip_ratio: f32, // DB
 }
 
 impl Default for Options {
@@ -93,12 +94,13 @@ impl Default for Options {
             kconfs: vec![0.5f32],
             iou: 0.45f32,
             apply_nms: true,
-            saveout: None,
             tokenizer: None,
             vocab: None,
             names: None,
             anchors_first: false,
-            skeletons: None,
+            min_width: None,
+            min_height: None,
+            unclip_ratio: 1.5,
         }
     }
 }
@@ -144,18 +146,28 @@ impl Options {
         self
     }
 
-    pub fn with_saveout(mut self, saveout: &str) -> Self {
-        self.saveout = Some(saveout.to_string());
-        self
-    }
-
     pub fn with_names(mut self, names: &[&str]) -> Self {
         self.names = Some(names.iter().map(|x| x.to_string()).collect::<Vec<String>>());
         self
     }
 
-    pub fn with_skeletons(mut self, skeletons: &[(usize, usize)]) -> Self {
-        self.skeletons = Some(skeletons.to_vec());
+    pub fn with_vocab(mut self, vocab: &str) -> Self {
+        self.vocab = Some(auto_load(vocab).unwrap());
+        self
+    }
+
+    pub fn with_unclip_ratio(mut self, x: f32) -> Self {
+        self.unclip_ratio = x;
+        self
+    }
+
+    pub fn with_min_width(mut self, x: f32) -> Self {
+        self.min_width = Some(x);
+        self
+    }
+
+    pub fn with_min_height(mut self, x: f32) -> Self {
+        self.min_height = Some(x);
         self
     }
 

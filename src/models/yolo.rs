@@ -5,8 +5,8 @@ use ndarray::{s, Array, Axis, IxDyn};
 use regex::Regex;
 
 use crate::{
-    non_max_suppression, ops, Annotator, Bbox, DynConf, Embedding, Keypoint, MinOptMax, Options,
-    OrtEngine, Point, Rect, Results,
+    ops, Bbox, DynConf, Embedding, Keypoint, MinOptMax, Options, OrtEngine, Point, Polygon, Rect,
+    Ys,
 };
 
 const CXYWH_OFFSET: usize = 4;
@@ -34,8 +34,7 @@ pub struct YOLO {
     confs: DynConf,
     kconfs: DynConf,
     iou: f32,
-    saveout: Option<String>,
-    annotator: Annotator,
+    // saveout: Option<String>,
     names: Option<Vec<String>>,
     apply_nms: bool,
     anchors_first: bool,
@@ -101,11 +100,6 @@ impl YOLO {
         };
         let confs = DynConf::new(&options.confs, nc);
         let kconfs = DynConf::new(&options.kconfs, nk);
-        let mut annotator = Annotator::default();
-        if let Some(skeletons) = &options.skeletons {
-            annotator = annotator.with_skeletons(skeletons);
-        }
-        let saveout = options.saveout.to_owned();
         engine.dry_run()?;
 
         Ok(Self {
@@ -121,44 +115,27 @@ impl YOLO {
             width,
             batch,
             task,
-            saveout,
-            annotator,
             names,
             anchors_first: options.anchors_first,
         })
     }
 
-    pub fn run(&mut self, xs: &[DynamicImage]) -> Result<Vec<Results>> {
-        let xs_ = ops::letterbox(xs, self.height() as u32, self.width() as u32)?;
+    pub fn run(&mut self, xs: &[DynamicImage]) -> Result<Vec<Ys>> {
+        let xs_ = ops::letterbox(xs, self.height() as u32, self.width() as u32, 144.0)?;
+        let xs_ = ops::normalize(xs_, 0.0, 255.0);
         let ys = self.engine.run(&[xs_])?;
         let ys = self.postprocess(ys, xs)?;
-        match &self.saveout {
-            None => println!("{ys:?}"),
-            Some(saveout) => {
-                for (img0, y) in xs.iter().zip(ys.iter()) {
-                    let mut img = img0.to_rgb8();
-                    self.annotator.plot(&mut img, y);
-                    self.annotator.save(&img, saveout);
-                }
-            }
-        }
         Ok(ys)
     }
 
-    pub fn postprocess(
-        &self,
-        xs: Vec<Array<f32, IxDyn>>,
-        xs0: &[DynamicImage],
-    ) -> Result<Vec<Results>> {
+    pub fn postprocess(&self, xs: Vec<Array<f32, IxDyn>>, xs0: &[DynamicImage]) -> Result<Vec<Ys>> {
         if let YOLOTask::Classify = self.task {
             let mut ys = Vec::new();
             for batch in xs[0].axis_iter(Axis(0)) {
-                ys.push(Results::new(
-                    Some(Embedding::new(batch.into_owned(), self.names.to_owned())),
-                    None,
-                    None,
-                    None,
-                ));
+                ys.push(
+                    Ys::default()
+                        .with_probs(Embedding::new(batch.into_owned(), self.names.to_owned())),
+                );
             }
             Ok(ys)
         } else {
@@ -265,13 +242,16 @@ impl YOLO {
 
                 // nms
                 if self.apply_nms {
-                    non_max_suppression(&mut data, self.iou);
+                    Self::non_max_suppression(&mut data, self.iou);
                 }
 
                 // decode
                 let mut y_bboxes: Vec<Bbox> = Vec::new();
                 let mut y_kpts: Vec<Vec<Keypoint>> = Vec::new();
+
                 let mut y_masks: Vec<Vec<u8>> = Vec::new();
+                let mut y_polygons: Vec<Polygon> = Vec::new();
+
                 for elem in data.into_iter() {
                     if let Some(kpts) = elem.1 {
                         y_kpts.push(kpts)
@@ -291,7 +271,6 @@ impl YOLO {
                         let mask_im: ImageBuffer<image::Luma<_>, Vec<f32>> =
                             ImageBuffer::from_raw(nw as u32, nh as u32, mask.into_raw_vec())
                                 .expect("Faild to create image from ndarray");
-
                         let mut mask_im = image::DynamicImage::from(mask_im); // -> dyn
 
                         // rescale masks
@@ -305,7 +284,7 @@ impl YOLO {
                         );
 
                         // crop-mask with bbox
-                        let mut mask_original_cropped = mask_original.into_luma8();
+                        let mut mask_object_cropped = mask_original.into_luma8(); // gray image
                         for y in 0..height_original as usize {
                             for x in 0..width_original as usize {
                                 if x < elem.0.xmin() as usize
@@ -313,7 +292,7 @@ impl YOLO {
                                     || y < elem.0.ymin() as usize
                                     || y > elem.0.ymax() as usize
                                 {
-                                    mask_original_cropped.put_pixel(
+                                    mask_object_cropped.put_pixel(
                                         x as u32,
                                         y as u32,
                                         image::Luma([0u8]),
@@ -321,31 +300,37 @@ impl YOLO {
                                 }
                             }
                         }
-                        y_masks.push(mask_original_cropped.into_raw());
+
+                        // mask -> contours
+                        let contours: Vec<imageproc::contours::Contour<i32>> =
+                            imageproc::contours::find_contours_with_threshold(
+                                &mask_object_cropped,
+                                1,
+                            );
+
+                        // contours -> polygons
+                        contours.iter().for_each(|contour| {
+                            if let imageproc::contours::BorderType::Outer = contour.border_type {
+                                if contour.points.len() > 1 {
+                                    y_polygons.push(Polygon::from_contour(contour));
+                                }
+                            }
+                        });
+
+                        // save each mask
+                        y_masks.push(mask_object_cropped.into_raw());
                     }
                     y_bboxes.push(elem.0);
                 }
 
-                // save each result
-                let y = Results {
-                    probs: None,
-                    bboxes: if !y_bboxes.is_empty() {
-                        Some(y_bboxes)
-                    } else {
-                        None
-                    },
-                    keypoints: if !y_kpts.is_empty() {
-                        Some(y_kpts)
-                    } else {
-                        None
-                    },
-                    masks: if !y_masks.is_empty() {
-                        Some(y_masks)
-                    } else {
-                        None
-                    },
-                };
-                ys.push(y);
+                // save result
+                ys.push(
+                    Ys::default()
+                        .with_bboxes(&y_bboxes)
+                        .with_keypoints(&y_kpts)
+                        .with_masks(&y_masks)
+                        .with_polygons(&y_polygons),
+                );
             }
 
             Ok(ys)
@@ -375,5 +360,30 @@ impl YOLO {
 
     pub fn height(&self) -> isize {
         self.height.opt
+    }
+
+    #[allow(clippy::type_complexity)]
+    fn non_max_suppression(
+        xs: &mut Vec<(Bbox, Option<Vec<Keypoint>>, Option<Vec<f32>>)>,
+        iou_threshold: f32,
+    ) {
+        xs.sort_by(|b1, b2| b2.0.confidence().partial_cmp(&b1.0.confidence()).unwrap());
+
+        let mut current_index = 0;
+        for index in 0..xs.len() {
+            let mut drop = false;
+            for prev_index in 0..current_index {
+                let iou = xs[prev_index].0.iou(&xs[index].0);
+                if iou > iou_threshold {
+                    drop = true;
+                    break;
+                }
+            }
+            if !drop {
+                xs.swap(current_index, index);
+                current_index += 1;
+            }
+        }
+        xs.truncate(current_index);
     }
 }

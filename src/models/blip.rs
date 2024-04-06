@@ -4,7 +4,7 @@ use ndarray::{s, Array, Axis, IxDyn};
 use std::io::Write;
 use tokenizers::Tokenizer;
 
-use crate::{auto_load, ops, MinOptMax, Options, OrtEngine, TokenizerStream};
+use crate::{auto_load, ops, LogitsSampler, MinOptMax, Options, OrtEngine, TokenizerStream};
 
 #[derive(Debug)]
 pub struct Blip {
@@ -47,7 +47,13 @@ impl Blip {
     }
 
     pub fn encode_images(&self, xs: &[DynamicImage]) -> Result<Array<f32, IxDyn>> {
-        let xs_ = ops::resize(xs, self.height.opt as u32, self.width.opt as u32, true)?;
+        let xs_ = ops::resize(xs, self.height.opt as u32, self.width.opt as u32)?;
+        let xs_ = ops::normalize(xs_, 0.0, 255.0);
+        let xs_ = ops::standardize(
+            xs_,
+            &[0.48145466, 0.4578275, 0.40821073],
+            &[0.26862954, 0.2613026, 0.2757771],
+        );
         let ys: Vec<Array<f32, IxDyn>> = self.visual.run(&[xs_])?;
         let ys = ys[0].to_owned();
         Ok(ys)
@@ -63,7 +69,7 @@ impl Blip {
         // conditional
         let mut input_ids = match prompt {
             None => {
-                print!("[Unconditional image captioning]: ");
+                print!("[Unconditional]: ");
                 vec![0.0f32]
             }
 
@@ -75,10 +81,12 @@ impl Blip {
                     .iter()
                     .map(|x| *x as f32)
                     .collect();
-                print!("[Conditional image captioning]: {} ", prompt);
+                print!("[Conditional]: {} ", prompt);
                 ids
             }
         };
+
+        let mut logits_sampler = LogitsSampler::new();
         loop {
             let input_ids_nd: Array<f32, IxDyn> = Array::from_vec(input_ids.to_owned()).into_dyn();
             let input_ids_nd = input_ids_nd.insert_axis(Axis(0));
@@ -90,21 +98,9 @@ impl Blip {
                 image_embeds.to_owned(),
                 image_embeds_attn_mask.to_owned(),
             ])?; // N, length, vocab_size
-            let y = y[0].to_owned();
-            let y = y.slice(s!(0, -1.., ..));
-
-            // softmax
-            let exps = y.mapv(|c| c.exp());
-            let stds = exps.sum_axis(Axis(1));
-            let probs = exps / stds.insert_axis(Axis(1));
-            let probs = probs.slice(s!(0, ..));
-
-            // argmax
-            let (token_id, _) = probs
-                .into_iter()
-                .enumerate()
-                .reduce(|max, x| if x.1 > max.1 { x } else { max })
-                .unwrap();
+            let y = y[0].slice(s!(0, -1.., ..));
+            let logits = y.slice(s!(0, ..)).to_vec();
+            let token_id = logits_sampler.decode(&logits)?;
             input_ids.push(token_id as f32);
 
             // SEP
@@ -117,8 +113,9 @@ impl Blip {
                 print!("{t}");
                 std::io::stdout().flush()?;
             }
+
             // sleep for test
-            std::thread::sleep(std::time::Duration::from_millis(10));
+            std::thread::sleep(std::time::Duration::from_millis(5));
         }
         println!();
         self.tokenizer.clear();

@@ -1,4 +1,4 @@
-use crate::{Bbox, Keypoint, GITHUB_ASSETS};
+use crate::GITHUB_ASSETS;
 use anyhow::Result;
 use indicatif::{ProgressBar, ProgressStyle};
 use std::io::{Read, Write};
@@ -90,31 +90,6 @@ pub fn config_dir() -> PathBuf {
         }
         None => panic!("Unsupported operating system. Now support Linux, MacOS, Windows."),
     }
-}
-
-#[allow(clippy::type_complexity)]
-pub fn non_max_suppression(
-    xs: &mut Vec<(Bbox, Option<Vec<Keypoint>>, Option<Vec<f32>>)>,
-    iou_threshold: f32,
-) {
-    xs.sort_by(|b1, b2| b2.0.confidence().partial_cmp(&b1.0.confidence()).unwrap());
-
-    let mut current_index = 0;
-    for index in 0..xs.len() {
-        let mut drop = false;
-        for prev_index in 0..current_index {
-            let iou = xs[prev_index].0.iou(&xs[index].0);
-            if iou > iou_threshold {
-                drop = true;
-                break;
-            }
-        }
-        if !drop {
-            xs.swap(current_index, index);
-            current_index += 1;
-        }
-    }
-    xs.truncate(current_index);
 }
 
 pub const COCO_SKELETON_17: [(usize, usize); 16] = [
