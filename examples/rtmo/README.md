@@ -27,7 +27,7 @@ let options = Options::default()
 ### 3. Then, run
 
 ```bash
-cargo run -r --example rtdetr
+cargo run -r --example rtmo
 ```
 
 ## Results
