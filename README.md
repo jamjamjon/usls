@@ -1,6 +1,6 @@
 # usls
 
-A Rust library integrated with **ONNXRuntime**, providing a collection of **Computer Vison** and **Vision-Language** models including [YOLOv8](https://github.com/ultralytics/ultralytics) `(Classification, Segmentation, Detection and Pose Detection)`, [YOLOv9](https://github.com/WongKinYiu/yolov9), [RTDETR](https://arxiv.org/abs/2304.08069), [CLIP](https://github.com/openai/CLIP), [DINOv2](https://github.com/facebookresearch/dinov2), [FastSAM](https://github.com/CASIA-IVA-Lab/FastSAM), [YOLO-World](https://github.com/AILab-CVC/YOLO-World), [BLIP](https://arxiv.org/abs/2201.12086), [PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR) and others. Many execution providers are supported, sunch as `CUDA`, `TensorRT` and `CoreML`.
+A Rust library integrated with **ONNXRuntime**, providing a collection of **Computer Vison** and **Vision-Language** models including [YOLOv8](https://github.com/ultralytics/ultralytics), [YOLOv9](https://github.com/WongKinYiu/yolov9), [RTDETR](https://arxiv.org/abs/2304.08069), [CLIP](https://github.com/openai/CLIP), [DINOv2](https://github.com/facebookresearch/dinov2), [FastSAM](https://github.com/CASIA-IVA-Lab/FastSAM), [YOLO-World](https://github.com/AILab-CVC/YOLO-World), [BLIP](https://arxiv.org/abs/2201.12086), [PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR) and others. Many execution providers are supported, sunch as `CUDA`, `TensorRT` and `CoreML`.
 
 ## Supported Models
 
@@ -18,12 +18,14 @@ A Rust library integrated with **ONNXRuntime**, providing a collection of **Comp
 |                         **DINOv2**                         |   [demo](examples/dinov2)   |      ✅      |      ✅      |             ✅             |            ✅            |
 |                          **CLIP**                          |    [demo](examples/clip)    |      ✅      |      ✅      | ✅ visual<br />❌ textual | ✅ visual<br />❌ textual |
 |                          **BLIP**                          |    [demo](examples/blip)    |      ✅      |      ✅      | ✅ visual<br />❌ textual | ✅ visual<br />❌ textual |
-|   [**DB(Text Detection)**](https://arxiv.org/abs/1911.08947)   |     [demo](examples/db)     |      ✅      |      ❌      |             ✅             |            ✅            |
-| [**SVTR(Text Recognition)**](https://arxiv.org/abs/2205.00159) |    [demo](examples/svtr)    |      ✅      |      ❌      |             ✅             |            ✅            |
+|   [**DB<br />(Text Detection)**](https://arxiv.org/abs/1911.08947)   |     [demo](examples/db)     |      ✅      |      ❌      |             ✅             |            ✅            |
+| [**SVTR<br />(Text Recognition)**](https://arxiv.org/abs/2205.00159) |    [demo](examples/svtr)    |      ✅      |      ❌      |             ✅             |            ✅            |
+|       [**RTMO<br />(Keypoint Detection)**](https://github.com/open-mmlab/mmpose/tree/main/projects/rtmo)                       |   [demo](examples/rtmo)   |      ✅      |     TODO       |             TODO             |          TODO              |
+
 
 ## Solution Models
 
-Additionally, this repo also provides some solution models such as pedestrian `fall detection`, `head detection`, `trash detection`, and more.
+Additionally, this repo also provides some solution models.
 
 |                                       Model                                       |             Example             |
 | :--------------------------------------------------------------------------------: | :------------------------------: |

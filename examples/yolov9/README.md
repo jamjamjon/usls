@@ -10,7 +10,7 @@ cargo run -r --example yolov9
 
 - **Download**
 
-  [yolov9-c-dyn-fp16](https://github.com/jamjamjon/assets/releases/download/v0.0.1/yolov9-c-dyn-f16.onnx)
+  [yolov9-c-dyn-fp16](https://github.com/jamjamjon/assets/releases/download/v0.0.1/yolov9-c-dyn-f16.onnx)  
 - **Export**
 
   ```shell
@@ -31,7 +31,6 @@ cargo run -r --example yolov9
 ```Rust
 let options = Options::default()
     .with_model("ONNX_PATH")   // <= modify this
-    .with_saveout("YOLOv9");
 ```
 
 ### 3. Run

@@ -38,7 +38,6 @@ yolo export model=yolov8m-seg.pt format=onnx simplify
 let options = Options::default()
     .with_model("ONNX_PATH")   // <= modify this
     .with_confs(&[0.4, 0.15]) // person: 0.4, others: 0.15
-    .with_saveout("YOLOv8");
 let mut model = YOLO::new(&options)?;
 ```
 

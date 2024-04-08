@@ -34,7 +34,6 @@ pub struct YOLO {
     confs: DynConf,
     kconfs: DynConf,
     iou: f32,
-    // saveout: Option<String>,
     names: Option<Vec<String>>,
     apply_nms: bool,
     anchors_first: bool,

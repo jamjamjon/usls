@@ -33,6 +33,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // run & annotate
     for (xs, _paths) in dl {
         let ys = model.run(&xs)?;
+        println!("{:?}", ys);
         annotator.annotate(&xs, &ys);
     }
 

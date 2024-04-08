@@ -25,7 +25,6 @@ cargo run -r --example fastsam
 ```Rust
 let options = Options::default()
     .with_model("../models/FastSAM-s-dyn-f16.onnx")    // <= modify this
-    .with_saveout("FastSAM")
     .with_profile(false);
 let mut model = YOLO::new(&options)?;
 ```

@@ -156,6 +156,11 @@ impl Options {
         self
     }
 
+    pub fn with_tokenizer(mut self, tokenizer: &str) -> Self {
+        self.tokenizer = Some(auto_load(tokenizer).unwrap());
+        self
+    }
+
     pub fn with_unclip_ratio(mut self, x: f32) -> Self {
         self.unclip_ratio = x;
         self
@@ -203,11 +208,6 @@ impl Options {
 
     pub fn with_kconfs(mut self, kconfs: &[f32]) -> Self {
         self.kconfs = kconfs.to_vec();
-        self
-    }
-
-    pub fn with_tokenizer(mut self, tokenizer: String) -> Self {
-        self.tokenizer = Some(tokenizer);
         self
     }
 

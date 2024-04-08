@@ -41,7 +41,6 @@ impl RTDETR {
                 .expect("Failed to get num_classes, make it explicit with `--nc`")
                 .len(),
         );
-        // let annotator = Annotator::default();
         let confs = DynConf::new(&options.confs, nc);
         engine.dry_run()?;
 

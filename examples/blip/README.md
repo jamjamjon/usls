@@ -47,7 +47,6 @@ cargo run -r --example blip
 
 ## TODO
 
-* [ ] text decode with Top-p sample
 * [ ] VQA
 * [ ] Retrival
 * [ ] TensorRT support for textual model
