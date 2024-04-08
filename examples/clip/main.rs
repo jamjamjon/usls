@@ -10,6 +10,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // textual
     let options_textual = Options::default()
         .with_model("../models/clip-b32-textual-dyn.onnx")
+        .with_tokenizer("tokenizer-clip.json")
         .with_i00((1, 1, 4).into())
         .with_profile(false);
 

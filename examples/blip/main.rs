@@ -10,6 +10,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // textual
     let options_textual = Options::default()
         .with_model("../models/blip-textual-base.onnx")
+        .with_tokenizer("tokenizer-blip.json")
         .with_i00((1, 1, 4).into()) // input_id: batch
         .with_i01((1, 1, 4).into()) // input_id: seq_len
         .with_i10((1, 1, 4).into()) // attention_mask: batch

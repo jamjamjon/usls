@@ -23,7 +23,6 @@ cargo run -r --example rtdetr
 ```Rust
 let options = Options::default()
     .with_model("ONNX_MODEL")    // <= modify this
-    .with_saveout("RT-DETR");
 ```
 
 ### 3. Then, run

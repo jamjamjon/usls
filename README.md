@@ -1,29 +1,30 @@
 # usls
 
-A Rust library integrated with **ONNXRuntime**, providing a collection of **Computer Vison** and **Vision-Language** models including [YOLOv8](https://github.com/ultralytics/ultralytics) `(Classification, Segmentation, Detection and Pose Detection)`, [YOLOv9](https://github.com/WongKinYiu/yolov9), [RTDETR](https://arxiv.org/abs/2304.08069), [CLIP](https://github.com/openai/CLIP), [DINOv2](https://github.com/facebookresearch/dinov2), [FastSAM](https://github.com/CASIA-IVA-Lab/FastSAM), [YOLO-World](https://github.com/AILab-CVC/YOLO-World), [BLIP](https://arxiv.org/abs/2201.12086), [PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR) and others. Many execution providers are supported, sunch as `CUDA`, `TensorRT` and `CoreML`.
+A Rust library integrated with **ONNXRuntime**, providing a collection of **Computer Vison** and **Vision-Language** models including [YOLOv8](https://github.com/ultralytics/ultralytics), [YOLOv9](https://github.com/WongKinYiu/yolov9), [RTDETR](https://arxiv.org/abs/2304.08069), [CLIP](https://github.com/openai/CLIP), [DINOv2](https://github.com/facebookresearch/dinov2), [FastSAM](https://github.com/CASIA-IVA-Lab/FastSAM), [YOLO-World](https://github.com/AILab-CVC/YOLO-World), [BLIP](https://arxiv.org/abs/2201.12086), [PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR) and others. Many execution providers are supported, sunch as `CUDA`, `TensorRT` and `CoreML`.
 
 ## Supported Models
 
-|                               Model                               |         Example         | CUDA<br />f32 | CUDA<br />f16 |     TensorRT<br />f32     |     TensorRT<br />f16     |
-| :---------------------------------------------------------------: | :----------------------: | :-----------: | :-----------: | :------------------------: | :-----------------------: |
-|                    **YOLOv8-detection**                    |   [demo](examples/yolov8)   |      ✅      |      ✅      |             ✅             |            ✅            |
-|                       **YOLOv8-pose**                       |   [demo](examples/yolov8)   |      ✅      |      ✅      |             ✅             |            ✅            |
-|                  **YOLOv8-classification**                  |   [demo](examples/yolov8)   |      ✅      |      ✅      |             ✅             |            ✅            |
-|                   **YOLOv8-segmentation**                   |   [demo](examples/yolov8)   |      ✅      |      ✅      |             ✅             |            ✅            |
-|                       **YOLOv8-OBB**                       |           TODO           |     TODO     |     TODO     |            TODO            |           TODO           |
-|                         **YOLOv9**                         |   [demo](examples/yolov9)   |      ✅      |      ✅      |             ✅             |            ✅            |
-|                         **RT-DETR**                         |   [demo](examples/rtdetr)   |      ✅      |      ✅      |             ✅             |            ✅            |
-|                         **FastSAM**                         |  [demo](examples/fastsam)  |      ✅      |      ✅      |             ✅             |            ✅            |
-|                       **YOLO-World**                       | [demo](examples/yolo-world) |      ✅      |      ✅      |             ✅             |            ✅            |
-|                         **DINOv2**                         |   [demo](examples/dinov2)   |      ✅      |      ✅      |             ✅             |            ✅            |
-|                          **CLIP**                          |    [demo](examples/clip)    |      ✅      |      ✅      | ✅ visual<br />❌ textual | ✅ visual<br />❌ textual |
-|                          **BLIP**                          |    [demo](examples/blip)    |      ✅      |      ✅      | ✅ visual<br />❌ textual | ✅ visual<br />❌ textual |
-|   [**DB(Text Detection)**](https://arxiv.org/abs/1911.08947)   |     [demo](examples/db)     |      ✅      |      ❌      |             ✅             |            ✅            |
-| [**SVTR(Text Recognition)**](https://arxiv.org/abs/2205.00159) |    [demo](examples/svtr)    |      ✅      |      ❌      |             ✅             |            ✅            |
+|                               Model                               |         Task / Type         |        Example         | CUDA<br />f32 | CUDA<br />f16 |     TensorRT<br />f32     |     TensorRT<br />f16     |
+| :---------------------------------------------------------------: | :----------------------: |:----------------------: | :-----------: | :-----------: | :------------------------: | :-----------------------: |
+|                    **[YOLOv8-detection](https://github.com/ultralytics/ultralytics)**        |     Object Detection       |   [demo](examples/yolov8)   |      ✅      |      ✅      |             ✅             |            ✅            |
+|                       **[YOLOv8-pose](https://github.com/ultralytics/ultralytics)**          |     Keypoint Detection        |   [demo](examples/yolov8)   |      ✅      |      ✅      |             ✅             |            ✅            |
+|                  **[YOLOv8-classification](https://github.com/ultralytics/ultralytics)**      |      Classification       |   [demo](examples/yolov8)   |      ✅      |      ✅      |             ✅             |            ✅            |
+|                   **[YOLOv8-segmentation](https://github.com/ultralytics/ultralytics)**       |    Instance Segmentation        |   [demo](examples/yolov8)   |      ✅      |      ✅      |             ✅             |            ✅            |
+|                         **[YOLOv9](https://github.com/WongKinYiu/yolov9)**       |      Object Detection       |   [demo](examples/yolov9)   |      ✅      |      ✅      |             ✅             |            ✅            |
+|                         **[RT-DETR](https://arxiv.org/abs/2304.08069)**      |      Object Detection                      |   [demo](examples/rtdetr)   |      ✅      |      ✅      |             ✅             |            ✅            |
+|                         **[FastSAM](https://github.com/CASIA-IVA-Lab/FastSAM)**     |    Instance Segmentation                      |  [demo](examples/fastsam)  |      ✅      |      ✅      |             ✅             |            ✅            |
+|                       **[YOLO-World](https://github.com/AILab-CVC/YOLO-World)**      |     Object Detection                  | [demo](examples/yolo-world) |      ✅      |      ✅      |             ✅             |            ✅            |
+|                         **[DINOv2](https://github.com/facebookresearch/dinov2)**      |     Vision-Self-Supervised  |   [demo](examples/dinov2)   |      ✅      |      ✅      |             ✅             |            ✅            |
+|                          **[CLIP](https://github.com/openai/CLIP)**            |      Vision-Language    |    [demo](examples/clip)    |      ✅      |      ✅      | ✅ visual<br />❌ textual | ✅ visual<br />❌ textual |
+|                          **[BLIP](https://github.com/salesforce/BLIP)**       |   Vision-Language     |    [demo](examples/blip)    |      ✅      |      ✅      | ✅ visual<br />❌ textual | ✅ visual<br />❌ textual |
+|   [**DB**](https://arxiv.org/abs/1911.08947)   | Text Detection  |  [demo](examples/db)     |      ✅      |      ❌      |             ✅             |            ✅            |
+| [**SVTR**](https://arxiv.org/abs/2205.00159) | Text Recognition |   [demo](examples/svtr)    |      ✅      |      ❌      |             ✅             |            ✅            |
+| [**RTMO**](https://github.com/open-mmlab/mmpose/tree/main/projects/rtmo)  | Keypoint Detection     |   [demo](examples/rtmo)   |      ✅      |     ✅        |    ❌                    |          ❌              |
+
 
 ## Solution Models
 
-Additionally, this repo also provides some solution models such as pedestrian `fall detection`, `head detection`, `trash detection`, and more.
+Additionally, this repo also provides some solution models.
 
 |                                       Model                                       |             Example             |
 | :--------------------------------------------------------------------------------: | :------------------------------: |

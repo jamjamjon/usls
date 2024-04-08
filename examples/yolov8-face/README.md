@@ -8,7 +8,7 @@ cargo run -r --example yolov8-face
 
 ### 1. Donwload ONNX Model
 
-[yolov8-face-dyn-f16](https://github.com/jamjamjon/assets/releases/download/v0.0.1/yolov8-face-dyn-f16.onnx)
+[yolov8-face-dyn-f16](https://github.com/jamjamjon/assets/releases/download/v0.0.1/yolov8-face-dyn-f16.onnx)  
 
 ### 2. Specify the ONNX model path in `main.rs`
 

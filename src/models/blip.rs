@@ -4,7 +4,7 @@ use ndarray::{s, Array, Axis, IxDyn};
 use std::io::Write;
 use tokenizers::Tokenizer;
 
-use crate::{auto_load, ops, LogitsSampler, MinOptMax, Options, OrtEngine, TokenizerStream};
+use crate::{ops, LogitsSampler, MinOptMax, Options, OrtEngine, TokenizerStream};
 
 #[derive(Debug)]
 pub struct Blip {
@@ -27,11 +27,7 @@ impl Blip {
             visual.height().to_owned(),
             visual.width().to_owned(),
         );
-        let tokenizer = match &options_textual.tokenizer {
-            None => auto_load("tokenizer-blip.json")?,
-            Some(tokenizer) => tokenizer.into(),
-        };
-        let tokenizer = Tokenizer::from_file(tokenizer).unwrap();
+        let tokenizer = Tokenizer::from_file(&options_textual.tokenizer.unwrap()).unwrap();
         let tokenizer = TokenizerStream::new(tokenizer);
         visual.dry_run()?;
         textual.dry_run()?;

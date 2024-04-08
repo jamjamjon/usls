@@ -10,7 +10,7 @@ cargo run -r --example yolo-world
 
 - Download
 
-  [yolov8s-world-v2-shoes](https://github.com/jamjamjon/assets/releases/download/v0.0.1/yolov8s-world-v2-shoes.onnx)
+  [yolov8s-world-v2-shoes](https://github.com/jamjamjon/assets/releases/download/v0.0.1/yolov8s-world-v2-shoes.onnx)  
 - Or generate your own `yolo-world` model and then Export
 
   - Installation

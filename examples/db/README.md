@@ -8,7 +8,7 @@ cargo run -r --example db
 
 ### 1. Donwload ONNX Model
 
-[ppocr-v3-db-dyn](https://github.com/jamjamjon/assets/releases/download/v0.0.1/ppocr-v3-db-dyn.onnx)
+[ppocr-v3-db-dyn](https://github.com/jamjamjon/assets/releases/download/v0.0.1/ppocr-v3-db-dyn.onnx)  
 [ppocr-v4-db-dyn](https://github.com/jamjamjon/assets/releases/download/v0.0.1/ppocr-v4-db-dyn.onnx)
 
 ### 2. Specify the ONNX model path in `main.rs`

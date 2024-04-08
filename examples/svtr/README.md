@@ -8,9 +8,9 @@ cargo run -r --example svtr
 
 ### 1. Donwload ONNX Model
 
-[ppocr-v4-server-svtr-ch-dyn](https://github.com/jamjamjon/assets/releases/download/v0.0.1/ppocr-v4-server-svtr-ch-dyn.onnx)
-[ppocr-v4-svtr-ch-dyn](https://github.com/jamjamjon/assets/releases/download/v0.0.1/ppocr-v4-svtr-ch-dyn.onnx)
-[ppocr-v3-svtr-ch-dyn](https://github.com/jamjamjon/assets/releases/download/v0.0.1/ppocr-v3-svtr-ch-dyn.onnx)
+[ppocr-v4-server-svtr-ch-dyn](https://github.com/jamjamjon/assets/releases/download/v0.0.1/ppocr-v4-server-svtr-ch-dyn.onnx)  
+[ppocr-v4-svtr-ch-dyn](https://github.com/jamjamjon/assets/releases/download/v0.0.1/ppocr-v4-svtr-ch-dyn.onnx)  
+[ppocr-v3-svtr-ch-dyn](https://github.com/jamjamjon/assets/releases/download/v0.0.1/ppocr-v3-svtr-ch-dyn.onnx)  
 
 ### 2. Specify the ONNX model path in `main.rs`
 

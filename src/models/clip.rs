@@ -1,7 +1,6 @@
-use crate::{auto_load, ops, MinOptMax, Options, OrtEngine};
+use crate::{ops, MinOptMax, Options, OrtEngine};
 use anyhow::Result;
 use image::DynamicImage;
-// use itertools::Itertools;
 use ndarray::{Array, Array2, Axis, IxDyn};
 use tokenizers::{PaddingDirection, PaddingParams, PaddingStrategy, Tokenizer};
 
@@ -28,11 +27,7 @@ impl Clip {
             visual.inputs_minoptmax()[0][2].to_owned(),
             visual.inputs_minoptmax()[0][3].to_owned(),
         );
-        let tokenizer = match &options_textual.tokenizer {
-            None => auto_load("tokenizer-clip.json").unwrap(),
-            Some(tokenizer) => tokenizer.into(),
-        };
-        let mut tokenizer = Tokenizer::from_file(tokenizer).unwrap();
+        let mut tokenizer = Tokenizer::from_file(&options_textual.tokenizer.unwrap()).unwrap();
         tokenizer.with_padding(Some(PaddingParams {
             strategy: PaddingStrategy::Fixed(context_length),
             direction: PaddingDirection::Right,
