@@ -7,6 +7,22 @@ on:
     branches: [ "main" ]
 
 jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macOS-latest]
+        rust: [stable]
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: Build
+      run: cargo build --examples --verbose
+    - name: Run tests
+      run: cargo test --examples --verbose
+    - name: Run check
+      run: cargo check --examples --verbose
+
   check:
     name: Check
     runs-on: ${{ matrix.os }}
