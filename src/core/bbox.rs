@@ -59,6 +59,7 @@ impl Bbox {
     pub fn id(&self) -> usize {
         self.id
     }
+
     pub fn name(&self) -> Option<&String> {
         self.name.as_ref()
     }

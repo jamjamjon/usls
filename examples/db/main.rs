@@ -22,9 +22,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // annotate
     let annotator = Annotator::default()
-        .with_polygon_color([255u8, 0u8, 0u8])
         .without_name(true)
         .without_polygons(false)
+        .with_mask_alpha(0)
         .without_bboxes(false)
         .with_saveout("DB-Text-Detection");
     annotator.annotate(&x, &y);

@@ -89,11 +89,11 @@ impl Rect {
     }
 
     pub fn cx(&self) -> f32 {
-        self.bottom_right.x - self.top_left.x
+        (self.bottom_right.x + self.top_left.x) / 2.0
     }
 
     pub fn cy(&self) -> f32 {
-        self.bottom_right.y - self.top_left.y
+        (self.bottom_right.y + self.top_left.y) / 2.0
     }
 
     pub fn tl(&self) -> Point {

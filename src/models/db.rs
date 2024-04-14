@@ -1,4 +1,4 @@
-use crate::{ops, Bbox, DynConf, MinOptMax, Options, OrtEngine, Polygon, Ys};
+use crate::{ops, Bbox, DynConf, Mask, MinOptMax, Options, OrtEngine, Polygon, Ys};
 use anyhow::Result;
 use image::{DynamicImage, ImageBuffer};
 use ndarray::{Array, Axis, IxDyn};
@@ -94,7 +94,7 @@ impl DB {
                 imageproc::contours::find_contours_with_threshold(&mask_im, 1);
 
             // loop
-            let mut y_polygons: Vec<Polygon> = Vec::new();
+            let mut y_masks: Vec<Mask> = Vec::new();
             for contour in contours.iter() {
                 if contour.points.len() <= 1 {
                     continue;
@@ -115,15 +115,14 @@ impl DB {
                 if confidence < self.confs[0] {
                     continue;
                 }
-                let bbox = Bbox::new(rect, 0, confidence, None);
-                y_bbox.push(bbox);
-                y_polygons.push(polygon);
+                y_bbox.push(Bbox::new(rect, 0, confidence, None));
+                y_masks.push(Mask {
+                    polygon,
+                    id: 0,
+                    name: None,
+                });
             }
-            ys.push(
-                Ys::default()
-                    .with_bboxes(&y_bbox)
-                    .with_polygons(&y_polygons),
-            );
+            ys.push(Ys::default().with_bboxes(&y_bbox).with_masks(&y_masks));
         }
 
         Ok(ys)

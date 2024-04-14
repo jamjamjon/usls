@@ -6,6 +6,7 @@ mod rtdetr;
 mod rtmo;
 mod svtr;
 mod yolo;
+mod yolop;
 
 pub use blip::Blip;
 pub use clip::Clip;
@@ -15,3 +16,4 @@ pub use rtdetr::RTDETR;
 pub use rtmo::RTMO;
 pub use svtr::SVTR;
 pub use yolo::YOLO;
+pub use yolop::YOLOPv2;

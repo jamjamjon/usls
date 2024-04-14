@@ -111,14 +111,7 @@ impl RTDETR {
                 );
                 y_bboxes.push(y_bbox)
             }
-            let y = Ys {
-                probs: None,
-                bboxes: Some(y_bboxes),
-                keypoints: None,
-                masks: None,
-                polygons: None,
-            };
-            ys.push(y);
+            ys.push(Ys::default().with_bboxes(&y_bboxes));
         }
         Ok(ys)
     }

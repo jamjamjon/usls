@@ -4,9 +4,7 @@
 cargo run -r --example yolov9
 ```
 
-## Or you can manully
-
-### 1. Donwload or Export ONNX Model
+## Donwload or Export ONNX Model
 
 - **Download**
 
@@ -25,19 +23,6 @@ cargo run -r --example yolov9
   # export ONNX model
   python export.py --weights yolov9-c.pt --include onnx --simplify --dynamic
   ```
-
-### 2. Specify the ONNX model path in `main.rs`
-
-```Rust
-let options = Options::default()
-    .with_model("ONNX_PATH")   // <= modify this
-```
-
-### 3. Run
-
-```
-cargo run -r --example yolov9
-```
 
 ## Results
 
