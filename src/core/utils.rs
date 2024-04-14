@@ -5,7 +5,6 @@ use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 
 pub fn auto_load<P: AsRef<Path>>(src: P) -> Result<String> {
-    // check if input file exists
     let src = src.as_ref();
     let p = if src.is_file() {
         src.into()
