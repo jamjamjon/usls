@@ -4,9 +4,10 @@ A Rust library integrated with **ONNXRuntime**, providing a collection of **Comp
 
 <div align='center'>
   <img src='examples/yolov8-face/demo.jpg' width="250px" height="220px">
-  <img src='examples/face-parsing/demo.png' width="200px" height="220px">
-  <img src='examples/db/demo.jpg' width="250px" height="220px">
-  <img src='examples/yolop/demo.png'  width="250px" height="220px">
+  <img src='examples/face-parsing/demo.png' width="250px" height="220px">
+  <br>
+  <img src='examples/db/demo.jpg' width="250px" height="200px">
+  <img src='examples/yolop/demo.png'  width="250px" height="200px">
   <br>
 </div>
 
