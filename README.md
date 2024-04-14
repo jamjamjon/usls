@@ -3,12 +3,10 @@
 A Rust library integrated with **ONNXRuntime**, providing a collection of **Computer Vison** and **Vision-Language** models including [YOLOv8](https://github.com/ultralytics/ultralytics), [YOLOv9](https://github.com/WongKinYiu/yolov9), [RTDETR](https://arxiv.org/abs/2304.08069), [CLIP](https://github.com/openai/CLIP), [DINOv2](https://github.com/facebookresearch/dinov2), [FastSAM](https://github.com/CASIA-IVA-Lab/FastSAM), [YOLO-World](https://github.com/AILab-CVC/YOLO-World), [BLIP](https://arxiv.org/abs/2201.12086), [PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR) and others.
 
 <div align='center'>
-  <img src='examples/yolov8/demo-seg.png' width="150px" height="220px">
-  <img src='examples/yolov8/demo-pose.png' width="150px" height="220px">
-  <img src='examples/face-parsing/demo.png' width="150px" height="220px">
-  <br>
-  <img src='examples/db/demo.jpg' width="225px" height="160px">
-  <img src='examples/yolop/demo.png'  width="225px" height="160px">
+  <img src='examples/yolov8-face/demo.jpg' width="250px" height="220px">
+  <img src='examples/face-parsing/demo.png' width="200px" height="220px">
+  <img src='examples/db/demo.jpg' width="250px" height="220px">
+  <img src='examples/yolop/demo.png'  width="250px" height="220px">
   <br>
 </div>
 
@@ -39,13 +37,13 @@ Additionally, this repo also provides some solution models.
 
 |                             Model                             |             Example             |             Result             |
 | :------------------------------------------------------------: | :------------------------------: | :------------------------------: |
-|                  face parsing<br />  人脸解析                  |    [demo](examples/face-parsing)    |<img src='examples/face-parsing/demo.png' width="150px" height="200px"> |
-|    text detection<br />(PPOCR-det v3, v4)<br />通用文本检测    |         [demo](examples/db)         |<img src='examples/db/demo.jpg'  width="150px" height="100px">|
+|                  face parsing<br />  人脸解析                  |    [demo](examples/face-parsing)    |<img src='examples/face-parsing/demo.png' width="200px" height="200px"> |
+|    text detection<br />(PPOCR-det v3, v4)<br />通用文本检测    |         [demo](examples/db)         |<img src='examples/db/demo.jpg'  width="200px" height="200px">|
 | text recognition<br />(PPOCR-rec v3, v4)<br />中英文-文本识别 |        [demo](examples/svtr)        ||
-|         face-landmark detection<br />人脸 & 关键点检测         |    [demo](examples/yolov8-face)    |<img src='examples/yolov8-face/demo.jpg'  width="150px" height="100px">|
-|                 head detection<br />  人头检测                 |    [demo](examples/yolov8-head)    |<img src='examples/yolov8-head/demo.jpg'  width="150px" height="100px">|
-|                 fall detection<br />  摔倒检测                 |  [demo](examples/yolov8-falldown)  |  <img src='examples/yolov8-falldown/demo.jpg'  width="150px" height="100px">|
-|                trash detection<br />  垃圾检测                | [demo](examples/yolov8-plastic-bag) |<img src='examples/yolov8-trash/demo.jpg'  width="150px" height="100px">|
+|         face-landmark detection<br />人脸 & 关键点检测         |    [demo](examples/yolov8-face)    |<img src='examples/yolov8-face/demo.jpg'  width="250px" height="200px">|
+|                 head detection<br />  人头检测                 |    [demo](examples/yolov8-head)    |<img src='examples/yolov8-head/demo.jpg'  width="250px" height="200px">|
+|                 fall detection<br />  摔倒检测                 |  [demo](examples/yolov8-falldown)  |  <img src='examples/yolov8-falldown/demo.jpg'  width="250px" height="200px">|
+|                trash detection<br />  垃圾检测                | [demo](examples/yolov8-plastic-bag) |<img src='examples/yolov8-trash/demo.jpg'  width="250px" height="200px">|
 
 ## Demo
 
