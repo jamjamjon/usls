@@ -3,17 +3,12 @@
 A Rust library integrated with **ONNXRuntime**, providing a collection of **Computer Vison** and **Vision-Language** models including [YOLOv8](https://github.com/ultralytics/ultralytics), [YOLOv9](https://github.com/WongKinYiu/yolov9), [RTDETR](https://arxiv.org/abs/2304.08069), [CLIP](https://github.com/openai/CLIP), [DINOv2](https://github.com/facebookresearch/dinov2), [FastSAM](https://github.com/CASIA-IVA-Lab/FastSAM), [YOLO-World](https://github.com/AILab-CVC/YOLO-World), [BLIP](https://arxiv.org/abs/2201.12086), [PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR) and others.
 
 <div align='center'>
-  <img src='examples/rtdetr/demo.jpg' width="150px" height="220px">
   <img src='examples/yolov8/demo-seg.png' width="150px" height="220px">
   <img src='examples/yolov8/demo-pose.png' width="150px" height="220px">
-  <img src='examples/fastsam/demo.jpg' width="150px" height="220px">
   <img src='examples/face-parsing/demo.png' width="150px" height="220px">
   <br>
-  <img src='examples/db/demo.jpg' width="150px" height="100px">
-  <img src='examples/yolop/demo.png'  width="150px" height="100px">
-  <img src='examples/yolov8-face/demo.jpg'  width="150px" height="100px">
-  <img src='examples/yolov8-trash/demo.jpg'  width="150px" height="100px">
-  <img src='examples/yolov8-falldown/demo.jpg'  width="150px" height="100px">
+  <img src='examples/db/demo.jpg' width="225px" height="160px">
+  <img src='examples/yolop/demo.png'  width="225px" height="160px">
   <br>
 </div>
 
@@ -36,21 +31,21 @@ A Rust library integrated with **ONNXRuntime**, providing a collection of **Comp
 |                [DB](https://arxiv.org/abs/1911.08947)                |                               Text Detection                               |     [demo](examples/db)     |      ✅      |      ✅      |             ✅             |            ✅            |
 |               [SVTR](https://arxiv.org/abs/2205.00159)               |                              Text Recognition                              |    [demo](examples/svtr)    |      ✅      |      ✅      |             ✅             |            ✅            |
 | [RTMO](https://github.com/open-mmlab/mmpose/tree/main/projects/rtmo) |                             Keypoint Detection                             |    [demo](examples/rtmo)    |      ✅      |      ✅      |             ❌             |            ❌            |
-|              [YOLOP](https://arxiv.org/abs/2208.11434)              | Lane Line Segmentation<br />Drivable Area Segmentation<br />Car Detection |   [demo](examples/yolop)   |      ✅      |      ✅      |             ✅             |            ✅            |
+|              [YOLOP](https://arxiv.org/abs/2208.11434)              | Lane Line & Drivable Area Segmentation<br />Car Detection |   [demo](examples/yolop)   |      ✅      |      ✅      |             ✅             |            ✅            |
 
 ## Solution Models
 
 Additionally, this repo also provides some solution models.
 
-|                             Model                             |             Example             |
-| :------------------------------------------------------------: | :------------------------------: |
-|                  face parsing<br />  人脸解析                  |    [demo](examples/face-parsing)    |
-|    text detection<br />(PPOCR-det v3, v4)<br />通用文本检测    |         [demo](examples/db)         |
-| text recognition<br />(PPOCR-rec v3, v4)<br />中英文-文本识别 |        [demo](examples/svtr)        |
-|         face-landmark detection<br />人脸 & 关键点检测         |    [demo](examples/yolov8-face)    |
-|                 head detection<br />  人头检测                 |    [demo](examples/yolov8-head)    |
-|                 fall detection<br />  摔倒检测                 |  [demo](examples/yolov8-falldown)  |
-|                trash detection<br />  垃圾检测                | [demo](examples/yolov8-plastic-bag) |
+|                             Model                             |             Example             |             Result             |
+| :------------------------------------------------------------: | :------------------------------: | :------------------------------: |
+|                  face parsing<br />  人脸解析                  |    [demo](examples/face-parsing)    |<img src='examples/face-parsing/demo.png' width="150px" height="200px"> |
+|    text detection<br />(PPOCR-det v3, v4)<br />通用文本检测    |         [demo](examples/db)         |<img src='examples/db/demo.jpg'  width="150px" height="100px">|
+| text recognition<br />(PPOCR-rec v3, v4)<br />中英文-文本识别 |        [demo](examples/svtr)        ||
+|         face-landmark detection<br />人脸 & 关键点检测         |    [demo](examples/yolov8-face)    |<img src='examples/yolov8-face/demo.jpg'  width="150px" height="100px">|
+|                 head detection<br />  人头检测                 |    [demo](examples/yolov8-head)    |<img src='examples/yolov8-head/demo.jpg'  width="150px" height="100px">|
+|                 fall detection<br />  摔倒检测                 |  [demo](examples/yolov8-falldown)  |  <img src='examples/yolov8-falldown/demo.jpg'  width="150px" height="100px">|
+|                trash detection<br />  垃圾检测                | [demo](examples/yolov8-plastic-bag) |<img src='examples/yolov8-trash/demo.jpg'  width="150px" height="100px">|
 
 ## Demo
 
