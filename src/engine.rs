@@ -268,17 +268,10 @@ impl OrtEngine {
         // oputput
         let mut ys_ = Vec::new();
         let t_post = std::time::Instant::now();
-
-        for (dtype, name) in self.odtypes.iter().zip(self.onames.iter()) {
-            let y = &ys[name.as_str()];
+        for ((_, y), dtype) in ys.iter().zip(self.odtypes.iter()) {
             let y_ = match &dtype {
                 TensorElementType::Float32 => y.extract_tensor::<f32>()?.view().to_owned(),
                 TensorElementType::Float16 => y.extract_tensor::<f16>()?.view().mapv(f16::to_f32),
-                TensorElementType::Int64 => y
-                    .extract_tensor::<i64>()?
-                    .view()
-                    .to_owned()
-                    .mapv(|x| x as f32),
                 _ => todo!(),
             };
             ys_.push(y_);

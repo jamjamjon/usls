@@ -4,7 +4,9 @@
 cargo run -r --example rtdetr
 ```
 
-## Donwload or export ONNX Model
+## Or you can manully
+
+### 1. Donwload or export ONNX Model
 
 - Export
 
@@ -15,6 +17,19 @@ cargo run -r --example rtdetr
 - Download
 
   [rtdetr-l-f16 model](https://github.com/jamjamjon/assets/releases/download/v0.0.1/rtdetr-l-f16.onnx)
+
+### 2. Specify the ONNX model path in `main.rs`
+
+```Rust
+let options = Options::default()
+    .with_model("ONNX_MODEL")    // <= modify this
+```
+
+### 3. Then, run
+
+```bash
+cargo run -r --example rtdetr
+```
 
 ## Results
 

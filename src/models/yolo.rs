@@ -1,11 +1,12 @@
 use anyhow::Result;
 use clap::ValueEnum;
-use image::DynamicImage;
+use image::{DynamicImage, ImageBuffer};
 use ndarray::{s, Array, Axis, IxDyn};
 use regex::Regex;
 
 use crate::{
-    ops, Bbox, DynConf, Embedding, Keypoint, Mask, MinOptMax, Options, OrtEngine, Point, Rect, Ys,
+    ops, Bbox, DynConf, Embedding, Keypoint, MinOptMax, Options, OrtEngine, Point, Polygon, Rect,
+    Ys,
 };
 
 const CXYWH_OFFSET: usize = 4;
@@ -34,7 +35,6 @@ pub struct YOLO {
     kconfs: DynConf,
     iou: f32,
     names: Option<Vec<String>>,
-    names_kpt: Option<Vec<String>>,
     apply_nms: bool,
     anchors_first: bool,
 }
@@ -83,8 +83,6 @@ impl YOLO {
             },
         };
 
-        let names_kpt = options.names2.to_owned().or(None);
-
         // try from model metadata
         let nk = engine
             .try_fetch("kpt_shape")
@@ -117,7 +115,6 @@ impl YOLO {
             batch,
             task,
             names,
-            names_kpt,
             anchors_first: options.anchors_first,
         })
     }
@@ -229,8 +226,6 @@ impl YOLO {
                                             ky.max(0.0f32).min(height_original),
                                         ),
                                         kconf,
-                                        i as isize,
-                                        self.names_kpt.as_ref().map(|names| names[i].to_owned()),
                                     ));
                                 }
                             }
@@ -252,7 +247,10 @@ impl YOLO {
                 // decode
                 let mut y_bboxes: Vec<Bbox> = Vec::new();
                 let mut y_kpts: Vec<Vec<Keypoint>> = Vec::new();
-                let mut y_masks: Vec<Mask> = Vec::new();
+
+                let mut y_masks: Vec<Vec<u8>> = Vec::new();
+                let mut y_polygons: Vec<Polygon> = Vec::new();
+
                 for elem in data.into_iter() {
                     if let Some(kpts) = elem.1 {
                         y_kpts.push(kpts)
@@ -269,23 +267,23 @@ impl YOLO {
                         let mask = coefs.dot(&proto).into_shape((nh, nw, 1))?; // (nh, nw, n)
 
                         // build image from ndarray
-                        let mask_im = ops::build_dyn_image_from_raw(
-                            mask.into_raw_vec(),
-                            nw as u32,
-                            nh as u32,
-                        );
+                        let mask_im: ImageBuffer<image::Luma<_>, Vec<f32>> =
+                            ImageBuffer::from_raw(nw as u32, nh as u32, mask.into_raw_vec())
+                                .expect("Faild to create image from ndarray");
+                        let mut mask_im = image::DynamicImage::from(mask_im); // -> dyn
 
                         // rescale masks
-                        let mask_original = ops::descale_mask(
-                            mask_im,
-                            nw as f32,
-                            nh as f32,
-                            width_original,
-                            height_original,
+                        let (_, w_mask, h_mask) =
+                            ops::scale_wh(width_original, height_original, nw as f32, nh as f32);
+                        let mask_cropped = mask_im.crop(0, 0, w_mask as u32, h_mask as u32);
+                        let mask_original = mask_cropped.resize_exact(
+                            width_original as u32,
+                            height_original as u32,
+                            image::imageops::FilterType::Triangle,
                         );
 
-                        // crop mask with bbox
-                        let mut mask_original = mask_original.into_luma8();
+                        // crop-mask with bbox
+                        let mut mask_object_cropped = mask_original.into_luma8(); // gray image
                         for y in 0..height_original as usize {
                             for x in 0..width_original as usize {
                                 if x < elem.0.xmin() as usize
@@ -293,19 +291,33 @@ impl YOLO {
                                     || y < elem.0.ymin() as usize
                                     || y > elem.0.ymax() as usize
                                 {
-                                    mask_original.put_pixel(x as u32, y as u32, image::Luma([0u8]));
+                                    mask_object_cropped.put_pixel(
+                                        x as u32,
+                                        y as u32,
+                                        image::Luma([0u8]),
+                                    );
                                 }
                             }
                         }
 
-                        // get masks from image
-                        let masks = ops::get_masks_from_image(
-                            mask_original,
-                            1,
-                            elem.0.id(),
-                            elem.0.name().cloned(),
-                        );
-                        y_masks.extend(masks);
+                        // mask -> contours
+                        let contours: Vec<imageproc::contours::Contour<i32>> =
+                            imageproc::contours::find_contours_with_threshold(
+                                &mask_object_cropped,
+                                1,
+                            );
+
+                        // contours -> polygons
+                        contours.iter().for_each(|contour| {
+                            if let imageproc::contours::BorderType::Outer = contour.border_type {
+                                if contour.points.len() > 1 {
+                                    y_polygons.push(Polygon::from_contour(contour));
+                                }
+                            }
+                        });
+
+                        // save each mask
+                        y_masks.push(mask_object_cropped.into_raw());
                     }
                     y_bboxes.push(elem.0);
                 }
@@ -315,7 +327,8 @@ impl YOLO {
                     Ys::default()
                         .with_bboxes(&y_bboxes)
                         .with_keypoints(&y_kpts)
-                        .with_masks(&y_masks),
+                        .with_masks(&y_masks)
+                        .with_polygons(&y_polygons),
                 );
             }
 

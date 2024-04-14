@@ -4,20 +4,22 @@
 cargo run -r --example yolo-world
 ```
 
-## Donwload or Export ONNX Model
+## Or you can manully
 
-- **Download**
+### 1. Donwload or Export ONNX Model
 
-  [yolov8s-world-v2-shoes](https://github.com/jamjamjon/assets/releases/download/v0.0.1/yolov8s-world-v2-shoes.onnx)
-- **Or generate your own `yolo-world` model and then Export**
+- Download
 
-  - **Installation**
+  [yolov8s-world-v2-shoes](https://github.com/jamjamjon/assets/releases/download/v0.0.1/yolov8s-world-v2-shoes.onnx)  
+- Or generate your own `yolo-world` model and then Export
+
+  - Installation
 
   ```shell
   pip install -U ultralytics
   ```
 
-  - **Generate**
+  - Generate
 
   ```python
   from ultralytics import YOLO
@@ -32,11 +34,24 @@ cargo run -r --example yolo-world
   model.save("custom_yolov8m-world-v2.pt")
   ```
 
-  - **Export**
+  - Export
 
   ```shell
   yolo export model=custom_yolov8m-world-v2.pt format=onnx simplify dynamic
   ```
+
+### 2. Specify the ONNX model path in `main.rs`
+
+```Rust
+let options = Options::default()
+    .with_model("ONNX_PATH");   // <= modify this
+```
+
+### 3. Then, run
+
+```
+cargo run -r --example yolo-world
+```
 
 ## Results
 

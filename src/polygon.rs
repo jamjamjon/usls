@@ -12,6 +12,12 @@ impl From<Vec<Point>> for Polygon {
 }
 
 impl Polygon {
+    // pub fn new(points: &[Point]) -> Self {
+    //     Self {
+    //         points: points.to_vec(),
+    //     }
+    // }
+
     pub fn new() -> Self {
         Self::default()
     }
@@ -54,11 +60,6 @@ impl Polygon {
             area -= self.points[j].x * self.points[i].y;
         }
         area.abs() / 2.0
-    }
-
-    pub fn center(&self) -> Point {
-        let rect = self.find_min_rect();
-        rect.center()
     }
 
     pub fn find_min_rect(&self) -> Rect {

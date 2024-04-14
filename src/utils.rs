@@ -67,7 +67,6 @@ pub fn download<P: AsRef<Path> + std::fmt::Debug>(
     }
     assert_eq!(downloaded_bytes as u64, ntotal);
     pb.finish();
-    println!();
     Ok(())
 }
 
@@ -110,25 +109,6 @@ pub const COCO_SKELETON_17: [(usize, usize); 16] = [
     (12, 14),
     (13, 15),
     (14, 16),
-];
-pub const COCO_KEYPOINT_NAMES_17: [&str; 17] = [
-    "nose",
-    "left_eye",
-    "right_eye",
-    "left_ear",
-    "right_ear",
-    "left_shoulder",
-    "right_shoulder",
-    "left_elbow",
-    "right_elbow",
-    "left_wrist",
-    "right_wrist",
-    "left_hip",
-    "right_hip",
-    "left_knee",
-    "right_knee",
-    "left_ankle",
-    "right_ankle",
 ];
 
 pub const COCO_NAMES_80: [&str; 80] = [

@@ -4,10 +4,25 @@
 cargo run -r --example db
 ```
 
-## ONNX Model
+## Or you can manully
 
-- [ppocr-v3-db-dyn](https://github.com/jamjamjon/assets/releases/download/v0.0.1/ppocr-v3-db-dyn.onnx)  
-- [ppocr-v4-db-dyn](https://github.com/jamjamjon/assets/releases/download/v0.0.1/ppocr-v4-db-dyn.onnx)
+### 1. Donwload ONNX Model
+
+[ppocr-v3-db-dyn](https://github.com/jamjamjon/assets/releases/download/v0.0.1/ppocr-v3-db-dyn.onnx)  
+[ppocr-v4-db-dyn](https://github.com/jamjamjon/assets/releases/download/v0.0.1/ppocr-v4-db-dyn.onnx)
+
+### 2. Specify the ONNX model path in `main.rs`
+
+```Rust
+let options = Options::default()
+    .with_model("ONNX_PATH")    // <= modify this
+```
+
+### 3. Run
+
+```bash
+cargo run -r --example db
+```
 
 ### Speed test
 

@@ -46,9 +46,8 @@ pub struct Options {
     pub apply_nms: bool,
     pub tokenizer: Option<String>,
     pub vocab: Option<String>,
-    pub names: Option<Vec<String>>,  // class names
-    pub names2: Option<Vec<String>>, // could be keypoints names
-    pub anchors_first: bool,         // otuput format: [bs, anchors/na, pos+nc+nm]
+    pub names: Option<Vec<String>>, // class names
+    pub anchors_first: bool,        // otuput format: [bs, anchors/na, pos+nc+nm]
     pub min_width: Option<f32>,
     pub min_height: Option<f32>,
     pub unclip_ratio: f32, // DB
@@ -98,7 +97,6 @@ impl Default for Options {
             tokenizer: None,
             vocab: None,
             names: None,
-            names2: None,
             anchors_first: false,
             min_width: None,
             min_height: None,
@@ -150,11 +148,6 @@ impl Options {
 
     pub fn with_names(mut self, names: &[&str]) -> Self {
         self.names = Some(names.iter().map(|x| x.to_string()).collect::<Vec<String>>());
-        self
-    }
-
-    pub fn with_names2(mut self, names: &[&str]) -> Self {
-        self.names2 = Some(names.iter().map(|x| x.to_string()).collect::<Vec<String>>());
         self
     }
 
