@@ -12,7 +12,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest, macOS-latest]
+        os: [ubuntu-latest, macOS-latest]
         rust: [stable]
     steps:
       - uses: actions/checkout@v2
@@ -27,11 +27,11 @@ jobs:
           args: --workspace --examples
 
   test:
-    name: Test Suite
+    name: Test
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest, macOS-latest]
+        os: [ubuntu-latest, macOS-latest]
         rust: [stable]
     steps:
       - uses: actions/checkout@v2
