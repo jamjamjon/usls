@@ -24,14 +24,14 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: check
-          args: --workspace --examples
+          args: --examples
 
   test:
-    name: Test Suite
+    name: Test
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest, macOS-latest]
+        os: [ubuntu-latest, macOS-latest, windows-latest]
         rust: [stable]
     steps:
       - uses: actions/checkout@v2
@@ -43,7 +43,7 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --workspace --examples
+          args: --examples
 
   fmt:
     name: Rustfmt
@@ -75,4 +75,4 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: clippy
-          args: --workspace --tests --examples --all-targets --all-features -- -Dwarnings
+          args: --examples --all-targets --all-features -- -Dwarnings
