@@ -4,7 +4,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // build model
     let options = Options::default()
         .with_model("../models/dinov2-s14-dyn-f16.onnx")
-        // .with_model("../models/dinov2-b14-dyn.onnx")
         .with_i00((1, 1, 1).into())
         .with_i02((224, 224, 224).into())
         .with_i03((224, 224, 224).into());

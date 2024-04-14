@@ -46,8 +46,8 @@ pub struct Options {
     pub apply_nms: bool,
     pub tokenizer: Option<String>,
     pub vocab: Option<String>,
-    pub names: Option<Vec<String>>,  // class names
-    pub names2: Option<Vec<String>>, // could be keypoints names
+    pub names: Option<Vec<String>>,  // names
+    pub names2: Option<Vec<String>>, // names2, could be keypoints names
     pub anchors_first: bool,         // otuput format: [bs, anchors/na, pos+nc+nm]
     pub min_width: Option<f32>,
     pub min_height: Option<f32>,

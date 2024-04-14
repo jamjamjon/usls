@@ -153,8 +153,6 @@ impl YOLO {
 
             let mut ys = Vec::new();
             for (idx, anchor) in preds.axis_iter(Axis(0)).enumerate() {
-                // [b, 4 + nc + nm, na]
-                // input image
                 let width_original = xs0[idx].width() as f32;
                 let height_original = xs0[idx].height() as f32;
                 let ratio = (self.width() as f32 / width_original)

@@ -35,7 +35,6 @@ ureq = { version = "2.9.1", default-features = true, features = [
 ] }
 walkdir = { version = "2.5.0" }
 tokenizers = { version = "0.15.2" }
-usearch = { version = "2.10.4" }
 rayon = "1.10.0"
 indicatif = "0.17.8"
 image = "0.25.1"
