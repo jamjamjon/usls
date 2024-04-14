@@ -21,7 +21,7 @@ A Rust library integrated with **ONNXRuntime**, providing a collection of **Comp
 |                [DB](https://arxiv.org/abs/1911.08947)                |                               Text Detection                               |     [demo](examples/db)     |      ✅      |      ✅      |             ✅             |            ✅            |
 |               [SVTR](https://arxiv.org/abs/2205.00159)               |                              Text Recognition                              |    [demo](examples/svtr)    |      ✅      |      ✅      |             ✅             |            ✅            |
 | [RTMO](https://github.com/open-mmlab/mmpose/tree/main/projects/rtmo) |                             Keypoint Detection                             |    [demo](examples/rtmo)    |      ✅      |      ✅      |             ❌             |            ❌            |
-|              [YOLOP](https://arxiv.org/abs/2208.11434)              | Lane Line & Drivable Area Segmentation<br />Car Detection |   [demo](examples/yolop)   |      ✅      |      ✅      |             ✅             |            ✅            |
+|              [YOLOPv2](https://arxiv.org/abs/2208.11434)              | Panoptic driving Perception |   [demo](examples/yolop)   |      ✅      |      ✅      |             ✅             |            ✅            |
 
 ## Solution Models
 
@@ -29,14 +29,14 @@ Additionally, this repo also provides some solution models.
 
 |                             Model                             |             Example             |             Result             |
 | :------------------------------------------------------------: | :------------------------------: | :------------------------------: |
-|                  Face Parsing<br />  人脸解析                  |    [demo](examples/face-parsing)    |<img src='examples/face-parsing/demo.png' width="200px" height="200px"> |
-|    Text Detection<br />(PPOCR-det v3, v4)<br />通用文本检测    |         [demo](examples/db)         |<img src='examples/db/demo.jpg'  width="200px" height="200px">|
+|                Lane Line Segmentation<br /> Drivable Area Segmentation<br />Car Detection<br />车道线-可行驶区域-车辆检测                | [demo](examples/yolov8-plastic-bag) |<img src='examples/yolop/demo.png'  width="220px" height="140px">|
+|                  Face Parsing<br />  人脸解析                  |    [demo](examples/face-parsing)    |<img src='examples/face-parsing/demo.png' width="220px" height="200px"> |
+|    Text Detection<br />(PPOCR-det v3, v4)<br />通用文本检测    |         [demo](examples/db)         |<img src='examples/db/demo.jpg'  width="250px" height="200px">|
 | Text Recognition<br />(PPOCR-rec v3, v4)<br />中英文-文本识别 |        [demo](examples/svtr)        ||
-|         Face-Landmark Detection<br />人脸 & 关键点检测         |    [demo](examples/yolov8-face)    |<img src='examples/yolov8-face/demo.jpg'  width="250px" height="200px">|
-|                 Head Detection<br />  人头检测                 |    [demo](examples/yolov8-head)    |<img src='examples/yolov8-head/demo.jpg'  width="250px" height="200px">|
-|                 Fall Detection<br />  摔倒检测                 |  [demo](examples/yolov8-falldown)  |  <img src='examples/yolov8-falldown/demo.jpg'  width="250px" height="200px">|
-|                Trash Detection<br />  垃圾检测                | [demo](examples/yolov8-plastic-bag) |<img src='examples/yolov8-trash/demo.jpg'  width="250px" height="200px">|
-|                Lane Line Segmentation<br /> Drivable Area Segmentation<br />Car Detection<br />车道线-可行驶区域-车辆检测                | [demo](examples/yolov8-plastic-bag) |<img src='examples/yolop/demo.png'  width="250px" height="200px">|
+|         Face-Landmark Detection<br />人脸 & 关键点检测         |    [demo](examples/yolov8-face)    |<img src='examples/yolov8-face/demo.jpg'  width="220px" height="180px">|
+|                 Head Detection<br />  人头检测                 |    [demo](examples/yolov8-head)    |<img src='examples/yolov8-head/demo.jpg'  width="220px" height="180px">|
+|                 Fall Detection<br />  摔倒检测                 |  [demo](examples/yolov8-falldown)  |  <img src='examples/yolov8-falldown/demo.jpg'  width="220px" height="180px">|
+|                Trash Detection<br />  垃圾检测                | [demo](examples/yolov8-plastic-bag) |<img src='examples/yolov8-trash/demo.jpg'  width="250px" height="180px">|
 
 ## Demo
 
