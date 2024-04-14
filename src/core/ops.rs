@@ -1,5 +1,6 @@
+use crate::{Mask, Polygon};
 use anyhow::Result;
-use image::{DynamicImage, GenericImageView};
+use image::{DynamicImage, GenericImageView, GrayImage, ImageBuffer};
 use ndarray::{Array, Axis, Ix2, IxDyn};
 
 pub fn standardize(xs: Array<f32, IxDyn>, mean: &[f32], std: &[f32]) -> Array<f32, IxDyn> {
@@ -105,4 +106,41 @@ pub fn resize_with_fixed_height(
         }
     }
     Ok(ys)
+}
+
+pub fn build_dyn_image_from_raw(v: Vec<f32>, height: u32, width: u32) -> DynamicImage {
+    let v: ImageBuffer<image::Luma<_>, Vec<f32>> =
+        ImageBuffer::from_raw(width, height, v).expect("Faild to create image from ndarray");
+    image::DynamicImage::from(v)
+}
+
+pub fn descale_mask(mask: DynamicImage, w0: f32, h0: f32, w1: f32, h1: f32) -> DynamicImage {
+    // 0 -> 1
+    let (_, w, h) = scale_wh(w1, h1, w0, h0);
+    let mut mask = mask.to_owned();
+    let mask = mask.crop(0, 0, w as u32, h as u32);
+    mask.resize_exact(w1 as u32, h1 as u32, image::imageops::FilterType::Triangle)
+}
+
+pub fn get_masks_from_image(
+    mask: GrayImage,
+    thresh: u8,
+    id: usize,
+    name: Option<String>,
+) -> Vec<Mask> {
+    // let mask = mask.into_luma8();
+    let contours: Vec<imageproc::contours::Contour<i32>> =
+        imageproc::contours::find_contours_with_threshold(&mask, thresh);
+    let mut masks: Vec<Mask> = Vec::new();
+    contours.iter().for_each(|contour| {
+        // contour.border_type == imageproc::contours::BorderType::Outer &&
+        if contour.points.len() > 2 {
+            masks.push(Mask {
+                polygon: Polygon::from_contour(contour),
+                id,
+                name: name.to_owned(),
+            });
+        }
+    });
+    masks
 }

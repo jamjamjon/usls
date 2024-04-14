@@ -1,4 +1,4 @@
-use crate::{Bbox, Embedding, Keypoint, Polygon};
+use crate::{Bbox, Embedding, Keypoint, Mask};
 
 #[derive(Clone, PartialEq, Default)]
 pub struct Ys {
@@ -6,8 +6,7 @@ pub struct Ys {
     pub probs: Option<Embedding>,
     pub bboxes: Option<Vec<Bbox>>,
     pub keypoints: Option<Vec<Vec<Keypoint>>>,
-    pub masks: Option<Vec<Vec<u8>>>,
-    pub polygons: Option<Vec<Polygon>>,
+    pub masks: Option<Vec<Mask>>,
 }
 
 impl std::fmt::Debug for Ys {
@@ -16,14 +15,7 @@ impl std::fmt::Debug for Ys {
             .field("Probabilities", &self.probs)
             .field("BoundingBoxes", &self.bboxes)
             .field("Keypoints", &self.keypoints)
-            .field(
-                "Masks",
-                &format_args!("{:?}", self.masks().map(|masks| masks.len())),
-            )
-            .field(
-                "Polygons",
-                &format_args!("{:?}", self.polygons().map(|polygons| polygons.len())),
-            )
+            .field("Masks", &self.masks)
             .finish()
     }
 }
@@ -44,13 +36,8 @@ impl Ys {
         self
     }
 
-    pub fn with_masks(mut self, masks: &[Vec<u8>]) -> Self {
+    pub fn with_masks(mut self, masks: &[Mask]) -> Self {
         self.masks = Some(masks.to_vec());
-        self
-    }
-
-    pub fn with_polygons(mut self, polygons: &[Polygon]) -> Self {
-        self.polygons = Some(polygons.to_vec());
         self
     }
 
@@ -62,15 +49,31 @@ impl Ys {
         self.keypoints.as_ref()
     }
 
-    pub fn masks(&self) -> Option<&Vec<Vec<u8>>> {
+    pub fn masks(&self) -> Option<&Vec<Mask>> {
         self.masks.as_ref()
-    }
-
-    pub fn polygons(&self) -> Option<&Vec<Polygon>> {
-        self.polygons.as_ref()
     }
 
     pub fn bboxes(&self) -> Option<&Vec<Bbox>> {
         self.bboxes.as_ref()
+    }
+
+    pub fn non_max_suppression(xs: &mut Vec<Bbox>, iou_threshold: f32) {
+        xs.sort_by(|b1, b2| b2.confidence().partial_cmp(&b1.confidence()).unwrap());
+        let mut current_index = 0;
+        for index in 0..xs.len() {
+            let mut drop = false;
+            for prev_index in 0..current_index {
+                let iou = xs[prev_index].iou(&xs[index]);
+                if iou > iou_threshold {
+                    drop = true;
+                    break;
+                }
+            }
+            if !drop {
+                xs.swap(current_index, index);
+                current_index += 1;
+            }
+        }
+        xs.truncate(current_index);
     }
 }
