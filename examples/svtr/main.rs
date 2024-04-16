@@ -15,10 +15,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         DataLoader::try_read("./examples/svtr/text1.png")?,
         DataLoader::try_read("./examples/svtr/text2.png")?,
         DataLoader::try_read("./examples/svtr/text3.png")?,
+        DataLoader::try_read("./examples/svtr/text4.png")?,
     ];
 
     // run
-    model.run(&xs)?;
+    for text in model.run(&xs)?.into_iter() {
+        println!("[Texts] {text}")
+    }
 
     Ok(())
 }

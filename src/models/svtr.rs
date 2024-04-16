@@ -41,46 +41,52 @@ impl SVTR {
         })
     }
 
-    pub fn run(&mut self, xs: &[DynamicImage]) -> Result<()> {
+    pub fn run(&mut self, xs: &[DynamicImage]) -> Result<Vec<String>> {
         let xs_ =
             ops::resize_with_fixed_height(xs, self.height.opt as u32, self.width.opt as u32, 0.0)?;
         let xs_ = ops::normalize(xs_, 0.0, 255.0);
         let ys: Vec<Array<f32, IxDyn>> = self.engine.run(&[xs_])?;
         let ys = ys[0].to_owned();
-        self.postprocess(&ys)?;
-        Ok(())
+
+        self.postprocess(&ys)
     }
 
-    pub fn postprocess(&self, xs: &Array<f32, IxDyn>) -> Result<()> {
-        for batch in xs.axis_iter(Axis(0)) {
-            let mut texts: Vec<String> = Vec::new();
-            for (i, seq) in batch.axis_iter(Axis(0)).enumerate() {
-                let (id, &confidence) = seq
-                    .into_iter()
-                    .enumerate()
-                    .reduce(|max, x| if x.1 > max.1 { x } else { max })
-                    .unwrap();
-                if id == 0 || confidence < self.confs[0] {
-                    continue;
-                }
-                if i == 0 && id == self.vocab.len() - 1 {
-                    continue;
-                }
-                texts.push(self.vocab[id].to_owned());
-            }
-            texts.dedup();
+    pub fn postprocess(&self, output: &Array<f32, IxDyn>) -> Result<Vec<String>> {
+        let mut texts: Vec<String> = Vec::new();
+        for batch in output.axis_iter(Axis(0)) {
+            let preds = batch
+                .axis_iter(Axis(0))
+                .filter_map(|x| {
+                    x.into_iter()
+                        .enumerate()
+                        .max_by(|(_, x), (_, y)| x.total_cmp(y))
+                })
+                .collect::<Vec<_>>();
 
-            print!("[Texts] ");
-            if texts.is_empty() {
-                println!("Nothing detected!");
-            } else {
-                for text in texts.into_iter() {
-                    print!("{text}");
-                }
-                println!();
-            }
+            let text = preds
+                .iter()
+                .enumerate()
+                .fold(Vec::new(), |mut text_ids, (idx, (text_id, &confidence))| {
+                    if *text_id == 0 || confidence < self.confs[0] {
+                        return text_ids;
+                    }
+
+                    if idx == 0 || idx == self.vocab.len() - 1 {
+                        return text_ids;
+                    }
+
+                    if *text_id != preds[idx - 1].0 {
+                        text_ids.push(*text_id);
+                    }
+                    text_ids
+                })
+                .into_iter()
+                .map(|idx| self.vocab[idx].to_owned())
+                .collect::<String>();
+
+            texts.push(text);
         }
 
-        Ok(())
+        Ok(texts)
     }
 }

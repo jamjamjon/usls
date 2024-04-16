@@ -25,6 +25,7 @@ cargo run -r --example svtr
 
 ```shell
 [Texts] from the background, but also separate text instances which
-[Texts] are closely jointed. Some examples are ilustrated in Fig.7.
+[Texts] are closely jointed. Some examples are illustrated in Fig.7.
 [Texts] 你有这么高速运转的机械进入中国，记住我给出的原理
+[Texts] 110022345
 ```
