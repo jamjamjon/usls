@@ -72,6 +72,7 @@ impl SVTR {
                     }
 
                     if idx == 0 || idx == self.vocab.len() - 1 {
+                        text_ids.push(*text_id);
                         return text_ids;
                     }
 
