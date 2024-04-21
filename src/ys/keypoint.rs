@@ -316,8 +316,8 @@ mod tests_keypoint {
 
     #[test]
     fn functions() {
-        assert_eq!(Keypoint::from([0., 0.]).is_origin(), true);
-        assert_eq!(Keypoint::from([0., 0.1]).is_origin(), false);
+        assert!(Keypoint::from([0., 0.]).is_origin());
+        assert!(!Keypoint::from([0., 0.1]).is_origin());
         let kpt1 = Keypoint::from((0., 0.));
         let kpt2 = Keypoint::from((5., 0.));
         assert_eq!(kpt1.distance_from(&kpt2), 5.);

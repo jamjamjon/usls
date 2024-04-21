@@ -234,12 +234,12 @@ mod tests_bbox {
         assert_eq!(bbox1.area(), 25.);
         assert_eq!(bbox2.area(), 25.);
         assert_eq!(bbox2.perimeter(), 20.);
-        assert_eq!(bbox2.is_squre(), true);
+        assert!(bbox2.is_squre());
         assert_eq!(bbox1.union(&bbox2), 34.);
 
         let bbox3 = Bbox::default().with_xyxy(2., 2., 5., 5.);
-        assert_eq!(bbox1.contains(&bbox2), false);
-        assert_eq!(bbox1.contains(&bbox3), true);
-        assert_eq!(bbox2.contains(&bbox3), true);
+        assert!(!bbox1.contains(&bbox2));
+        assert!(bbox1.contains(&bbox3));
+        assert!(bbox2.contains(&bbox3));
     }
 }
