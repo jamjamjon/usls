@@ -8,9 +8,12 @@ A Rust library integrated with **ONNXRuntime**, providing a collection of **Comp
 | :----------------------------: | :------------------------------: |  :------------------------------: |
 |<img src='examples/yolop/demo.png'  height="280px">| <img src='examples/face-parsing/demo.png'  height="280px"> | <img src='examples/db/demo.png'  height="280px"> |
 
+
 |        YOLOv8-Obb         |
 | :----------------------------: |
-|<img src='examples/yolov8/demo-obb.png'   width="860px">|
+|<img src='examples/yolov8/demo-obb-2.png'   width="800px">|
+
+
 
 
 
