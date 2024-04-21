@@ -2,6 +2,20 @@
 
 A Rust library integrated with **ONNXRuntime**, providing a collection of **Computer Vison** and **Vision-Language** models including [YOLOv5](https://github.com/ultralytics/yolov5), [YOLOv8](https://github.com/ultralytics/ultralytics), [YOLOv9](https://github.com/WongKinYiu/yolov9), [RTDETR](https://arxiv.org/abs/2304.08069), [CLIP](https://github.com/openai/CLIP), [DINOv2](https://github.com/facebookresearch/dinov2), [FastSAM](https://github.com/CASIA-IVA-Lab/FastSAM), [YOLO-World](https://github.com/AILab-CVC/YOLO-World), [BLIP](https://arxiv.org/abs/2201.12086), [PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR) and others.
 
+## Recently Updated
+
+|        YOLOP-v2          |             Face-Parsing             |               Text-Detection           |  
+| :----------------------------: | :------------------------------: |  :------------------------------: |
+|<img src='examples/yolop/demo.png'  height="280px">| <img src='examples/face-parsing/demo.png'  height="280px"> | <img src='examples/db/demo.png'  height="280px"> |
+
+|        YOLOv8-Obb         |
+| :----------------------------: |
+|<img src='examples/yolov8/demo-obb.png'   width="860px">|
+
+
+
+
+
 ## Supported Models
 
 |                               Model                               |         Task / Type         |         Example         | CUDA<br />f32 | CUDA<br />f16 |     TensorRT<br />f32     |     TensorRT<br />f16     |
@@ -27,18 +41,22 @@ A Rust library integrated with **ONNXRuntime**, providing a collection of **Comp
 
 ## Solution Models
 
-Additionally, this repo also provides some solution models.
+
+<details close>
+<summary>Additionally, this repo also provides some solution models.</summary>
 
 |                                                    Model                                                    |             Example             |                                     Result                                     |
 | :---------------------------------------------------------------------------------------------------------: | :------------------------------: | :-----------------------------------------------------------------------------: |
 | Lane Line Segmentation<br /> Drivable Area Segmentation<br />Car Detection<br />车道线-可行驶区域-车辆检测 | [demo](examples/yolov8-plastic-bag) |      <img src='examples/yolop/demo.png'  width="220px" height="140px">      |
 |                                        Face Parsing<br />  人脸解析                                        |    [demo](examples/face-parsing)    |   <img src='examples/face-parsing/demo.png' width="220px" height="200px">   |
-|                          Text Detection<br />(PPOCR-det v3, v4)<br />通用文本检测                          |         [demo](examples/db)         |       <img src='examples/db/demo.jpg'  width="250px" height="200px">       |
+|                          Text Detection<br />(PPOCR-det v3, v4)<br />通用文本检测                          |         [demo](examples/db)         |       <img src='examples/db/demo.png'  width="250px" height="200px">       |
 |                       Text Recognition<br />(PPOCR-rec v3, v4)<br />中英文-文本识别                       |        [demo](examples/svtr)        |                                                                                |
-|                               Face-Landmark Detection<br />人脸 & 关键点检测                               |    [demo](examples/yolov8-face)    |   <img src='examples/yolov8-face/demo.jpg'  width="220px" height="180px">   |
-|                                       Head Detection<br />  人头检测                                       |    [demo](examples/yolov8-head)    |   <img src='examples/yolov8-head/demo.jpg'  width="220px" height="180px">   |
-|                                       Fall Detection<br />  摔倒检测                                       |  [demo](examples/yolov8-falldown)  | <img src='examples/yolov8-falldown/demo.jpg'  width="220px" height="180px"> |
-|                                       Trash Detection<br />  垃圾检测                                       | [demo](examples/yolov8-plastic-bag) |  <img src='examples/yolov8-trash/demo.jpg'  width="250px" height="180px">  |
+|                               Face-Landmark Detection<br />人脸 & 关键点检测                               |    [demo](examples/yolov8-face)    |   <img src='examples/yolov8-face/demo.png'  width="220px" height="180px">   |
+|                                       Head Detection<br />  人头检测                                       |    [demo](examples/yolov8-head)    |   <img src='examples/yolov8-head/demo.png'  width="220px" height="180px">   |
+|                                       Fall Detection<br />  摔倒检测                                       |  [demo](examples/yolov8-falldown)  | <img src='examples/yolov8-falldown/demo.png'  width="220px" height="180px"> |
+|                                       Trash Detection<br />  垃圾检测                                       | [demo](examples/yolov8-plastic-bag) |  <img src='examples/yolov8-trash/demo.png'  width="250px" height="180px">  |
+
+</details>
 
 ## Demo
 
@@ -62,6 +80,8 @@ check **[ort guide](https://ort.pyke.io/setup/linking)**
 </details>
 
 ## Integrate into your own project
+<details close>
+<summary>Check Here</summary>
 
 #### 1. Add `usls` as a dependency to your project's `Cargo.toml`
 
@@ -127,3 +147,4 @@ let y = model.run(&x)?;
 let annotator = Annotator::default().with_saveout("YOLOv8");
 annotator.annotate(&x, &y);
 ```
+</details>
