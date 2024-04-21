@@ -2,7 +2,7 @@ use anyhow::Result;
 use image::DynamicImage;
 use ndarray::{s, Array, Axis, IxDyn};
 
-use crate::{ops, Bbox, DynConf, MinOptMax, Options, OrtEngine, Rect, Ys};
+use crate::{ops, Bbox, DynConf, Mask, MinOptMax, Options, OrtEngine, Y};
 
 #[derive(Debug)]
 pub struct YOLOPv2 {
@@ -36,17 +36,16 @@ impl YOLOPv2 {
         })
     }
 
-    pub fn run(&mut self, xs: &[DynamicImage]) -> Result<Vec<Ys>> {
+    pub fn run(&mut self, xs: &[DynamicImage]) -> Result<Vec<Y>> {
         let xs_ = ops::letterbox(xs, self.height() as u32, self.width() as u32, 114.0)?;
         let xs_ = ops::normalize(xs_, 0.0, 255.0);
         let ys = self.engine.run(&[xs_])?;
-        let ys = self.postprocess(ys, xs)?;
-        Ok(ys)
+        self.postprocess(ys, xs)
     }
 
-    pub fn postprocess(&self, xs: Vec<Array<f32, IxDyn>>, xs0: &[DynamicImage]) -> Result<Vec<Ys>> {
+    pub fn postprocess(&self, xs: Vec<Array<f32, IxDyn>>, xs0: &[DynamicImage]) -> Result<Vec<Y>> {
+        let mut ys: Vec<Y> = Vec::new();
         let (xs_da, xs_ll, xs_det) = (&xs[0], &xs[1], &xs[2]);
-        let mut ys: Vec<Ys> = Vec::new();
         for (idx, ((x_det, x_ll), x_da)) in xs_det
             .axis_iter(Axis(0))
             .zip(xs_ll.axis_iter(Axis(0)))
@@ -63,7 +62,7 @@ impl YOLOPv2 {
             );
 
             // Vehicle
-            let mut ys_bbox = Vec::new();
+            let mut y_bboxes = Vec::new();
             for x in x_det.axis_iter(Axis(0)) {
                 let bbox = x.slice(s![0..4]);
                 let clss = x.slice(s![5..]).to_owned();
@@ -83,19 +82,15 @@ impl YOLOPv2 {
                 let h = bbox[3] / ratio;
                 let x = cx - w / 2.;
                 let y = cy - h / 2.;
-                ys_bbox.push(Bbox::new(
-                    Rect::from_xywh(
-                        x.max(0.0f32).min(image_width),
-                        y.max(0.0f32).min(image_height),
-                        w,
-                        h,
-                    ),
-                    id,
-                    conf,
-                    None,
-                ));
+                let x = x.max(0.0).min(image_width);
+                let y = y.max(0.0).min(image_height);
+                y_bboxes.push(
+                    Bbox::default()
+                        .with_xywh(x, y, w, h)
+                        .with_confidence(conf)
+                        .with_id(id as isize),
+                );
             }
-            Ys::non_max_suppression(&mut ys_bbox, self.iou);
 
             // Drivable area
             let x_da_0 = x_da.slice(s![0, .., ..]).to_owned();
@@ -119,8 +114,21 @@ impl YOLOPv2 {
                 image_height,
             );
             let mask_da = mask_da.into_luma8();
-            let mut y_masks =
-                ops::get_masks_from_image(mask_da, 1, 0, Some("Drivable area".to_string()));
+            let mut y_masks: Vec<Mask> = Vec::new();
+            let contours: Vec<imageproc::contours::Contour<i32>> =
+                imageproc::contours::find_contours_with_threshold(&mask_da, 1);
+            contours.iter().for_each(|contour| {
+                if contour.border_type == imageproc::contours::BorderType::Outer
+                    && contour.points.len() > 2
+                {
+                    y_masks.push(
+                        Mask::default()
+                            .with_id(0)
+                            .with_points_imageproc(&contour.points)
+                            .with_name(Some("Drivable area".to_string())),
+                    );
+                }
+            });
 
             // Lane line
             let x_ll = x_ll
@@ -141,9 +149,30 @@ impl YOLOPv2 {
                 image_height,
             );
             let mask_ll = mask_ll.into_luma8();
-            let masks = ops::get_masks_from_image(mask_ll, 1, 5, Some("Lane line".to_string()));
+            let contours: Vec<imageproc::contours::Contour<i32>> =
+                imageproc::contours::find_contours_with_threshold(&mask_ll, 1);
+            let mut masks: Vec<Mask> = Vec::new();
+            contours.iter().for_each(|contour| {
+                if contour.border_type == imageproc::contours::BorderType::Outer
+                    && contour.points.len() > 2
+                {
+                    masks.push(
+                        Mask::default()
+                            .with_id(1)
+                            .with_points_imageproc(&contour.points)
+                            .with_name(Some("Lane line".to_string())),
+                    );
+                }
+            });
             y_masks.extend(masks);
-            ys.push(Ys::default().with_bboxes(&ys_bbox).with_masks(&y_masks));
+
+            // save
+            ys.push(
+                Y::default()
+                    .with_bboxes(&y_bboxes)
+                    .with_masks(&y_masks)
+                    .apply_bboxes_nms(self.iou),
+            );
         }
         Ok(ys)
     }

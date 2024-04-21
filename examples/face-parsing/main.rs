@@ -9,7 +9,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_i03((416, 640, 800).into())
         // .with_trt(0)
         // .with_fp16(true)
-        // .with_dry_run(10)
         .with_confs(&[0.5]);
     let mut model = YOLO::new(&options)?;
 
@@ -21,10 +20,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // annotate
     let annotator = Annotator::default()
-        .without_conf(true)
-        .without_name(true)
-        .without_polygons(false)
         .without_bboxes(true)
+        .without_bboxes_conf(true)
+        .without_bboxes_name(true)
+        .without_polygons(false)
         .with_masks_name(false)
         .with_saveout("Face-Parsing");
     annotator.annotate(&x, &y);

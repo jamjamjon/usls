@@ -7,8 +7,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_i00((1, 1, 4).into())
         .with_i02((416, 640, 800).into())
         .with_i03((416, 640, 800).into())
-        .with_confs(&[0.4, 0.15]) // person: 0.4, others: 0.15
-        .with_profile(false);
+        .with_confs(&[0.4, 0.15]); // person: 0.4, others: 0.15
     let mut model = YOLO::new(&options)?;
 
     // load image

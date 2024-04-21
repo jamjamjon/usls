@@ -2,9 +2,7 @@ use usls::{models::YOLO, Annotator, DataLoader, Options};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // build model
-    let options = Options::default()
-        .with_model("../models/yolov8-head-f16.onnx")
-        .with_confs(&[0.3]);
+    let options = Options::default().with_model("../models/yolov8-head-f16.onnx");
     let mut model = YOLO::new(&options)?;
 
     // load image

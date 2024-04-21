@@ -1,4 +1,4 @@
-use usls::{models::Clip, ops, DataLoader, Options};
+use usls::{models::Clip, DataLoader, Options};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // visual
@@ -39,7 +39,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let feats_image = model.encode_images(&images).unwrap();
 
         // use image to query texts
-        let matrix = ops::dot2(&feats_image, &feats_text)?; // [m, n]
+        let matrix = feats_image.dot2(&feats_text)?;
 
         // summary
         for i in 0..paths.len() {

@@ -1,5 +1,6 @@
 use std::ops::Index;
 
+/// Dynamic Confidences
 #[derive(Clone, PartialEq, PartialOrd)]
 pub struct DynConf {
     confs: Vec<f32>,

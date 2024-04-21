@@ -15,4 +15,4 @@ cargo run -r --example rtmo
 
 ## Results
 
-![](./demo.jpg)
+![](./demo.png)

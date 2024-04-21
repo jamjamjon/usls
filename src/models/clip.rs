@@ -1,7 +1,7 @@
-use crate::{ops, MinOptMax, Options, OrtEngine};
+use crate::{ops, Embedding, MinOptMax, Options, OrtEngine};
 use anyhow::Result;
 use image::DynamicImage;
-use ndarray::{Array, Array2, Axis, IxDyn};
+use ndarray::{Array, Array2, IxDyn};
 use tokenizers::{PaddingDirection, PaddingParams, PaddingStrategy, Tokenizer};
 
 #[derive(Debug)]
@@ -52,7 +52,7 @@ impl Clip {
         })
     }
 
-    pub fn encode_images(&self, xs: &[DynamicImage]) -> Result<Array<f32, IxDyn>> {
+    pub fn encode_images(&self, xs: &[DynamicImage]) -> Result<Embedding> {
         let xs_ = ops::resize(xs, self.height.opt as u32, self.width.opt as u32)?;
         let xs_ = ops::normalize(xs_, 0.0, 255.0);
         let xs_ = ops::standardize(
@@ -61,11 +61,10 @@ impl Clip {
             &[0.26862954, 0.2613026, 0.2757771],
         );
         let ys: Vec<Array<f32, IxDyn>> = self.visual.run(&[xs_])?;
-        let ys = ys[0].to_owned();
-        Ok(ys)
+        Ok(Embedding::new(ys[0].to_owned()))
     }
 
-    pub fn encode_texts(&self, texts: &[String]) -> Result<Array<f32, IxDyn>> {
+    pub fn encode_texts(&self, texts: &[String]) -> Result<Embedding> {
         let encodings = self
             .tokenizer
             .encode_batch(texts.to_owned(), false)
@@ -76,23 +75,7 @@ impl Clip {
             .collect();
         let xs = Array2::from_shape_vec((texts.len(), self.context_length), xs)?.into_dyn();
         let ys = self.textual.run(&[xs])?;
-        let ys = ys[0].to_owned();
-        Ok(ys)
-    }
-
-    pub fn get_similarity(
-        &self,
-        images_feats: &Array<f32, IxDyn>,
-        texts_feats: &Array<f32, IxDyn>,
-    ) -> Result<Vec<Vec<f32>>> {
-        let images_feats = images_feats.clone().into_dimensionality::<ndarray::Ix2>()?;
-        let texts_feats = texts_feats.clone().into_dimensionality::<ndarray::Ix2>()?;
-        let matrix = images_feats.dot(&texts_feats.t()); // [M, N]
-        let exps = matrix.mapv(|x| x.exp()); //[M, N]
-        let stds = exps.sum_axis(Axis(1)); //[M, 1]
-        let matrix = exps / stds.insert_axis(Axis(1)); // [M, N]
-        let similarity: Vec<Vec<f32>> = matrix.axis_iter(Axis(0)).map(|row| row.to_vec()).collect();
-        Ok(similarity)
+        Ok(Embedding::new(ys[0].to_owned()))
     }
 
     pub fn batch_visual(&self) -> usize {

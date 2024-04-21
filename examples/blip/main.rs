@@ -1,4 +1,4 @@
-use usls::{models::Blip, Options};
+use usls::{models::Blip, DataLoader, Options};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // visual
@@ -22,9 +22,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // build model
     let mut model = Blip::new(options_visual, options_textual)?;
 
-    // image caption
-    model.caption("./assets/bus.jpg", None)?; // unconditional
-    model.caption("./assets/bus.jpg", Some("three man"))?; // conditional
+    // image caption (this demo use batch_size=1)
+    let x = vec![DataLoader::try_read("./assets/bus.jpg")?];
+    let _y = model.caption(&x, None, true)?; // unconditional
+    let y = model.caption(&x, Some("three man"), true)?; // conditional
+    println!("{:?}", y[0].texts());
 
     Ok(())
 }

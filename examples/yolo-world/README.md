@@ -40,4 +40,4 @@ cargo run -r --example yolo-world
 
 ## Results
 
-![](./demo.jpg)
+![](./demo.png)

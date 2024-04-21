@@ -2,7 +2,7 @@ use anyhow::Result;
 use image::DynamicImage;
 use ndarray::{Array, Axis, IxDyn};
 
-use crate::{ops, Bbox, DynConf, Keypoint, MinOptMax, Options, OrtEngine, Ys};
+use crate::{ops, Bbox, DynConf, Keypoint, MinOptMax, Options, OrtEngine, Y};
 
 #[derive(Debug)]
 pub struct RTMO {
@@ -38,15 +38,14 @@ impl RTMO {
         })
     }
 
-    pub fn run(&mut self, xs: &[DynamicImage]) -> Result<Vec<Ys>> {
+    pub fn run(&mut self, xs: &[DynamicImage]) -> Result<Vec<Y>> {
         let xs_ = ops::letterbox(xs, self.height() as u32, self.width() as u32, 114.0)?;
         let ys = self.engine.run(&[xs_])?;
-        let ys = self.postprocess(ys, xs)?;
-        Ok(ys)
+        self.postprocess(ys, xs)
     }
 
-    pub fn postprocess(&self, xs: Vec<Array<f32, IxDyn>>, xs0: &[DynamicImage]) -> Result<Vec<Ys>> {
-        let mut ys: Vec<Ys> = Vec::new();
+    pub fn postprocess(&self, xs: Vec<Array<f32, IxDyn>>, xs0: &[DynamicImage]) -> Result<Vec<Y>> {
+        let mut ys: Vec<Y> = Vec::new();
         let (preds_bboxes, preds_kpts) = if xs[0].ndim() == 3 {
             (&xs[0], &xs[1])
         } else {
@@ -78,20 +77,18 @@ impl RTMO {
                 if confidence < self.confs[0] {
                     continue;
                 }
-                let y_bbox = Bbox::new(
-                    (
-                        (
+                y_bboxes.push(
+                    Bbox::default()
+                        .with_xyxy(
                             x1.max(0.0f32).min(width_original),
                             y1.max(0.0f32).min(height_original),
-                        ),
-                        (x2, y2),
-                    )
-                        .into(),
-                    0,
-                    confidence,
-                    Some(String::from("Person")),
+                            x2,
+                            y2,
+                        )
+                        .with_confidence(confidence)
+                        .with_id(0isize)
+                        .with_name(Some(String::from("Person"))),
                 );
-                y_bboxes.push(y_bbox);
 
                 // keypoints
                 let mut kpts_ = Vec::new();
@@ -102,21 +99,20 @@ impl RTMO {
                     if c < self.kconfs[i] {
                         kpts_.push(Keypoint::default());
                     } else {
-                        kpts_.push(Keypoint::new(
-                            (
-                                x.max(0.0f32).min(width_original),
-                                y.max(0.0f32).min(height_original),
-                            )
-                                .into(),
-                            c,
-                            i as isize,
-                            None, // Name
-                        ));
+                        kpts_.push(
+                            Keypoint::default()
+                                .with_id(i as isize)
+                                .with_confidence(c)
+                                .with_xy(
+                                    x.max(0.0f32).min(width_original),
+                                    y.max(0.0f32).min(height_original),
+                                ),
+                        );
                     }
                 }
                 y_kpts.push(kpts_);
             }
-            ys.push(Ys::default().with_bboxes(&y_bboxes).with_keypoints(&y_kpts));
+            ys.push(Y::default().with_bboxes(&y_bboxes).with_keypoints(&y_kpts));
         }
         Ok(ys)
     }

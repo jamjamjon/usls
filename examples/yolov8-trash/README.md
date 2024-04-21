@@ -13,4 +13,4 @@ cargo run -r --example yolov8-trash
 
 ## Results
 
-![](./demo.jpg)
+![](./demo.png)

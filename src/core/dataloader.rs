@@ -5,12 +5,12 @@ use std::collections::VecDeque;
 use std::path::{Path, PathBuf};
 use walkdir::{DirEntry, WalkDir};
 
+/// Dataloader for load images
 #[derive(Debug, Clone)]
 pub struct DataLoader {
-    // source could be single image path, folder with images (TODO: video, stream)
+    pub paths: VecDeque<PathBuf>,
     pub recursive: bool,
     pub batch: usize,
-    pub paths: VecDeque<PathBuf>,
 }
 
 impl Iterator for DataLoader {

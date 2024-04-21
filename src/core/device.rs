@@ -4,7 +4,7 @@ pub enum Device {
     Cuda(usize),
     Trt(usize),
     CoreML(usize),
-    Cann(usize),
+    // Cann(usize),
     // Acl(usize),
     // Rocm(usize),
     // Rknpu(usize),

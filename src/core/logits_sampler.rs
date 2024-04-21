@@ -1,6 +1,7 @@
 use anyhow::Result;
 use rand::distributions::{Distribution, WeightedIndex};
 
+/// Logits Sampler
 #[derive(Debug)]
 pub struct LogitsSampler {
     temperature: f32,

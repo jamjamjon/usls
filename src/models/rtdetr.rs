@@ -3,7 +3,7 @@ use image::DynamicImage;
 use ndarray::{s, Array, Axis, IxDyn};
 use regex::Regex;
 
-use crate::{ops, Bbox, DynConf, MinOptMax, Options, OrtEngine, Rect, Ys};
+use crate::{ops, Bbox, DynConf, MinOptMax, Options, OrtEngine, Y};
 
 #[derive(Debug)]
 pub struct RTDETR {
@@ -55,15 +55,14 @@ impl RTDETR {
         })
     }
 
-    pub fn run(&mut self, xs: &[DynamicImage]) -> Result<Vec<Ys>> {
+    pub fn run(&mut self, xs: &[DynamicImage]) -> Result<Vec<Y>> {
         let xs_ = ops::letterbox(xs, self.height() as u32, self.width() as u32, 144.0)?;
         let xs_ = ops::normalize(xs_, 0.0, 255.0);
         let ys = self.engine.run(&[xs_])?;
-        let ys = self.postprocess(ys, xs)?;
-        Ok(ys)
+        self.postprocess(ys, xs)
     }
 
-    pub fn postprocess(&self, xs: Vec<Array<f32, IxDyn>>, xs0: &[DynamicImage]) -> Result<Vec<Ys>> {
+    pub fn postprocess(&self, xs: Vec<Array<f32, IxDyn>>, xs0: &[DynamicImage]) -> Result<Vec<Y>> {
         const CXYWH_OFFSET: usize = 4; // cxcywh
         let preds = &xs[0];
 
@@ -98,20 +97,20 @@ impl RTDETR {
                 let y = (bbox[1] - bbox[3] / 2.) * self.height() as f32 / ratio;
                 let w = bbox[2] * self.width() as f32 / ratio;
                 let h = bbox[3] * self.height() as f32 / ratio;
-                let y_bbox = Bbox::new(
-                    Rect::from_xywh(
-                        x.max(0.0f32).min(width_original),
-                        y.max(0.0f32).min(height_original),
-                        w,
-                        h,
-                    ),
-                    id,
-                    confidence,
-                    self.names.as_ref().map(|names| names[id].clone()),
-                );
-                y_bboxes.push(y_bbox)
+                y_bboxes.push(
+                    Bbox::default()
+                        .with_xywh(
+                            x.max(0.0f32).min(width_original),
+                            y.max(0.0f32).min(height_original),
+                            w,
+                            h,
+                        )
+                        .with_confidence(confidence)
+                        .with_id(id as isize)
+                        .with_name(self.names.as_ref().map(|names| names[id].to_owned())),
+                )
             }
-            ys.push(Ys::default().with_bboxes(&y_bboxes));
+            ys.push(Y::default().with_bboxes(&y_bboxes));
         }
         Ok(ys)
     }

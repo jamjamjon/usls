@@ -15,18 +15,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut model = DB::new(&options)?;
 
     // load image
-    let x = vec![DataLoader::try_read("./assets/db.png")?];
+    let x = vec![
+        DataLoader::try_read("./assets/db.png")?,
+        // DataLoader::try_read("./assets/2.jpg")?,
+    ];
 
     // run
     let y = model.run(&x)?;
 
     // annotate
     let annotator = Annotator::default()
-        .without_name(true)
-        .without_polygons(false)
-        .with_mask_alpha(0)
-        .without_bboxes(false)
-        .with_saveout("DB-Text-Detection");
+        .without_bboxes(true)
+        .with_masks_alpha(60)
+        .with_polygon_color([255, 105, 180, 255])
+        .without_mbrs(true)
+        .with_saveout("DB");
     annotator.annotate(&x, &y);
 
     Ok(())

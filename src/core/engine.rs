@@ -8,6 +8,7 @@ use ort::{
 
 use crate::{config_dir, Device, MinOptMax, Options, CHECK_MARK, CROSS_MARK, SAFE_CROSS_MARK};
 
+/// ONNXRuntime Backend
 #[derive(Debug)]
 pub struct OrtEngine {
     session: Session,
@@ -145,8 +146,7 @@ impl OrtEngine {
             Device::Cpu(_) => {
                 println!("{CHECK_MARK} Using CPU");
                 ort::CPUExecutionProvider::default().build()
-            }
-            _ => todo!(),
+            } // _ => todo!(),
         };
         let session = builder
             .with_optimization_level(ort::GraphOptimizationLevel::Level3)?

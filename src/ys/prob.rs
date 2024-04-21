@@ -1,29 +1,38 @@
-use ndarray::{Array, Axis, IxDyn};
-
+/// Probabilities for classification
 #[derive(Clone, PartialEq, Default)]
-pub struct Embedding {
-    data: Array<f32, IxDyn>,
+pub struct Prob {
+    probs: Vec<f32>,
     names: Option<Vec<String>>,
 }
 
-impl std::fmt::Debug for Embedding {
+impl std::fmt::Debug for Prob {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("").field("Top5", &self.topk(5)).finish()
     }
 }
 
-impl Embedding {
-    pub fn new(data: Array<f32, IxDyn>, names: Option<Vec<String>>) -> Self {
-        Self { data, names }
+impl Prob {
+    pub fn with_names(mut self, x: Option<Vec<String>>) -> Self {
+        self.names = x;
+        self
     }
 
-    pub fn data(&self) -> &Array<f32, IxDyn> {
-        &self.data
+    pub fn with_probs(mut self, x: &[f32]) -> Self {
+        self.probs = x.to_vec();
+        self
+    }
+
+    pub fn probs(&self) -> &Vec<f32> {
+        &self.probs
+    }
+
+    pub fn names(&self) -> Option<&Vec<String>> {
+        self.names.as_ref()
     }
 
     pub fn topk(&self, k: usize) -> Vec<(usize, f32, Option<String>)> {
         let mut probs = self
-            .data
+            .probs
             .iter()
             .enumerate()
             .map(|(a, b)| (a, *b))
@@ -38,11 +47,6 @@ impl Embedding {
             ));
         }
         topk
-    }
-
-    pub fn norm(&self) -> Array<f32, IxDyn> {
-        let std_ = self.data.mapv(|x| x * x).sum_axis(Axis(0)).mapv(f32::sqrt);
-        self.data.clone() / std_
     }
 
     pub fn top1(&self) -> (usize, f32, Option<String>) {

@@ -1,5 +1,6 @@
-use crate::{auto_load, Device, MinOptMax};
+use crate::{auto_load, models::YOLOTask, Device, MinOptMax};
 
+/// Options for building models
 #[derive(Debug, Clone)]
 pub struct Options {
     pub onnx_path: String,
@@ -47,11 +48,15 @@ pub struct Options {
     pub tokenizer: Option<String>,
     pub vocab: Option<String>,
     pub names: Option<Vec<String>>,  // names
-    pub names2: Option<Vec<String>>, // names2, could be keypoints names
-    pub anchors_first: bool,         // otuput format: [bs, anchors/na, pos+nc+nm]
+    pub names2: Option<Vec<String>>, // names2: could be keypoints names
+    pub names3: Option<Vec<String>>, // names3
     pub min_width: Option<f32>,
     pub min_height: Option<f32>,
     pub unclip_ratio: f32, // DB
+    pub yolo_task: Option<YOLOTask>,
+    pub anchors_first: bool, // yolo model output format like: [batch_size, anchors, xywh_clss_xxx]
+    pub conf_independent: bool, // xywh_conf_clss
+    pub apply_probs_softmax: bool,
 }
 
 impl Default for Options {
@@ -99,10 +104,14 @@ impl Default for Options {
             vocab: None,
             names: None,
             names2: None,
-            anchors_first: false,
+            names3: None,
             min_width: None,
             min_height: None,
             unclip_ratio: 1.5,
+            yolo_task: None,
+            anchors_first: false,
+            conf_independent: false,
+            apply_probs_softmax: false,
         }
     }
 }
@@ -143,6 +152,21 @@ impl Options {
         self
     }
 
+    pub fn with_yolo_task(mut self, x: YOLOTask) -> Self {
+        self.yolo_task = Some(x);
+        self
+    }
+
+    pub fn with_conf_independent(mut self, x: bool) -> Self {
+        self.conf_independent = x;
+        self
+    }
+
+    pub fn apply_probs_softmax(mut self, x: bool) -> Self {
+        self.apply_probs_softmax = x;
+        self
+    }
+
     pub fn with_profile(mut self, profile: bool) -> Self {
         self.profile = profile;
         self
@@ -155,6 +179,11 @@ impl Options {
 
     pub fn with_names2(mut self, names: &[&str]) -> Self {
         self.names2 = Some(names.iter().map(|x| x.to_string()).collect::<Vec<String>>());
+        self
+    }
+
+    pub fn with_names3(mut self, names: &[&str]) -> Self {
+        self.names3 = Some(names.iter().map(|x| x.to_string()).collect::<Vec<String>>());
         self
     }
 
@@ -183,8 +212,8 @@ impl Options {
         self
     }
 
-    pub fn with_anchors_first(mut self) -> Self {
-        self.anchors_first = true;
+    pub fn with_anchors_first(mut self, x: bool) -> Self {
+        self.anchors_first = x;
         self
     }
 
