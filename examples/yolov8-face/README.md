@@ -10,4 +10,4 @@ cargo run -r --example yolov8-face
 
 ## Results
 
-![](./demo.jpg)
+![](./demo.png)

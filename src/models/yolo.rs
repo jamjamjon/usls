@@ -4,20 +4,18 @@ use image::DynamicImage;
 use ndarray::{s, Array, Axis, IxDyn};
 use regex::Regex;
 
-use crate::{
-    ops, Bbox, DynConf, Embedding, Keypoint, Mask, MinOptMax, Options, OrtEngine, Point, Rect, Ys,
-};
+use crate::{ops, Bbox, DynConf, Keypoint, Mask, Mbr, MinOptMax, Options, OrtEngine, Prob, Y};
 
 const CXYWH_OFFSET: usize = 4;
 const KPT_STEP: usize = 3;
 
 #[derive(Debug, Clone, ValueEnum)]
-enum YOLOTask {
+pub enum YOLOTask {
     Classify,
     Detect,
     Pose,
     Segment,
-    Obb, // TODO
+    Obb,
 }
 
 #[derive(Debug)]
@@ -37,6 +35,8 @@ pub struct YOLO {
     names_kpt: Option<Vec<String>>,
     apply_nms: bool,
     anchors_first: bool,
+    conf_independent: bool,
+    apply_probs_softmax: bool,
 }
 
 impl YOLO {
@@ -47,16 +47,21 @@ impl YOLO {
             engine.height().to_owned(),
             engine.width().to_owned(),
         );
-        let task = match engine
-            .try_fetch("task")
-            .unwrap_or("detect".to_string())
-            .as_str()
-        {
-            "classify" => YOLOTask::Classify,
-            "detect" => YOLOTask::Detect,
-            "pose" => YOLOTask::Pose,
-            "segment" => YOLOTask::Segment,
-            x => todo!("{:?} is not supported for now!", x),
+
+        let task = match &options.yolo_task {
+            Some(task) => task.to_owned(),
+            None => match engine
+                .try_fetch("task")
+                .unwrap_or("detect".to_string())
+                .as_str()
+            {
+                "classify" => YOLOTask::Classify,
+                "detect" => YOLOTask::Detect,
+                "pose" => YOLOTask::Pose,
+                "segment" => YOLOTask::Segment,
+                "obb" => YOLOTask::Obb,
+                x => todo!("{:?} is not supported for now!", x),
+            },
         };
 
         // try from custom class names, and then model metadata
@@ -119,219 +124,275 @@ impl YOLO {
             names,
             names_kpt,
             anchors_first: options.anchors_first,
+            conf_independent: options.conf_independent,
+            apply_probs_softmax: options.apply_probs_softmax,
         })
     }
 
-    pub fn run(&mut self, xs: &[DynamicImage]) -> Result<Vec<Ys>> {
-        let xs_ = ops::letterbox(xs, self.height() as u32, self.width() as u32, 144.0)?;
+    pub fn run(&mut self, xs: &[DynamicImage]) -> Result<Vec<Y>> {
+        let xs_ = match self.task {
+            YOLOTask::Classify => ops::resize(xs, self.height() as u32, self.width() as u32)?,
+            _ => ops::letterbox(xs, self.height() as u32, self.width() as u32, 114.0)?,
+        };
         let xs_ = ops::normalize(xs_, 0.0, 255.0);
         let ys = self.engine.run(&[xs_])?;
-        let ys = self.postprocess(ys, xs)?;
-        Ok(ys)
+        self.postprocess(ys, xs)
     }
 
-    pub fn postprocess(&self, xs: Vec<Array<f32, IxDyn>>, xs0: &[DynamicImage]) -> Result<Vec<Ys>> {
-        if let YOLOTask::Classify = self.task {
-            let mut ys = Vec::new();
-            for batch in xs[0].axis_iter(Axis(0)) {
-                ys.push(
-                    Ys::default()
-                        .with_probs(Embedding::new(batch.into_owned(), self.names.to_owned())),
-                );
-            }
-            Ok(ys)
-        } else {
-            let (preds, protos) = if xs.len() == 2 {
-                if xs[0].ndim() == 3 {
-                    (&xs[0], Some(&xs[1]))
-                } else {
-                    (&xs[1], Some(&xs[0]))
-                }
-            } else {
-                (&xs[0], None)
-            };
+    pub fn postprocess(&self, xs: Vec<Array<f32, IxDyn>>, xs0: &[DynamicImage]) -> Result<Vec<Y>> {
+        let mut ys = Vec::new();
+        let protos = if xs.len() == 2 { Some(&xs[1]) } else { None };
+        for (idx, preds) in xs[0].axis_iter(Axis(0)).enumerate() {
+            let image_width = xs0[idx].width() as f32;
+            let image_height = xs0[idx].height() as f32;
 
-            let mut ys = Vec::new();
-            for (idx, anchor) in preds.axis_iter(Axis(0)).enumerate() {
-                let width_original = xs0[idx].width() as f32;
-                let height_original = xs0[idx].height() as f32;
-                let ratio = (self.width() as f32 / width_original)
-                    .min(self.height() as f32 / height_original);
-
-                #[allow(clippy::type_complexity)]
-                let mut data: Vec<(Bbox, Option<Vec<Keypoint>>, Option<Vec<f32>>)> = Vec::new();
-                for pred in anchor.axis_iter(if self.anchors_first { Axis(0) } else { Axis(1) }) {
-                    // split preds for different tasks
-                    let bbox = pred.slice(s![0..CXYWH_OFFSET]);
-                    let clss = pred.slice(s![CXYWH_OFFSET..CXYWH_OFFSET + self.nc]);
-                    let kpts = {
-                        if let YOLOTask::Pose = self.task {
-                            Some(pred.slice(s![pred.len() - KPT_STEP * self.nk..]))
-                        } else {
-                            None
-                        }
-                    };
-                    let coefs = {
-                        if let YOLOTask::Segment = self.task {
-                            Some(pred.slice(s![pred.len() - self.nm..]).to_vec())
-                        } else {
-                            None
-                        }
+            // decode
+            match self.task {
+                YOLOTask::Classify => {
+                    let y = if self.apply_probs_softmax {
+                        let exps = preds.mapv(|x| x.exp());
+                        let stds = exps.sum_axis(Axis(0));
+                        exps / stds
+                    } else {
+                        preds.into_owned()
                     };
 
-                    // confidence and index
-                    let (id, &confidence) = clss
-                        .into_iter()
-                        .enumerate()
-                        .reduce(|max, x| if x.1 > max.1 { x } else { max })
-                        .unwrap();
-
-                    // confidence filter
-                    if confidence < self.confs[id] {
-                        continue;
-                    }
-
-                    // bbox re-scale
-                    let cx = bbox[0] / ratio;
-                    let cy = bbox[1] / ratio;
-                    let w = bbox[2] / ratio;
-                    let h = bbox[3] / ratio;
-                    let x = cx - w / 2.;
-                    let y = cy - h / 2.;
-                    let y_bbox = Bbox::new(
-                        Rect::from_xywh(
-                            x.max(0.0f32).min(width_original),
-                            y.max(0.0f32).min(height_original),
-                            w,
-                            h,
+                    ys.push(
+                        Y::default().with_probs(
+                            Prob::default()
+                                .with_probs(&y.into_raw_vec())
+                                .with_names(self.names.to_owned()),
                         ),
-                        id,
-                        confidence,
-                        self.names.as_ref().map(|names| names[id].to_owned()),
                     );
+                }
+                YOLOTask::Obb => {
+                    let mut y_mbrs: Vec<Mbr> = Vec::new();
+                    let ratio = (self.width() as f32 / image_width)
+                        .min(self.height() as f32 / image_height);
+                    for pred in preds.axis_iter(if self.anchors_first { Axis(0) } else { Axis(1) })
+                    {
+                        // xywhclsr
+                        let xywh = pred.slice(s![0..CXYWH_OFFSET]);
+                        let clss = pred.slice(s![CXYWH_OFFSET..CXYWH_OFFSET + self.nc]);
+                        let radians = pred[pred.len() - 1];
+                        let (id, &confidence) = clss
+                            .into_iter()
+                            .enumerate()
+                            .max_by(|a, b| a.1.total_cmp(b.1))
+                            .unwrap();
+                        if confidence < self.confs[id] {
+                            continue;
+                        }
 
-                    // kpts
-                    let y_kpts = {
-                        if let Some(kpts) = kpts {
-                            let mut kpts_ = Vec::new();
-                            for i in 0..self.nk {
-                                let kx = kpts[KPT_STEP * i] / ratio;
-                                let ky = kpts[KPT_STEP * i + 1] / ratio;
-                                let kconf = kpts[KPT_STEP * i + 2];
-                                if kconf < self.kconfs[i] {
-                                    kpts_.push(Keypoint::default());
-                                } else {
-                                    kpts_.push(Keypoint::new(
-                                        Point::new(
-                                            kx.max(0.0f32).min(width_original),
-                                            ky.max(0.0f32).min(height_original),
-                                        ),
-                                        kconf,
-                                        i as isize,
-                                        self.names_kpt.as_ref().map(|names| names[i].to_owned()),
-                                    ));
-                                }
-                            }
-                            Some(kpts_)
+                        // re-scale
+                        let cx = xywh[0] / ratio;
+                        let cy = xywh[1] / ratio;
+                        let w = xywh[2] / ratio;
+                        let h = xywh[3] / ratio;
+                        let (w, h, radians) = if w > h {
+                            (w, h, radians)
                         } else {
-                            None
+                            (h, w, radians + std::f32::consts::PI / 2.)
+                        };
+                        let radians = radians % std::f32::consts::PI;
+                        y_mbrs.push(
+                            Mbr::from_cxcywhr(
+                                cx as f64,
+                                cy as f64,
+                                w as f64,
+                                h as f64,
+                                radians as f64,
+                            )
+                            .with_confidence(confidence)
+                            .with_id(id as isize)
+                            .with_name(self.names.as_ref().map(|names| names[id].to_owned())),
+                        );
+                    }
+                    ys.push(Y::default().with_mbrs(&y_mbrs).apply_mbrs_nms(self.iou));
+                }
+                _ => {
+                    let mut y_bboxes: Vec<Bbox> = Vec::new();
+                    let ratio = (self.width() as f32 / image_width)
+                        .min(self.height() as f32 / image_height);
+
+                    // bboxes
+                    for (i, pred) in preds
+                        .axis_iter(if self.anchors_first { Axis(0) } else { Axis(1) })
+                        .enumerate()
+                    {
+                        let bbox = pred.slice(s![0..CXYWH_OFFSET]);
+                        let (conf_, clss) = if self.conf_independent {
+                            (
+                                pred[CXYWH_OFFSET],
+                                pred.slice(s![CXYWH_OFFSET + 1..CXYWH_OFFSET + self.nc + 1]),
+                            )
+                        } else {
+                            (1.0, pred.slice(s![CXYWH_OFFSET..CXYWH_OFFSET + self.nc]))
+                        };
+                        let (id, &confidence) = clss
+                            .into_iter()
+                            .enumerate()
+                            .max_by(|a, b| a.1.total_cmp(b.1))
+                            .unwrap();
+                        let confidence = confidence * conf_;
+                        if confidence < self.confs[id] {
+                            continue;
                         }
-                    };
 
-                    // merged
-                    data.push((y_bbox, y_kpts, coefs));
-                }
-
-                // nms
-                if self.apply_nms {
-                    Self::non_max_suppression(&mut data, self.iou);
-                }
-
-                // decode
-                let mut y_bboxes: Vec<Bbox> = Vec::new();
-                let mut y_kpts: Vec<Vec<Keypoint>> = Vec::new();
-                let mut y_masks: Vec<Mask> = Vec::new();
-                for elem in data.into_iter() {
-                    if let Some(kpts) = elem.1 {
-                        y_kpts.push(kpts)
+                        // re-scale
+                        let cx = bbox[0] / ratio;
+                        let cy = bbox[1] / ratio;
+                        let w = bbox[2] / ratio;
+                        let h = bbox[3] / ratio;
+                        let x = cx - w / 2.;
+                        let y = cy - h / 2.;
+                        let x = x.max(0.0).min(image_width);
+                        let y = y.max(0.0).min(image_height);
+                        let y_bbox = Bbox::default()
+                            .with_xywh(x, y, w, h)
+                            .with_confidence(confidence)
+                            .with_id(id as isize)
+                            .with_id_born(i as isize)
+                            .with_name(self.names.as_ref().map(|names| names[id].to_owned()));
+                        y_bboxes.push(y_bbox);
                     }
 
-                    // decode masks
-                    if let Some(coefs) = elem.2 {
-                        let proto = protos.unwrap().slice(s![idx, .., .., ..]);
-                        let (nm, nh, nw) = proto.dim();
+                    // nms
+                    let mut y = Y::default().with_bboxes(&y_bboxes);
+                    if self.apply_nms {
+                        y = y.apply_bboxes_nms(self.iou);
+                    }
 
-                        // coefs * proto -> mask
-                        let coefs = Array::from_shape_vec((1, nm), coefs)?; // (n, nm)
-                        let proto = proto.to_owned().into_shape((nm, nh * nw))?; // (nm, nh*nw)
-                        let mask = coefs.dot(&proto).into_shape((nh, nw, 1))?; // (nh, nw, n)
+                    // keypoints
+                    if let YOLOTask::Pose = self.task {
+                        if let Some(bboxes) = y.bboxes() {
+                            let mut y_kpts: Vec<Vec<Keypoint>> = Vec::new();
+                            for bbox in bboxes.iter() {
+                                let pred = if self.anchors_first {
+                                    preds.slice(s![
+                                        bbox.id_born(),
+                                        preds.shape()[1] - KPT_STEP * self.nk..,
+                                    ])
+                                } else {
+                                    preds.slice(s![
+                                        preds.shape()[0] - KPT_STEP * self.nk..,
+                                        bbox.id_born(),
+                                    ])
+                                };
 
-                        // build image from ndarray
-                        let mask_im = ops::build_dyn_image_from_raw(
-                            mask.into_raw_vec(),
-                            nw as u32,
-                            nh as u32,
-                        );
-
-                        // rescale masks
-                        let mask_original = ops::descale_mask(
-                            mask_im,
-                            nw as f32,
-                            nh as f32,
-                            width_original,
-                            height_original,
-                        );
-
-                        // crop mask with bbox
-                        let mut mask_original = mask_original.into_luma8();
-                        for y in 0..height_original as usize {
-                            for x in 0..width_original as usize {
-                                if x < elem.0.xmin() as usize
-                                    || x > elem.0.xmax() as usize
-                                    || y < elem.0.ymin() as usize
-                                    || y > elem.0.ymax() as usize
-                                {
-                                    mask_original.put_pixel(x as u32, y as u32, image::Luma([0u8]));
+                                let mut kpts_: Vec<Keypoint> = Vec::new();
+                                for i in 0..self.nk {
+                                    let kx = pred[KPT_STEP * i] / ratio;
+                                    let ky = pred[KPT_STEP * i + 1] / ratio;
+                                    let kconf = pred[KPT_STEP * i + 2];
+                                    if kconf < self.kconfs[i] {
+                                        kpts_.push(Keypoint::default());
+                                    } else {
+                                        kpts_.push(
+                                            Keypoint::default()
+                                                .with_id(i as isize)
+                                                .with_confidence(kconf)
+                                                .with_name(
+                                                    self.names_kpt
+                                                        .as_ref()
+                                                        .map(|names| names[i].to_owned()),
+                                                )
+                                                .with_xy(
+                                                    kx.max(0.0f32).min(image_width),
+                                                    ky.max(0.0f32).min(image_height),
+                                                ),
+                                        );
+                                    }
                                 }
+                                y_kpts.push(kpts_);
                             }
+                            y = y.with_keypoints(&y_kpts);
                         }
-
-                        // get masks from image
-                        let masks = ops::get_masks_from_image(
-                            mask_original,
-                            1,
-                            elem.0.id(),
-                            elem.0.name().cloned(),
-                        );
-                        y_masks.extend(masks);
                     }
-                    y_bboxes.push(elem.0);
+
+                    // masks
+                    if let YOLOTask::Segment = self.task {
+                        if let Some(bboxes) = y.bboxes() {
+                            let mut y_masks: Vec<Mask> = Vec::new();
+                            for bbox in bboxes.iter() {
+                                let coefs = if self.anchors_first {
+                                    preds
+                                        .slice(s![bbox.id_born(), preds.shape()[1] - self.nm..])
+                                        .to_vec()
+                                } else {
+                                    preds
+                                        .slice(s![preds.shape()[0] - self.nm.., bbox.id_born()])
+                                        .to_vec()
+                                };
+                                let proto = protos.unwrap().slice(s![idx, .., .., ..]);
+
+                                // coefs * proto -> mask
+                                let (nm, nh, nw) = proto.dim();
+                                let coefs = Array::from_shape_vec((1, nm), coefs)?; // (n, nm)
+                                let proto = proto.to_owned().into_shape((nm, nh * nw))?; // (nm, nh*nw)
+                                let mask = coefs.dot(&proto).into_shape((nh, nw, 1))?; // (nh, nw, n)
+
+                                // build image from ndarray
+                                let mask_im = ops::build_dyn_image_from_raw(
+                                    mask.into_raw_vec(),
+                                    nw as u32,
+                                    nh as u32,
+                                );
+
+                                // rescale masks
+                                let mask_original = ops::descale_mask(
+                                    mask_im,
+                                    nw as f32,
+                                    nh as f32,
+                                    image_width,
+                                    image_height,
+                                );
+
+                                // crop mask with bbox
+                                let mut mask_original = mask_original.into_luma8();
+                                for y in 0..image_height as usize {
+                                    for x in 0..image_width as usize {
+                                        if x < bbox.xmin() as usize
+                                            || x > bbox.xmax() as usize
+                                            || y < bbox.ymin() as usize
+                                            || y > bbox.ymax() as usize
+                                        {
+                                            mask_original.put_pixel(
+                                                x as u32,
+                                                y as u32,
+                                                image::Luma([0u8]),
+                                            );
+                                        }
+                                    }
+                                }
+
+                                // get masks from image
+                                let mut masks: Vec<Mask> = Vec::new();
+                                let contours: Vec<imageproc::contours::Contour<i32>> =
+                                    imageproc::contours::find_contours_with_threshold(
+                                        &mask_original,
+                                        1,
+                                    );
+                                contours.iter().for_each(|contour| {
+                                    if contour.points.len() > 2 {
+                                        masks.push(
+                                            Mask::default()
+                                                .with_id(bbox.id())
+                                                .with_points_imageproc(&contour.points)
+                                                .with_name(bbox.name().cloned()),
+                                        );
+                                    }
+                                });
+                                y_masks.extend(masks);
+                            }
+                            y = y.with_masks(&y_masks);
+                        }
+                    }
+                    ys.push(y);
                 }
-
-                // save result
-                ys.push(
-                    Ys::default()
-                        .with_bboxes(&y_bboxes)
-                        .with_keypoints(&y_kpts)
-                        .with_masks(&y_masks),
-                );
             }
-
-            Ok(ys)
         }
-    }
-
-    fn fetch_names(engine: &OrtEngine) -> Option<Vec<String>> {
-        // fetch class names from onnx metadata
-        // String format: `{0: 'person', 1: 'bicycle', 2: 'sports ball', ..., 27: "yellow_lady's_slipper"}`
-        engine.try_fetch("names").map(|names| {
-            let re = Regex::new(r#"(['"])([-()\w '"]+)(['"])"#).unwrap();
-            let mut names_ = vec![];
-            for (_, [_, name, _]) in re.captures_iter(&names).map(|x| x.extract()) {
-                names_.push(name.to_string());
-            }
-            names_
-        })
+        Ok(ys)
     }
 
     pub fn batch(&self) -> isize {
@@ -346,28 +407,16 @@ impl YOLO {
         self.height.opt
     }
 
-    #[allow(clippy::type_complexity)]
-    fn non_max_suppression(
-        xs: &mut Vec<(Bbox, Option<Vec<Keypoint>>, Option<Vec<f32>>)>,
-        iou_threshold: f32,
-    ) {
-        xs.sort_by(|b1, b2| b2.0.confidence().partial_cmp(&b1.0.confidence()).unwrap());
-
-        let mut current_index = 0;
-        for index in 0..xs.len() {
-            let mut drop = false;
-            for prev_index in 0..current_index {
-                let iou = xs[prev_index].0.iou(&xs[index].0);
-                if iou > iou_threshold {
-                    drop = true;
-                    break;
-                }
+    fn fetch_names(engine: &OrtEngine) -> Option<Vec<String>> {
+        // fetch class names from onnx metadata
+        // String format: `{0: 'person', 1: 'bicycle', 2: 'sports ball', ..., 27: "yellow_lady's_slipper"}`
+        engine.try_fetch("names").map(|names| {
+            let re = Regex::new(r#"(['"])([-()\w '"]+)(['"])"#).unwrap();
+            let mut names_ = vec![];
+            for (_, [_, name, _]) in re.captures_iter(&names).map(|x| x.extract()) {
+                names_.push(name.to_string());
             }
-            if !drop {
-                xs.swap(current_index, index);
-                current_index += 1;
-            }
-        }
-        xs.truncate(current_index);
+            names_
+        })
     }
 }

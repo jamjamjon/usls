@@ -40,3 +40,4 @@ indicatif = "0.17.8"
 image = "0.25.1"
 imageproc = { version = "0.24" }
 ab_glyph = "0.2.23"
+geo = "0.28.0"

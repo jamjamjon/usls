@@ -1,7 +1,8 @@
-use crate::{ops, DynConf, MinOptMax, Options, OrtEngine};
 use anyhow::Result;
 use image::DynamicImage;
 use ndarray::{Array, Axis, IxDyn};
+
+use crate::{ops, DynConf, MinOptMax, Options, OrtEngine, Y};
 
 #[derive(Debug)]
 pub struct SVTR {
@@ -41,18 +42,17 @@ impl SVTR {
         })
     }
 
-    pub fn run(&mut self, xs: &[DynamicImage]) -> Result<Vec<String>> {
+    pub fn run(&mut self, xs: &[DynamicImage]) -> Result<Vec<Y>> {
         let xs_ =
             ops::resize_with_fixed_height(xs, self.height.opt as u32, self.width.opt as u32, 0.0)?;
         let xs_ = ops::normalize(xs_, 0.0, 255.0);
         let ys: Vec<Array<f32, IxDyn>> = self.engine.run(&[xs_])?;
         let ys = ys[0].to_owned();
-
         self.postprocess(&ys)
     }
 
-    pub fn postprocess(&self, output: &Array<f32, IxDyn>) -> Result<Vec<String>> {
-        let mut texts: Vec<String> = Vec::new();
+    pub fn postprocess(&self, output: &Array<f32, IxDyn>) -> Result<Vec<Y>> {
+        let mut ys: Vec<Y> = Vec::new();
         for batch in output.axis_iter(Axis(0)) {
             let preds = batch
                 .axis_iter(Axis(0))
@@ -72,7 +72,6 @@ impl SVTR {
                     }
 
                     if idx == 0 || idx == self.vocab.len() - 1 {
-                        text_ids.push(*text_id);
                         return text_ids;
                     }
 
@@ -85,9 +84,9 @@ impl SVTR {
                 .map(|idx| self.vocab[idx].to_owned())
                 .collect::<String>();
 
-            texts.push(text);
+            ys.push(Y::default().with_texts(&[text]))
         }
 
-        Ok(texts)
+        Ok(ys)
     }
 }

@@ -5,8 +5,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let options = Options::default()
         .with_model("../models/yolopv2-dyn-480x800.onnx")
         .with_i00((1, 1, 8).into())
-        // .with_trt(0)
-        // .with_fp16(true)
         .with_confs(&[0.3]);
     let mut model = YOLOPv2::new(&options)?;
 
@@ -18,7 +16,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // annotate
     let annotator = Annotator::default()
-        .with_masks_name(false)
+        .with_masks_name(true)
         .with_saveout("YOLOPv2");
     annotator.annotate(&x, &y);
 

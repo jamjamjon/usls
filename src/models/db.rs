@@ -1,6 +1,6 @@
-use crate::{ops, Bbox, DynConf, Mask, MinOptMax, Options, OrtEngine, Polygon, Ys};
+use crate::{ops, DynConf, Mask, Mbr, MinOptMax, Options, OrtEngine, Y};
 use anyhow::Result;
-use image::{DynamicImage, ImageBuffer};
+use image::DynamicImage;
 use ndarray::{Array, Axis, IxDyn};
 
 #[derive(Debug)]
@@ -44,19 +44,20 @@ impl DB {
         })
     }
 
-    pub fn run(&mut self, xs: &[DynamicImage]) -> Result<Vec<Ys>> {
+    pub fn run(&mut self, xs: &[DynamicImage]) -> Result<Vec<Y>> {
         let xs_ = ops::letterbox(xs, self.height.opt as u32, self.width.opt as u32, 144.0)?;
         let xs_ = ops::normalize(xs_, 0.0, 255.0);
         let xs_ = ops::standardize(xs_, &[0.485, 0.456, 0.406], &[0.229, 0.224, 0.225]);
         let ys = self.engine.run(&[xs_])?;
-        let ys = self.postprocess(ys, xs)?;
-        Ok(ys)
+        self.postprocess(ys, xs)
     }
 
-    pub fn postprocess(&self, xs: Vec<Array<f32, IxDyn>>, xs0: &[DynamicImage]) -> Result<Vec<Ys>> {
+    pub fn postprocess(&self, xs: Vec<Array<f32, IxDyn>>, xs0: &[DynamicImage]) -> Result<Vec<Y>> {
         let mut ys = Vec::new();
         for (idx, luma) in xs[0].axis_iter(Axis(0)).enumerate() {
             let mut y_bbox = Vec::new();
+            let mut y_masks: Vec<Mask> = Vec::new();
+            let mut y_mbrs: Vec<Mbr> = Vec::new();
 
             // reshape
             let h = luma.dim()[1];
@@ -64,15 +65,13 @@ impl DB {
             let luma = luma.into_shape((h, w, 1))?.into_owned();
 
             // build image from ndarray
-            let raw_vec = luma
+            let v = luma
                 .into_raw_vec()
                 .iter()
                 .map(|x| if x <= &self.binary_thresh { 0.0 } else { *x })
                 .collect::<Vec<_>>();
-            let mask_im: ImageBuffer<image::Luma<_>, Vec<f32>> =
-                ImageBuffer::from_raw(w as u32, h as u32, raw_vec)
-                    .expect("Faild to create image from ndarray");
-            let mut mask_im = image::DynamicImage::from(mask_im);
+            let mut mask_im =
+                ops::build_dyn_image_from_raw(v, self.height() as u32, self.width() as u32);
 
             // input image
             let image_width = xs0[idx].width() as f32;
@@ -94,37 +93,45 @@ impl DB {
                 imageproc::contours::find_contours_with_threshold(&mask_im, 1);
 
             // loop
-            let mut y_masks: Vec<Mask> = Vec::new();
             for contour in contours.iter() {
-                if contour.points.len() <= 1 {
+                if contour.border_type == imageproc::contours::BorderType::Hole
+                    && contour.points.len() <= 2
+                {
                     continue;
                 }
-                let polygon = Polygon::from_imageproc_points(&contour.points);
-                let perimeter = polygon.perimeter();
-                let delta = polygon.area() * ratio.round() * self.unclip_ratio / perimeter;
-                let polygon = polygon
-                    // .simplify(6e-4 * perimeter)
-                    .offset(delta, image_width, image_height)
+                let mask = Mask::default().with_points_imageproc(&contour.points);
+                let delta = mask.area() * ratio.round() as f64 * self.unclip_ratio as f64
+                    / mask.perimeter();
+                let mask = mask
+                    .unclip(delta, image_width as f64, image_height as f64)
                     .resample(50)
+                    // .simplify(6e-4)
                     .convex_hull();
-                let rect = polygon.find_min_rect();
-                if rect.height() < self.min_height || rect.width() < self.min_width {
-                    continue;
-                }
-                let confidence = polygon.area() / rect.area();
-                if confidence < self.confs[0] {
-                    continue;
-                }
-                y_bbox.push(Bbox::new(rect, 0, confidence, None));
-                y_masks.push(Mask {
-                    polygon,
-                    id: 0,
-                    name: None,
-                });
-            }
-            ys.push(Ys::default().with_bboxes(&y_bbox).with_masks(&y_masks));
-        }
+                if let Some(bbox) = mask.bbox() {
+                    if bbox.height() < self.min_height || bbox.width() < self.min_width {
+                        continue;
+                    }
+                    let confidence = mask.area() as f32 / bbox.area();
+                    if confidence < self.confs[0] {
+                        continue;
+                    }
+                    y_bbox.push(bbox.with_confidence(confidence).with_id(0));
 
+                    if let Some(mbr) = mask.mbr() {
+                        y_mbrs.push(mbr.with_confidence(confidence).with_id(0));
+                    }
+                    y_masks.push(mask.with_id(0));
+                } else {
+                    continue;
+                }
+            }
+            ys.push(
+                Y::default()
+                    .with_bboxes(&y_bbox)
+                    .with_masks(&y_masks)
+                    .with_mbrs(&y_mbrs),
+            );
+        }
         Ok(ys)
     }
 

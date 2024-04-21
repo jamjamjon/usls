@@ -1,3 +1,4 @@
+/// A value composed of Min-Opt-Max
 #[derive(Debug, Clone)]
 pub struct MinOptMax {
     pub min: isize,

@@ -26,4 +26,4 @@ cargo run -r --example yolov9
 
 ## Results
 
-![](./demo.jpg)
+![](./demo.png)

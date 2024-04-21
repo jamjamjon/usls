@@ -1,7 +1,6 @@
-use crate::{Mask, Polygon};
 use anyhow::Result;
-use image::{DynamicImage, GenericImageView, GrayImage, ImageBuffer};
-use ndarray::{Array, Axis, Ix2, IxDyn};
+use image::{DynamicImage, GenericImageView, ImageBuffer};
+use ndarray::{Array, Axis, IxDyn};
 
 pub fn standardize(xs: Array<f32, IxDyn>, mean: &[f32], std: &[f32]) -> Array<f32, IxDyn> {
     let mean = Array::from_shape_vec((1, mean.len(), 1, 1), mean.to_vec()).unwrap();
@@ -20,18 +19,6 @@ pub fn norm2(xs: &Array<f32, IxDyn>) -> Array<f32, IxDyn> {
         .mapv(f32::sqrt)
         .insert_axis(Axis(1));
     xs / std_
-}
-
-pub fn dot2(query: &Array<f32, IxDyn>, gallery: &Array<f32, IxDyn>) -> Result<Vec<Vec<f32>>> {
-    // (m, ndim) * (n, ndim).t => (m, n)
-    let query = query.to_owned().into_dimensionality::<Ix2>()?;
-    let gallery = gallery.to_owned().into_dimensionality::<Ix2>()?;
-    let matrix = query.dot(&gallery.t());
-    let exps = matrix.mapv(|x| x.exp());
-    let stds = exps.sum_axis(Axis(1));
-    let matrix = exps / stds.insert_axis(Axis(1));
-    let matrix: Vec<Vec<f32>> = matrix.axis_iter(Axis(0)).map(|row| row.to_vec()).collect();
-    Ok(matrix)
 }
 
 pub fn scale_wh(w0: f32, h0: f32, w1: f32, h1: f32) -> (f32, f32, f32) {
@@ -61,6 +48,7 @@ pub fn letterbox(
     width: u32,
     bg: f32,
 ) -> Result<Array<f32, IxDyn>> {
+    // TODO: refactor
     let mut ys = Array::ones((xs.len(), 3, height as usize, width as usize)).into_dyn();
     ys.fill(bg);
     for (idx, x) in xs.iter().enumerate() {
@@ -120,27 +108,4 @@ pub fn descale_mask(mask: DynamicImage, w0: f32, h0: f32, w1: f32, h1: f32) -> D
     let mut mask = mask.to_owned();
     let mask = mask.crop(0, 0, w as u32, h as u32);
     mask.resize_exact(w1 as u32, h1 as u32, image::imageops::FilterType::Triangle)
-}
-
-pub fn get_masks_from_image(
-    mask: GrayImage,
-    thresh: u8,
-    id: usize,
-    name: Option<String>,
-) -> Vec<Mask> {
-    // let mask = mask.into_luma8();
-    let contours: Vec<imageproc::contours::Contour<i32>> =
-        imageproc::contours::find_contours_with_threshold(&mask, thresh);
-    let mut masks: Vec<Mask> = Vec::new();
-    contours.iter().for_each(|contour| {
-        // contour.border_type == imageproc::contours::BorderType::Outer &&
-        if contour.points.len() > 2 {
-            masks.push(Mask {
-                polygon: Polygon::from_contour(contour),
-                id,
-                name: name.to_owned(),
-            });
-        }
-    });
-    masks
 }

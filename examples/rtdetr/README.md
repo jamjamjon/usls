@@ -18,4 +18,4 @@ cargo run -r --example rtdetr
 
 ## Results
 
-![](./demo.jpg)
+![](./demo.png)

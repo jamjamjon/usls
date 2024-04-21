@@ -20,4 +20,4 @@ cargo run -r --example fastsam
 
 ## Results
 
-![](./demo.jpg)
+![](./demo.png)

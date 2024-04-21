@@ -4,7 +4,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // 1.build model
     let options = Options::default()
         .with_model("../models/yolov8-plastic-bag-f16.onnx")
-        .with_confs(&[0.3])
         .with_names(&["trash"]);
     let mut model = YOLO::new(&options)?;
 

@@ -20,4 +20,4 @@ cargo run -r --example db
 
 ## Results
 
-![](./demo.jpg)
+![](./demo.png)

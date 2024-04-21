@@ -17,10 +17,12 @@ cargo run -r --example blip
 ```shell
 [Unconditional image captioning]: a group of people walking around a bus
 [Conditional image captioning]: three man walking in front of a bus
+Some(["three man walking in front of a bus"])
 ```
 
 ## TODO
 
+* [ ] Multi-batch inference for image caption
 * [ ] VQA
 * [ ] Retrival
 * [ ] TensorRT support for textual model
