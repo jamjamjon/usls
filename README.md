@@ -1,8 +1,14 @@
 # usls
 
-A Rust library integrated with **ONNXRuntime**, providing a collection of **Computer Vison** and **Vision-Language** models including [YOLOv5](https://github.com/ultralytics/yolov5), [YOLOv8](https://github.com/ultralytics/ultralytics), [YOLOv9](https://github.com/WongKinYiu/yolov9), [RTDETR](https://arxiv.org/abs/2304.08069), [CLIP](https://github.com/openai/CLIP), [DINOv2](https://github.com/facebookresearch/dinov2), [FastSAM](https://github.com/CASIA-IVA-Lab/FastSAM), [YOLO-World](https://github.com/AILab-CVC/YOLO-World), [BLIP](https://arxiv.org/abs/2201.12086), [PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR) and others.
+A Rust library integrated with **ONNXRuntime**, providing a collection of **Computer Vison** and **Vision-Language** models including [YOLOv5](https://github.com/ultralytics/yolov5), [YOLOv8](https://github.com/ultralytics/ultralytics), [YOLOv9](https://github.com/WongKinYiu/yolov9), [RTDETR](https://arxiv.org/abs/2304.08069), [CLIP](https://github.com/openai/CLIP), [DINOv2](https://github.com/facebookresearch/dinov2), [FastSAM](https://github.com/CASIA-IVA-Lab/FastSAM), [YOLO-World](https://github.com/AILab-CVC/YOLO-World), [BLIP](https://arxiv.org/abs/2201.12086), [PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR) , [Depth-Anything](https://github.com/LiheYoung/Depth-Anything) and others.
 
 ## Recently Updated
+
+|        Depth-Anything         |
+| :----------------------------: |
+|<img src='examples/depth-anything/demo.png'   width="800px">|
+
+
 
 |        YOLOP-v2          |             Face-Parsing             |               Text-Detection           |  
 | :----------------------------: | :------------------------------: |  :------------------------------: |
@@ -41,6 +47,7 @@ A Rust library integrated with **ONNXRuntime**, providing a collection of **Comp
 |             [YOLOPv2](https://arxiv.org/abs/2208.11434)             | Panoptic driving Perception |   [demo](examples/yolop)   |      ✅      |      ✅      |             ✅             |            ✅            |
 |    [YOLOv5-classification](https://github.com/ultralytics/yolov5)    |      Object Detection      |   [demo](examples/yolov5)   |      ✅      |      ✅      |             ✅             |            ✅            |
 |     [YOLOv5-segmentation](https://github.com/ultralytics/yolov5)     |    Instance Segmentation    |   [demo](examples/yolov5)   |      ✅      |      ✅      |             ✅             |            ✅            |
+|     [Depth-Anything](https://github.com/LiheYoung/Depth-Anything)     |    Instance Segmentation    |   [demo](examples/depth-anything)   |      ✅      |      ✅      |             ❌             |            ❌            |
 
 ## Solution Models
 

@@ -6,31 +6,16 @@ This demo showcases how to use `DINOv2` to compute image similarity, applicable 
 cargo run -r --example dinov2
 ```
 
-## Or you can manully
+## Donwload DINOv2 ONNX Model
 
-### 1.Donwload DINOv2 ONNX Model
+- [dinov2-s14](https://github.com/jamjamjon/assets/releases/download/v0.0.1/dinov2-s14.onnx)
+- [dinov2-s14-dyn](https://github.com/jamjamjon/assets/releases/download/v0.0.1/dinov2-s14-dyn.onnx)
+- [dinov2-s14-dyn-f16](https://github.com/jamjamjon/assets/releases/download/v0.0.1/dinov2-s14-dyn-f16.onnx)
 
-[dinov2-s14](https://github.com/jamjamjon/assets/releases/download/v0.0.1/dinov2-s14.onnx)
-[dinov2-s14-dyn](https://github.com/jamjamjon/assets/releases/download/v0.0.1/dinov2-s14-dyn.onnx)
-[dinov2-s14-dyn-f16](https://github.com/jamjamjon/assets/releases/download/v0.0.1/dinov2-s14-dyn-f16.onnx)
-
-[dinov2-b14](https://github.com/jamjamjon/assets/releases/download/v0.0.1/dinov2-b14.onnx)
-[dinov2-b14-dyn](https://github.com/jamjamjon/assets/releases/download/v0.0.1/dinov2-b14-dyn.onnx)
+- [dinov2-b14](https://github.com/jamjamjon/assets/releases/download/v0.0.1/dinov2-b14.onnx)
+- [dinov2-b14-dyn](https://github.com/jamjamjon/assets/releases/download/v0.0.1/dinov2-b14-dyn.onnx)
 
 
-### 2. Specify the ONNX model path in `main.rs`
-
-```Rust
-let options = Options::default()
-    .with_model("ONNX_PATH")    // <= modify this
-    .with_profile(false);
-```
-
-### 3. Then, run
-
-```bash
-cargo run -r --example dinov2
-```
 
 ## Results
 

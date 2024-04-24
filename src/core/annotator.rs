@@ -1,7 +1,10 @@
-use crate::{auto_load, string_now, Bbox, Keypoint, Mask, Mbr, Prob, CHECK_MARK, CROSS_MARK, Y};
+use crate::{
+    auto_load, string_now, Bbox, Keypoint, Mask, Mbr, Prob, CHECK_MARK, CROSS_MARK, TURBO, Y,
+};
 use ab_glyph::{FontVec, PxScale};
 use anyhow::Result;
-use image::{DynamicImage, Rgba, RgbaImage};
+use image::{DynamicImage, ImageBuffer, Rgba, RgbaImage};
+use imageproc::map::map_colors;
 
 /// Annotator for struct `Y`
 #[derive(Debug)]
@@ -265,6 +268,13 @@ impl Annotator {
         for (img, y) in imgs.iter().zip(ys.iter()) {
             let mut img_rgb = img.to_rgba8();
 
+            // pixels
+            if !self.without_masks {
+                if let Some(xs) = &y.pixels() {
+                    self.plot_pixels(&mut img_rgb, xs)
+                }
+            }
+
             // masks
             if !self.without_masks {
                 if let Some(xs) = &y.masks() {
@@ -375,6 +385,60 @@ impl Annotator {
                 self.without_mbrs_text_bg,
             );
         }
+    }
+
+    pub fn plot_pixels(&self, img: &mut RgbaImage, pixels: &[u8]) {
+        let (w, h) = img.dimensions();
+        let luma: ImageBuffer<image::Luma<_>, Vec<u8>> =
+            ImageBuffer::from_raw(w, h, pixels.to_vec())
+                .expect("Faild to create luma from ndarray");
+        let luma = map_colors(&luma, |p| {
+            let x = p[0];
+            image::Rgb(TURBO[x as usize])
+        });
+        let luma = image::DynamicImage::from(luma);
+        let luma = luma.resize_exact(w / 2, h / 2, image::imageops::FilterType::CatmullRom);
+        let im_ori = img.clone();
+        let im_ori = image::DynamicImage::from(im_ori);
+        let im_ori = im_ori.resize_exact(w / 2, h / 2, image::imageops::FilterType::CatmullRom);
+
+        // overwrite
+        for x in 0..w {
+            for y in 0..h {
+                img.put_pixel(x, y, Rgba([255, 255, 255, 255]));
+            }
+        }
+
+        // paste
+        let pos_x = 0;
+        let pos_y = (2 * (h - im_ori.height()) / 3) as i64;
+        image::imageops::overlay(img, &im_ori, pos_x, pos_y);
+        image::imageops::overlay(img, &luma, im_ori.width().into(), pos_y);
+
+        // text
+        let legend = "Raw";
+        let scale = PxScale::from(self.scale_dy * 2.5);
+        let (text_w, text_h) = imageproc::drawing::text_size(scale, &self.font, legend);
+        imageproc::drawing::draw_text_mut(
+            img,
+            Rgba([0, 0, 0, 255]),
+            ((im_ori.width() - text_w) / 2) as i32,
+            ((pos_y as u32 - text_h) / 2) as i32,
+            scale,
+            &self.font,
+            legend,
+        );
+        let legend = "Depth";
+        let (text_w, text_h) = imageproc::drawing::text_size(scale, &self.font, legend);
+        imageproc::drawing::draw_text_mut(
+            img,
+            Rgba([0, 0, 0, 255]),
+            (im_ori.width() + (im_ori.width() - text_w) / 2) as i32,
+            ((pos_y as u32 - text_h) / 2) as i32,
+            scale,
+            &self.font,
+            legend,
+        );
     }
 
     pub fn plot_masks_and_polygons(&self, img: &mut RgbaImage, masks: &[Mask]) {

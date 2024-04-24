@@ -1,6 +1,7 @@
 mod blip;
 mod clip;
 mod db;
+mod depth_anything;
 mod dinov2;
 mod rtdetr;
 mod rtmo;
@@ -11,6 +12,7 @@ mod yolop;
 pub use blip::Blip;
 pub use clip::Clip;
 pub use db::DB;
+pub use depth_anything::DepthAnything;
 pub use dinov2::Dinov2;
 pub use rtdetr::RTDETR;
 pub use rtmo::RTMO;
