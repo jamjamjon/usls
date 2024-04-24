@@ -8,6 +8,7 @@ pub struct Y {
     mbrs: Option<Vec<Mbr>>,
     masks: Option<Vec<Mask>>,
     texts: Option<Vec<String>>,
+    pixels: Option<Vec<u8>>,
 }
 
 impl std::fmt::Debug for Y {
@@ -41,11 +42,21 @@ impl std::fmt::Debug for Y {
                 f.field("Masks", &x);
             }
         }
+        if let Some(x) = &self.pixels {
+            if !x.is_empty() {
+                f.field("Pixels", &x);
+            }
+        }
         f.finish()
     }
 }
 
 impl Y {
+    pub fn with_pixels(mut self, pixels: &[u8]) -> Self {
+        self.pixels = Some(pixels.to_vec());
+        self
+    }
+
     pub fn with_probs(mut self, probs: Prob) -> Self {
         self.probs = Some(probs);
         self
@@ -73,6 +84,10 @@ impl Y {
     pub fn with_masks(mut self, masks: &[Mask]) -> Self {
         self.masks = Some(masks.to_vec());
         self
+    }
+
+    pub fn pixels(&self) -> Option<&Vec<u8>> {
+        self.pixels.as_ref()
     }
 
     pub fn probs(&self) -> Option<&Prob> {

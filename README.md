@@ -4,6 +4,12 @@ A Rust library integrated with **ONNXRuntime**, providing a collection of **Comp
 
 ## Recently Updated
 
+|        Depth-Anything         |
+| :----------------------------: |
+|<img src='examples/depth-anything/demo.png'   width="800px">|
+
+
+
 |        YOLOP-v2          |             Face-Parsing             |               Text-Detection           |  
 | :----------------------------: | :------------------------------: |  :------------------------------: |
 |<img src='examples/yolop/demo.png'  height="240px">| <img src='examples/face-parsing/demo.png'  height="240px"> | <img src='examples/db/demo.png'  height="240px"> |
@@ -41,6 +47,7 @@ A Rust library integrated with **ONNXRuntime**, providing a collection of **Comp
 |             [YOLOPv2](https://arxiv.org/abs/2208.11434)             | Panoptic driving Perception |   [demo](examples/yolop)   |      ✅      |      ✅      |             ✅             |            ✅            |
 |    [YOLOv5-classification](https://github.com/ultralytics/yolov5)    |      Object Detection      |   [demo](examples/yolov5)   |      ✅      |      ✅      |             ✅             |            ✅            |
 |     [YOLOv5-segmentation](https://github.com/ultralytics/yolov5)     |    Instance Segmentation    |   [demo](examples/yolov5)   |      ✅      |      ✅      |             ✅             |            ✅            |
+|     [Depth-Anything](https://github.com/LiheYoung/Depth-Anything)     |    Instance Segmentation    |   [demo](examples/depth-anything)   |      ✅      |      ✅      |             ❌             |            ❌            |
 
 ## Solution Models
 
