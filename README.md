@@ -44,10 +44,10 @@ A Rust library integrated with **ONNXRuntime**, providing a collection of **Comp
 |                [DB](https://arxiv.org/abs/1911.08947)                |       Text Detection       |     [demo](examples/db)     |      ✅      |      ✅      |             ✅             |            ✅            |
 |               [SVTR](https://arxiv.org/abs/2205.00159)               |      Text Recognition      |    [demo](examples/svtr)    |      ✅      |      ✅      |             ✅             |            ✅            |
 | [RTMO](https://github.com/open-mmlab/mmpose/tree/main/projects/rtmo) |     Keypoint Detection     |    [demo](examples/rtmo)    |      ✅      |      ✅      |             ❌             |            ❌            |
-|             [YOLOPv2](https://arxiv.org/abs/2208.11434)             | Panoptic driving Perception |   [demo](examples/yolop)   |      ✅      |      ✅      |             ✅             |            ✅            |
+|             [YOLOPv2](https://arxiv.org/abs/2208.11434)             | Panoptic Driving Perception |   [demo](examples/yolop)   |      ✅      |      ✅      |             ✅             |            ✅            |
 |    [YOLOv5-classification](https://github.com/ultralytics/yolov5)    |      Object Detection      |   [demo](examples/yolov5)   |      ✅      |      ✅      |             ✅             |            ✅            |
 |     [YOLOv5-segmentation](https://github.com/ultralytics/yolov5)     |    Instance Segmentation    |   [demo](examples/yolov5)   |      ✅      |      ✅      |             ✅             |            ✅            |
-|     [Depth-Anything](https://github.com/LiheYoung/Depth-Anything)     |    Instance Segmentation    |   [demo](examples/depth-anything)   |      ✅      |      ✅      |             ❌             |            ❌            |
+|     [Depth-Anything](https://github.com/LiheYoung/Depth-Anything)     |    Monocular Depth Estimation    |   [demo](examples/depth-anything)   |      ✅      |      ✅      |             ❌             |            ❌            |
 
 ## Solution Models
 
