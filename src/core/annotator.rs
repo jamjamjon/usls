@@ -1,9 +1,10 @@
 use crate::{
-    auto_load, string_now, Bbox, Keypoint, Mask, Mbr, Prob, CHECK_MARK, CROSS_MARK, TURBO, Y,
+    auto_load, string_now, Bbox, Keypoint, Mask, Mbr, Polygon, Prob, CHECK_MARK, CROSS_MARK, TURBO,
+    Y,
 };
 use ab_glyph::{FontVec, PxScale};
 use anyhow::Result;
-use image::{DynamicImage, ImageBuffer, Rgba, RgbaImage};
+use image::{DynamicImage, Rgba, RgbaImage};
 use imageproc::map::map_colors;
 
 /// Annotator for struct `Y`
@@ -13,18 +14,21 @@ pub struct Annotator {
     _scale: f32, // Cope with ab_glyph & imageproc=0.24.0
     scale_dy: f32,
     saveout: Option<String>,
+
     // About mbrs
     without_mbrs: bool,
     without_mbrs_conf: bool,
     without_mbrs_name: bool,
     without_mbrs_text_bg: bool,
     mbrs_text_color: Rgba<u8>,
+
     // About bboxes
     without_bboxes: bool,
     without_bboxes_conf: bool,
     without_bboxes_name: bool,
     without_bboxes_text_bg: bool,
     bboxes_text_color: Rgba<u8>,
+
     // About keypoints
     without_keypoints: bool,
     with_keypoints_conf: bool,
@@ -34,15 +38,22 @@ pub struct Annotator {
     skeletons: Option<Vec<(usize, usize)>>,
     keypoints_radius: usize,
     keypoints_palette: Option<Vec<(u8, u8, u8, u8)>>,
+
+    // About polygons
+    without_polygons: bool,
+    without_contours: bool,
+    with_polygons_conf: bool,
+    with_polygons_name: bool,
+    with_polygons_text_bg: bool,
+    polygons_text_color: Rgba<u8>,
+    polygons_alpha: u8,
+    contours_color: Rgba<u8>,
+
     // About masks
     without_masks: bool,
-    without_polygons: bool,
-    with_masks_conf: bool,
-    with_masks_name: bool,
-    with_masks_text_bg: bool,
-    masks_text_color: Rgba<u8>,
-    masks_alpha: u8,
-    polygon_color: Rgba<u8>,
+    with_colormap_turbo: bool,
+    with_colormap_inferno: bool, // TODO
+
     // About probs
     probs_topk: usize,
 }
@@ -53,7 +64,7 @@ impl Default for Annotator {
             font: Self::load_font(None).unwrap(),
             _scale: 6.666667,
             scale_dy: 28.,
-            masks_alpha: 179,
+            polygons_alpha: 179,
             saveout: None,
             without_bboxes: false,
             without_bboxes_conf: false,
@@ -73,14 +84,17 @@ impl Default for Annotator {
             keypoints_palette: None,
             without_keypoints_text_bg: false,
             keypoints_text_color: Rgba([0, 0, 0, 255]),
-            without_masks: false,
             without_polygons: false,
-            polygon_color: Rgba([255, 255, 255, 255]),
-            with_masks_name: false,
-            with_masks_conf: false,
-            with_masks_text_bg: false,
-            masks_text_color: Rgba([255, 255, 255, 255]),
+            without_contours: false,
+            contours_color: Rgba([255, 255, 255, 255]),
+            with_polygons_name: false,
+            with_polygons_conf: false,
+            with_polygons_text_bg: false,
+            polygons_text_color: Rgba([255, 255, 255, 255]),
             probs_topk: 5usize,
+            without_masks: false,
+            with_colormap_turbo: false,
+            with_colormap_inferno: false,
         }
     }
 }
@@ -191,48 +205,58 @@ impl Annotator {
         self
     }
 
-    pub fn without_masks(mut self, x: bool) -> Self {
-        self.without_masks = x;
-        self
-    }
-
     pub fn without_polygons(mut self, x: bool) -> Self {
         self.without_polygons = x;
         self
     }
 
-    pub fn with_masks_conf(mut self, x: bool) -> Self {
-        self.with_masks_conf = x;
+    pub fn without_contours(mut self, x: bool) -> Self {
+        self.without_contours = x;
         self
     }
 
-    pub fn with_masks_name(mut self, x: bool) -> Self {
-        self.with_masks_name = x;
+    pub fn with_polygons_conf(mut self, x: bool) -> Self {
+        self.with_polygons_conf = x;
         self
     }
 
-    pub fn with_masks_text_bg(mut self, x: bool) -> Self {
-        self.with_masks_text_bg = x;
+    pub fn with_polygons_name(mut self, x: bool) -> Self {
+        self.with_polygons_name = x;
         self
     }
 
-    pub fn with_masks_text_color(mut self, rgba: [u8; 4]) -> Self {
-        self.masks_text_color = Rgba(rgba);
+    pub fn with_polygons_text_bg(mut self, x: bool) -> Self {
+        self.with_polygons_text_bg = x;
         self
     }
 
-    pub fn with_masks_alpha(mut self, x: u8) -> Self {
-        self.masks_alpha = x;
+    pub fn with_colormap_turbo(mut self, x: bool) -> Self {
+        self.with_colormap_turbo = x;
         self
     }
 
-    pub fn with_masks_text_bg_alpha(mut self, x: u8) -> Self {
-        self.masks_text_color.0[3] = x;
+    pub fn with_colormap_inferno(mut self, x: bool) -> Self {
+        self.with_colormap_inferno = x;
         self
     }
 
-    pub fn with_polygon_color(mut self, rgba: [u8; 4]) -> Self {
-        self.polygon_color = Rgba(rgba);
+    pub fn with_polygons_text_color(mut self, rgba: [u8; 4]) -> Self {
+        self.polygons_text_color = Rgba(rgba);
+        self
+    }
+
+    pub fn with_polygons_alpha(mut self, x: u8) -> Self {
+        self.polygons_alpha = x;
+        self
+    }
+
+    pub fn with_polygons_text_bg_alpha(mut self, x: u8) -> Self {
+        self.polygons_text_color.0[3] = x;
+        self
+    }
+
+    pub fn with_contours_color(mut self, rgba: [u8; 4]) -> Self {
+        self.contours_color = Rgba(rgba);
         self
     }
 
@@ -268,17 +292,17 @@ impl Annotator {
         for (img, y) in imgs.iter().zip(ys.iter()) {
             let mut img_rgb = img.to_rgba8();
 
-            // pixels
-            if !self.without_masks {
-                if let Some(xs) = &y.pixels() {
-                    self.plot_pixels(&mut img_rgb, xs)
-                }
-            }
-
             // masks
             if !self.without_masks {
                 if let Some(xs) = &y.masks() {
-                    self.plot_masks_and_polygons(&mut img_rgb, xs)
+                    self.plot_masks(&mut img_rgb, xs)
+                }
+            }
+
+            // polygons
+            if !self.without_polygons {
+                if let Some(xs) = &y.polygons() {
+                    self.plot_polygons(&mut img_rgb, xs)
                 }
             }
 
@@ -387,61 +411,65 @@ impl Annotator {
         }
     }
 
-    pub fn plot_pixels(&self, img: &mut RgbaImage, pixels: &[u8]) {
+    pub fn plot_masks(&self, img: &mut RgbaImage, masks: &[Mask]) {
+        // TODO: Suppose that only one mask exists
         let (w, h) = img.dimensions();
-        let luma: ImageBuffer<image::Luma<_>, Vec<u8>> =
-            ImageBuffer::from_raw(w, h, pixels.to_vec())
-                .expect("Faild to create luma from ndarray");
-        let luma = map_colors(&luma, |p| {
-            let x = p[0];
-            image::Rgb(TURBO[x as usize])
-        });
-        let luma = image::DynamicImage::from(luma);
-        let luma = luma.resize_exact(w / 2, h / 2, image::imageops::FilterType::CatmullRom);
-        let im_ori = img.clone();
-        let im_ori = image::DynamicImage::from(im_ori);
-        let im_ori = im_ori.resize_exact(w / 2, h / 2, image::imageops::FilterType::CatmullRom);
+        for mask in masks.iter() {
+            let luma = if self.with_colormap_turbo {
+                let luma = map_colors(mask.mask(), |p| {
+                    let x = p[0];
+                    image::Rgb(TURBO[x as usize])
+                });
+                image::DynamicImage::from(luma)
+            } else {
+                mask.mask().to_owned()
+            };
+            let luma = luma.resize_exact(w / 2, h / 2, image::imageops::FilterType::CatmullRom);
+            let im_ori = img.clone();
+            let im_ori = image::DynamicImage::from(im_ori);
+            let im_ori = im_ori.resize_exact(w / 2, h / 2, image::imageops::FilterType::CatmullRom);
 
-        // overwrite
-        for x in 0..w {
-            for y in 0..h {
-                img.put_pixel(x, y, Rgba([255, 255, 255, 255]));
+            // overwrite
+            for x in 0..w {
+                for y in 0..h {
+                    img.put_pixel(x, y, Rgba([255, 255, 255, 255]));
+                }
             }
+
+            // paste
+            let pos_x = 0;
+            let pos_y = (2 * (h - im_ori.height()) / 3) as i64;
+            image::imageops::overlay(img, &im_ori, pos_x, pos_y);
+            image::imageops::overlay(img, &luma, im_ori.width().into(), pos_y);
+
+            // text
+            let legend = "Raw";
+            let scale = PxScale::from(self.scale_dy * 2.5);
+            let (text_w, text_h) = imageproc::drawing::text_size(scale, &self.font, legend);
+            imageproc::drawing::draw_text_mut(
+                img,
+                Rgba([0, 0, 0, 255]),
+                ((im_ori.width() - text_w) / 2) as i32,
+                ((pos_y as u32 - text_h) / 2) as i32,
+                scale,
+                &self.font,
+                legend,
+            );
+            let legend = "Result";
+            let (text_w, text_h) = imageproc::drawing::text_size(scale, &self.font, legend);
+            imageproc::drawing::draw_text_mut(
+                img,
+                Rgba([0, 0, 0, 255]),
+                (im_ori.width() + (im_ori.width() - text_w) / 2) as i32,
+                ((pos_y as u32 - text_h) / 2) as i32,
+                scale,
+                &self.font,
+                legend,
+            );
         }
-
-        // paste
-        let pos_x = 0;
-        let pos_y = (2 * (h - im_ori.height()) / 3) as i64;
-        image::imageops::overlay(img, &im_ori, pos_x, pos_y);
-        image::imageops::overlay(img, &luma, im_ori.width().into(), pos_y);
-
-        // text
-        let legend = "Raw";
-        let scale = PxScale::from(self.scale_dy * 2.5);
-        let (text_w, text_h) = imageproc::drawing::text_size(scale, &self.font, legend);
-        imageproc::drawing::draw_text_mut(
-            img,
-            Rgba([0, 0, 0, 255]),
-            ((im_ori.width() - text_w) / 2) as i32,
-            ((pos_y as u32 - text_h) / 2) as i32,
-            scale,
-            &self.font,
-            legend,
-        );
-        let legend = "Depth";
-        let (text_w, text_h) = imageproc::drawing::text_size(scale, &self.font, legend);
-        imageproc::drawing::draw_text_mut(
-            img,
-            Rgba([0, 0, 0, 255]),
-            (im_ori.width() + (im_ori.width() - text_w) / 2) as i32,
-            ((pos_y as u32 - text_h) / 2) as i32,
-            scale,
-            &self.font,
-            legend,
-        );
     }
 
-    pub fn plot_masks_and_polygons(&self, img: &mut RgbaImage, masks: &[Mask]) {
+    pub fn plot_polygons(&self, img: &mut RgbaImage, masks: &[Polygon]) {
         let mut convas = img.clone();
         for mask in masks.iter() {
             // masks
@@ -457,7 +485,7 @@ impl Annotator {
                 .map(|p| imageproc::point::Point::new(p.x() as i32, p.y() as i32))
                 .collect::<Vec<_>>();
             let mut mask_color = self.get_color(mask.id() as usize);
-            mask_color.3 = self.masks_alpha;
+            mask_color.3 = self.polygons_alpha;
             imageproc::drawing::draw_polygon_mut(
                 &mut convas,
                 &polygon_i32,
@@ -465,7 +493,7 @@ impl Annotator {
             );
 
             // contours(polygons)
-            if !self.without_polygons {
+            if !self.without_contours {
                 let polygon_f32 = mask
                     .polygon()
                     .exterior()
@@ -477,7 +505,7 @@ impl Annotator {
                     })
                     .map(|p| imageproc::point::Point::new(p.x() as f32, p.y() as f32))
                     .collect::<Vec<_>>();
-                imageproc::drawing::draw_hollow_polygon_mut(img, &polygon_f32, self.polygon_color);
+                imageproc::drawing::draw_hollow_polygon_mut(img, &polygon_f32, self.contours_color);
             }
         }
         image::imageops::overlay(img, &convas, 0, 0);
@@ -486,11 +514,11 @@ impl Annotator {
         for mask in masks.iter() {
             if let Some((x, y)) = mask.centroid() {
                 let mut legend = String::new();
-                if self.with_masks_name {
+                if self.with_polygons_name {
                     legend.push_str(&mask.name().unwrap_or(&mask.id().to_string()).to_string());
                 }
-                if self.with_masks_conf {
-                    if self.with_masks_name {
+                if self.with_polygons_conf {
+                    if self.with_polygons_name {
                         legend.push_str(&format!(": {:.4}", mask.confidence()));
                     } else {
                         legend.push_str(&format!("{:.4}", mask.confidence()));
@@ -502,8 +530,8 @@ impl Annotator {
                     x,
                     y,
                     image::Rgba(self.get_color(mask.id() as usize).into()),
-                    self.masks_text_color,
-                    !self.with_masks_text_bg,
+                    self.polygons_text_color,
+                    !self.with_polygons_text_bg,
                 );
             }
         }

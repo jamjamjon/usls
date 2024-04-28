@@ -2,7 +2,7 @@ use anyhow::Result;
 use image::DynamicImage;
 use ndarray::{s, Array, Axis, IxDyn};
 
-use crate::{ops, Bbox, DynConf, Mask, MinOptMax, Options, OrtEngine, Y};
+use crate::{ops, Bbox, DynConf, MinOptMax, Options, OrtEngine, Polygon, Y};
 
 #[derive(Debug)]
 pub struct YOLOPv2 {
@@ -114,15 +114,15 @@ impl YOLOPv2 {
                 image_height,
             );
             let mask_da = mask_da.into_luma8();
-            let mut y_masks: Vec<Mask> = Vec::new();
+            let mut y_polygons: Vec<Polygon> = Vec::new();
             let contours: Vec<imageproc::contours::Contour<i32>> =
                 imageproc::contours::find_contours_with_threshold(&mask_da, 1);
             contours.iter().for_each(|contour| {
                 if contour.border_type == imageproc::contours::BorderType::Outer
                     && contour.points.len() > 2
                 {
-                    y_masks.push(
-                        Mask::default()
+                    y_polygons.push(
+                        Polygon::default()
                             .with_id(0)
                             .with_points_imageproc(&contour.points)
                             .with_name(Some("Drivable area".to_string())),
@@ -151,26 +151,26 @@ impl YOLOPv2 {
             let mask_ll = mask_ll.into_luma8();
             let contours: Vec<imageproc::contours::Contour<i32>> =
                 imageproc::contours::find_contours_with_threshold(&mask_ll, 1);
-            let mut masks: Vec<Mask> = Vec::new();
+            let mut masks: Vec<Polygon> = Vec::new();
             contours.iter().for_each(|contour| {
                 if contour.border_type == imageproc::contours::BorderType::Outer
                     && contour.points.len() > 2
                 {
                     masks.push(
-                        Mask::default()
+                        Polygon::default()
                             .with_id(1)
                             .with_points_imageproc(&contour.points)
                             .with_name(Some("Lane line".to_string())),
                     );
                 }
             });
-            y_masks.extend(masks);
+            y_polygons.extend(masks);
 
             // save
             ys.push(
                 Y::default()
                     .with_bboxes(&y_bboxes)
-                    .with_masks(&y_masks)
+                    .with_polygons(&y_polygons)
                     .apply_bboxes_nms(self.iou),
             );
         }

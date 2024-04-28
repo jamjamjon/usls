@@ -1,17 +1,18 @@
-use crate::{ops, Mask, MinOptMax, Options, OrtEngine, Y};
 use anyhow::Result;
-use image::{DynamicImage, ImageBuffer};
+use image::DynamicImage;
 use ndarray::{Array, Axis, IxDyn};
 
+use crate::{ops, Mask, MinOptMax, Options, OrtEngine, Y};
+
 #[derive(Debug)]
-pub struct DepthAnything {
+pub struct MODNet {
     engine: OrtEngine,
     height: MinOptMax,
     width: MinOptMax,
     batch: MinOptMax,
 }
 
-impl DepthAnything {
+impl MODNet {
     pub fn new(options: &Options) -> Result<Self> {
         let engine = OrtEngine::new(options)?;
         let (batch, height, width) = (
@@ -31,8 +32,7 @@ impl DepthAnything {
 
     pub fn run(&self, xs: &[DynamicImage]) -> Result<Vec<Y>> {
         let xs_ = ops::resize(xs, self.height.opt as u32, self.width.opt as u32)?;
-        let xs_ = ops::normalize(xs_, 0.0, 255.0);
-        let xs_ = ops::standardize(xs_, &[0.485, 0.456, 0.406], &[0.229, 0.224, 0.225]);
+        let xs_ = ops::normalize(xs_, 127.5, 255.0);
         let ys = self.engine.run(&[xs_])?;
         self.postprocess(ys, xs)
     }
@@ -43,15 +43,13 @@ impl DepthAnything {
             let luma = luma
                 .into_shape((self.height() as usize, self.width() as usize, 1))?
                 .into_owned();
-            let v = luma.into_raw_vec();
-            let max_ = v.iter().max_by(|x, y| x.total_cmp(y)).unwrap();
-            let min_ = v.iter().min_by(|x, y| x.total_cmp(y)).unwrap();
-            let v = v
+            let v = luma
+                .into_raw_vec()
                 .iter()
-                .map(|x| (((*x - min_) / (max_ - min_)) * 255.).min(255.).max(0.) as u8)
+                .map(|x| (x * 255.0) as u8)
                 .collect::<Vec<_>>();
-            let luma: ImageBuffer<image::Luma<_>, Vec<u8>> =
-                ImageBuffer::from_raw(self.width() as u32, self.height() as u32, v)
+            let luma: image::ImageBuffer<image::Luma<_>, Vec<u8>> =
+                image::ImageBuffer::from_raw(self.width() as u32, self.height() as u32, v)
                     .expect("Faild to create image from ndarray");
             let luma = image::DynamicImage::from(luma);
             let luma = luma.resize_exact(

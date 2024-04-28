@@ -16,7 +16,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // annotate
     let annotator = Annotator::default()
-        .with_masks_name(true)
+        .with_polygons_name(true)
         .with_saveout("YOLOPv2");
     annotator.annotate(&x, &y);
 

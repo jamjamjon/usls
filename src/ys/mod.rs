@@ -3,6 +3,7 @@ mod embedding;
 mod keypoint;
 mod mask;
 mod mbr;
+mod polygon;
 mod prob;
 mod y;
 
@@ -11,5 +12,6 @@ pub use embedding::Embedding;
 pub use keypoint::Keypoint;
 pub use mask::Mask;
 pub use mbr::Mbr;
+pub use polygon::Polygon;
 pub use prob::Prob;
 pub use y::Y;

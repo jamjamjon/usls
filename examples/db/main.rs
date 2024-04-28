@@ -26,8 +26,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // annotate
     let annotator = Annotator::default()
         .without_bboxes(true)
-        .with_masks_alpha(60)
-        .with_polygon_color([255, 105, 180, 255])
+        .with_polygons_alpha(60)
+        .with_contours_color([255, 105, 180, 255])
         .without_mbrs(true)
         .with_saveout("DB");
     annotator.annotate(&x, &y);

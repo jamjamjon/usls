@@ -9,6 +9,11 @@ A Rust library integrated with **ONNXRuntime**, providing a collection of **Comp
 |<img src='examples/depth-anything/demo.png'   width="800px">|
 
 
+|        Portrait Matting         |
+| :----------------------------: |
+|<img src='examples/modnet/demo.png'   width="800px">|
+
+
 
 |        YOLOP-v2          |             Face-Parsing             |               Text-Detection           |  
 | :----------------------------: | :------------------------------: |  :------------------------------: |
@@ -18,8 +23,6 @@ A Rust library integrated with **ONNXRuntime**, providing a collection of **Comp
 |        YOLOv8-Obb         |
 | :----------------------------: |
 |<img src='examples/yolov8/demo-obb-2.png'   width="800px">|
-
-
 
 
 
@@ -48,6 +51,7 @@ A Rust library integrated with **ONNXRuntime**, providing a collection of **Comp
 |    [YOLOv5-classification](https://github.com/ultralytics/yolov5)    |      Object Detection      |   [demo](examples/yolov5)   |      ✅      |      ✅      |             ✅             |            ✅            |
 |     [YOLOv5-segmentation](https://github.com/ultralytics/yolov5)     |    Instance Segmentation    |   [demo](examples/yolov5)   |      ✅      |      ✅      |             ✅             |            ✅            |
 |     [Depth-Anything](https://github.com/LiheYoung/Depth-Anything)     |    Monocular Depth Estimation    |   [demo](examples/depth-anything)   |      ✅      |      ✅      |             ❌             |            ❌            |
+|     [MODNet](https://github.com/ZHKKKe/MODNet)     |    Portrait Matting    |   [demo](examples/modnet)   |      ✅      |      ✅      |             ✅             |            ✅            |
 
 ## Solution Models
 

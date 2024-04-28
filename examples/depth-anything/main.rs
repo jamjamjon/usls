@@ -16,7 +16,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let y = model.run(&x)?;
 
     // annotate
-    let annotator = Annotator::default().with_saveout("Depth-Anything");
+    let annotator = Annotator::default()
+        .with_colormap_turbo(true)
+        .with_saveout("Depth-Anything");
     annotator.annotate(&x, &y);
 
     Ok(())

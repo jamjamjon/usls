@@ -1,4 +1,4 @@
-use crate::{Bbox, Keypoint, Mask, Mbr, Prob};
+use crate::{Bbox, Keypoint, Mask, Mbr, Polygon, Prob};
 
 #[derive(Clone, PartialEq, Default)]
 pub struct Y {
@@ -6,14 +6,14 @@ pub struct Y {
     bboxes: Option<Vec<Bbox>>,
     keypoints: Option<Vec<Vec<Keypoint>>>,
     mbrs: Option<Vec<Mbr>>,
-    masks: Option<Vec<Mask>>,
+    polygons: Option<Vec<Polygon>>,
     texts: Option<Vec<String>>,
-    pixels: Option<Vec<u8>>,
+    masks: Option<Vec<Mask>>,
 }
 
 impl std::fmt::Debug for Y {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut f = f.debug_struct("Results");
+        let mut f = f.debug_struct("Result");
         if let Some(x) = &self.texts {
             if !x.is_empty() {
                 f.field("Texts", &x);
@@ -37,14 +37,14 @@ impl std::fmt::Debug for Y {
                 f.field("Keypoints", &x);
             }
         }
+        if let Some(x) = &self.polygons {
+            if !x.is_empty() {
+                f.field("Polygons", &x);
+            }
+        }
         if let Some(x) = &self.masks {
             if !x.is_empty() {
                 f.field("Masks", &x);
-            }
-        }
-        if let Some(x) = &self.pixels {
-            if !x.is_empty() {
-                f.field("Pixels", &x);
             }
         }
         f.finish()
@@ -52,8 +52,8 @@ impl std::fmt::Debug for Y {
 }
 
 impl Y {
-    pub fn with_pixels(mut self, pixels: &[u8]) -> Self {
-        self.pixels = Some(pixels.to_vec());
+    pub fn with_masks(mut self, masks: &[Mask]) -> Self {
+        self.masks = Some(masks.to_vec());
         self
     }
 
@@ -81,13 +81,13 @@ impl Y {
         self
     }
 
-    pub fn with_masks(mut self, masks: &[Mask]) -> Self {
-        self.masks = Some(masks.to_vec());
+    pub fn with_polygons(mut self, polygons: &[Polygon]) -> Self {
+        self.polygons = Some(polygons.to_vec());
         self
     }
 
-    pub fn pixels(&self) -> Option<&Vec<u8>> {
-        self.pixels.as_ref()
+    pub fn masks(&self) -> Option<&Vec<Mask>> {
+        self.masks.as_ref()
     }
 
     pub fn probs(&self) -> Option<&Prob> {
@@ -98,8 +98,8 @@ impl Y {
         self.keypoints.as_ref()
     }
 
-    pub fn masks(&self) -> Option<&Vec<Mask>> {
-        self.masks.as_ref()
+    pub fn polygons(&self) -> Option<&Vec<Polygon>> {
+        self.polygons.as_ref()
     }
 
     pub fn bboxes(&self) -> Option<&Vec<Bbox>> {

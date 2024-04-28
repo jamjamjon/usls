@@ -23,8 +23,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .without_bboxes(true)
         .without_bboxes_conf(true)
         .without_bboxes_name(true)
-        .without_polygons(false)
-        .with_masks_name(false)
+        .without_contours(false)
+        .with_polygons_name(false)
         .with_saveout("Face-Parsing");
     annotator.annotate(&x, &y);
 
