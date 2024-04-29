@@ -3,10 +3,10 @@ use usls::{coco, models::YOLO, Annotator, DataLoader, Options};
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // build model
     let options = Options::default()
-        // .with_model("../models/yolov8m.onnx")
+        .with_model("../models/yolov8m.onnx")
         // .with_model("../models/yolov8m-dyn-f16.onnx")
         // .with_model("../models/yolov8m-pose-dyn-f16.onnx")
-        .with_model("../models/yolov8m-seg-dyn-f16.onnx")
+        // .with_model("../models/yolov8m-seg-dyn-f16.onnx")
         // .with_model("../models/yolov8s-cls.onnx")
         // .with_model("../models/yolov8s-obb.onnx")
         // .with_trt(0)
@@ -33,8 +33,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         // .with_probs_topk(10)
         // // bboxes
         // .without_bboxes(false)
-        // .without_bboxes_conf(false)
-        // .without_bboxes_name(false)
+        .without_bboxes_conf(true)
+        // .without_bboxes_name(true)
         // .without_bboxes_text_bg(false)
         // .with_bboxes_text_color([255, 255, 255, 255])
         // .with_bboxes_text_bg_alpha(255)

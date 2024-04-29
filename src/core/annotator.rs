@@ -1,6 +1,6 @@
 use crate::{
-    auto_load, string_now, Bbox, Keypoint, Mask, Mbr, Polygon, Prob, CHECK_MARK, CROSS_MARK, TURBO,
-    Y,
+    auto_load, colormap256, string_now, Bbox, Keypoint, Mask, Mbr, Polygon, Prob, CHECK_MARK,
+    CROSS_MARK, Y,
 };
 use ab_glyph::{FontVec, PxScale};
 use anyhow::Result;
@@ -52,7 +52,7 @@ pub struct Annotator {
     // About masks
     without_masks: bool,
     with_colormap_turbo: bool,
-    with_colormap_inferno: bool, // TODO
+    with_colormap_inferno: bool,
 
     // About probs
     probs_topk: usize,
@@ -100,6 +100,7 @@ impl Default for Annotator {
 }
 
 impl Annotator {
+    /// Plotting BBOXes or not
     pub fn without_bboxes(mut self, x: bool) -> Self {
         self.without_bboxes = x;
         self
@@ -175,6 +176,7 @@ impl Annotator {
         self
     }
 
+    /// Plotting MBRs or not
     pub fn without_mbrs(mut self, x: bool) -> Self {
         self.without_mbrs = x;
         self
@@ -275,6 +277,7 @@ impl Annotator {
         self
     }
 
+    /// Save annotated images to `runs` folder
     pub fn save(&self, image: &RgbaImage, saveout: &str) {
         let mut saveout = std::path::PathBuf::from("runs").join(saveout);
         if !saveout.exists() {
@@ -288,60 +291,62 @@ impl Annotator {
         }
     }
 
+    /// Annotate images
     pub fn annotate(&self, imgs: &[DynamicImage], ys: &[Y]) {
         for (img, y) in imgs.iter().zip(ys.iter()) {
-            let mut img_rgb = img.to_rgba8();
-
-            // masks
-            if !self.without_masks {
-                if let Some(xs) = &y.masks() {
-                    self.plot_masks(&mut img_rgb, xs)
-                }
-            }
+            let mut img_rgba = img.to_rgba8();
 
             // polygons
             if !self.without_polygons {
                 if let Some(xs) = &y.polygons() {
-                    self.plot_polygons(&mut img_rgb, xs)
+                    self.plot_polygons(&mut img_rgba, xs)
                 }
             }
 
             // bboxes
             if !self.without_bboxes {
                 if let Some(xs) = &y.bboxes() {
-                    self.plot_bboxes(&mut img_rgb, xs)
+                    self.plot_bboxes(&mut img_rgba, xs)
                 }
             }
 
             // mbrs
             if !self.without_mbrs {
                 if let Some(xs) = &y.mbrs() {
-                    self.plot_mbrs(&mut img_rgb, xs)
+                    self.plot_mbrs(&mut img_rgba, xs)
                 }
             }
 
             // keypoints
             if !self.without_keypoints {
                 if let Some(xs) = &y.keypoints() {
-                    self.plot_keypoints(&mut img_rgb, xs)
+                    self.plot_keypoints(&mut img_rgba, xs)
                 }
             }
 
             // probs
             if let Some(xs) = &y.probs() {
-                self.plot_probs(&mut img_rgb, xs)
+                self.plot_probs(&mut img_rgba, xs)
+            }
+
+            // masks
+            if !self.without_masks {
+                if let Some(xs) = &y.masks() {
+                    self.plot_masks(&mut img_rgba, xs)
+                }
             }
 
             // save
             if let Some(saveout) = &self.saveout {
-                self.save(&img_rgb, saveout);
+                self.save(&img_rgba, saveout);
             }
         }
     }
 
+    /// Plot bounding bboxes and labels
     pub fn plot_bboxes(&self, img: &mut RgbaImage, bboxes: &[Bbox]) {
         for bbox in bboxes.iter() {
-            // bboxes
+            // bbox
             imageproc::drawing::draw_hollow_rect_mut(
                 img,
                 imageproc::rect::Rect::at(bbox.xmin().round() as i32, bbox.ymin().round() as i32)
@@ -349,21 +354,11 @@ impl Annotator {
                 image::Rgba(self.get_color(bbox.id() as usize).into()),
             );
 
-            // texts
-            let mut legend = String::new();
-            if !self.without_bboxes_name {
-                legend.push_str(&bbox.name().unwrap_or(&bbox.id().to_string()).to_string());
-            }
-            if !self.without_bboxes_conf {
-                if !self.without_bboxes_name {
-                    legend.push_str(&format!(": {:.4}", bbox.confidence()));
-                } else {
-                    legend.push_str(&format!("{:.4}", bbox.confidence()));
-                }
-            }
+            // label
+            let label = bbox.label(!self.without_bboxes_name, !self.without_bboxes_conf);
             self.put_text(
                 img,
-                legend.as_str(),
+                &label,
                 bbox.xmin(),
                 bbox.ymin(),
                 image::Rgba(self.get_color(bbox.id() as usize).into()),
@@ -373,9 +368,10 @@ impl Annotator {
         }
     }
 
+    /// Plot minimum bounding rectangle and labels
     pub fn plot_mbrs(&self, img: &mut RgbaImage, mbrs: &[Mbr]) {
         for mbr in mbrs.iter() {
-            // mbrs
+            // mbr
             for i in 0..mbr.vertices().len() {
                 let p1 = mbr.vertices()[i];
                 let p2 = mbr.vertices()[(i + 1) % mbr.vertices().len()];
@@ -387,21 +383,11 @@ impl Annotator {
                 );
             }
 
-            // text
-            let mut legend = String::new();
-            if !self.without_mbrs_name {
-                legend.push_str(&mbr.name().unwrap_or(&mbr.id().to_string()).to_string());
-            }
-            if !self.without_mbrs_conf {
-                if !self.without_mbrs_name {
-                    legend.push_str(&format!(": {:.4}", mbr.confidence()));
-                } else {
-                    legend.push_str(&format!("{:.4}", mbr.confidence()));
-                }
-            }
+            // label
+            let label = mbr.label(!self.without_mbrs_name, !self.without_mbrs_conf);
             self.put_text(
                 img,
-                legend.as_str(),
+                &label,
                 mbr.top().x as f32,
                 mbr.top().y as f32,
                 image::Rgba(self.get_color(mbr.id() as usize).into()),
@@ -411,6 +397,114 @@ impl Annotator {
         }
     }
 
+    /// Plot polygons(hollow & filled) and labels
+    pub fn plot_polygons(&self, img: &mut RgbaImage, polygons: &[Polygon]) {
+        let mut convas = img.clone();
+        for polygon in polygons.iter() {
+            // filled
+            let polygon_i32 = polygon
+                .polygon()
+                .exterior()
+                .points()
+                .take(if polygon.is_closed() {
+                    polygon.count() - 1
+                } else {
+                    polygon.count()
+                })
+                .map(|p| imageproc::point::Point::new(p.x() as i32, p.y() as i32))
+                .collect::<Vec<_>>();
+            let mut color_ = self.get_color(polygon.id() as usize);
+            color_.3 = self.polygons_alpha;
+            imageproc::drawing::draw_polygon_mut(&mut convas, &polygon_i32, Rgba(color_.into()));
+
+            // contour
+            if !self.without_contours {
+                let polygon_f32 = polygon
+                    .polygon()
+                    .exterior()
+                    .points()
+                    .take(if polygon.is_closed() {
+                        polygon.count() - 1
+                    } else {
+                        polygon.count()
+                    })
+                    .map(|p| imageproc::point::Point::new(p.x() as f32, p.y() as f32))
+                    .collect::<Vec<_>>();
+                imageproc::drawing::draw_hollow_polygon_mut(img, &polygon_f32, self.contours_color);
+            }
+        }
+        image::imageops::overlay(img, &convas, 0, 0);
+
+        // labels on top
+        for polygon in polygons.iter() {
+            if let Some((x, y)) = polygon.centroid() {
+                let label = polygon.label(self.with_polygons_name, self.with_polygons_conf);
+                self.put_text(
+                    img,
+                    &label,
+                    x,
+                    y,
+                    image::Rgba(self.get_color(polygon.id() as usize).into()),
+                    self.polygons_text_color,
+                    !self.with_polygons_text_bg,
+                );
+            }
+        }
+    }
+
+    /// Plot keypoints and texts
+    pub fn plot_keypoints(&self, img: &mut RgbaImage, keypoints: &[Vec<Keypoint>]) {
+        for kpts in keypoints.iter() {
+            for (i, kpt) in kpts.iter().enumerate() {
+                if kpt.confidence() == 0.0 {
+                    continue;
+                }
+
+                // keypoint
+                let color = match &self.keypoints_palette {
+                    None => self.get_color(i + 10),
+                    Some(keypoints_palette) => keypoints_palette[i],
+                };
+                imageproc::drawing::draw_filled_circle_mut(
+                    img,
+                    (kpt.x() as i32, kpt.y() as i32),
+                    self.keypoints_radius as i32,
+                    image::Rgba(color.into()),
+                );
+
+                // label
+                let label = kpt.label(self.with_keypoints_name, self.with_keypoints_conf);
+                self.put_text(
+                    img,
+                    &label,
+                    kpt.x(),
+                    kpt.y(),
+                    image::Rgba(self.get_color(kpt.id() as usize).into()),
+                    self.keypoints_text_color,
+                    self.without_keypoints_text_bg,
+                );
+            }
+
+            // skeletons
+            if let Some(skeletons) = &self.skeletons {
+                for &(i, ii) in skeletons.iter() {
+                    let kpt1 = &kpts[i];
+                    let kpt2 = &kpts[ii];
+                    if kpt1.confidence() == 0.0 || kpt2.confidence() == 0.0 {
+                        continue;
+                    }
+                    imageproc::drawing::draw_line_segment_mut(
+                        img,
+                        (kpt1.x(), kpt1.y()),
+                        (kpt2.x(), kpt2.y()),
+                        image::Rgba([255, 51, 255, 255]),
+                    );
+                }
+            }
+        }
+    }
+
+    /// Plot masks
     pub fn plot_masks(&self, img: &mut RgbaImage, masks: &[Mask]) {
         // TODO: Suppose that only one mask exists
         let (w, h) = img.dimensions();
@@ -418,7 +512,13 @@ impl Annotator {
             let luma = if self.with_colormap_turbo {
                 let luma = map_colors(mask.mask(), |p| {
                     let x = p[0];
-                    image::Rgb(TURBO[x as usize])
+                    image::Rgb(colormap256::TURBO[x as usize])
+                });
+                image::DynamicImage::from(luma)
+            } else if self.with_colormap_inferno {
+                let luma = map_colors(mask.mask(), |p| {
+                    let x = p[0];
+                    image::Rgb(colormap256::INFERNO[x as usize])
                 });
                 image::DynamicImage::from(luma)
             } else {
@@ -469,74 +569,7 @@ impl Annotator {
         }
     }
 
-    pub fn plot_polygons(&self, img: &mut RgbaImage, masks: &[Polygon]) {
-        let mut convas = img.clone();
-        for mask in masks.iter() {
-            // masks
-            let polygon_i32 = mask
-                .polygon()
-                .exterior()
-                .points()
-                .take(if mask.is_closed() {
-                    mask.count() - 1
-                } else {
-                    mask.count()
-                })
-                .map(|p| imageproc::point::Point::new(p.x() as i32, p.y() as i32))
-                .collect::<Vec<_>>();
-            let mut mask_color = self.get_color(mask.id() as usize);
-            mask_color.3 = self.polygons_alpha;
-            imageproc::drawing::draw_polygon_mut(
-                &mut convas,
-                &polygon_i32,
-                Rgba(mask_color.into()),
-            );
-
-            // contours(polygons)
-            if !self.without_contours {
-                let polygon_f32 = mask
-                    .polygon()
-                    .exterior()
-                    .points()
-                    .take(if mask.is_closed() {
-                        mask.count() - 1
-                    } else {
-                        mask.count()
-                    })
-                    .map(|p| imageproc::point::Point::new(p.x() as f32, p.y() as f32))
-                    .collect::<Vec<_>>();
-                imageproc::drawing::draw_hollow_polygon_mut(img, &polygon_f32, self.contours_color);
-            }
-        }
-        image::imageops::overlay(img, &convas, 0, 0);
-
-        // text on top
-        for mask in masks.iter() {
-            if let Some((x, y)) = mask.centroid() {
-                let mut legend = String::new();
-                if self.with_polygons_name {
-                    legend.push_str(&mask.name().unwrap_or(&mask.id().to_string()).to_string());
-                }
-                if self.with_polygons_conf {
-                    if self.with_polygons_name {
-                        legend.push_str(&format!(": {:.4}", mask.confidence()));
-                    } else {
-                        legend.push_str(&format!("{:.4}", mask.confidence()));
-                    }
-                }
-                self.put_text(
-                    img,
-                    legend.as_str(),
-                    x,
-                    y,
-                    image::Rgba(self.get_color(mask.id() as usize).into()),
-                    self.polygons_text_color,
-                    !self.with_polygons_text_bg,
-                );
-            }
-        }
-    }
-
+    /// Plot probs
     pub fn plot_probs(&self, img: &mut RgbaImage, probs: &Prob) {
         let (x, mut y) = (img.width() as i32 / 20, img.height() as i32 / 20);
         for k in probs.topk(self.probs_topk).iter() {
@@ -562,67 +595,7 @@ impl Annotator {
         }
     }
 
-    pub fn plot_keypoints(&self, img: &mut RgbaImage, keypoints: &[Vec<Keypoint>]) {
-        for kpts in keypoints.iter() {
-            for (i, kpt) in kpts.iter().enumerate() {
-                if kpt.confidence() == 0.0 {
-                    continue;
-                }
-
-                // keypoints
-                let color = match &self.keypoints_palette {
-                    None => self.get_color(i + 10),
-                    Some(keypoints_palette) => keypoints_palette[i],
-                };
-                imageproc::drawing::draw_filled_circle_mut(
-                    img,
-                    (kpt.x() as i32, kpt.y() as i32),
-                    self.keypoints_radius as i32,
-                    image::Rgba(color.into()),
-                );
-
-                // text
-                let mut legend = String::new();
-                if self.with_keypoints_name {
-                    legend.push_str(&kpt.name().unwrap_or(&kpt.id().to_string()).to_string());
-                }
-                if self.with_keypoints_conf {
-                    if self.with_keypoints_name {
-                        legend.push_str(&format!(": {:.4}", kpt.confidence()));
-                    } else {
-                        legend.push_str(&format!("{:.4}", kpt.confidence()));
-                    }
-                }
-                self.put_text(
-                    img,
-                    legend.as_str(),
-                    kpt.x(),
-                    kpt.y(),
-                    image::Rgba(self.get_color(kpt.id() as usize).into()),
-                    self.keypoints_text_color,
-                    self.without_keypoints_text_bg,
-                );
-            }
-
-            // draw skeleton
-            if let Some(skeletons) = &self.skeletons {
-                for &(i, ii) in skeletons.iter() {
-                    let kpt1 = &kpts[i];
-                    let kpt2 = &kpts[ii];
-                    if kpt1.confidence() == 0.0 || kpt2.confidence() == 0.0 {
-                        continue;
-                    }
-                    imageproc::drawing::draw_line_segment_mut(
-                        img,
-                        (kpt1.x(), kpt1.y()),
-                        (kpt2.x(), kpt2.y()),
-                        image::Rgba([255, 51, 255, 255]),
-                    );
-                }
-            }
-        }
-    }
-
+    /// Helper for putting texts
     #[allow(clippy::too_many_arguments)]
     fn put_text(
         &self,
@@ -670,6 +643,7 @@ impl Annotator {
         }
     }
 
+    /// Load custom font
     fn load_font(path: Option<&str>) -> Result<FontVec> {
         let path_font = match path {
             None => auto_load("Arial.ttf")?,
@@ -679,10 +653,12 @@ impl Annotator {
         Ok(FontVec::try_from_vec(buffer.to_owned()).unwrap())
     }
 
+    /// Pick color from pallette
     pub fn get_color(&self, n: usize) -> (u8, u8, u8, u8) {
         Self::color_palette()[n % Self::color_palette().len()]
     }
 
+    /// Color pallette
     fn color_palette() -> [(u8, u8, u8, u8); 20] {
         [
             (0, 255, 127, 255),   // spring green

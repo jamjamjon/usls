@@ -17,7 +17,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // annotate
     let annotator = Annotator::default()
-        .with_colormap_turbo(true)
+        .with_colormap_turbo(false)
+        .with_colormap_inferno(true)
         .with_saveout("Depth-Anything");
     annotator.annotate(&x, &y);
 

@@ -4,9 +4,9 @@ use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 
 pub mod coco;
-mod turbo;
+pub mod colormap256;
 
-pub use turbo::TURBO;
+pub use colormap256::*;
 
 pub const GITHUB_ASSETS: &str = "https://github.com/jamjamjon/assets/releases/download/v0.0.1";
 pub const CHECK_MARK: &str = "✅";
