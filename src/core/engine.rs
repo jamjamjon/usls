@@ -6,7 +6,7 @@ use ort::{
     TensorRTExecutionProvider, ValueType,
 };
 
-use crate::{config_dir, Device, MinOptMax, Options, CHECK_MARK, CROSS_MARK, SAFE_CROSS_MARK};
+use crate::{home_dir, Device, MinOptMax, Options, CHECK_MARK, CROSS_MARK, SAFE_CROSS_MARK};
 
 /// ONNXRuntime Backend
 #[derive(Debug)]
@@ -211,7 +211,7 @@ impl OrtEngine {
             .with_engine_cache(engine_cache_enable)
             .with_engine_cache_path(format!(
                 "{}/{}",
-                config_dir().to_str().unwrap(),
+                home_dir(None).to_str().unwrap(),
                 "trt-cache"
             ))
             .with_timing_cache(false)

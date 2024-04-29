@@ -1,3 +1,5 @@
+use anyhow::Result;
+
 use crate::{auto_load, models::YOLOTask, Device, MinOptMax};
 
 /// Options for building models
@@ -117,9 +119,9 @@ impl Default for Options {
 }
 
 impl Options {
-    pub fn with_model(mut self, onnx_path: &str) -> Self {
-        self.onnx_path = auto_load(onnx_path).unwrap();
-        self
+    pub fn with_model(mut self, onnx_path: &str) -> Result<Self> {
+        self.onnx_path = auto_load(onnx_path, Some("models"))?;
+        Ok(self)
     }
 
     pub fn with_dry_run(mut self, n: usize) -> Self {
@@ -187,14 +189,14 @@ impl Options {
         self
     }
 
-    pub fn with_vocab(mut self, vocab: &str) -> Self {
-        self.vocab = Some(auto_load(vocab).unwrap());
-        self
+    pub fn with_vocab(mut self, vocab: &str) -> Result<Self> {
+        self.vocab = Some(auto_load(vocab, Some("models"))?);
+        Ok(self)
     }
 
-    pub fn with_tokenizer(mut self, tokenizer: &str) -> Self {
-        self.tokenizer = Some(auto_load(tokenizer).unwrap());
-        self
+    pub fn with_tokenizer(mut self, tokenizer: &str) -> Result<Self> {
+        self.tokenizer = Some(auto_load(tokenizer, Some("models"))?);
+        Ok(self)
     }
 
     pub fn with_unclip_ratio(mut self, x: f32) -> Self {

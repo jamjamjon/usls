@@ -646,7 +646,7 @@ impl Annotator {
     /// Load custom font
     fn load_font(path: Option<&str>) -> Result<FontVec> {
         let path_font = match path {
-            None => auto_load("Arial.ttf")?,
+            None => auto_load("Arial.ttf", Some("fonts"))?,
             Some(p) => p.into(),
         };
         let buffer = std::fs::read(path_font)?;

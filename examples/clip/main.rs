@@ -3,14 +3,14 @@ use usls::{models::Clip, DataLoader, Options};
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // visual
     let options_visual = Options::default()
-        .with_model("../models/clip-b32-visual-dyn.onnx")
+        .with_model("clip-b32-visual-dyn.onnx")?
         .with_i00((1, 1, 4).into())
         .with_profile(false);
 
     // textual
     let options_textual = Options::default()
-        .with_model("../models/clip-b32-textual-dyn.onnx")
-        .with_tokenizer("tokenizer-clip.json")
+        .with_model("clip-b32-textual-dyn.onnx")?
+        .with_tokenizer("tokenizer-clip.json")?
         .with_i00((1, 1, 4).into())
         .with_profile(false);
 

@@ -3,7 +3,7 @@ use usls::{models::YOLO, Annotator, DataLoader, Options};
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // build model
     let options = Options::default()
-        .with_model("../models/face-parsing-dyn.onnx")
+        .with_model("face-parsing-dyn.onnx")?
         .with_i00((1, 1, 4).into())
         .with_i02((416, 640, 800).into())
         .with_i03((416, 640, 800).into())

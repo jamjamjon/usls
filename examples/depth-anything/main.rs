@@ -3,7 +3,7 @@ use usls::{models::DepthAnything, Annotator, DataLoader, Options};
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // visual
     let options = Options::default()
-        .with_model("../models/depth-anything-s-dyn.onnx")
+        .with_model("../models/depth-anything-s-dyn.onnx")?
         .with_i00((1, 1, 8).into())
         .with_i02((384, 512, 1024).into())
         .with_i03((384, 512, 1024).into());

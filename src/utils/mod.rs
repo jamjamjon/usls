@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use indicatif::{ProgressBar, ProgressStyle};
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
@@ -13,22 +13,21 @@ pub const CHECK_MARK: &str = "✅";
 pub const CROSS_MARK: &str = "❌";
 pub const SAFE_CROSS_MARK: &str = "❎";
 
-pub fn auto_load<P: AsRef<Path>>(src: P) -> Result<String> {
+pub fn auto_load<P: AsRef<Path>>(src: P, sub: Option<&str>) -> Result<String> {
     let src = src.as_ref();
     let p = if src.is_file() {
         src.into()
     } else {
         let sth = src.file_name().unwrap().to_str().unwrap();
-        let mut p = config_dir();
+        let mut p = home_dir(sub);
         p.push(sth);
-        // download from github assets if not exists in config directory
         if !p.is_file() {
             download(
                 &format!("{}/{}", GITHUB_ASSETS, sth),
                 &p,
                 Some(sth.to_string().as_str()),
             )
-            .unwrap_or_else(|err| panic!("Fail to load {:?}: {err}", src));
+            .map_err(|err| anyhow!("Failed to load {sth:?}\n{err}"))?;
         }
         p
     };
@@ -46,7 +45,11 @@ pub fn download<P: AsRef<Path> + std::fmt::Debug>(
         .get(src)
         .timeout(std::time::Duration::from_secs(2000))
         .call()
-        .unwrap_or_else(|err| panic!("Failed to GET: {}", err));
+        .map_err(|err| anyhow!("Failed to get: {err}"))?;
+    // .map_err(|err| match err {
+    //     ureq::Error::Status(404, _r) => anyhow!("Not exist"),
+    //     _ => anyhow!("Failed to get: {err}; {:?}", err.kind()),
+    // })?;
     let ntotal = resp
         .header("Content-Length")
         .and_then(|s| s.parse::<u64>().ok())
@@ -92,6 +95,22 @@ pub fn config_dir() -> PathBuf {
     match dirs::config_dir() {
         Some(mut d) => {
             d.push("usls");
+            if !d.exists() {
+                std::fs::create_dir_all(&d).expect("Failed to create config directory.");
+            }
+            d
+        }
+        None => panic!("Unsupported operating system. Now support Linux, MacOS, Windows."),
+    }
+}
+
+pub fn home_dir(sub: Option<&str>) -> PathBuf {
+    match dirs::home_dir() {
+        Some(mut d) => {
+            d.push(".usls");
+            if let Some(sub) = sub {
+                d.push(sub);
+            }
             if !d.exists() {
                 std::fs::create_dir_all(&d).expect("Failed to create config directory.");
             }
