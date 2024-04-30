@@ -94,7 +94,6 @@ impl Polygon {
         label
     }
 
-
     pub fn polygon(&self) -> &geo::Polygon {
         &self.polygon
     }
