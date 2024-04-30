@@ -1293,7 +1293,7 @@ pub const MAGMA: [[u8; 3]; 256] = [
     [252, 253, 191],
 ];
 
-pub const BENTCOOOLWARM: [[u8; 3]; 256] = [
+pub const BENTCOOLWARM: [[u8; 3]; 256] = [
     [59, 76, 192],
     [60, 78, 193],
     [61, 79, 194],

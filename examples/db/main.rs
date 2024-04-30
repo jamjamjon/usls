@@ -10,7 +10,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_min_width(5.0)
         .with_min_height(12.0)
         // .with_trt(0)
-        .with_model("../models/ppocr-v4-db-dyn.onnx")?;
+        .with_model("ppocr-v4-db-dyn.onnx")?;
 
     let mut model = DB::new(&options)?;
 

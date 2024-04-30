@@ -4,7 +4,7 @@ use crate::{
 };
 use ab_glyph::{FontVec, PxScale};
 use anyhow::Result;
-use image::{DynamicImage, Rgba, RgbaImage};
+use image::{DynamicImage, GenericImage, Rgba, RgbaImage};
 use imageproc::map::map_colors;
 
 /// Annotator for struct `Y`
@@ -51,8 +51,7 @@ pub struct Annotator {
 
     // About masks
     without_masks: bool,
-    with_colormap_turbo: bool,
-    with_colormap_inferno: bool,
+    colormap: Option<[[u8; 3]; 256]>,
 
     // About probs
     probs_topk: usize,
@@ -93,8 +92,7 @@ impl Default for Annotator {
             polygons_text_color: Rgba([255, 255, 255, 255]),
             probs_topk: 5usize,
             without_masks: false,
-            with_colormap_turbo: false,
-            with_colormap_inferno: false,
+            colormap: None,
         }
     }
 }
@@ -232,13 +230,23 @@ impl Annotator {
         self
     }
 
-    pub fn with_colormap_turbo(mut self, x: bool) -> Self {
-        self.with_colormap_turbo = x;
-        self
-    }
-
-    pub fn with_colormap_inferno(mut self, x: bool) -> Self {
-        self.with_colormap_inferno = x;
+    pub fn with_colormap(mut self, x: &str) -> Self {
+        let x = match x {
+            "turbo" | "Turbo" | "TURBO" => colormap256::TURBO,
+            "inferno" | "Inferno" | "INFERNO" => colormap256::INFERNO,
+            "plasma" | "Plasma" | "PLASMA" => colormap256::PLASMA,
+            "viridis" | "Viridis" | "VIRIDIS" => colormap256::VIRIDIS,
+            "magma" | "Magma" | "MAGMA" => colormap256::MAGMA,
+            "bentcoolwarm" | "BentCoolWarm" | "BENTCOOLWARM" => colormap256::BENTCOOLWARM,
+            "blackbody" | "BlackBody" | "BLACKBODY" => colormap256::BLACKBODY,
+            "extendedkindLmann" | "ExtendedKindLmann" | "EXTENDEDKINDLMANN" => {
+                colormap256::EXTENDEDKINDLMANN
+            }
+            "kindlmann" | "KindLmann" | "KINDLMANN" => colormap256::KINDLMANN,
+            "smoothcoolwarm" | "SmoothCoolWarm" | "SMOOTHCOOLWARM" => colormap256::SMOOTHCOOLWARM,
+            _ => todo!(),
+        };
+        self.colormap = Some(x);
         self
     }
 
@@ -355,16 +363,18 @@ impl Annotator {
             );
 
             // label
-            let label = bbox.label(!self.without_bboxes_name, !self.without_bboxes_conf);
-            self.put_text(
-                img,
-                &label,
-                bbox.xmin(),
-                bbox.ymin(),
-                image::Rgba(self.get_color(bbox.id() as usize).into()),
-                self.bboxes_text_color,
-                self.without_bboxes_text_bg,
-            );
+            if !self.without_bboxes_name || !self.without_bboxes_conf {
+                let label = bbox.label(!self.without_bboxes_name, !self.without_bboxes_conf);
+                self.put_text(
+                    img,
+                    &label,
+                    bbox.xmin(),
+                    bbox.ymin(),
+                    image::Rgba(self.get_color(bbox.id() as usize).into()),
+                    self.bboxes_text_color,
+                    self.without_bboxes_text_bg,
+                );
+            }
         }
     }
 
@@ -384,16 +394,18 @@ impl Annotator {
             }
 
             // label
-            let label = mbr.label(!self.without_mbrs_name, !self.without_mbrs_conf);
-            self.put_text(
-                img,
-                &label,
-                mbr.top().x as f32,
-                mbr.top().y as f32,
-                image::Rgba(self.get_color(mbr.id() as usize).into()),
-                self.mbrs_text_color,
-                self.without_mbrs_text_bg,
-            );
+            if !self.without_mbrs_name || !self.without_mbrs_conf {
+                let label = mbr.label(!self.without_mbrs_name, !self.without_mbrs_conf);
+                self.put_text(
+                    img,
+                    &label,
+                    mbr.top().x as f32,
+                    mbr.top().y as f32,
+                    image::Rgba(self.get_color(mbr.id() as usize).into()),
+                    self.mbrs_text_color,
+                    self.without_mbrs_text_bg,
+                );
+            }
         }
     }
 
@@ -436,18 +448,20 @@ impl Annotator {
         image::imageops::overlay(img, &convas, 0, 0);
 
         // labels on top
-        for polygon in polygons.iter() {
-            if let Some((x, y)) = polygon.centroid() {
-                let label = polygon.label(self.with_polygons_name, self.with_polygons_conf);
-                self.put_text(
-                    img,
-                    &label,
-                    x,
-                    y,
-                    image::Rgba(self.get_color(polygon.id() as usize).into()),
-                    self.polygons_text_color,
-                    !self.with_polygons_text_bg,
-                );
+        if self.with_polygons_name || self.with_polygons_conf {
+            for polygon in polygons.iter() {
+                if let Some((x, y)) = polygon.centroid() {
+                    let label = polygon.label(self.with_polygons_name, self.with_polygons_conf);
+                    self.put_text(
+                        img,
+                        &label,
+                        x,
+                        y,
+                        image::Rgba(self.get_color(polygon.id() as usize).into()),
+                        self.polygons_text_color,
+                        !self.with_polygons_text_bg,
+                    );
+                }
             }
         }
     }
@@ -473,16 +487,18 @@ impl Annotator {
                 );
 
                 // label
-                let label = kpt.label(self.with_keypoints_name, self.with_keypoints_conf);
-                self.put_text(
-                    img,
-                    &label,
-                    kpt.x(),
-                    kpt.y(),
-                    image::Rgba(self.get_color(kpt.id() as usize).into()),
-                    self.keypoints_text_color,
-                    self.without_keypoints_text_bg,
-                );
+                if self.with_keypoints_name || self.with_keypoints_conf {
+                    let label = kpt.label(self.with_keypoints_name, self.with_keypoints_conf);
+                    self.put_text(
+                        img,
+                        &label,
+                        kpt.x(),
+                        kpt.y(),
+                        image::Rgba(self.get_color(kpt.id() as usize).into()),
+                        self.keypoints_text_color,
+                        self.without_keypoints_text_bg,
+                    );
+                }
             }
 
             // skeletons
@@ -506,67 +522,72 @@ impl Annotator {
 
     /// Plot masks
     pub fn plot_masks(&self, img: &mut RgbaImage, masks: &[Mask]) {
-        // TODO: Suppose that only one mask exists
         let (w, h) = img.dimensions();
-        for mask in masks.iter() {
-            let luma = if self.with_colormap_turbo {
+        // let hstack = w < h;
+        let hstack = true;
+        let scale = 2;
+        let size = (masks.len() + 1) as u32;
+
+        // convas
+        let convas = img.clone();
+        let mut convas = image::DynamicImage::from(convas);
+        if hstack {
+            convas = convas.resize_exact(
+                w,
+                h / scale * (size / scale),
+                image::imageops::FilterType::CatmullRom,
+            );
+        } else {
+            convas = convas.resize_exact(
+                w / scale,
+                h * size / scale,
+                image::imageops::FilterType::CatmullRom,
+            );
+        }
+        for x in 0..convas.width() {
+            for y in 0..convas.height() {
+                convas.put_pixel(x, y, Rgba([255, 255, 255, 255]));
+            }
+        }
+
+        // place original
+        let im_ori = img.clone();
+        let im_ori = image::DynamicImage::from(im_ori);
+        let im_ori = im_ori.resize_exact(
+            w / scale,
+            h / scale,
+            image::imageops::FilterType::CatmullRom,
+        );
+        image::imageops::overlay(&mut convas, &im_ori, 0, 0);
+
+        // place masks
+        for (i, mask) in masks.iter().enumerate() {
+            let i = i + 1;
+            let luma = if let Some(colormap) = self.colormap {
                 let luma = map_colors(mask.mask(), |p| {
                     let x = p[0];
-                    image::Rgb(colormap256::TURBO[x as usize])
-                });
-                image::DynamicImage::from(luma)
-            } else if self.with_colormap_inferno {
-                let luma = map_colors(mask.mask(), |p| {
-                    let x = p[0];
-                    image::Rgb(colormap256::INFERNO[x as usize])
+                    image::Rgb(colormap[x as usize])
                 });
                 image::DynamicImage::from(luma)
             } else {
                 mask.mask().to_owned()
             };
-            let luma = luma.resize_exact(w / 2, h / 2, image::imageops::FilterType::CatmullRom);
-            let im_ori = img.clone();
-            let im_ori = image::DynamicImage::from(im_ori);
-            let im_ori = im_ori.resize_exact(w / 2, h / 2, image::imageops::FilterType::CatmullRom);
-
-            // overwrite
-            for x in 0..w {
-                for y in 0..h {
-                    img.put_pixel(x, y, Rgba([255, 255, 255, 255]));
-                }
+            let luma = luma.resize_exact(
+                w / scale,
+                h / scale,
+                image::imageops::FilterType::CatmullRom,
+            );
+            if hstack {
+                let pos_x = (i as u32 % scale) * luma.width();
+                let pos_y = (i as u32 / scale) * luma.height();
+                image::imageops::overlay(&mut convas, &luma, pos_x as i64, pos_y as i64);
+            } else {
+                let pos_x = 0;
+                let pos_y = i as u32 * luma.height();
+                image::imageops::overlay(&mut convas, &luma, pos_x as i64, pos_y as i64);
             }
-
-            // paste
-            let pos_x = 0;
-            let pos_y = (2 * (h - im_ori.height()) / 3) as i64;
-            image::imageops::overlay(img, &im_ori, pos_x, pos_y);
-            image::imageops::overlay(img, &luma, im_ori.width().into(), pos_y);
-
-            // text
-            let legend = "Raw";
-            let scale = PxScale::from(self.scale_dy * 2.5);
-            let (text_w, text_h) = imageproc::drawing::text_size(scale, &self.font, legend);
-            imageproc::drawing::draw_text_mut(
-                img,
-                Rgba([0, 0, 0, 255]),
-                ((im_ori.width() - text_w) / 2) as i32,
-                ((pos_y as u32 - text_h) / 2) as i32,
-                scale,
-                &self.font,
-                legend,
-            );
-            let legend = "Result";
-            let (text_w, text_h) = imageproc::drawing::text_size(scale, &self.font, legend);
-            imageproc::drawing::draw_text_mut(
-                img,
-                Rgba([0, 0, 0, 255]),
-                (im_ori.width() + (im_ori.width() - text_w) / 2) as i32,
-                ((pos_y as u32 - text_h) / 2) as i32,
-                scale,
-                &self.font,
-                legend,
-            );
         }
+        *img = convas.into_rgba8();
     }
 
     /// Plot probs

@@ -26,8 +26,7 @@ pub fn auto_load<P: AsRef<Path>>(src: P, sub: Option<&str>) -> Result<String> {
                 &format!("{}/{}", GITHUB_ASSETS, sth),
                 &p,
                 Some(sth.to_string().as_str()),
-            )
-            .map_err(|err| anyhow!("Failed to load {sth:?}\n{err}"))?;
+            )?;
         }
         p
     };
@@ -45,11 +44,7 @@ pub fn download<P: AsRef<Path> + std::fmt::Debug>(
         .get(src)
         .timeout(std::time::Duration::from_secs(2000))
         .call()
-        .map_err(|err| anyhow!("Failed to get: {err}"))?;
-    // .map_err(|err| match err {
-    //     ureq::Error::Status(404, _r) => anyhow!("Not exist"),
-    //     _ => anyhow!("Failed to get: {err}; {:?}", err.kind()),
-    // })?;
+        .map_err(|err| anyhow!("Failed to download. {err:?}"))?;
     let ntotal = resp
         .header("Content-Length")
         .and_then(|s| s.parse::<u64>().ok())
@@ -96,7 +91,7 @@ pub fn config_dir() -> PathBuf {
         Some(mut d) => {
             d.push("usls");
             if !d.exists() {
-                std::fs::create_dir_all(&d).expect("Failed to create config directory.");
+                std::fs::create_dir_all(&d).expect("Failed to create usls config directory.");
             }
             d
         }
@@ -112,7 +107,7 @@ pub fn home_dir(sub: Option<&str>) -> PathBuf {
                 d.push(sub);
             }
             if !d.exists() {
-                std::fs::create_dir_all(&d).expect("Failed to create config directory.");
+                std::fs::create_dir_all(&d).expect("Failed to create usls home directory.");
             }
             d
         }
