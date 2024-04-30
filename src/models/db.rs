@@ -1,4 +1,4 @@
-use crate::{ops, DynConf, Mask, Mbr, MinOptMax, Options, OrtEngine, Y};
+use crate::{ops, DynConf, Mbr, MinOptMax, Options, OrtEngine, Polygon, Y};
 use anyhow::Result;
 use image::DynamicImage;
 use ndarray::{Array, Axis, IxDyn};
@@ -56,7 +56,7 @@ impl DB {
         let mut ys = Vec::new();
         for (idx, luma) in xs[0].axis_iter(Axis(0)).enumerate() {
             let mut y_bbox = Vec::new();
-            let mut y_masks: Vec<Mask> = Vec::new();
+            let mut y_polygons: Vec<Polygon> = Vec::new();
             let mut y_mbrs: Vec<Mbr> = Vec::new();
 
             // reshape
@@ -99,7 +99,7 @@ impl DB {
                 {
                     continue;
                 }
-                let mask = Mask::default().with_points_imageproc(&contour.points);
+                let mask = Polygon::default().with_points_imageproc(&contour.points);
                 let delta = mask.area() * ratio.round() as f64 * self.unclip_ratio as f64
                     / mask.perimeter();
                 let mask = mask
@@ -120,7 +120,7 @@ impl DB {
                     if let Some(mbr) = mask.mbr() {
                         y_mbrs.push(mbr.with_confidence(confidence).with_id(0));
                     }
-                    y_masks.push(mask.with_id(0));
+                    y_polygons.push(mask.with_id(0));
                 } else {
                     continue;
                 }
@@ -128,7 +128,7 @@ impl DB {
             ys.push(
                 Y::default()
                     .with_bboxes(&y_bbox)
-                    .with_masks(&y_masks)
+                    .with_polygons(&y_polygons)
                     .with_mbrs(&y_mbrs),
             );
         }

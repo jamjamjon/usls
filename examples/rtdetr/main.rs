@@ -3,7 +3,7 @@ use usls::{coco, models::RTDETR, Annotator, DataLoader, Options};
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // build model
     let options = Options::default()
-        .with_model("../models/rtdetr-l-f16.onnx")
+        .with_model("rtdetr-l-f16.onnx")?
         .with_confs(&[0.4, 0.15]) // person: 0.4, others: 0.15
         .with_names(&coco::NAMES_80);
     let mut model = RTDETR::new(&options)?;

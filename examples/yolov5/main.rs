@@ -9,7 +9,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_conf_independent(true)
         .with_anchors_first(true)
         .with_yolo_task(YOLOTask::Segment)
-        .with_model("../models/yolov5s-seg.onnx")
+        .with_model("yolov5s-seg.onnx")?
         .with_trt(0)
         .with_fp16(true)
         .with_i00((1, 1, 4).into())

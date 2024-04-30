@@ -104,6 +104,27 @@ impl Mbr {
         self.confidence
     }
 
+    pub fn label(&self, with_name: bool, with_conf: bool) -> String {
+        let mut label = String::new();
+        if with_name {
+            label.push_str(
+                &self
+                    .name
+                    .as_ref()
+                    .unwrap_or(&self.id.to_string())
+                    .to_string(),
+            );
+        }
+        if with_conf {
+            if with_name {
+                label.push_str(&format!(": {:.4}", self.confidence));
+            } else {
+                label.push_str(&format!("{:.4}", self.confidence));
+            }
+        }
+        label
+    }
+
     pub fn vertices(&self) -> Vec<Coord> {
         self.ls.0.clone()
     }

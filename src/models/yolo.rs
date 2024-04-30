@@ -4,7 +4,7 @@ use image::DynamicImage;
 use ndarray::{s, Array, Axis, IxDyn};
 use regex::Regex;
 
-use crate::{ops, Bbox, DynConf, Keypoint, Mask, Mbr, MinOptMax, Options, OrtEngine, Prob, Y};
+use crate::{ops, Bbox, DynConf, Keypoint, Mbr, MinOptMax, Options, OrtEngine, Polygon, Prob, Y};
 
 const CXYWH_OFFSET: usize = 4;
 const KPT_STEP: usize = 3;
@@ -313,7 +313,7 @@ impl YOLO {
                     // masks
                     if let YOLOTask::Segment = self.task {
                         if let Some(bboxes) = y.bboxes() {
-                            let mut y_masks: Vec<Mask> = Vec::new();
+                            let mut y_polygons: Vec<Polygon> = Vec::new();
                             for bbox in bboxes.iter() {
                                 let coefs = if self.anchors_first {
                                     preds
@@ -367,7 +367,7 @@ impl YOLO {
                                 }
 
                                 // get masks from image
-                                let mut masks: Vec<Mask> = Vec::new();
+                                let mut masks: Vec<Polygon> = Vec::new();
                                 let contours: Vec<imageproc::contours::Contour<i32>> =
                                     imageproc::contours::find_contours_with_threshold(
                                         &mask_original,
@@ -376,16 +376,16 @@ impl YOLO {
                                 contours.iter().for_each(|contour| {
                                     if contour.points.len() > 2 {
                                         masks.push(
-                                            Mask::default()
+                                            Polygon::default()
                                                 .with_id(bbox.id())
                                                 .with_points_imageproc(&contour.points)
                                                 .with_name(bbox.name().cloned()),
                                         );
                                     }
                                 });
-                                y_masks.extend(masks);
+                                y_polygons.extend(masks);
                             }
-                            y = y.with_masks(&y_masks);
+                            y = y.with_polygons(&y_polygons);
                         }
                     }
                     ys.push(y);

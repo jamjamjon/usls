@@ -10,7 +10,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_min_width(5.0)
         .with_min_height(12.0)
         // .with_trt(0)
-        .with_model("../models/ppocr-v4-db-dyn.onnx");
+        .with_model("ppocr-v4-db-dyn.onnx")?;
 
     let mut model = DB::new(&options)?;
 
@@ -26,8 +26,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // annotate
     let annotator = Annotator::default()
         .without_bboxes(true)
-        .with_masks_alpha(60)
-        .with_polygon_color([255, 105, 180, 255])
+        .with_polygons_alpha(60)
+        .with_contours_color([255, 105, 180, 255])
         .without_mbrs(true)
         .with_saveout("DB");
     annotator.annotate(&x, &y);
