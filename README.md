@@ -17,7 +17,7 @@ A Rust library integrated with **ONNXRuntime**, providing a collection of **Comp
 
 |        YOLOP-v2          |             Face-Parsing             |               Text-Detection           |  
 | :----------------------------: | :------------------------------: |  :------------------------------: |
-|<img src='examples/yolop/demo.png'  height="240px">| <img src='examples/face-parsing/demo.png'  height="240px"> | <img src='examples/db/demo.png'  height="240px"> |
+|<img src='examples/yolop/demo.png'  height="220px">| <img src='examples/face-parsing/demo.png'  height="220px"> | <img src='examples/db/demo.png'  height="220px"> |
 
 
 |        YOLOv8-Obb         |
