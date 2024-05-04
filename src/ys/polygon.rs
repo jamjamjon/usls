@@ -73,7 +73,7 @@ impl Polygon {
         self.confidence
     }
 
-    pub fn label(&self, with_name: bool, with_conf: bool) -> String {
+    pub fn label(&self, with_name: bool, with_conf: bool, decimal_places: usize) -> String {
         let mut label = String::new();
         if with_name {
             label.push_str(
@@ -86,9 +86,9 @@ impl Polygon {
         }
         if with_conf {
             if with_name {
-                label.push_str(&format!(": {:.4}", self.confidence));
+                label.push_str(&format!(": {:.decimal_places$}", self.confidence));
             } else {
-                label.push_str(&format!("{:.4}", self.confidence));
+                label.push_str(&format!("{:.decimal_places$}", self.confidence));
             }
         }
         label

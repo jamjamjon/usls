@@ -14,6 +14,7 @@ pub struct Annotator {
     _scale: f32, // Cope with ab_glyph & imageproc=0.24.0
     scale_dy: f32,
     saveout: Option<String>,
+    decimal_places: usize,
 
     // About mbrs
     without_mbrs: bool,
@@ -65,6 +66,7 @@ impl Default for Annotator {
             scale_dy: 28.,
             polygons_alpha: 179,
             saveout: None,
+            decimal_places: 4,
             without_bboxes: false,
             without_bboxes_conf: false,
             without_bboxes_name: false,
@@ -98,6 +100,11 @@ impl Default for Annotator {
 }
 
 impl Annotator {
+    pub fn with_decimal_places(mut self, x: usize) -> Self {
+        self.decimal_places = x;
+        self
+    }
+
     /// Plotting BBOXes or not
     pub fn without_bboxes(mut self, x: bool) -> Self {
         self.without_bboxes = x;
@@ -364,7 +371,11 @@ impl Annotator {
 
             // label
             if !self.without_bboxes_name || !self.without_bboxes_conf {
-                let label = bbox.label(!self.without_bboxes_name, !self.without_bboxes_conf);
+                let label = bbox.label(
+                    !self.without_bboxes_name,
+                    !self.without_bboxes_conf,
+                    self.decimal_places,
+                );
                 self.put_text(
                     img,
                     &label,
@@ -395,7 +406,11 @@ impl Annotator {
 
             // label
             if !self.without_mbrs_name || !self.without_mbrs_conf {
-                let label = mbr.label(!self.without_mbrs_name, !self.without_mbrs_conf);
+                let label = mbr.label(
+                    !self.without_mbrs_name,
+                    !self.without_mbrs_conf,
+                    self.decimal_places,
+                );
                 self.put_text(
                     img,
                     &label,
@@ -451,7 +466,11 @@ impl Annotator {
         if self.with_polygons_name || self.with_polygons_conf {
             for polygon in polygons.iter() {
                 if let Some((x, y)) = polygon.centroid() {
-                    let label = polygon.label(self.with_polygons_name, self.with_polygons_conf);
+                    let label = polygon.label(
+                        self.with_polygons_name,
+                        self.with_polygons_conf,
+                        self.decimal_places,
+                    );
                     self.put_text(
                         img,
                         &label,
@@ -488,7 +507,11 @@ impl Annotator {
 
                 // label
                 if self.with_keypoints_name || self.with_keypoints_conf {
-                    let label = kpt.label(self.with_keypoints_name, self.with_keypoints_conf);
+                    let label = kpt.label(
+                        self.with_keypoints_name,
+                        self.with_keypoints_conf,
+                        self.decimal_places,
+                    );
                     self.put_text(
                         img,
                         &label,
