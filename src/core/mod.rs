@@ -6,6 +6,7 @@ mod engine;
 mod logits_sampler;
 mod metric;
 mod min_opt_max;
+pub mod onnx;
 pub mod ops;
 mod options;
 mod tokenizer_stream;

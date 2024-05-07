@@ -109,3 +109,7 @@ pub fn descale_mask(mask: DynamicImage, w0: f32, h0: f32, w1: f32, h1: f32) -> D
     let mask = mask.crop(0, 0, w as u32, h as u32);
     mask.resize_exact(w1 as u32, h1 as u32, image::imageops::FilterType::Triangle)
 }
+
+pub fn make_divisible(x: usize, divisor: usize) -> usize {
+    (x - 1 + divisor) / divisor * divisor
+}

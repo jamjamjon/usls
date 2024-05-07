@@ -9,8 +9,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         // .with_model("yolov8m-seg-dyn.onnx")?
         // .with_model("yolov8m-obb-dyn.onnx")?
         // .with_model("yolov8m-oiv7-dyn.onnx")?
-        // .with_trt(0)
+        .with_trt(0)
         // .with_fp16(true)
+        // .with_coreml(0)
         .with_i00((1, 1, 4).into())
         .with_i02((224, 640, 800).into())
         .with_i03((224, 640, 800).into())
