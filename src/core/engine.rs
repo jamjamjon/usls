@@ -4,15 +4,22 @@ use human_bytes::human_bytes;
 use ndarray::{Array, IxDyn};
 use ort::{
     ExecutionProvider, ExecutionProviderDispatch, Session, SessionBuilder, TensorElementType,
-    TensorRTExecutionProvider, ValueType,
+    TensorRTExecutionProvider, MINOR_VERSION,
 };
 use prost::Message;
 use std::collections::HashSet;
 
 use crate::{
     home_dir, onnx, ops::make_divisible, Device, MinOptMax, Options, CHECK_MARK, CROSS_MARK,
-    SAFE_CROSS_MARK,
 };
+
+/// Ort Tensor Attrs: name, data_type, dims
+#[derive(Debug)]
+pub struct OrtTensorAttr {
+    pub names: Vec<String>,
+    pub dtypes: Vec<ort::TensorElementType>,
+    pub dimss: Vec<Vec<isize>>,
+}
 
 /// ONNXRuntime Backend
 #[derive(Debug)]
@@ -20,12 +27,8 @@ pub struct OrtEngine {
     session: Session,
     device: Device,
     inputs_minoptmax: Vec<Vec<MinOptMax>>,
-    inames: Vec<String>,
-    ishapes: Vec<Vec<isize>>,
-    idtypes: Vec<TensorElementType>,
-    onames: Vec<String>,
-    oshapes: Vec<Vec<isize>>,
-    odtypes: Vec<TensorElementType>,
+    inputs_attrs: OrtTensorAttr,
+    outputs_attrs: OrtTensorAttr,
     profile: bool,
     num_dry_run: usize,
     model_proto: onnx::ModelProto,
@@ -35,23 +38,20 @@ pub struct OrtEngine {
 
 impl OrtEngine {
     pub fn dry_run(&self) -> Result<()> {
-        if self.num_dry_run == 0 {
-            println!("{SAFE_CROSS_MARK} No dry run count specified, skipping the dry run.");
-            return Ok(());
-        }
-        let mut xs: Vec<Array<f32, IxDyn>> = Vec::new();
-        for i in self.inputs_minoptmax.iter() {
-            let mut x: Vec<usize> = Vec::new();
-            for i_ in i.iter() {
-                x.push(i_.opt as usize);
+        if self.num_dry_run > 0 {
+            let mut xs: Vec<Array<f32, IxDyn>> = Vec::new();
+            for i in self.inputs_minoptmax.iter() {
+                let mut x: Vec<usize> = Vec::new();
+                for i_ in i.iter() {
+                    x.push(i_.opt as usize);
+                }
+                let x: Array<f32, IxDyn> = Array::ones(x).into_dyn();
+                xs.push(x);
             }
-            let x: Array<f32, IxDyn> = Array::ones(x).into_dyn();
-            xs.push(x);
+            for _ in 0..self.num_dry_run {
+                self.run(xs.as_ref())?;
+            }
         }
-        for _ in 0..self.num_dry_run {
-            self.run(xs.as_ref())?;
-        }
-        println!("{CHECK_MARK} Dry run x{}", self.num_dry_run);
         Ok(())
     }
 
@@ -63,7 +63,7 @@ impl OrtEngine {
             None => anyhow::bail!("No graph found in this proto"),
         };
 
-        // model params & mem
+        // model params & mems
         let byte_alignment = 16; // 16 for SIMD; 8 for most
         let mut params: usize = 0;
         let mut wbmems: usize = 0;
@@ -81,19 +81,22 @@ impl OrtEngine {
         }
 
         // inputs
-        let (ishapes, idtypes, inames) =
-            Self::parse_onnx_value_info(&initializer_names, &graph.input);
+        let inputs_attrs = Self::io_from_onnx_value_info(&initializer_names, &graph.input)?;
 
         // outputs
-        let (oshapes, odtypes, onames) =
-            Self::parse_onnx_value_info(&initializer_names, &graph.output);
+        let outputs_attrs = Self::io_from_onnx_value_info(&initializer_names, &graph.output)?;
 
         // inputs minoptmax
         let mut inputs_minoptmax: Vec<Vec<MinOptMax>> = Vec::new();
-        for (i, dims) in ishapes.iter().enumerate() {
+        for (i, dims) in inputs_attrs.dimss.iter().enumerate() {
             let mut v_: Vec<MinOptMax> = Vec::new();
             for (ii, &x) in dims.iter().enumerate() {
-                let x_default: MinOptMax = (ishapes[i][ii], ishapes[i][ii], ishapes[i][ii]).into();
+                let x_default: MinOptMax = (
+                    inputs_attrs.dimss[i][ii],
+                    inputs_attrs.dimss[i][ii],
+                    inputs_attrs.dimss[i][ii],
+                )
+                    .into();
                 let x: MinOptMax = match (i, ii) {
                     (0, 0) => Self::_set_ixx(x, &config.i00, i, ii).unwrap_or(x_default),
                     (0, 1) => Self::_set_ixx(x, &config.i01, i, ii).unwrap_or(x_default),
@@ -132,7 +135,7 @@ impl OrtEngine {
         let device = config.device.to_owned();
         let (_ep, s) = match device {
             Device::Trt(device_id) => Self::build_trt(
-                &inames,
+                &inputs_attrs.names,
                 &inputs_minoptmax,
                 &builder,
                 device_id,
@@ -168,30 +171,29 @@ impl OrtEngine {
         };
         let session = builder
             .with_optimization_level(ort::GraphOptimizationLevel::Level3)?
-            .with_model_from_file(&config.onnx_path)?;
+            // .with_intra_threads(4)?
+            .commit_from_file(&config.onnx_path)?;
+
+        let num_dry_run = config.num_dry_run;
 
         // summary
-        // TODO: ort version, ort upgrade
         println!(
-            "{CHECK_MARK} Using {s} | Dtype: {idtypes:?} | Opset: {} | Parameters: {} ({} {})",
+            "{CHECK_MARK} ORT: 1.{MINOR_VERSION}.x | Opset: {} | EP: {s} | Dtype: {:?} | Parameters: {} | Dryrun: {} | Batch: {:?}",
             model_proto.opset_import[0].version,
+            inputs_attrs.dtypes,
             human_bytes(params as f64),
-            sysinfo::System::long_os_version().unwrap_or_default(),
-            sysinfo::System::cpu_arch().unwrap_or_default(),
+            num_dry_run,
+            inputs_minoptmax[0][0]
         );
 
         Ok(Self {
             session,
             device,
             inputs_minoptmax,
-            inames,
-            ishapes,
-            idtypes,
-            onames,
-            oshapes,
-            odtypes,
+            inputs_attrs,
+            outputs_attrs,
             profile: config.profile,
-            num_dry_run: config.num_dry_run,
+            num_dry_run,
             model_proto,
             params,
             wbmems,
@@ -199,7 +201,7 @@ impl OrtEngine {
     }
 
     fn build_trt(
-        inames: &[String],
+        names: &[String],
         inputs_minoptmax: &[Vec<MinOptMax>],
         builder: &SessionBuilder,
         device_id: usize,
@@ -211,7 +213,7 @@ impl OrtEngine {
         let mut spec_min = String::new();
         let mut spec_opt = String::new();
         let mut spec_max = String::new();
-        for (i, name) in inames.iter().enumerate() {
+        for (i, name) in names.iter().enumerate() {
             if i != 0 {
                 spec_min.push(',');
                 spec_opt.push(',');
@@ -280,53 +282,69 @@ impl OrtEngine {
     }
 
     pub fn run(&self, xs: &[Array<f32, IxDyn>]) -> Result<Vec<Array<f32, IxDyn>>> {
-        // input
+        // inputs dtype alignment
         let mut xs_ = Vec::new();
         let t_pre = std::time::Instant::now();
-        for (idtype, x) in self.idtypes.iter().zip(xs.iter()) {
-            let x_ = match idtype {
-                TensorElementType::Float32 => ort::Value::from_array(x.view())?,
-                TensorElementType::Float16 => ort::Value::from_array(x.mapv(f16::from_f32).view())?,
-                TensorElementType::Int32 => ort::Value::from_array(x.mapv(|x_| x_ as i32).view())?,
-                TensorElementType::Int64 => ort::Value::from_array(x.mapv(|x_| x_ as i64).view())?,
+        for (idtype, x) in self.inputs_attrs.dtypes.iter().zip(xs.iter()) {
+            let x_ = match &idtype {
+                TensorElementType::Float32 => ort::Value::from_array(x.view())?.into_dyn(),
+                TensorElementType::Float16 => {
+                    ort::Value::from_array(x.mapv(f16::from_f32).view())?.into_dyn()
+                }
+                TensorElementType::Int32 => {
+                    ort::Value::from_array(x.mapv(|x_| x_ as i32).view())?.into_dyn()
+                }
+                TensorElementType::Int64 => {
+                    ort::Value::from_array(x.mapv(|x_| x_ as i64).view())?.into_dyn()
+                }
                 _ => todo!(),
             };
-            xs_.push(x_);
+            xs_.push(Into::<ort::SessionInputValue<'_>>::into(x_));
         }
         let t_pre = t_pre.elapsed();
 
         // inference
         let t_run = std::time::Instant::now();
-        let ys = self.session.run(xs_.as_ref())?;
+        let outputs = self.session.run(&xs_[..])?;
         let t_run = t_run.elapsed();
 
         // oputput
-        let mut ys_ = Vec::new();
+        let mut ys = Vec::new();
         let t_post = std::time::Instant::now();
-
-        for (dtype, name) in self.odtypes.iter().zip(self.onames.iter()) {
-            let y = &ys[name.as_str()];
+        for (dtype, name) in self
+            .outputs_attrs
+            .dtypes
+            .iter()
+            .zip(self.outputs_attrs.names.iter())
+        {
+            let y = &outputs[name.as_str()];
             let y_ = match &dtype {
-                TensorElementType::Float32 => y.extract_tensor::<f32>()?.view().to_owned(),
-                TensorElementType::Float16 => y.extract_tensor::<f16>()?.view().mapv(f16::to_f32),
+                TensorElementType::Float32 => y.try_extract_tensor::<f32>()?.view().into_owned(),
+                TensorElementType::Float16 => y
+                    .try_extract_tensor::<f16>()?
+                    .view()
+                    .mapv(f16::to_f32)
+                    .into_owned(),
                 TensorElementType::Int64 => y
-                    .extract_tensor::<i64>()?
+                    .try_extract_tensor::<i64>()?
                     .view()
                     .to_owned()
-                    .mapv(|x| x as f32),
+                    .mapv(|x| x as f32)
+                    .into_owned(),
                 _ => todo!(),
             };
-            ys_.push(y_);
+            ys.push(y_);
         }
         let t_post = t_post.elapsed();
         if self.profile {
+            let len = 10usize;
+            let n = 4usize;
             println!(
-                "[Profile] batch: {:?} => {:.4?} (i: {t_pre:.4?}, run: {t_run:.4?}, o: {t_post:.4?})", 
-                self.batch().opt,
-                t_pre + t_run + t_post
-            );
+                    "[Profile]{:>len$.n$?} (dtype alignment: {t_pre:>len$.n$?}, run: {t_run:>len$.n$?}, to_f32: {t_post:>len$.n$?})",
+                    t_pre + t_run + t_post
+                );
         }
-        Ok(ys_)
+        Ok(ys)
     }
 
     pub fn _set_ixx(x: isize, ixx: &Option<MinOptMax>, i: usize, ii: usize) -> Option<MinOptMax> {
@@ -399,60 +417,63 @@ impl OrtEngine {
     }
 
     #[allow(dead_code)]
-    #[allow(clippy::type_complexity)]
-    fn parse_io_from_session(
-        session: &Session,
-    ) -> (
-        Vec<Vec<isize>>,
-        Vec<ort::TensorElementType>,
-        Vec<String>,
-        Vec<Vec<isize>>,
-        Vec<ort::TensorElementType>,
-        Vec<String>,
-    ) {
-        let mut ishapes = Vec::new();
-        let mut idtypes = Vec::new();
-        let mut inames = Vec::new();
+    fn i_from_session(session: &ort::Session) -> Result<OrtTensorAttr> {
+        let mut dimss = Vec::new();
+        let mut dtypes = Vec::new();
+        let mut names = Vec::new();
         for x in session.inputs.iter() {
-            inames.push(x.name.to_owned());
-            if let ValueType::Tensor { ty, dimensions } = &x.input_type {
-                ishapes.push(dimensions.iter().map(|x| *x as isize).collect::<Vec<_>>());
-                idtypes.push(*ty);
+            names.push(x.name.to_owned());
+            if let ort::ValueType::Tensor { ty, dimensions } = &x.input_type {
+                dimss.push(dimensions.iter().map(|x| *x as isize).collect::<Vec<_>>());
+                dtypes.push(*ty);
             } else {
-                ishapes.push(vec![-1_isize]);
-                idtypes.push(ort::TensorElementType::Float32);
+                dimss.push(vec![-1_isize]);
+                dtypes.push(ort::TensorElementType::Float32);
             }
         }
 
-        let mut oshapes = Vec::new();
-        let mut odtypes = Vec::new();
-        let mut onames = Vec::new();
-        for x in session.outputs.iter() {
-            onames.push(x.name.to_owned());
-            if let ValueType::Tensor { ty, dimensions } = &x.output_type {
-                oshapes.push(dimensions.iter().map(|x| *x as isize).collect::<Vec<_>>());
-                odtypes.push(*ty);
-            } else {
-                oshapes.push(vec![-1_isize]);
-                odtypes.push(ort::TensorElementType::Float32);
-            }
-        }
-
-        (ishapes, idtypes, inames, oshapes, odtypes, onames)
+        Ok(OrtTensorAttr {
+            names,
+            dimss,
+            dtypes,
+        })
     }
 
-    fn parse_onnx_value_info(
+    #[allow(dead_code)]
+    fn o_from_session(session: &ort::Session) -> Result<OrtTensorAttr> {
+        let mut dimss = Vec::new();
+        let mut dtypes = Vec::new();
+        let mut names = Vec::new();
+        for x in session.outputs.iter() {
+            names.push(x.name.to_owned());
+            if let ort::ValueType::Tensor { ty, dimensions } = &x.output_type {
+                dimss.push(dimensions.iter().map(|x| *x as isize).collect::<Vec<_>>());
+                dtypes.push(*ty);
+            } else {
+                dimss.push(vec![-1_isize]);
+                dtypes.push(ort::TensorElementType::Float32);
+            }
+        }
+
+        Ok(OrtTensorAttr {
+            names,
+            dimss,
+            dtypes,
+        })
+    }
+
+    fn io_from_onnx_value_info(
         initializer_names: &HashSet<&str>,
         value_info: &[onnx::ValueInfoProto],
-    ) -> (Vec<Vec<isize>>, Vec<ort::TensorElementType>, Vec<String>) {
-        let mut xshapes: Vec<Vec<isize>> = Vec::new();
-        let mut xdtypes: Vec<ort::TensorElementType> = Vec::new();
-        let mut xnames: Vec<String> = Vec::new();
+    ) -> Result<OrtTensorAttr> {
+        let mut dimss: Vec<Vec<isize>> = Vec::new();
+        let mut dtypes: Vec<ort::TensorElementType> = Vec::new();
+        let mut names: Vec<String> = Vec::new();
         for v in value_info.iter() {
             if initializer_names.contains(v.name.as_str()) {
                 continue;
             }
-            xnames.push(v.name.to_string());
+            names.push(v.name.to_string());
             let dtype = match &v.r#type {
                 Some(dtype) => dtype,
                 None => continue,
@@ -471,7 +492,7 @@ impl OrtEngine {
                 None => continue,
                 // None => anyhow::bail!("DType not supported"),
             };
-            xdtypes.push(tensor_type);
+            dtypes.push(tensor_type);
 
             let shapes = match &tensor.shape {
                 Some(shapes) => shapes,
@@ -492,9 +513,13 @@ impl OrtEngine {
                     },
                 }
             }
-            xshapes.push(shape_);
+            dimss.push(shape_);
         }
-        (xshapes, xdtypes, xnames)
+        Ok(OrtTensorAttr {
+            dimss,
+            dtypes,
+            names,
+        })
     }
 
     pub fn load_onnx<P: AsRef<std::path::Path>>(p: P) -> Result<onnx::ModelProto> {
@@ -503,27 +528,35 @@ impl OrtEngine {
     }
 
     pub fn oshapes(&self) -> &Vec<Vec<isize>> {
-        &self.oshapes
+        &self.outputs_attrs.dimss
+    }
+
+    pub fn odimss(&self) -> &Vec<Vec<isize>> {
+        &self.outputs_attrs.dimss
     }
 
     pub fn onames(&self) -> &Vec<String> {
-        &self.onames
+        &self.outputs_attrs.names
     }
 
     pub fn odtypes(&self) -> &Vec<ort::TensorElementType> {
-        &self.odtypes
+        &self.outputs_attrs.dtypes
     }
 
     pub fn ishapes(&self) -> &Vec<Vec<isize>> {
-        &self.ishapes
+        &self.inputs_attrs.dimss
+    }
+
+    pub fn idimss(&self) -> &Vec<Vec<isize>> {
+        &self.inputs_attrs.dimss
     }
 
     pub fn inames(&self) -> &Vec<String> {
-        &self.inames
+        &self.inputs_attrs.names
     }
 
     pub fn idtypes(&self) -> &Vec<ort::TensorElementType> {
-        &self.idtypes
+        &self.inputs_attrs.dtypes
     }
 
     pub fn device(&self) -> &Device {
@@ -547,7 +580,7 @@ impl OrtEngine {
     }
 
     pub fn is_batch_dyn(&self) -> bool {
-        self.ishapes[0][0] == -1
+        self.ishapes()[0][0] == -1
     }
 
     pub fn try_fetch(&self, key: &str) -> Option<String> {
