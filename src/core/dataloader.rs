@@ -81,7 +81,7 @@ impl DataLoader {
         let n_new = paths.len();
         self.paths.append(&mut paths);
         println!(
-            "{CHECK_MARK} {n_new} files found ({} total)",
+            "{CHECK_MARK} Found images x{n_new} ({} total)",
             self.paths.len()
         );
         Ok(Self {

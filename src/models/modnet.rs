@@ -14,7 +14,7 @@ pub struct MODNet {
 
 impl MODNet {
     pub fn new(options: &Options) -> Result<Self> {
-        let engine = OrtEngine::new(options)?;
+        let mut engine = OrtEngine::new(options)?;
         let (batch, height, width) = (
             engine.batch().to_owned(),
             engine.height().to_owned(),
@@ -30,7 +30,7 @@ impl MODNet {
         })
     }
 
-    pub fn run(&self, xs: &[DynamicImage]) -> Result<Vec<Y>> {
+    pub fn run(&mut self, xs: &[DynamicImage]) -> Result<Vec<Y>> {
         let xs_ = ops::resize(xs, self.height.opt as u32, self.width.opt as u32)?;
         let xs_ = ops::normalize(xs_, 127.5, 255.0);
         let ys = self.engine.run(&[xs_])?;

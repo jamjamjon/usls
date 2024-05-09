@@ -1,5 +1,6 @@
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Device {
+    Auto(usize), // TODO
     Cpu(usize),
     Cuda(usize),
     Trt(usize),

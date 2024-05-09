@@ -16,7 +16,7 @@ pub struct SVTR {
 
 impl SVTR {
     pub fn new(options: &Options) -> Result<Self> {
-        let engine = OrtEngine::new(options)?;
+        let mut engine = OrtEngine::new(options)?;
         let (batch, height, width) = (
             engine.batch().to_owned(),
             engine.height().to_owned(),

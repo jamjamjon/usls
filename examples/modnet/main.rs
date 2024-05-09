@@ -7,7 +7,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_i00((1, 1, 4).into())
         .with_i02((416, 512, 800).into())
         .with_i03((416, 512, 800).into());
-    let model = MODNet::new(&options)?;
+    let mut model = MODNet::new(&options)?;
 
     // load image
     let x = vec![DataLoader::try_read("./assets/portrait.jpg")?];

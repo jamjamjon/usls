@@ -18,7 +18,7 @@ pub struct RTDETR {
 
 impl RTDETR {
     pub fn new(options: &Options) -> Result<Self> {
-        let engine = OrtEngine::new(options)?;
+        let mut engine = OrtEngine::new(options)?;
         let (batch, height, width) = (
             engine.inputs_minoptmax()[0][0].to_owned(),
             engine.inputs_minoptmax()[0][2].to_owned(),

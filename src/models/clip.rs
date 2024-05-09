@@ -19,8 +19,8 @@ pub struct Clip {
 impl Clip {
     pub fn new(options_visual: Options, options_textual: Options) -> Result<Self> {
         let context_length = 77;
-        let visual = OrtEngine::new(&options_visual)?;
-        let textual = OrtEngine::new(&options_textual)?;
+        let mut visual = OrtEngine::new(&options_visual)?;
+        let mut textual = OrtEngine::new(&options_textual)?;
         let (batch_visual, batch_textual, height, width) = (
             visual.inputs_minoptmax()[0][0].to_owned(),
             textual.inputs_minoptmax()[0][0].to_owned(),
@@ -52,7 +52,7 @@ impl Clip {
         })
     }
 
-    pub fn encode_images(&self, xs: &[DynamicImage]) -> Result<Embedding> {
+    pub fn encode_images(&mut self, xs: &[DynamicImage]) -> Result<Embedding> {
         let xs_ = ops::resize(xs, self.height.opt as u32, self.width.opt as u32)?;
         let xs_ = ops::normalize(xs_, 0.0, 255.0);
         let xs_ = ops::standardize(
@@ -64,7 +64,7 @@ impl Clip {
         Ok(Embedding::new(ys[0].to_owned()))
     }
 
-    pub fn encode_texts(&self, texts: &[String]) -> Result<Embedding> {
+    pub fn encode_texts(&mut self, texts: &[String]) -> Result<Embedding> {
         let encodings = self
             .tokenizer
             .encode_batch(texts.to_owned(), false)

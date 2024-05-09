@@ -19,8 +19,8 @@ pub struct Blip {
 
 impl Blip {
     pub fn new(options_visual: Options, options_textual: Options) -> Result<Self> {
-        let visual = OrtEngine::new(&options_visual)?;
-        let textual = OrtEngine::new(&options_textual)?;
+        let mut visual = OrtEngine::new(&options_visual)?;
+        let mut textual = OrtEngine::new(&options_textual)?;
         let (batch_visual, batch_textual, height, width) = (
             visual.batch().to_owned(),
             textual.batch().to_owned(),
@@ -42,7 +42,7 @@ impl Blip {
         })
     }
 
-    pub fn encode_images(&self, xs: &[DynamicImage]) -> Result<Embedding> {
+    pub fn encode_images(&mut self, xs: &[DynamicImage]) -> Result<Embedding> {
         let xs_ = ops::resize(xs, self.height.opt as u32, self.width.opt as u32)?;
         let xs_ = ops::normalize(xs_, 0.0, 255.0);
         let xs_ = ops::standardize(

@@ -3,14 +3,14 @@ use half::f16;
 use human_bytes::human_bytes;
 use ndarray::{Array, IxDyn};
 use ort::{
-    ExecutionProvider, ExecutionProviderDispatch, Session, SessionBuilder, TensorElementType,
-    TensorRTExecutionProvider, MINOR_VERSION,
+    ExecutionProvider, Session, SessionBuilder, TensorElementType, TensorRTExecutionProvider,
+    MINOR_VERSION,
 };
 use prost::Message;
 use std::collections::HashSet;
 
 use crate::{
-    home_dir, onnx, ops::make_divisible, Device, MinOptMax, Options, CHECK_MARK, CROSS_MARK,
+    home_dir, onnx, ops::make_divisible, Device, MinOptMax, Options, Ts, CHECK_MARK, CROSS_MARK,
 };
 
 /// Ort Tensor Attrs: name, data_type, dims
@@ -34,27 +34,10 @@ pub struct OrtEngine {
     model_proto: onnx::ModelProto,
     params: usize,
     wbmems: usize,
+    pub ts: Ts,
 }
 
 impl OrtEngine {
-    pub fn dry_run(&self) -> Result<()> {
-        if self.num_dry_run > 0 {
-            let mut xs: Vec<Array<f32, IxDyn>> = Vec::new();
-            for i in self.inputs_minoptmax.iter() {
-                let mut x: Vec<usize> = Vec::new();
-                for i_ in i.iter() {
-                    x.push(i_.opt as usize);
-                }
-                let x: Array<f32, IxDyn> = Array::ones(x).into_dyn();
-                xs.push(x);
-            }
-            for _ in 0..self.num_dry_run {
-                self.run(xs.as_ref())?;
-            }
-        }
-        Ok(())
-    }
-
     pub fn new(config: &Options) -> Result<Self> {
         // onnx graph
         let model_proto = Self::load_onnx(&config.onnx_path)?;
@@ -64,7 +47,7 @@ impl OrtEngine {
         };
 
         // model params & mems
-        let byte_alignment = 16; // 16 for SIMD; 8 for most
+        let byte_alignment = 16; // 16 for simd; 8 for most
         let mut params: usize = 0;
         let mut wbmems: usize = 0;
         let mut initializer_names: HashSet<&str> = HashSet::new();
@@ -80,10 +63,8 @@ impl OrtEngine {
             wbmems += wbmem;
         }
 
-        // inputs
+        // inputs & outputs
         let inputs_attrs = Self::io_from_onnx_value_info(&initializer_names, &graph.input)?;
-
-        // outputs
         let outputs_attrs = Self::io_from_onnx_value_info(&initializer_names, &graph.output)?;
 
         // inputs minoptmax
@@ -129,61 +110,49 @@ impl OrtEngine {
             inputs_minoptmax.push(v_);
         }
 
-        // build again
+        // build
         ort::init().commit()?;
         let builder = Session::builder()?;
-        let device = config.device.to_owned();
-        let (_ep, s) = match device {
-            Device::Trt(device_id) => Self::build_trt(
-                &inputs_attrs.names,
-                &inputs_minoptmax,
-                &builder,
-                device_id,
-                config.trt_int8_enable,
-                config.trt_fp16_enable,
-                config.trt_engine_cache_enable,
-            )?,
-            Device::Cuda(device_id) => Self::build_cuda(&builder, device_id)?,
-            Device::CoreML(_) => {
-                let coreml = ort::CoreMLExecutionProvider::default()
-                    .with_subgraphs()
-                    // .with_ane_only()
-                    .build();
-                if coreml.is_available()? && coreml.register(&builder).is_ok() {
-                    // println!("{CHECK_MARK} Using CoreML");
-                    (coreml, String::from("CoreML"))
-                } else {
-                    println!("{CROSS_MARK} CoreML initialization failed");
-                    // println!("{CHECK_MARK} Using CPU");
-                    (
-                        ort::CPUExecutionProvider::default().build(),
-                        String::from("CPU"),
-                    )
-                }
+        let mut device = config.device.to_owned();
+        match device {
+            Device::Trt(device_id) => {
+                Self::build_trt(
+                    &inputs_attrs.names,
+                    &inputs_minoptmax,
+                    &builder,
+                    device_id,
+                    config.trt_int8_enable,
+                    config.trt_fp16_enable,
+                    config.trt_engine_cache_enable,
+                )?;
             }
+            Device::Cuda(device_id) => {
+                Self::build_cuda(&builder, device_id).unwrap_or_else(|err| {
+                    device = Device::Cpu(0);
+                    println!("{err}");
+                })
+            }
+            Device::CoreML(_) => Self::build_coreml(&builder).unwrap_or_else(|err| {
+                device = Device::Cpu(0);
+                println!("{err}");
+            }),
             Device::Cpu(_) => {
-                // println!("{CHECK_MARK} Using CPU");
-                (
-                    ort::CPUExecutionProvider::default().build(),
-                    String::from("CPU"),
-                )
-            } // _ => todo!(),
-        };
+                Self::build_cpu(&builder)?;
+            }
+            _ => todo!(),
+        }
+
         let session = builder
             .with_optimization_level(ort::GraphOptimizationLevel::Level3)?
-            // .with_intra_threads(4)?
             .commit_from_file(&config.onnx_path)?;
-
-        let num_dry_run = config.num_dry_run;
 
         // summary
         println!(
-            "{CHECK_MARK} ORT: 1.{MINOR_VERSION}.x | Opset: {} | EP: {s} | Dtype: {:?} | Parameters: {} | Dryrun: {} | Batch: {:?}",
+            "{CHECK_MARK} ORT: 1.{MINOR_VERSION}.x | Opset: {} | EP: {:?} | Dtype: {:?} | Parameters: {}",
             model_proto.opset_import[0].version,
+            device,
             inputs_attrs.dtypes,
             human_bytes(params as f64),
-            num_dry_run,
-            inputs_minoptmax[0][0]
         );
 
         Ok(Self {
@@ -193,10 +162,11 @@ impl OrtEngine {
             inputs_attrs,
             outputs_attrs,
             profile: config.profile,
-            num_dry_run,
+            num_dry_run: config.num_dry_run,
             model_proto,
             params,
             wbmems,
+            ts: Ts::default(),
         })
     }
 
@@ -208,7 +178,7 @@ impl OrtEngine {
         int8_enable: bool,
         fp16_enable: bool,
         engine_cache_enable: bool,
-    ) -> Result<(ExecutionProviderDispatch, String)> {
+    ) -> Result<()> {
         // auto generate shapes
         let mut spec_min = String::new();
         let mut spec_opt = String::new();
@@ -250,38 +220,63 @@ impl OrtEngine {
             .with_timing_cache(false)
             .with_profile_min_shapes(spec_min)
             .with_profile_opt_shapes(spec_opt)
-            .with_profile_max_shapes(spec_max)
-            .build();
+            .with_profile_max_shapes(spec_max);
         if trt.is_available()? && trt.register(builder).is_ok() {
             println!("\n🐢 Initial model serialization with TensorRT may require a wait...\n");
-            Ok((trt, String::from("TensorRT")))
+            Ok(())
         } else {
-            println!("{CROSS_MARK} TensorRT initialization failed. Try CUDA...");
-            Self::build_cuda(builder, device_id)
+            anyhow::bail!("{CROSS_MARK} TensorRT initialization failed")
         }
     }
 
-    fn build_cuda(
-        builder: &SessionBuilder,
-        device_id: usize,
-    ) -> Result<(ExecutionProviderDispatch, String)> {
-        let cuda = ort::CUDAExecutionProvider::default()
-            .with_device_id(device_id as i32)
-            .build();
-        if cuda.is_available()? && cuda.register(builder).is_ok() {
-            // println!("{CHECK_MARK} Using CUDA");
-            Ok((cuda, String::from("CUDA")))
+    fn build_cuda(builder: &SessionBuilder, device_id: usize) -> Result<()> {
+        let ep = ort::CUDAExecutionProvider::default().with_device_id(device_id as i32);
+        if ep.is_available()? && ep.register(builder).is_ok() {
+            Ok(())
         } else {
-            println!("{CROSS_MARK} CUDA initialization failed");
-            // println!("{CHECK_MARK} Using CPU");
-            Ok((
-                ort::CPUExecutionProvider::default().build(),
-                String::from("CPU"),
-            ))
+            anyhow::bail!("{CROSS_MARK} CUDA initialization failed")
         }
     }
 
-    pub fn run(&self, xs: &[Array<f32, IxDyn>]) -> Result<Vec<Array<f32, IxDyn>>> {
+    fn build_coreml(builder: &SessionBuilder) -> Result<()> {
+        let ep = ort::CoreMLExecutionProvider::default().with_subgraphs(); //.with_ane_only();
+        if ep.is_available()? && ep.register(builder).is_ok() {
+            Ok(())
+        } else {
+            anyhow::bail!("{CROSS_MARK} CoreML initialization failed")
+        }
+    }
+
+    fn build_cpu(builder: &SessionBuilder) -> Result<()> {
+        let ep = ort::CUDAExecutionProvider::default();
+        if ep.is_available()? && ep.register(builder).is_ok() {
+            Ok(())
+        } else {
+            anyhow::bail!("{CROSS_MARK} CPU initialization failed")
+        }
+    }
+
+    pub fn dry_run(&mut self) -> Result<()> {
+        if self.num_dry_run > 0 {
+            let mut xs: Vec<Array<f32, IxDyn>> = Vec::new();
+            for i in self.inputs_minoptmax.iter() {
+                let mut x: Vec<usize> = Vec::new();
+                for i_ in i.iter() {
+                    x.push(i_.opt as usize);
+                }
+                let x: Array<f32, IxDyn> = Array::ones(x).into_dyn();
+                xs.push(x);
+            }
+            for _ in 0..self.num_dry_run {
+                self.run(xs.as_ref())?;
+            }
+            self.ts.clear();
+            println!("{CHECK_MARK} Dryrun x{}", self.num_dry_run);
+        }
+        Ok(())
+    }
+
+    pub fn run(&mut self, xs: &[Array<f32, IxDyn>]) -> Result<Vec<Array<f32, IxDyn>>> {
         // inputs dtype alignment
         let mut xs_ = Vec::new();
         let t_pre = std::time::Instant::now();
@@ -302,11 +297,13 @@ impl OrtEngine {
             xs_.push(Into::<ort::SessionInputValue<'_>>::into(x_));
         }
         let t_pre = t_pre.elapsed();
+        self.ts.add_or_push(0, t_pre);
 
         // inference
         let t_run = std::time::Instant::now();
         let outputs = self.session.run(&xs_[..])?;
         let t_run = t_run.elapsed();
+        self.ts.add_or_push(1, t_run);
 
         // oputput
         let mut ys = Vec::new();
@@ -336,13 +333,22 @@ impl OrtEngine {
             ys.push(y_);
         }
         let t_post = t_post.elapsed();
+        self.ts.add_or_push(2, t_post);
+
         if self.profile {
             let len = 10usize;
             let n = 4usize;
             println!(
-                    "[Profile]{:>len$.n$?} (dtype alignment: {t_pre:>len$.n$?}, run: {t_run:>len$.n$?}, to_f32: {t_post:>len$.n$?})",
-                    t_pre + t_run + t_post
-                );
+                "[Profile] {:>len$.n$?} ({:>len$.n$?} avg) [alignment: {:>len$.n$?} ({:>len$.n$?} avg) | inference: {:>len$.n$?} ({:>len$.n$?} avg) | to_f32: {:>len$.n$?} ({:>len$.n$?} avg)]",
+                t_pre + t_run + t_post,
+                self.ts.avg(),
+                t_pre,
+                self.ts.avgi(0),
+                t_run,
+                self.ts.avgi(1),
+                t_post,
+                self.ts.avgi(2),
+            );
         }
         Ok(ys)
     }
