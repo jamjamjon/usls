@@ -10,7 +10,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         // .with_trt(0)
         // .with_fp16(true)
         .with_confs(&[0.5]);
-    let mut model = YOLO::new(&options)?;
+    let mut model = YOLO::new(options)?;
 
     // load image
     let x = vec![DataLoader::try_read("./assets/nini.png")?];

@@ -53,8 +53,13 @@ impl Clip {
     }
 
     pub fn encode_images(&mut self, xs: &[DynamicImage]) -> Result<Embedding> {
-        let xs_ = ops::resize(xs, self.height.opt as u32, self.width.opt as u32)?;
-        let xs_ = ops::normalize(xs_, 0.0, 255.0);
+        let xs_ = ops::resize(
+            xs,
+            self.height.opt as u32,
+            self.width.opt as u32,
+            "bilinear",
+        )?;
+        let xs_ = ops::normalize(xs_, 0., 255.);
         let xs_ = ops::standardize(
             xs_,
             &[0.48145466, 0.4578275, 0.40821073],

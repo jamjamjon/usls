@@ -40,16 +40,16 @@ pub struct YOLO {
 }
 
 impl YOLO {
-    pub fn new(options: &Options) -> Result<Self> {
-        let mut engine = OrtEngine::new(options)?;
+    pub fn new(options: Options) -> Result<Self> {
+        let mut engine = OrtEngine::new(&options)?;
         let (batch, height, width) = (
             engine.batch().to_owned(),
             engine.height().to_owned(),
             engine.width().to_owned(),
         );
 
-        let task = match &options.yolo_task {
-            Some(task) => task.to_owned(),
+        let task = match options.yolo_task {
+            Some(task) => task,
             None => match engine
                 .try_fetch("task")
                 .unwrap_or("detect".to_string())
@@ -60,12 +60,12 @@ impl YOLO {
                 "pose" => YOLOTask::Pose,
                 "segment" => YOLOTask::Segment,
                 "obb" => YOLOTask::Obb,
-                x => todo!("{:?} is not supported for now!", x),
+                x => todo!("Not supported: {x:?} "),
             },
         };
 
         // try from custom class names, and then model metadata
-        let mut names = options.names.to_owned().or(Self::fetch_names(&engine));
+        let mut names = options.names.or(Self::fetch_names(&engine));
         let nc = match options.nc {
             Some(nc) => {
                 match &names {
@@ -88,7 +88,7 @@ impl YOLO {
             },
         };
 
-        let names_kpt = options.names2.to_owned().or(None);
+        let names_kpt = options.names2.or(None);
 
         // try from model metadata
         let nk = engine
@@ -131,10 +131,18 @@ impl YOLO {
 
     pub fn run(&mut self, xs: &[DynamicImage]) -> Result<Vec<Y>> {
         let xs_ = match self.task {
-            YOLOTask::Classify => ops::resize(xs, self.height() as u32, self.width() as u32)?,
-            _ => ops::letterbox(xs, self.height() as u32, self.width() as u32, 114.0)?,
+            YOLOTask::Classify => {
+                ops::resize(xs, self.height() as u32, self.width() as u32, "bilinear")?
+            }
+            _ => ops::letterbox(
+                xs,
+                self.height() as u32,
+                self.width() as u32,
+                "catmullRom",
+                Some(114),
+            )?,
         };
-        let xs_ = ops::normalize(xs_, 0.0, 255.0);
+        let xs_ = ops::normalize(xs_, 0., 255.);
         let ys = self.engine.run(&[xs_])?;
         self.postprocess(ys, xs)
     }

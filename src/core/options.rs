@@ -67,7 +67,7 @@ impl Default for Options {
             onnx_path: String::new(),
             device: Device::Cuda(0),
             profile: false,
-            num_dry_run: 3,
+            num_dry_run: 5,
             i00: None,
             i01: None,
             i02: None,

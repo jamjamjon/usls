@@ -7,7 +7,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_i00((1, 1, 1).into())
         .with_i02((224, 224, 224).into())
         .with_i03((224, 224, 224).into());
-    let _model = Dinov2::new(&options)?;
+    let _model = Dinov2::new(options)?;
     println!("TODO...");
 
     // query from vector

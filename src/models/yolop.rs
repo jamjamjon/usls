@@ -15,8 +15,8 @@ pub struct YOLOPv2 {
 }
 
 impl YOLOPv2 {
-    pub fn new(options: &Options) -> Result<Self> {
-        let mut engine = OrtEngine::new(options)?;
+    pub fn new(options: Options) -> Result<Self> {
+        let mut engine = OrtEngine::new(&options)?;
         let (batch, height, width) = (
             engine.batch().to_owned(),
             engine.height().to_owned(),
@@ -37,8 +37,14 @@ impl YOLOPv2 {
     }
 
     pub fn run(&mut self, xs: &[DynamicImage]) -> Result<Vec<Y>> {
-        let xs_ = ops::letterbox(xs, self.height() as u32, self.width() as u32, 114.0)?;
-        let xs_ = ops::normalize(xs_, 0.0, 255.0);
+        let xs_ = ops::letterbox(
+            xs,
+            self.height() as u32,
+            self.width() as u32,
+            "bilinear",
+            Some(114),
+        )?;
+        let xs_ = ops::normalize(xs_, 0., 255.);
         let ys = self.engine.run(&[xs_])?;
         self.postprocess(ys, xs)
     }

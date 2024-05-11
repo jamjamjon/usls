@@ -8,7 +8,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_nk(17)
         .with_confs(&[0.3])
         .with_kconfs(&[0.5]);
-    let mut model = RTMO::new(&options)?;
+    let mut model = RTMO::new(options)?;
 
     // load image
     let x = vec![DataLoader::try_read("./assets/bus.jpg")?];

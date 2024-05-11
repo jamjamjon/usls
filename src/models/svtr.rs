@@ -15,8 +15,8 @@ pub struct SVTR {
 }
 
 impl SVTR {
-    pub fn new(options: &Options) -> Result<Self> {
-        let mut engine = OrtEngine::new(options)?;
+    pub fn new(options: Options) -> Result<Self> {
+        let mut engine = OrtEngine::new(&options)?;
         let (batch, height, width) = (
             engine.batch().to_owned(),
             engine.height().to_owned(),
@@ -24,7 +24,7 @@ impl SVTR {
         );
         let confs = DynConf::new(&options.confs, 1);
         let mut vocab: Vec<_> =
-            std::fs::read_to_string(options.vocab.as_ref().expect("No vocabulary found"))?
+            std::fs::read_to_string(options.vocab.expect("No vocabulary found"))?
                 .lines()
                 .map(|line| line.to_string())
                 .collect();
@@ -43,8 +43,13 @@ impl SVTR {
     }
 
     pub fn run(&mut self, xs: &[DynamicImage]) -> Result<Vec<Y>> {
-        let xs_ =
-            ops::resize_with_fixed_height(xs, self.height.opt as u32, self.width.opt as u32, 0.0)?;
+        let xs_ = ops::resize_with_fixed_height(
+            xs,
+            self.height.opt as u32,
+            self.width.opt as u32,
+            "bilinear",
+            Some(0),
+        )?;
         let xs_ = ops::normalize(xs_, 0.0, 255.0);
         let ys: Vec<Array<f32, IxDyn>> = self.engine.run(&[xs_])?;
         let ys = ys[0].to_owned();

@@ -7,7 +7,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_i00((1, 1, 8).into())
         .with_i02((384, 512, 1024).into())
         .with_i03((384, 512, 1024).into());
-    let mut model = DepthAnything::new(&options)?;
+    let mut model = DepthAnything::new(options)?;
 
     // load
     let x = vec![DataLoader::try_read("./assets/2.jpg")?];

@@ -495,7 +495,7 @@ impl Annotator {
 
                 // keypoint
                 let color = match &self.keypoints_palette {
-                    None => self.get_color(i + 10),
+                    None => self.get_color(i),
                     Some(keypoints_palette) => keypoints_palette[i],
                 };
                 imageproc::drawing::draw_filled_circle_mut(

@@ -8,7 +8,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_confs(&[0.2])
         .with_vocab("ppocr_rec_vocab.txt")?
         .with_model("ppocr-v4-svtr-ch-dyn.onnx")?;
-    let mut model = SVTR::new(&options)?;
+    let mut model = SVTR::new(options)?;
 
     // load images
     let dl = DataLoader::default()

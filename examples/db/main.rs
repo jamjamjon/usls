@@ -6,18 +6,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_i00((1, 4, 8).into())
         .with_i02((608, 960, 1280).into())
         .with_i03((608, 960, 1280).into())
+        // .with_trt(0)
         .with_confs(&[0.4])
         .with_min_width(5.0)
         .with_min_height(12.0)
-        // .with_trt(0)
         .with_model("ppocr-v4-db-dyn.onnx")?;
 
-    let mut model = DB::new(&options)?;
+    let mut model = DB::new(options)?;
 
     // load image
     let x = vec![
         DataLoader::try_read("./assets/db.png")?,
-        // DataLoader::try_read("./assets/2.jpg")?,
+        DataLoader::try_read("./assets/2.jpg")?,
     ];
 
     // run
