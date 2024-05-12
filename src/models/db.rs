@@ -17,8 +17,8 @@ pub struct DB {
 }
 
 impl DB {
-    pub fn new(options: &Options) -> Result<Self> {
-        let engine = OrtEngine::new(options)?;
+    pub fn new(options: Options) -> Result<Self> {
+        let mut engine = OrtEngine::new(&options)?;
         let (batch, height, width) = (
             engine.batch().to_owned(),
             engine.height().to_owned(),
@@ -27,8 +27,8 @@ impl DB {
         let confs = DynConf::new(&options.confs, 1);
         let unclip_ratio = options.unclip_ratio;
         let binary_thresh = 0.2;
-        let min_width = options.min_width.unwrap_or(0.0);
-        let min_height = options.min_height.unwrap_or(0.0);
+        let min_width = options.min_width.unwrap_or(0.);
+        let min_height = options.min_height.unwrap_or(0.);
         engine.dry_run()?;
 
         Ok(Self {
@@ -45,8 +45,14 @@ impl DB {
     }
 
     pub fn run(&mut self, xs: &[DynamicImage]) -> Result<Vec<Y>> {
-        let xs_ = ops::letterbox(xs, self.height.opt as u32, self.width.opt as u32, 144.0)?;
-        let xs_ = ops::normalize(xs_, 0.0, 255.0);
+        let xs_ = ops::letterbox(
+            xs,
+            self.height.opt as u32,
+            self.width.opt as u32,
+            "bilinear",
+            Some(114),
+        )?;
+        let xs_ = ops::normalize(xs_, 0., 255.);
         let xs_ = ops::standardize(xs_, &[0.485, 0.456, 0.406], &[0.229, 0.224, 0.225]);
         let ys = self.engine.run(&[xs_])?;
         self.postprocess(ys, xs)

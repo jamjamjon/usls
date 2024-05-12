@@ -12,8 +12,8 @@ pub struct DepthAnything {
 }
 
 impl DepthAnything {
-    pub fn new(options: &Options) -> Result<Self> {
-        let engine = OrtEngine::new(options)?;
+    pub fn new(options: Options) -> Result<Self> {
+        let mut engine = OrtEngine::new(&options)?;
         let (batch, height, width) = (
             engine.batch().to_owned(),
             engine.height().to_owned(),
@@ -29,8 +29,13 @@ impl DepthAnything {
         })
     }
 
-    pub fn run(&self, xs: &[DynamicImage]) -> Result<Vec<Y>> {
-        let xs_ = ops::resize(xs, self.height.opt as u32, self.width.opt as u32)?;
+    pub fn run(&mut self, xs: &[DynamicImage]) -> Result<Vec<Y>> {
+        let xs_ = ops::resize(
+            xs,
+            self.height.opt as u32,
+            self.width.opt as u32,
+            "lanczos3",
+        )?;
         let xs_ = ops::normalize(xs_, 0.0, 255.0);
         let xs_ = ops::standardize(xs_, &[0.485, 0.456, 0.406], &[0.229, 0.224, 0.225]);
         let ys = self.engine.run(&[xs_])?;

@@ -19,8 +19,8 @@ pub struct Blip {
 
 impl Blip {
     pub fn new(options_visual: Options, options_textual: Options) -> Result<Self> {
-        let visual = OrtEngine::new(&options_visual)?;
-        let textual = OrtEngine::new(&options_textual)?;
+        let mut visual = OrtEngine::new(&options_visual)?;
+        let mut textual = OrtEngine::new(&options_textual)?;
         let (batch_visual, batch_textual, height, width) = (
             visual.batch().to_owned(),
             textual.batch().to_owned(),
@@ -42,18 +42,21 @@ impl Blip {
         })
     }
 
-    pub fn encode_images(&self, xs: &[DynamicImage]) -> Result<Embedding> {
-        let xs_ = ops::resize(xs, self.height.opt as u32, self.width.opt as u32)?;
-        let xs_ = ops::normalize(xs_, 0.0, 255.0);
+    pub fn encode_images(&mut self, xs: &[DynamicImage]) -> Result<Embedding> {
+        let xs_ = ops::resize(
+            xs,
+            self.height.opt as u32,
+            self.width.opt as u32,
+            "bilinear",
+        )?;
+        let xs_ = ops::normalize(xs_, 0., 255.);
         let xs_ = ops::standardize(
             xs_,
             &[0.48145466, 0.4578275, 0.40821073],
             &[0.26862954, 0.2613026, 0.2757771],
         );
         let ys: Vec<Array<f32, IxDyn>> = self.visual.run(&[xs_])?;
-        // let ys = ys[0].to_owned();
         Ok(Embedding::new(ys[0].to_owned()))
-        // Ok(ys)
     }
 
     pub fn caption(

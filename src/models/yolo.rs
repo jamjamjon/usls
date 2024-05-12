@@ -1,6 +1,6 @@
 use anyhow::Result;
 use clap::ValueEnum;
-use image::DynamicImage;
+use image::{DynamicImage, ImageBuffer};
 use ndarray::{s, Array, Axis, IxDyn};
 use regex::Regex;
 
@@ -40,16 +40,16 @@ pub struct YOLO {
 }
 
 impl YOLO {
-    pub fn new(options: &Options) -> Result<Self> {
-        let engine = OrtEngine::new(options)?;
+    pub fn new(options: Options) -> Result<Self> {
+        let mut engine = OrtEngine::new(&options)?;
         let (batch, height, width) = (
             engine.batch().to_owned(),
             engine.height().to_owned(),
             engine.width().to_owned(),
         );
 
-        let task = match &options.yolo_task {
-            Some(task) => task.to_owned(),
+        let task = match options.yolo_task {
+            Some(task) => task,
             None => match engine
                 .try_fetch("task")
                 .unwrap_or("detect".to_string())
@@ -60,12 +60,12 @@ impl YOLO {
                 "pose" => YOLOTask::Pose,
                 "segment" => YOLOTask::Segment,
                 "obb" => YOLOTask::Obb,
-                x => todo!("{:?} is not supported for now!", x),
+                x => todo!("Not supported: {x:?} "),
             },
         };
 
         // try from custom class names, and then model metadata
-        let mut names = options.names.to_owned().or(Self::fetch_names(&engine));
+        let mut names = options.names.or(Self::fetch_names(&engine));
         let nc = match options.nc {
             Some(nc) => {
                 match &names {
@@ -88,7 +88,7 @@ impl YOLO {
             },
         };
 
-        let names_kpt = options.names2.to_owned().or(None);
+        let names_kpt = options.names2.or(None);
 
         // try from model metadata
         let nk = engine
@@ -131,10 +131,18 @@ impl YOLO {
 
     pub fn run(&mut self, xs: &[DynamicImage]) -> Result<Vec<Y>> {
         let xs_ = match self.task {
-            YOLOTask::Classify => ops::resize(xs, self.height() as u32, self.width() as u32)?,
-            _ => ops::letterbox(xs, self.height() as u32, self.width() as u32, 114.0)?,
+            YOLOTask::Classify => {
+                ops::resize(xs, self.height() as u32, self.width() as u32, "bilinear")?
+            }
+            _ => ops::letterbox(
+                xs,
+                self.height() as u32,
+                self.width() as u32,
+                "catmullRom",
+                Some(114),
+            )?,
         };
-        let xs_ = ops::normalize(xs_, 0.0, 255.0);
+        let xs_ = ops::normalize(xs_, 0., 255.);
         let ys = self.engine.run(&[xs_])?;
         self.postprocess(ys, xs)
     }
@@ -333,29 +341,35 @@ impl YOLO {
                                 let mask = coefs.dot(&proto).into_shape((nh, nw, 1))?; // (nh, nw, n)
 
                                 // build image from ndarray
-                                let mask_im = ops::build_dyn_image_from_raw(
-                                    mask.into_raw_vec(),
-                                    nw as u32,
-                                    nh as u32,
-                                );
+                                let mask: ImageBuffer<image::Luma<_>, Vec<f32>> =
+                                    match ImageBuffer::from_raw(
+                                        nw as u32,
+                                        nh as u32,
+                                        mask.clone().into_raw_vec(),
+                                    ) {
+                                        Some(buf) => buf,
+                                        None => continue,
+                                    };
+                                let mask = image::DynamicImage::from(mask);
 
-                                // rescale masks
+                                // rescale
                                 let mask_original = ops::descale_mask(
-                                    mask_im,
+                                    mask,
                                     nw as f32,
                                     nh as f32,
                                     image_width,
                                     image_height,
                                 );
-
-                                // crop mask with bbox
                                 let mut mask_original = mask_original.into_luma8();
+
+                                // crop mask
                                 for y in 0..image_height as usize {
                                     for x in 0..image_width as usize {
                                         if x < bbox.xmin() as usize
                                             || x > bbox.xmax() as usize
                                             || y < bbox.ymin() as usize
                                             || y > bbox.ymax() as usize
+                                        // || mask_original.get_pixel(x as u32, y as u32).0 < [127]
                                         {
                                             mask_original.put_pixel(
                                                 x as u32,
@@ -367,23 +381,25 @@ impl YOLO {
                                 }
 
                                 // get masks from image
-                                let mut masks: Vec<Polygon> = Vec::new();
                                 let contours: Vec<imageproc::contours::Contour<i32>> =
                                     imageproc::contours::find_contours_with_threshold(
                                         &mask_original,
-                                        1,
+                                        0,
                                     );
-                                contours.iter().for_each(|contour| {
-                                    if contour.points.len() > 2 {
-                                        masks.push(
-                                            Polygon::default()
-                                                .with_id(bbox.id())
-                                                .with_points_imageproc(&contour.points)
-                                                .with_name(bbox.name().cloned()),
-                                        );
-                                    }
-                                });
-                                y_polygons.extend(masks);
+                                let polygon = match contours
+                                    .iter()
+                                    .map(|x| {
+                                        Polygon::default()
+                                            .with_id(bbox.id())
+                                            .with_points_imageproc(&x.points)
+                                            .with_name(bbox.name().cloned())
+                                    })
+                                    .max_by(|x, y| x.area().total_cmp(&y.area()))
+                                {
+                                    None => continue,
+                                    Some(x) => x,
+                                };
+                                y_polygons.push(polygon);
                             }
                             y = y.with_polygons(&y_polygons);
                         }

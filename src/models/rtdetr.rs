@@ -17,14 +17,14 @@ pub struct RTDETR {
 }
 
 impl RTDETR {
-    pub fn new(options: &Options) -> Result<Self> {
-        let engine = OrtEngine::new(options)?;
+    pub fn new(options: Options) -> Result<Self> {
+        let mut engine = OrtEngine::new(&options)?;
         let (batch, height, width) = (
             engine.inputs_minoptmax()[0][0].to_owned(),
             engine.inputs_minoptmax()[0][2].to_owned(),
             engine.inputs_minoptmax()[0][3].to_owned(),
         );
-        let names: Option<_> = match &options.names {
+        let names: Option<_> = match options.names {
             None => engine.try_fetch("names").map(|names| {
                 let re = Regex::new(r#"(['"])([-()\w '"]+)(['"])"#).unwrap();
                 let mut names_ = vec![];
@@ -56,7 +56,13 @@ impl RTDETR {
     }
 
     pub fn run(&mut self, xs: &[DynamicImage]) -> Result<Vec<Y>> {
-        let xs_ = ops::letterbox(xs, self.height() as u32, self.width() as u32, 144.0)?;
+        let xs_ = ops::letterbox(
+            xs,
+            self.height() as u32,
+            self.width() as u32,
+            "catmullRom",
+            Some(114),
+        )?;
         let xs_ = ops::normalize(xs_, 0.0, 255.0);
         let ys = self.engine.run(&[xs_])?;
         self.postprocess(ys, xs)

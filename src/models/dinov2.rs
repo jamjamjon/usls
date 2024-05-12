@@ -21,14 +21,14 @@ pub struct Dinov2 {
 }
 
 impl Dinov2 {
-    pub fn new(options: &Options) -> Result<Self> {
-        let engine = OrtEngine::new(options)?;
+    pub fn new(options: Options) -> Result<Self> {
+        let mut engine = OrtEngine::new(&options)?;
         let (batch, height, width) = (
             engine.inputs_minoptmax()[0][0].to_owned(),
             engine.inputs_minoptmax()[0][2].to_owned(),
             engine.inputs_minoptmax()[0][3].to_owned(),
         );
-        let which = match &options.onnx_path {
+        let which = match options.onnx_path {
             s if s.contains("b14") => Model::B,
             s if s.contains("s14") => Model::S,
             _ => todo!(),
@@ -49,7 +49,12 @@ impl Dinov2 {
     }
 
     pub fn run(&mut self, xs: &[DynamicImage]) -> Result<Array<f32, IxDyn>> {
-        let xs_ = ops::resize(xs, self.height.opt as u32, self.width.opt as u32)?;
+        let xs_ = ops::resize(
+            xs,
+            self.height.opt as u32,
+            self.width.opt as u32,
+            "lanczos3",
+        )?;
         let xs_ = ops::normalize(xs_, 0.0, 255.0);
         let xs_ = ops::standardize(
             xs_,

@@ -1,5 +1,5 @@
 /// A value composed of Min-Opt-Max
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct MinOptMax {
     pub min: isize,
     pub opt: isize,
@@ -13,6 +13,16 @@ impl Default for MinOptMax {
             opt: -1,
             max: -1,
         }
+    }
+}
+
+impl std::fmt::Debug for MinOptMax {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("")
+            .field("Min", &self.min)
+            .field("Opt", &self.opt)
+            .field("Max", &self.max)
+            .finish()
     }
 }
 

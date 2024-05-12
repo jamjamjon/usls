@@ -12,17 +12,18 @@ exclude = ["assets/*", "examples/*"]
 [dependencies]
 clap = { version = "4.2.4", features = ["derive"] }
 ndarray = { version = "0.15.6" }
-ort = { version = "2.0.0-alpha.4", default-features = false, features = [
+ort = { version = "2.0.0-rc.2", default-features = false, features = [
     "load-dynamic",
     "copy-dylibs",
-    "profiling",
     "half",
     "ndarray",
     "cuda",
     "tensorrt",
     "coreml",
-    "ureq",
     "openvino",
+    "rocm",
+    "openvino",
+    "operator-libraries"
 ] }
 anyhow = { version = "1.0.75" }
 regex = { version = "1.5.4" }
@@ -41,3 +42,6 @@ image = "0.25.1"
 imageproc = { version = "0.24" }
 ab_glyph = "0.2.23"
 geo = "0.28.0"
+prost = "0.12.4"
+human_bytes = "0.4.3"
+fast_image_resize = "3.0.4"

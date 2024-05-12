@@ -6,9 +6,11 @@ mod engine;
 mod logits_sampler;
 mod metric;
 mod min_opt_max;
+pub mod onnx;
 pub mod ops;
 mod options;
 mod tokenizer_stream;
+mod ts;
 
 pub use annotator::Annotator;
 pub use dataloader::DataLoader;
@@ -20,3 +22,4 @@ pub use metric::Metric;
 pub use min_opt_max::MinOptMax;
 pub use options::Options;
 pub use tokenizer_stream::TokenizerStream;
+pub use ts::Ts;

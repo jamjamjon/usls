@@ -8,7 +8,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_i02((416, 640, 800).into())
         .with_i03((416, 640, 800).into())
         .with_confs(&[0.15]);
-    let mut model = YOLO::new(&options)?;
+    let mut model = YOLO::new(options)?;
 
     // load image
     let x = vec![DataLoader::try_read("./assets/kids.jpg")?];

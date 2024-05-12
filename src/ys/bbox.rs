@@ -31,7 +31,7 @@ impl std::fmt::Debug for Bbox {
         f.debug_struct("Bbox")
             .field("xyxy", &[self.x, self.y, self.xmax(), self.ymax()])
             .field("id", &self.id)
-            .field("id_born", &self.id_born)
+            // .field("id_born", &self.id_born)
             .field("name", &self.name)
             .field("confidence", &self.confidence)
             .finish()

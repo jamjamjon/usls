@@ -15,7 +15,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_profile(false);
 
     // build model
-    let model = Clip::new(options_visual, options_textual)?;
+    let mut model = Clip::new(options_visual, options_textual)?;
 
     // texts
     let texts = vec![

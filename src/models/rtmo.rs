@@ -15,8 +15,8 @@ pub struct RTMO {
 }
 
 impl RTMO {
-    pub fn new(options: &Options) -> Result<Self> {
-        let engine = OrtEngine::new(options)?;
+    pub fn new(options: Options) -> Result<Self> {
+        let mut engine = OrtEngine::new(&options)?;
         let (batch, height, width) = (
             engine.batch().to_owned(),
             engine.height().to_owned(),
@@ -39,7 +39,13 @@ impl RTMO {
     }
 
     pub fn run(&mut self, xs: &[DynamicImage]) -> Result<Vec<Y>> {
-        let xs_ = ops::letterbox(xs, self.height() as u32, self.width() as u32, 114.0)?;
+        let xs_ = ops::letterbox(
+            xs,
+            self.height() as u32,
+            self.width() as u32,
+            "catmullRom",
+            Some(114),
+        )?;
         let ys = self.engine.run(&[xs_])?;
         self.postprocess(ys, xs)
     }

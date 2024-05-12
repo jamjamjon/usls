@@ -4,9 +4,10 @@ A Rust library integrated with **ONNXRuntime**, providing a collection of **Comp
 
 ## Recently Updated
 
-|        Portrait Matting         |
+
+|        YOLOv8-Obb         |
 | :----------------------------: |
-|<img src='examples/modnet/demo.png'   width="800px">|
+|<img src='examples/yolov8/demo-obb-2.png'   width="800px">|
 
 
 |        Depth-Anything         |
@@ -14,15 +15,14 @@ A Rust library integrated with **ONNXRuntime**, providing a collection of **Comp
 |<img src='examples/depth-anything/demo.png'   width="800px">|
 
 
+|        Portrait Matting         |
+| :----------------------------: |
+|<img src='examples/modnet/demo.png'   width="800px">|
+
+
 |        YOLOP-v2          |             Face-Parsing             |               Text-Detection           |  
 | :----------------------------: | :------------------------------: |  :------------------------------: |
 |<img src='examples/yolop/demo.png'  height="180px">| <img src='examples/face-parsing/demo.png'  height="180px"> | <img src='examples/db/demo.png'  height="180px"> |
-
-
-|        YOLOv8-Obb         |
-| :----------------------------: |
-|<img src='examples/yolov8/demo-obb-2.png'   width="800px">|
-
 
 
 
@@ -94,7 +94,7 @@ check **[ort guide](https://ort.pyke.io/setup/linking)**
 
 ## Integrate into your own project
 <details close>
-<summary>Check Here</summary>
+<summary>Expand</summary>
 
 #### 1. Add `usls` as a dependency to your project's `Cargo.toml`
 
@@ -107,7 +107,7 @@ cargo add --git https://github.com/jamjamjon/usls
 ```Rust
 let options = Options::default()
     .with_model("../models/yolov8m-seg-dyn-f16.onnx");
-let mut model = YOLO::new(&options)?;
+let mut model = YOLO::new(options)?;
 ```
 
 - If you want to run your model with TensorRT or CoreML
@@ -129,7 +129,7 @@ let mut model = YOLO::new(&options)?;
 
   ```Rust
   let options = Options::default()
-      .with_confs(&[0.4, 0.15]) // person: 0.4, others: 0.15
+      .with_confs(&[0.4, 0.15]) // class 0: 0.4, others: 0.15
   ```
 - Go check [Options](src/options.rs) for more model options.
 
