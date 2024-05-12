@@ -10,15 +10,14 @@ A Rust library integrated with **ONNXRuntime**, providing a collection of **Comp
 |<img src='examples/yolov8/demo-obb-2.png'   width="800px">|
 
 
+|        Depth-Anything         |
+| :----------------------------: |
+|<img src='examples/depth-anything/demo.png'   width="800px">|
+
 
 |        Portrait Matting         |
 | :----------------------------: |
 |<img src='examples/modnet/demo.png'   width="800px">|
-
-
-|        Depth-Anything         |
-| :----------------------------: |
-|<img src='examples/depth-anything/demo.png'   width="800px">|
 
 
 |        YOLOP-v2          |             Face-Parsing             |               Text-Detection           |  
