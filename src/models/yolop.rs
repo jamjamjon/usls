@@ -122,19 +122,19 @@ impl YOLOPv2 {
             let mask_da = mask_da.into_luma8();
             let mut y_polygons: Vec<Polygon> = Vec::new();
             let contours: Vec<imageproc::contours::Contour<i32>> =
-                imageproc::contours::find_contours_with_threshold(&mask_da, 1);
-            contours.iter().for_each(|contour| {
-                if contour.border_type == imageproc::contours::BorderType::Outer
-                    && contour.points.len() > 2
-                {
-                    y_polygons.push(
-                        Polygon::default()
-                            .with_id(0)
-                            .with_points_imageproc(&contour.points)
-                            .with_name(Some("Drivable area".to_string())),
-                    );
-                }
-            });
+                imageproc::contours::find_contours_with_threshold(&mask_da, 0);
+            if let Some(polygon) = contours
+                .iter()
+                .map(|x| {
+                    Polygon::default()
+                        .with_id(0)
+                        .with_points_imageproc(&x.points)
+                        .with_name(Some("Drivable area".to_string()))
+                })
+                .max_by(|x, y| x.area().total_cmp(&y.area()))
+            {
+                y_polygons.push(polygon);
+            };
 
             // Lane line
             let x_ll = x_ll
@@ -156,21 +156,19 @@ impl YOLOPv2 {
             );
             let mask_ll = mask_ll.into_luma8();
             let contours: Vec<imageproc::contours::Contour<i32>> =
-                imageproc::contours::find_contours_with_threshold(&mask_ll, 1);
-            let mut masks: Vec<Polygon> = Vec::new();
-            contours.iter().for_each(|contour| {
-                if contour.border_type == imageproc::contours::BorderType::Outer
-                    && contour.points.len() > 2
-                {
-                    masks.push(
-                        Polygon::default()
-                            .with_id(1)
-                            .with_points_imageproc(&contour.points)
-                            .with_name(Some("Lane line".to_string())),
-                    );
-                }
-            });
-            y_polygons.extend(masks);
+                imageproc::contours::find_contours_with_threshold(&mask_ll, 0);
+            if let Some(polygon) = contours
+                .iter()
+                .map(|x| {
+                    Polygon::default()
+                        .with_id(1)
+                        .with_points_imageproc(&x.points)
+                        .with_name(Some("Lane line".to_string()))
+                })
+                .max_by(|x, y| x.area().total_cmp(&y.area()))
+            {
+                y_polygons.push(polygon);
+            };
 
             // save
             ys.push(

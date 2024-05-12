@@ -3,11 +3,11 @@ use usls::{coco, models::YOLO, Annotator, DataLoader, Options};
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // build model
     let options = Options::default()
-        .with_model("yolov8m-dyn.onnx")?
+        // .with_model("yolov8m-dyn.onnx")?
         // .with_model("yolov8m-dyn-f16.onnx")?
         // .with_model("yolov8m-pose-dyn.onnx")?
         // .with_model("yolov8m-cls-dyn.onnx")?
-        // .with_model("yolov8m-seg-dyn.onnx")?
+        .with_model("yolov8m-seg-dyn.onnx")?
         // .with_model("yolov8m-obb-dyn.onnx")?
         // .with_model("yolov8m-oiv7-dyn.onnx")?
         // .with_trt(0)
@@ -20,7 +20,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_confs(&[0.4, 0.15]) // class 0: 0.4, others: 0.15
         .with_names2(&coco::KEYPOINTS_NAMES_17)
         // .with_dry_run(10)
-        .with_profile(true);
+        .with_profile(false);
     let mut model = YOLO::new(options)?;
 
     // build dataloader

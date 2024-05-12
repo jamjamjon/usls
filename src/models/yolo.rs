@@ -1,6 +1,6 @@
 use anyhow::Result;
 use clap::ValueEnum;
-use image::DynamicImage;
+use image::{DynamicImage, ImageBuffer};
 use ndarray::{s, Array, Axis, IxDyn};
 use regex::Regex;
 
@@ -341,29 +341,35 @@ impl YOLO {
                                 let mask = coefs.dot(&proto).into_shape((nh, nw, 1))?; // (nh, nw, n)
 
                                 // build image from ndarray
-                                let mask_im = ops::build_dyn_image_from_raw(
-                                    mask.into_raw_vec(),
-                                    nw as u32,
-                                    nh as u32,
-                                );
+                                let mask: ImageBuffer<image::Luma<_>, Vec<f32>> =
+                                    match ImageBuffer::from_raw(
+                                        nw as u32,
+                                        nh as u32,
+                                        mask.clone().into_raw_vec(),
+                                    ) {
+                                        Some(buf) => buf,
+                                        None => continue,
+                                    };
+                                let mask = image::DynamicImage::from(mask);
 
-                                // rescale masks
+                                // rescale
                                 let mask_original = ops::descale_mask(
-                                    mask_im,
+                                    mask,
                                     nw as f32,
                                     nh as f32,
                                     image_width,
                                     image_height,
                                 );
-
-                                // crop mask with bbox
                                 let mut mask_original = mask_original.into_luma8();
+
+                                // crop mask
                                 for y in 0..image_height as usize {
                                     for x in 0..image_width as usize {
                                         if x < bbox.xmin() as usize
                                             || x > bbox.xmax() as usize
                                             || y < bbox.ymin() as usize
                                             || y > bbox.ymax() as usize
+                                        // || mask_original.get_pixel(x as u32, y as u32).0 < [127]
                                         {
                                             mask_original.put_pixel(
                                                 x as u32,
@@ -375,23 +381,25 @@ impl YOLO {
                                 }
 
                                 // get masks from image
-                                let mut masks: Vec<Polygon> = Vec::new();
                                 let contours: Vec<imageproc::contours::Contour<i32>> =
                                     imageproc::contours::find_contours_with_threshold(
                                         &mask_original,
-                                        1,
+                                        0,
                                     );
-                                contours.iter().for_each(|contour| {
-                                    if contour.points.len() > 2 {
-                                        masks.push(
-                                            Polygon::default()
-                                                .with_id(bbox.id())
-                                                .with_points_imageproc(&contour.points)
-                                                .with_name(bbox.name().cloned()),
-                                        );
-                                    }
-                                });
-                                y_polygons.extend(masks);
+                                let polygon = match contours
+                                    .iter()
+                                    .map(|x| {
+                                        Polygon::default()
+                                            .with_id(bbox.id())
+                                            .with_points_imageproc(&x.points)
+                                            .with_name(bbox.name().cloned())
+                                    })
+                                    .max_by(|x, y| x.area().total_cmp(&y.area()))
+                                {
+                                    None => continue,
+                                    Some(x) => x,
+                                };
+                                y_polygons.push(polygon);
                             }
                             y = y.with_polygons(&y_polygons);
                         }
