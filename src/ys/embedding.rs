@@ -7,7 +7,9 @@ pub struct Embedding(Array<f32, IxDyn>);
 
 impl std::fmt::Debug for Embedding {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("").field("Shape", &self.0.shape()).finish()
+        f.debug_struct("Embedding")
+            .field("Shape", &self.0.shape())
+            .finish()
     }
 }
 
@@ -21,7 +23,7 @@ impl Embedding {
         self
     }
 
-    pub fn data(&self) -> &Array<f32, IxDyn> {
+    pub fn embedding(&self) -> &Array<f32, IxDyn> {
         &self.0
     }
 
