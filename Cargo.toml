@@ -45,3 +45,6 @@ geo = "0.28.0"
 prost = "0.12.4"
 human_bytes = "0.4.3"
 fast_image_resize = "3.0.4"
+
+[build-dependencies]
+prost-build = "0.12.1"

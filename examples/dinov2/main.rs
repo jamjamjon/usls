@@ -1,4 +1,4 @@
-use usls::{models::Dinov2, Options};
+use usls::{models::Dinov2, DataLoader, Options};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // build model
@@ -7,8 +7,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_i00((1, 1, 1).into())
         .with_i02((224, 224, 224).into())
         .with_i03((224, 224, 224).into());
-    let _model = Dinov2::new(options)?;
-    println!("TODO...");
+    let mut model = Dinov2::new(options)?;
+    let x = vec![DataLoader::try_read("./examples/dinov2/images/1.jpg")?];
+    let y = model.run(&x)?;
+    println!("{y:?}");
 
     // query from vector
     // let ys = model.query_from_vec(
