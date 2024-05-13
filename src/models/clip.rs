@@ -1,4 +1,4 @@
-use crate::{ops, Embedding, MinOptMax, Options, OrtEngine};
+use crate::{ops, Embedding, MinOptMax, Options, OrtEngine, Y};
 use anyhow::Result;
 use image::DynamicImage;
 use ndarray::{Array, Array2, IxDyn};
@@ -52,7 +52,7 @@ impl Clip {
         })
     }
 
-    pub fn encode_images(&mut self, xs: &[DynamicImage]) -> Result<Embedding> {
+    pub fn encode_images(&mut self, xs: &[DynamicImage]) -> Result<Y> {
         let xs_ = ops::resize(
             xs,
             self.height.opt as u32,
@@ -66,10 +66,10 @@ impl Clip {
             &[0.26862954, 0.2613026, 0.2757771],
         );
         let ys: Vec<Array<f32, IxDyn>> = self.visual.run(&[xs_])?;
-        Ok(Embedding::new(ys[0].to_owned()))
+        Ok(Y::default().with_embedding(Embedding::new(ys[0].to_owned())))
     }
 
-    pub fn encode_texts(&mut self, texts: &[String]) -> Result<Embedding> {
+    pub fn encode_texts(&mut self, texts: &[String]) -> Result<Y> {
         let encodings = self
             .tokenizer
             .encode_batch(texts.to_owned(), false)
@@ -80,7 +80,7 @@ impl Clip {
             .collect();
         let xs = Array2::from_shape_vec((texts.len(), self.context_length), xs)?.into_dyn();
         let ys = self.textual.run(&[xs])?;
-        Ok(Embedding::new(ys[0].to_owned()))
+        Ok(Y::default().with_embedding(Embedding::new(ys[0].to_owned())))
     }
 
     pub fn batch_visual(&self) -> usize {
