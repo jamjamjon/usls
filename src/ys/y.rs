@@ -1,4 +1,4 @@
-use crate::{Bbox, Keypoint, Mask, Mbr, Polygon, Prob};
+use crate::{Bbox, Embedding, Keypoint, Mask, Mbr, Polygon, Prob};
 
 #[derive(Clone, PartialEq, Default)]
 pub struct Y {
@@ -9,6 +9,7 @@ pub struct Y {
     polygons: Option<Vec<Polygon>>,
     texts: Option<Vec<String>>,
     masks: Option<Vec<Mask>>,
+    embedding: Option<Embedding>,
 }
 
 impl std::fmt::Debug for Y {
@@ -47,6 +48,9 @@ impl std::fmt::Debug for Y {
                 f.field("Masks", &x);
             }
         }
+        if let Some(x) = &self.embedding {
+            f.field("Embedding", &x);
+        }
         f.finish()
     }
 }
@@ -71,8 +75,14 @@ impl Y {
         self.mbrs = Some(mbrs.to_vec());
         self
     }
+
     pub fn with_bboxes(mut self, bboxes: &[Bbox]) -> Self {
         self.bboxes = Some(bboxes.to_vec());
+        self
+    }
+
+    pub fn with_embedding(mut self, embedding: Embedding) -> Self {
+        self.embedding = Some(embedding);
         self
     }
 
@@ -112,6 +122,10 @@ impl Y {
 
     pub fn texts(&self) -> Option<&Vec<String>> {
         self.texts.as_ref()
+    }
+
+    pub fn embedding(&self) -> Option<&Embedding> {
+        self.embedding.as_ref()
     }
 
     pub fn apply_bboxes_nms(mut self, iou_threshold: f32) -> Self {
