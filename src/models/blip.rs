@@ -42,7 +42,7 @@ impl Blip {
         })
     }
 
-    pub fn encode_images(&mut self, xs: &[DynamicImage]) -> Result<Y> {
+    pub fn encode_images(&mut self, xs: &[DynamicImage]) -> Result<Embedding> {
         let xs_ = ops::resize(
             xs,
             self.height.opt as u32,
@@ -56,7 +56,7 @@ impl Blip {
             &[0.26862954, 0.2613026, 0.2757771],
         );
         let ys: Vec<Array<f32, IxDyn>> = self.visual.run(&[xs_])?;
-        Ok(Y::default().with_embedding(Embedding::new(ys[0].to_owned())))
+        Ok(Embedding::new(ys[0].to_owned()))
     }
 
     pub fn caption(
@@ -67,9 +67,8 @@ impl Blip {
     ) -> Result<Vec<Y>> {
         let mut ys: Vec<Y> = Vec::new();
         let image_embeds = self.encode_images(x)?;
-        let image_embeds = image_embeds.embedding().unwrap();
         let image_embeds_attn_mask: Array<f32, IxDyn> =
-            Array::ones((1, image_embeds.data().shape()[1])).into_dyn();
+            Array::ones((1, image_embeds.embedding().shape()[1])).into_dyn();
         let mut y_text = String::new();
 
         // conditional
@@ -105,7 +104,7 @@ impl Blip {
             let y = self.textual.run(&[
                 input_ids_nd,
                 input_ids_attn_mask,
-                image_embeds.data().to_owned(),
+                image_embeds.embedding().to_owned(),
                 image_embeds_attn_mask.to_owned(),
             ])?; // N, length, vocab_size
             let y = y[0].slice(s!(0, -1.., ..));

@@ -6,6 +6,7 @@ mod engine;
 mod logits_sampler;
 mod metric;
 mod min_opt_max;
+pub mod onnx;
 pub mod ops;
 mod options;
 mod tokenizer_stream;
@@ -22,7 +23,3 @@ pub use min_opt_max::MinOptMax;
 pub use options::Options;
 pub use tokenizer_stream::TokenizerStream;
 pub use ts::Ts;
-
-pub mod onnx {
-    include!(concat!(env!("OUT_DIR"), "/onnx.rs"));
-}

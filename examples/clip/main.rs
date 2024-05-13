@@ -39,10 +39,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let feats_image = model.encode_images(&images).unwrap();
 
         // use image to query texts
-        let matrix = match feats_image.embedding() {
-            Some(x) => x.dot2(feats_text.embedding().unwrap())?,
-            None => continue,
-        };
+        let matrix = feats_image.dot2(&feats_text)?;
 
         // summary
         for i in 0..paths.len() {
