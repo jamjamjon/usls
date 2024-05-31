@@ -1,6 +1,10 @@
 use anyhow::Result;
 
-use crate::{auto_load, models::YOLOTask, Device, MinOptMax};
+use crate::{
+    auto_load,
+    models::{YOLOTask, YOLOVersion},
+    Device, MinOptMax,
+};
 
 /// Options for building models
 #[derive(Debug, Clone)]
@@ -56,6 +60,7 @@ pub struct Options {
     pub min_height: Option<f32>,
     pub unclip_ratio: f32, // DB
     pub yolo_task: Option<YOLOTask>,
+    pub yolo_version: Option<YOLOVersion>,
     pub anchors_first: bool, // yolo model output format like: [batch_size, anchors, xywh_clss_xxx]
     pub conf_independent: bool, // xywh_conf_clss
     pub apply_probs_softmax: bool,
@@ -111,6 +116,7 @@ impl Default for Options {
             min_height: None,
             unclip_ratio: 1.5,
             yolo_task: None,
+            yolo_version: None,
             anchors_first: false,
             conf_independent: false,
             apply_probs_softmax: false,
@@ -156,6 +162,11 @@ impl Options {
 
     pub fn with_yolo_task(mut self, x: YOLOTask) -> Self {
         self.yolo_task = Some(x);
+        self
+    }
+
+    pub fn with_yolo_version(mut self, x: YOLOVersion) -> Self {
+        self.yolo_version = Some(x);
         self
     }
 

@@ -18,6 +18,12 @@ pub enum YOLOTask {
     Obb,
 }
 
+#[derive(Debug, Copy, Clone, ValueEnum)]
+pub enum YOLOVersion {
+    V8,
+    V10,
+}
+
 #[derive(Debug)]
 pub struct YOLO {
     engine: OrtEngine,
@@ -28,6 +34,7 @@ pub struct YOLO {
     width: MinOptMax,
     batch: MinOptMax,
     task: YOLOTask,
+    version: YOLOVersion,
     confs: DynConf,
     kconfs: DynConf,
     iou: f32,
@@ -63,6 +70,8 @@ impl YOLO {
                 x => todo!("Not supported: {x:?} "),
             },
         };
+
+        let version = options.yolo_version.unwrap_or(YOLOVersion::V8);
 
         // try from custom class names, and then model metadata
         let mut names = options.names.or(Self::fetch_names(&engine));
@@ -121,6 +130,7 @@ impl YOLO {
             width,
             batch,
             task,
+            version,
             names,
             names_kpt,
             anchors_first: options.anchors_first,
@@ -144,7 +154,11 @@ impl YOLO {
         };
         let xs_ = ops::normalize(xs_, 0., 255.);
         let ys = self.engine.run(&[xs_])?;
-        self.postprocess(ys, xs)
+
+        match self.version {
+            YOLOVersion::V10 => self.postprocess_v10(ys, xs),
+            _ => self.postprocess(ys, xs),
+        }
     }
 
     pub fn postprocess(&self, xs: Vec<Array<f32, IxDyn>>, xs0: &[DynamicImage]) -> Result<Vec<Y>> {
@@ -408,6 +422,59 @@ impl YOLO {
                 }
             }
         }
+        Ok(ys)
+    }
+
+    pub fn postprocess_v10(
+        &self,
+        xs: Vec<Array<f32, IxDyn>>,
+        xs0: &[DynamicImage],
+    ) -> Result<Vec<Y>> {
+        let mut ys = Vec::new();
+        for (idx, preds) in xs[0].axis_iter(Axis(0)).enumerate() {
+            let image_width = xs0[idx].width() as f32;
+            let image_height = xs0[idx].height() as f32;
+            match self.task {
+                YOLOTask::Detect => {
+                    let ratio = (self.width() as f32 / image_width)
+                        .min(self.height() as f32 / image_height);
+
+                    let mut y_bboxes = vec![];
+                    for (i, pred) in preds.axis_iter(Axis(0)).enumerate() {
+                        let confidence = pred[CXYWH_OFFSET];
+                        if confidence < self.confs[0] {
+                            continue;
+                        }
+                        let class_id = pred[CXYWH_OFFSET + 1] as isize;
+
+                        let bbox = pred.slice(s![0..CXYWH_OFFSET]);
+                        // re-scale
+                        let x = bbox[0] / ratio;
+                        let y = bbox[1] / ratio;
+                        let x2 = bbox[2] / ratio;
+                        let y2 = bbox[3] / ratio;
+                        let w = x2 - x;
+                        let h = y2 - y;
+
+                        let y_bbox = Bbox::default()
+                            .with_xywh(x, y, w, h)
+                            .with_confidence(confidence)
+                            .with_id(class_id)
+                            .with_id_born(i as isize)
+                            .with_name(
+                                self.names
+                                    .as_ref()
+                                    .map(|names| names[class_id as usize].to_owned()),
+                            );
+                        y_bboxes.push(y_bbox);
+                    }
+                    let y = Y::default().with_bboxes(&y_bboxes);
+                    ys.push(y);
+                }
+                _ => todo!("YOLO_V10 Not supported: {:?}", self.task),
+            }
+        }
+
         Ok(ys)
     }
 
