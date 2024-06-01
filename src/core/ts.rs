@@ -4,11 +4,6 @@ use std::time::Duration;
 pub struct Ts {
     n: usize,
     ts: Vec<Duration>,
-    // pub t0: Duration,
-    // pub t1: Duration,
-    // pub t2: Duration,
-    // pub t3: Duration,
-    // pub t4: Duration,
 }
 
 impl Ts {
