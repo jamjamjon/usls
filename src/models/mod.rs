@@ -19,5 +19,5 @@ pub use modnet::MODNet;
 pub use rtdetr::RTDETR;
 pub use rtmo::RTMO;
 pub use svtr::SVTR;
-pub use yolo::{YOLOTask, YOLO};
+pub use yolo::{YOLOTask, YOLOVersion, YOLO};
 pub use yolop::YOLOPv2;
