@@ -1,15 +1,14 @@
 use usls::{
-    models::{YOLOTask, YOLO},
+    models::{YOLOTask, YOLOVersion, YOLO},
     Annotator, DataLoader, Options,
 };
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // build model
     let options = Options::default()
-        .with_conf_independent(true)
-        .with_anchors_first(true)
+        .with_yolo_version(YOLOVersion::V5)
+        .with_model("../models/yolov5s-seg.onnx")?
         .with_yolo_task(YOLOTask::Segment)
-        .with_model("yolov5s-seg.onnx")?
         // .with_trt(0)
         // .with_fp16(true)
         .with_i00((1, 1, 4).into())
