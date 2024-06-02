@@ -54,7 +54,7 @@ pub struct Options {
     pub tokenizer: Option<String>,
     pub vocab: Option<String>,
     pub names: Option<Vec<String>>,  // names
-    pub names2: Option<Vec<String>>, // names2: could be keypoints names
+    pub names2: Option<Vec<String>>, // names2
     pub names3: Option<Vec<String>>, // names3
     pub min_width: Option<f32>,
     pub min_height: Option<f32>,
