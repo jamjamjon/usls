@@ -226,5 +226,5 @@ pub fn descale_mask(mask: DynamicImage, w0: f32, h0: f32, w1: f32, h1: f32) -> D
 }
 
 pub fn make_divisible(x: usize, divisor: usize) -> usize {
-    (x - 1 + divisor) / divisor * divisor
+    (x + divisor - 1) / divisor * divisor
 }
