@@ -24,7 +24,7 @@ impl RTMO {
         );
         let nc = 1;
         let nk = options.nk.unwrap_or(17);
-        let confs = DynConf::new(&options.kconfs, nc);
+        let confs = DynConf::new(&options.confs, nc);
         let kconfs = DynConf::new(&options.kconfs, nk);
         engine.dry_run()?;
 
