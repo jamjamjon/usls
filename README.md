@@ -161,4 +161,48 @@ let y = model.run(&x)?;
 let annotator = Annotator::default().with_saveout("YOLOv8");
 annotator.annotate(&x, &y);
 ```
+
+#### 5. Get results
+The inference outputs of provided models will be saved to `Vec<Y>`. 
+
+```Rust
+pub struct Y {
+    probs: Option<Prob>,
+    bboxes: Option<Vec<Bbox>>,
+    keypoints: Option<Vec<Vec<Keypoint>>>,
+    mbrs: Option<Vec<Mbr>>,
+    polygons: Option<Vec<Polygon>>,
+    texts: Option<Vec<String>>,
+    masks: Option<Vec<Mask>>,
+    embedding: Option<Embedding>,
+}
+```
+
+
+- You can get detection bboxes with `y.bboxes()`:
+  ```Rust
+  let ys = model.run(&xs)?;
+  for y in ys {
+      // bboxes
+      if let Some(bboxes) = y.bboxes() {
+          for bbox in bboxes {
+              println!(
+                  "Bbox: {}, {}, {}, {}, {}, {}",
+                  bbox.xmin(),
+                  bbox.ymin(),
+                  bbox.xmax(),
+                  bbox.ymax(),
+                  bbox.confidence(),
+                  bbox.id(),
+              )
+          }
+      }
+  }
+  ```
+  More `Bbox` methods here: `src/ys/bbox.rs`
+
+- Other tasks results can be found at: `src/ys/y.rs`
+
+
+
 </details>
