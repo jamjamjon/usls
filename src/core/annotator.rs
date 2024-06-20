@@ -29,6 +29,7 @@ pub struct Annotator {
     without_bboxes_name: bool,
     without_bboxes_text_bg: bool,
     bboxes_text_color: Rgba<u8>,
+    bboxes_thickness: u8,
 
     // About keypoints
     without_keypoints: bool,
@@ -71,6 +72,7 @@ impl Default for Annotator {
             without_bboxes_conf: false,
             without_bboxes_name: false,
             bboxes_text_color: Rgba([0, 0, 0, 255]),
+            bboxes_thickness: 1,
             without_bboxes_text_bg: false,
             without_mbrs: false,
             without_mbrs_conf: false,
@@ -133,6 +135,11 @@ impl Annotator {
 
     pub fn with_bboxes_text_color(mut self, rgba: [u8; 4]) -> Self {
         self.bboxes_text_color = Rgba(rgba);
+        self
+    }
+
+    pub fn withbboxes_thickness(mut self, thickness: u8) -> Self {
+        self.bboxes_thickness = thickness;
         self
     }
 
@@ -362,12 +369,32 @@ impl Annotator {
     pub fn plot_bboxes(&self, img: &mut RgbaImage, bboxes: &[Bbox]) {
         for bbox in bboxes.iter() {
             // bbox
-            imageproc::drawing::draw_hollow_rect_mut(
-                img,
-                imageproc::rect::Rect::at(bbox.xmin().round() as i32, bbox.ymin().round() as i32)
+            if self.bboxes_thickness <= 1 {
+                imageproc::drawing::draw_hollow_rect_mut(
+                    img,
+                    imageproc::rect::Rect::at(
+                        bbox.xmin().round() as i32,
+                        bbox.ymin().round() as i32,
+                    )
                     .of_size(bbox.width().round() as u32, bbox.height().round() as u32),
-                image::Rgba(self.get_color(bbox.id() as usize).into()),
-            );
+                    image::Rgba(self.get_color(bbox.id() as usize).into()),
+                );
+            } else {
+                for i in 0..self.bboxes_thickness {
+                    imageproc::drawing::draw_hollow_rect_mut(
+                        img,
+                        imageproc::rect::Rect::at(
+                            (bbox.xmin().round() as i32) - (i as i32),
+                            (bbox.ymin().round() as i32) - (i as i32),
+                        )
+                        .of_size(
+                            (bbox.width().round() as u32) + (2 * i as u32),
+                            (bbox.height().round() as u32) + (2 * i as u32),
+                        ),
+                        image::Rgba(self.get_color(bbox.id() as usize).into()),
+                    );
+                }
+            }
 
             // label
             if !self.without_bboxes_name || !self.without_bboxes_conf {
