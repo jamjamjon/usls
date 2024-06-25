@@ -23,7 +23,7 @@ impl LogitsSampler {
     }
 
     pub fn with_topp(mut self, p: f32) -> Self {
-        self.p = p.max(0.0).min(1.0);
+        self.p = p.clamp(0.0, 1.0);
         self
     }
 

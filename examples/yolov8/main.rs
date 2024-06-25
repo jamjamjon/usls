@@ -31,6 +31,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // build annotate
     let annotator = Annotator::default()
         .with_skeletons(&coco::SKELETONS_16)
+        .with_bboxes_thickness(7)
         .with_saveout("YOLOv8");
 
     // run & annotate

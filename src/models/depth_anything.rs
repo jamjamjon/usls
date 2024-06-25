@@ -53,7 +53,7 @@ impl DepthAnything {
             let min_ = v.iter().min_by(|x, y| x.total_cmp(y)).unwrap();
             let v = v
                 .iter()
-                .map(|x| (((*x - min_) / (max_ - min_)) * 255.).min(255.).max(0.) as u8)
+                .map(|x| (((*x - min_) / (max_ - min_)) * 255.).clamp(0., 255.) as u8)
                 .collect::<Vec<_>>();
             let luma: ImageBuffer<image::Luma<_>, Vec<u8>> =
                 ImageBuffer::from_raw(self.width() as u32, self.height() as u32, v)
