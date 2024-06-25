@@ -29,9 +29,8 @@ pub struct Annotator {
     without_bboxes_name: bool,
     without_bboxes_text_bg: bool,
     bboxes_text_color: Rgba<u8>,
-    bboxes_thickness: Option<usize>,
+    bboxes_thickness: usize,
     bboxes_thickness_threshold: f32,
-    bboxes_thickness_side: ThicknessSide,
 
     // About keypoints
     without_keypoints: bool,
@@ -74,9 +73,8 @@ impl Default for Annotator {
             without_bboxes_conf: false,
             without_bboxes_name: false,
             bboxes_text_color: Rgba([0, 0, 0, 255]),
-            bboxes_thickness: None,
+            bboxes_thickness: 1,
             bboxes_thickness_threshold: 0.3,
-            bboxes_thickness_side: ThicknessSide::All,
             without_bboxes_text_bg: false,
             without_mbrs: false,
             without_mbrs_conf: false,
@@ -142,18 +140,13 @@ impl Annotator {
         self
     }
 
-    pub fn withbboxes_thickness(mut self, thickness: usize) -> Self {
-        self.bboxes_thickness = Some(thickness);
+    pub fn with_bboxes_thickness(mut self, thickness: usize) -> Self {
+        self.bboxes_thickness = thickness;
         self
     }
 
-    pub fn withbboxes_thickness_threshold(mut self, threshold: f32) -> Self {
+    pub fn with_bboxes_thickness_threshold(mut self, threshold: f32) -> Self {
         self.bboxes_thickness_threshold = threshold;
-        self
-    }
-
-    pub fn bboxes_thickness_side(mut self, side: ThicknessSide) -> Self {
-        self.bboxes_thickness_side = side;
         self
     }
 
@@ -383,91 +376,22 @@ impl Annotator {
     pub fn plot_bboxes(&self, img: &mut RgbaImage, bboxes: &[Bbox]) {
         // bbox
         for bbox in bboxes.iter() {
-            match self.bboxes_thickness {
-                Some(thickness) if thickness > 1 => {
-                    let short_side_threshold =
-                        bbox.width().min(bbox.height()) * self.bboxes_thickness_threshold;
-                    let thickness = if thickness as f32 >= short_side_threshold {
-                        short_side_threshold as usize
-                    } else {
-                        thickness
-                    };
-                    for i in 0..thickness {
-                        match self.bboxes_thickness_side {
-                            ThicknessSide::All => {
-                                imageproc::drawing::draw_hollow_rect_mut(
-                                    img,
-                                    imageproc::rect::Rect::at(
-                                        (bbox.xmin().round() as i32) - (i as i32),
-                                        (bbox.ymin().round() as i32) - (i as i32),
-                                    )
-                                    .of_size(
-                                        (bbox.width().round() as u32) + (2 * i as u32),
-                                        (bbox.height().round() as u32) + (2 * i as u32),
-                                    ),
-                                    image::Rgba(self.get_color(bbox.id() as usize).into()),
-                                );
-                            }
-                            ThicknessSide::Top => imageproc::drawing::draw_line_segment_mut(
-                                img,
-                                (
-                                    bbox.xmin().round() + (i as f32),
-                                    bbox.ymin().round() + (i as f32),
-                                ),
-                                (
-                                    bbox.xmax().round() + (i as f32),
-                                    bbox.ymin().round() + (i as f32),
-                                ),
-                                image::Rgba(self.get_color(bbox.id() as usize).into()),
-                            ),
-                            ThicknessSide::Bottom => imageproc::drawing::draw_line_segment_mut(
-                                img,
-                                (
-                                    bbox.xmin().round() + (i as f32),
-                                    bbox.ymax().round() + (i as f32),
-                                ),
-                                (
-                                    bbox.xmax().round() + (i as f32),
-                                    bbox.ymax().round() + (i as f32),
-                                ),
-                                image::Rgba(self.get_color(bbox.id() as usize).into()),
-                            ),
-                            ThicknessSide::Left => imageproc::drawing::draw_line_segment_mut(
-                                img,
-                                (
-                                    bbox.xmin().round() + (i as f32),
-                                    bbox.ymin().round() + (i as f32),
-                                ),
-                                (
-                                    bbox.xmin().round() + (i as f32),
-                                    bbox.ymax().round() + (i as f32),
-                                ),
-                                image::Rgba(self.get_color(bbox.id() as usize).into()),
-                            ),
-                            ThicknessSide::Right => imageproc::drawing::draw_line_segment_mut(
-                                img,
-                                (
-                                    bbox.xmax().round() + (i as f32),
-                                    bbox.ymin().round() + (i as f32),
-                                ),
-                                (
-                                    bbox.xmax().round() + (i as f32),
-                                    bbox.ymax().round() + (i as f32),
-                                ),
-                                image::Rgba(self.get_color(bbox.id() as usize).into()),
-                            ),
-                        }
-                    }
-                }
-                _ => imageproc::drawing::draw_hollow_rect_mut(
+            let short_side_threshold =
+                bbox.width().min(bbox.height()) * self.bboxes_thickness_threshold;
+            let thickness = self.bboxes_thickness.min(short_side_threshold as usize);
+            for i in 0..thickness {
+                imageproc::drawing::draw_hollow_rect_mut(
                     img,
                     imageproc::rect::Rect::at(
-                        bbox.xmin().round() as i32,
-                        bbox.ymin().round() as i32,
+                        (bbox.xmin().round() as i32) - (i as i32),
+                        (bbox.ymin().round() as i32) - (i as i32),
                     )
-                    .of_size(bbox.width().round() as u32, bbox.height().round() as u32),
+                    .of_size(
+                        (bbox.width().round() as u32) + (2 * i as u32),
+                        (bbox.height().round() as u32) + (2 * i as u32),
+                    ),
                     image::Rgba(self.get_color(bbox.id() as usize).into()),
-                ),
+                );
             }
 
             // label
@@ -480,8 +404,8 @@ impl Annotator {
                 self.put_text(
                     img,
                     &label,
-                    bbox.xmin(),
-                    bbox.ymin(),
+                    (bbox.xmin().round() as i32 - (thickness - 1) as i32).max(0) as f32,
+                    (bbox.ymin().round() as i32 - (thickness - 1) as i32).max(0) as f32,
                     image::Rgba(self.get_color(bbox.id() as usize).into()),
                     self.bboxes_text_color,
                     self.without_bboxes_text_bg,
@@ -828,13 +752,4 @@ impl Annotator {
             (95, 158, 160, 255),  // cadet blue
         ]
     }
-}
-
-#[derive(Debug)]
-pub enum ThicknessSide {
-    All,
-    Top,
-    Bottom,
-    Left,
-    Right,
 }

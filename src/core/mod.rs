@@ -12,7 +12,7 @@ mod options;
 mod tokenizer_stream;
 mod ts;
 
-pub use annotator::{Annotator, ThicknessSide};
+pub use annotator::Annotator;
 pub use dataloader::DataLoader;
 pub use device::Device;
 pub use dynconf::DynConf;
