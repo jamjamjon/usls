@@ -3,11 +3,11 @@ use usls::{coco, models::YOLO, Annotator, DataLoader, Options};
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // build model
     let options = Options::default()
-        .with_model("yolov8m-dyn.onnx")?
+        // .with_model("yolov8m-dyn.onnx")?
         // .with_model("yolov8m-dyn-f16.onnx")?
         // .with_model("yolov8m-pose-dyn.onnx")?
         // .with_model("yolov8m-cls-dyn.onnx")?
-        // .with_model("yolov8m-seg-dyn.onnx")?
+        .with_model("yolov8m-seg-dyn.onnx")?
         // .with_model("yolov8m-obb-dyn.onnx")?
         // .with_model("yolov8m-oiv7-dyn.onnx")?
         // .with_trt(0)

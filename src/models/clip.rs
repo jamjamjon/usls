@@ -1,8 +1,9 @@
-use crate::{ops, Embedding, MinOptMax, Options, OrtEngine, Y};
 use anyhow::Result;
 use image::DynamicImage;
-use ndarray::{Array, Array2, IxDyn};
+use ndarray::Array2;
 use tokenizers::{PaddingDirection, PaddingParams, PaddingStrategy, Tokenizer};
+
+use crate::{Embedding, MinOptMax, Ops, Options, OrtEngine, X, Y};
 
 #[derive(Debug)]
 pub struct Clip {
@@ -53,20 +54,23 @@ impl Clip {
     }
 
     pub fn encode_images(&mut self, xs: &[DynamicImage]) -> Result<Y> {
-        let xs_ = ops::resize(
-            xs,
-            self.height.opt as u32,
-            self.width.opt as u32,
-            "bilinear",
-        )?;
-        let xs_ = ops::normalize(xs_, 0., 255.);
-        let xs_ = ops::standardize(
-            xs_,
-            &[0.48145466, 0.4578275, 0.40821073],
-            &[0.26862954, 0.2613026, 0.2757771],
-        );
-        let ys: Vec<Array<f32, IxDyn>> = self.visual.run(&[xs_])?;
-        Ok(Y::default().with_embedding(Embedding::new(ys[0].to_owned())))
+        let xs_ = X::apply(&[
+            Ops::Resize(
+                xs,
+                self.height.opt as u32,
+                self.width.opt as u32,
+                "bilinear",
+            ),
+            Ops::Normalize(0., 255.),
+            Ops::Standardize(
+                &[0.48145466, 0.4578275, 0.40821073],
+                &[0.26862954, 0.2613026, 0.2757771],
+                3,
+            ),
+            Ops::Nhwc2nchw,
+        ])?;
+        let ys = self.visual.run(vec![xs_])?;
+        Ok(Y::default().with_embedding(Embedding::from(ys[0].to_owned())))
     }
 
     pub fn encode_texts(&mut self, texts: &[String]) -> Result<Y> {
@@ -79,8 +83,9 @@ impl Clip {
             .flat_map(|i| i.get_ids().iter().map(|&b| b as f32))
             .collect();
         let xs = Array2::from_shape_vec((texts.len(), self.context_length), xs)?.into_dyn();
-        let ys = self.textual.run(&[xs])?;
-        Ok(Y::default().with_embedding(Embedding::new(ys[0].to_owned())))
+        let xs = X::from(xs);
+        let ys = self.textual.run(vec![xs])?;
+        Ok(Y::default().with_embedding(Embedding::from(ys[0].to_owned())))
     }
 
     pub fn batch_visual(&self) -> usize {

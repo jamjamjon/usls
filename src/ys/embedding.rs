@@ -1,6 +1,8 @@
 use anyhow::Result;
 use ndarray::{Array, Axis, Ix2, IxDyn};
 
+use crate::X;
+
 /// Embedding
 #[derive(Clone, PartialEq, Default)]
 pub struct Embedding(Array<f32, IxDyn>);
@@ -8,6 +10,12 @@ pub struct Embedding(Array<f32, IxDyn>);
 impl std::fmt::Debug for Embedding {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("").field("Shape", &self.0.shape()).finish()
+    }
+}
+
+impl From<X> for Embedding {
+    fn from(x: X) -> Self {
+        Self(x.0)
     }
 }
 

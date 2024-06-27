@@ -1,7 +1,8 @@
-use crate::{ops, DynConf, Mbr, MinOptMax, Options, OrtEngine, Polygon, Y};
 use anyhow::Result;
-use image::DynamicImage;
-use ndarray::{Array, Axis, IxDyn};
+use image::{DynamicImage, ImageBuffer};
+use ndarray::Axis;
+
+use crate::{DynConf, Mbr, MinOptMax, Ops, Options, OrtEngine, Polygon, X, Y};
 
 #[derive(Debug)]
 pub struct DB {
@@ -45,20 +46,24 @@ impl DB {
     }
 
     pub fn run(&mut self, xs: &[DynamicImage]) -> Result<Vec<Y>> {
-        let xs_ = ops::letterbox(
-            xs,
-            self.height.opt as u32,
-            self.width.opt as u32,
-            "bilinear",
-            Some(114),
-        )?;
-        let xs_ = ops::normalize(xs_, 0., 255.);
-        let xs_ = ops::standardize(xs_, &[0.485, 0.456, 0.406], &[0.229, 0.224, 0.225]);
-        let ys = self.engine.run(&[xs_])?;
+        let xs_ = X::apply(&[
+            Ops::Letterbox(
+                xs,
+                self.height() as u32,
+                self.width() as u32,
+                "bilinear",
+                114,
+            ),
+            Ops::Normalize(0., 255.),
+            Ops::Standardize(&[0.485, 0.456, 0.406], &[0.229, 0.224, 0.225], 3),
+            Ops::Nhwc2nchw,
+        ])?;
+        let ys = self.engine.run(vec![xs_])?;
         self.postprocess(ys, xs)
     }
 
-    pub fn postprocess(&self, xs: Vec<Array<f32, IxDyn>>, xs0: &[DynamicImage]) -> Result<Vec<Y>> {
+    pub fn postprocess(&self, xs: Vec<X>, xs0: &[DynamicImage]) -> Result<Vec<Y>> {
+        // pub fn postprocess(&self, xs: Vec<Array<f32, IxDyn>>, xs0: &[DynamicImage]) -> Result<Vec<Y>> {
         let mut ys = Vec::new();
         for (idx, luma) in xs[0].axis_iter(Axis(0)).enumerate() {
             let mut y_bbox = Vec::new();
@@ -76,8 +81,10 @@ impl DB {
                 .iter()
                 .map(|x| if x <= &self.binary_thresh { 0.0 } else { *x })
                 .collect::<Vec<_>>();
-            let mut mask_im =
-                ops::build_dyn_image_from_raw(v, self.height() as u32, self.width() as u32);
+            let v: ImageBuffer<image::Luma<_>, Vec<f32>> =
+                ImageBuffer::from_raw(self.width() as u32, self.height() as u32, v)
+                    .ok_or(anyhow::anyhow!("Faild to create image from raw vec"))?;
+            let mut mask_im = image::DynamicImage::from(v);
 
             // input image
             let image_width = xs0[idx].width() as f32;
@@ -85,7 +92,7 @@ impl DB {
 
             // rescale mask image
             let (ratio, w_mask, h_mask) =
-                ops::scale_wh(image_width, image_height, w as f32, h as f32);
+                Ops::scale_wh(image_width, image_height, w as f32, h as f32);
             let mask_im = mask_im.crop(0, 0, w_mask as u32, h_mask as u32);
             let mask_im = mask_im.resize_exact(
                 image_width as u32,

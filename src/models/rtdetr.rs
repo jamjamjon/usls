@@ -1,9 +1,9 @@
 use anyhow::Result;
 use image::DynamicImage;
-use ndarray::{s, Array, Axis, IxDyn};
+use ndarray::{s, Axis};
 use regex::Regex;
 
-use crate::{ops, Bbox, DynConf, MinOptMax, Options, OrtEngine, Y};
+use crate::{Bbox, DynConf, MinOptMax, Ops, Options, OrtEngine, X, Y};
 
 #[derive(Debug)]
 pub struct RTDETR {
@@ -56,19 +56,22 @@ impl RTDETR {
     }
 
     pub fn run(&mut self, xs: &[DynamicImage]) -> Result<Vec<Y>> {
-        let xs_ = ops::letterbox(
-            xs,
-            self.height() as u32,
-            self.width() as u32,
-            "catmullRom",
-            Some(114),
-        )?;
-        let xs_ = ops::normalize(xs_, 0.0, 255.0);
-        let ys = self.engine.run(&[xs_])?;
+        let xs_ = X::apply(&[
+            Ops::Letterbox(
+                xs,
+                self.height() as u32,
+                self.width() as u32,
+                "catmullRom",
+                114,
+            ),
+            Ops::Normalize(0., 255.),
+            Ops::Nhwc2nchw,
+        ])?;
+        let ys = self.engine.run(vec![xs_])?;
         self.postprocess(ys, xs)
     }
 
-    pub fn postprocess(&self, xs: Vec<Array<f32, IxDyn>>, xs0: &[DynamicImage]) -> Result<Vec<Y>> {
+    pub fn postprocess(&self, xs: Vec<X>, xs0: &[DynamicImage]) -> Result<Vec<Y>> {
         const CXYWH_OFFSET: usize = 4; // cxcywh
         let preds = &xs[0];
 

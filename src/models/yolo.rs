@@ -1,10 +1,12 @@
 use anyhow::Result;
 use clap::ValueEnum;
 use image::{DynamicImage, ImageBuffer};
-use ndarray::{s, Array, Axis, IxDyn};
+use ndarray::{s, Array, Axis};
 use regex::Regex;
 
-use crate::{ops, Bbox, DynConf, Keypoint, Mbr, MinOptMax, Options, OrtEngine, Polygon, Prob, Y};
+use crate::{
+    Bbox, DynConf, Keypoint, Mbr, MinOptMax, Ops, Options, OrtEngine, Polygon, Prob, X, Y,
+};
 
 const CXYWH_OFFSET: usize = 4;
 const KPT_STEP: usize = 3;
@@ -162,24 +164,79 @@ impl YOLO {
     }
 
     pub fn run(&mut self, xs: &[DynamicImage]) -> Result<Vec<Y>> {
-        let xs_ = match self.task {
-            YOLOTask::Classify => {
-                ops::resize(xs, self.height() as u32, self.width() as u32, "bilinear")?
-            }
-            _ => ops::letterbox(
+        // ----
+        // speed test
+        for _ in 0..10 {
+            // let t = std::time::Instant::now();
+            // // way 1
+            // let _ = Ops::apply(&[
+            //     Ops::Letterbox(
+            //         xs,
+            //         self.height() as u32,
+            //         self.width() as u32,
+            //         "catmullRom",
+            //         114,
+            //     ),
+            //     Ops::Normalize(0., 255.),
+            //     Ops::Nhwc2nchw,
+            // ])?;
+            // println!("> {:?}", std::time::Instant::now() - t);
+
+            // way 2
+            let t = std::time::Instant::now();
+            let _xs = X::apply(&[
+                Ops::Letterbox(
+                    xs,
+                    self.height() as u32,
+                    self.width() as u32,
+                    "catmullRom",
+                    114,
+                ),
+                Ops::Normalize(0., 255.),
+                Ops::Nhwc2nchw,
+                Ops::InsertAxis(5),
+            ])?;
+            println!("{:?}", _xs.shape());
+            println!(">> {:?}", std::time::Instant::now() - t);
+
+            //way 3
+            let t = std::time::Instant::now();
+            let _xs = X::letterbox(
                 xs,
                 self.height() as u32,
                 self.width() as u32,
                 "catmullRom",
-                Some(114),
-            )?,
+                114,
+            )?
+            .normalize(0., 255.)?
+            .nhwc2nchw()?;
+            println!(">>> {:?}", std::time::Instant::now() - t);
+        }
+        // ----
+
+        let xs_ = match self.task {
+            YOLOTask::Classify => {
+                X::resize(xs, self.height() as u32, self.width() as u32, "bilinear")?
+                    .normalize(0., 255.)?
+                    .nhwc2nchw()?
+            }
+            _ => X::apply(&[
+                Ops::Letterbox(
+                    xs,
+                    self.height() as u32,
+                    self.width() as u32,
+                    "catmullRom",
+                    114,
+                ),
+                Ops::Normalize(0., 255.),
+                Ops::Nhwc2nchw,
+            ])?,
         };
-        let xs_ = ops::normalize(xs_, 0., 255.);
-        let ys = self.engine.run(&[xs_])?;
+        let ys = self.engine.run(vec![xs_])?;
         self.postprocess(ys, xs)
     }
 
-    pub fn postprocess(&self, xs: Vec<Array<f32, IxDyn>>, xs0: &[DynamicImage]) -> Result<Vec<Y>> {
+    pub fn postprocess(&self, xs: Vec<X>, xs0: &[DynamicImage]) -> Result<Vec<Y>> {
         let mut ys = Vec::new();
         let protos = if xs.len() == 2 { Some(&xs[1]) } else { None };
         for (idx, preds) in xs[0].axis_iter(Axis(0)).enumerate() {
@@ -412,7 +469,7 @@ impl YOLO {
                                 let mask = image::DynamicImage::from(mask);
 
                                 // rescale
-                                let mask_original = ops::descale_mask(
+                                let mask_original = Ops::descale_mask(
                                     mask,
                                     nw as f32,
                                     nh as f32,

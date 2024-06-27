@@ -1,8 +1,8 @@
 use anyhow::Result;
 use image::DynamicImage;
-use ndarray::{Array, Axis, IxDyn};
+use ndarray::Axis;
 
-use crate::{ops, DynConf, MinOptMax, Options, OrtEngine, Y};
+use crate::{DynConf, MinOptMax, Ops, Options, OrtEngine, X, Y};
 
 #[derive(Debug)]
 pub struct SVTR {
@@ -43,22 +43,25 @@ impl SVTR {
     }
 
     pub fn run(&mut self, xs: &[DynamicImage]) -> Result<Vec<Y>> {
-        let xs_ = ops::resize_with_fixed_height(
-            xs,
-            self.height.opt as u32,
-            self.width.opt as u32,
-            "bilinear",
-            Some(0),
-        )?;
-        let xs_ = ops::normalize(xs_, 0.0, 255.0);
-        let ys: Vec<Array<f32, IxDyn>> = self.engine.run(&[xs_])?;
-        let ys = ys[0].to_owned();
-        self.postprocess(&ys)
+        let xs_ = X::apply(&[
+            Ops::ResizeWithFixedHeight(
+                xs,
+                self.height.opt as u32,
+                self.width.opt as u32,
+                "bilinear",
+                0,
+            ),
+            Ops::Normalize(0., 255.),
+            Ops::Nhwc2nchw,
+        ])?;
+
+        let ys = self.engine.run(vec![xs_])?;
+        self.postprocess(ys)
     }
 
-    pub fn postprocess(&self, output: &Array<f32, IxDyn>) -> Result<Vec<Y>> {
+    pub fn postprocess(&self, xs: Vec<X>) -> Result<Vec<Y>> {
         let mut ys: Vec<Y> = Vec::new();
-        for batch in output.axis_iter(Axis(0)) {
+        for batch in xs[0].axis_iter(Axis(0)) {
             let preds = batch
                 .axis_iter(Axis(0))
                 .filter_map(|x| {

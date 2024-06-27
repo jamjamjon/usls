@@ -1,7 +1,7 @@
-use crate::{ops, Mask, MinOptMax, Options, OrtEngine, Y};
+use crate::{Mask, MinOptMax, Ops, Options, OrtEngine, X, Y};
 use anyhow::Result;
 use image::{DynamicImage, ImageBuffer};
-use ndarray::{Array, Axis, IxDyn};
+use ndarray::Axis;
 
 #[derive(Debug)]
 pub struct DepthAnything {
@@ -30,19 +30,22 @@ impl DepthAnything {
     }
 
     pub fn run(&mut self, xs: &[DynamicImage]) -> Result<Vec<Y>> {
-        let xs_ = ops::resize(
-            xs,
-            self.height.opt as u32,
-            self.width.opt as u32,
-            "lanczos3",
-        )?;
-        let xs_ = ops::normalize(xs_, 0.0, 255.0);
-        let xs_ = ops::standardize(xs_, &[0.485, 0.456, 0.406], &[0.229, 0.224, 0.225]);
-        let ys = self.engine.run(&[xs_])?;
+        let xs_ = X::apply(&[
+            Ops::Resize(
+                xs,
+                self.height.opt as u32,
+                self.width.opt as u32,
+                "lanczos3",
+            ),
+            Ops::Normalize(0., 255.),
+            Ops::Standardize(&[0.485, 0.456, 0.406], &[0.229, 0.224, 0.225], 3),
+            Ops::Nhwc2nchw,
+        ])?;
+        let ys = self.engine.run(vec![xs_])?;
         self.postprocess(ys, xs)
     }
 
-    pub fn postprocess(&self, xs: Vec<Array<f32, IxDyn>>, xs0: &[DynamicImage]) -> Result<Vec<Y>> {
+    pub fn postprocess(&self, xs: Vec<X>, xs0: &[DynamicImage]) -> Result<Vec<Y>> {
         let mut ys: Vec<Y> = Vec::new();
         for (idx, luma) in xs[0].axis_iter(Axis(0)).enumerate() {
             let luma = luma

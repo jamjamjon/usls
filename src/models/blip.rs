@@ -4,7 +4,7 @@ use ndarray::{s, Array, Axis, IxDyn};
 use std::io::Write;
 use tokenizers::Tokenizer;
 
-use crate::{ops, Embedding, LogitsSampler, MinOptMax, Options, OrtEngine, TokenizerStream, Y};
+use crate::{Embedding, LogitsSampler, MinOptMax, Ops, Options, OrtEngine, TokenizerStream, X, Y};
 
 #[derive(Debug)]
 pub struct Blip {
@@ -43,20 +43,23 @@ impl Blip {
     }
 
     pub fn encode_images(&mut self, xs: &[DynamicImage]) -> Result<Y> {
-        let xs_ = ops::resize(
-            xs,
-            self.height.opt as u32,
-            self.width.opt as u32,
-            "bilinear",
-        )?;
-        let xs_ = ops::normalize(xs_, 0., 255.);
-        let xs_ = ops::standardize(
-            xs_,
-            &[0.48145466, 0.4578275, 0.40821073],
-            &[0.26862954, 0.2613026, 0.2757771],
-        );
-        let ys: Vec<Array<f32, IxDyn>> = self.visual.run(&[xs_])?;
-        Ok(Y::default().with_embedding(Embedding::new(ys[0].to_owned())))
+        let xs_ = X::apply(&[
+            Ops::Resize(
+                xs,
+                self.height.opt as u32,
+                self.width.opt as u32,
+                "bilinear",
+            ),
+            Ops::Normalize(0., 255.),
+            Ops::Standardize(
+                &[0.48145466, 0.4578275, 0.40821073],
+                &[0.26862954, 0.2613026, 0.2757771],
+                3,
+            ),
+            Ops::Nhwc2nchw,
+        ])?;
+        let ys = self.visual.run(vec![xs_])?;
+        Ok(Y::default().with_embedding(Embedding::from(ys[0].to_owned())))
     }
 
     pub fn caption(
@@ -100,13 +103,16 @@ impl Blip {
         loop {
             let input_ids_nd: Array<f32, IxDyn> = Array::from_vec(input_ids.to_owned()).into_dyn();
             let input_ids_nd = input_ids_nd.insert_axis(Axis(0));
+            let input_ids_nd = X::from(input_ids_nd);
             let input_ids_attn_mask: Array<f32, IxDyn> =
                 Array::ones(input_ids_nd.shape()).into_dyn();
-            let y = self.textual.run(&[
+            let input_ids_attn_mask = X::from(input_ids_attn_mask);
+
+            let y = self.textual.run(vec![
                 input_ids_nd,
                 input_ids_attn_mask,
-                image_embeds.data().to_owned(),
-                image_embeds_attn_mask.to_owned(),
+                X::from(image_embeds.data().to_owned()),
+                X::from(image_embeds_attn_mask.to_owned()),
             ])?; // N, length, vocab_size
             let y = y[0].slice(s!(0, -1.., ..));
             let logits = y.slice(s!(0, ..)).to_vec();

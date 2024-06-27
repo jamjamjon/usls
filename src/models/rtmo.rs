@@ -1,8 +1,8 @@
 use anyhow::Result;
 use image::DynamicImage;
-use ndarray::{Array, Axis, IxDyn};
+use ndarray::Axis;
 
-use crate::{ops, Bbox, DynConf, Keypoint, MinOptMax, Options, OrtEngine, Y};
+use crate::{Bbox, DynConf, Keypoint, MinOptMax, Options, OrtEngine, X, Y};
 
 #[derive(Debug)]
 pub struct RTMO {
@@ -39,18 +39,19 @@ impl RTMO {
     }
 
     pub fn run(&mut self, xs: &[DynamicImage]) -> Result<Vec<Y>> {
-        let xs_ = ops::letterbox(
+        let xs_ = X::letterbox(
             xs,
             self.height() as u32,
             self.width() as u32,
             "catmullRom",
-            Some(114),
-        )?;
-        let ys = self.engine.run(&[xs_])?;
+            114,
+        )?
+        .nhwc2nchw()?;
+        let ys = self.engine.run(vec![xs_])?;
         self.postprocess(ys, xs)
     }
 
-    pub fn postprocess(&self, xs: Vec<Array<f32, IxDyn>>, xs0: &[DynamicImage]) -> Result<Vec<Y>> {
+    pub fn postprocess(&self, xs: Vec<X>, xs0: &[DynamicImage]) -> Result<Vec<Y>> {
         let mut ys: Vec<Y> = Vec::new();
         let (preds_bboxes, preds_kpts) = if xs[0].ndim() == 3 {
             (&xs[0], &xs[1])
@@ -80,6 +81,7 @@ impl RTMO {
                 let x2 = xyxyc[2] / ratio;
                 let y2 = xyxyc[3] / ratio;
                 let confidence = xyxyc[4];
+
                 if confidence < self.confs[0] {
                     continue;
                 }

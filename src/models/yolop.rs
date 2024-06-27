@@ -1,8 +1,8 @@
 use anyhow::Result;
-use image::DynamicImage;
-use ndarray::{s, Array, Axis, IxDyn};
+use image::{DynamicImage, ImageBuffer};
+use ndarray::{s, Axis};
 
-use crate::{ops, Bbox, DynConf, MinOptMax, Options, OrtEngine, Polygon, Y};
+use crate::{Bbox, DynConf, MinOptMax, Ops, Options, OrtEngine, Polygon, X, Y};
 
 #[derive(Debug)]
 pub struct YOLOPv2 {
@@ -37,19 +37,22 @@ impl YOLOPv2 {
     }
 
     pub fn run(&mut self, xs: &[DynamicImage]) -> Result<Vec<Y>> {
-        let xs_ = ops::letterbox(
-            xs,
-            self.height() as u32,
-            self.width() as u32,
-            "bilinear",
-            Some(114),
-        )?;
-        let xs_ = ops::normalize(xs_, 0., 255.);
-        let ys = self.engine.run(&[xs_])?;
+        let xs_ = X::apply(&[
+            Ops::Letterbox(
+                xs,
+                self.height() as u32,
+                self.width() as u32,
+                "bilinear",
+                114,
+            ),
+            Ops::Normalize(0., 255.),
+            Ops::Nhwc2nchw,
+        ])?;
+        let ys = self.engine.run(vec![xs_])?;
         self.postprocess(ys, xs)
     }
 
-    pub fn postprocess(&self, xs: Vec<Array<f32, IxDyn>>, xs0: &[DynamicImage]) -> Result<Vec<Y>> {
+    pub fn postprocess(&self, xs: Vec<X>, xs0: &[DynamicImage]) -> Result<Vec<Y>> {
         let mut ys: Vec<Y> = Vec::new();
         let (xs_da, xs_ll, xs_det) = (&xs[0], &xs[1], &xs[2]);
         for (idx, ((x_det, x_ll), x_da)) in xs_det
@@ -60,7 +63,7 @@ impl YOLOPv2 {
         {
             let image_width = xs0[idx].width() as f32;
             let image_height = xs0[idx].height() as f32;
-            let (ratio, _, _) = ops::scale_wh(
+            let (ratio, _, _) = Ops::scale_wh(
                 image_width,
                 image_height,
                 self.width() as f32,
@@ -110,9 +113,12 @@ impl YOLOPv2 {
                 .iter()
                 .map(|x| if x < &0.0 { 0.0 } else { 1.0 })
                 .collect::<Vec<_>>();
-            let mask_da =
-                ops::build_dyn_image_from_raw(v, self.height() as u32, self.width() as u32);
-            let mask_da = ops::descale_mask(
+            let v: ImageBuffer<image::Luma<_>, Vec<f32>> =
+                ImageBuffer::from_raw(self.width() as u32, self.height() as u32, v)
+                    .ok_or(anyhow::anyhow!("Faild to create image from raw vec"))?;
+            let mask_da = image::DynamicImage::from(v);
+
+            let mask_da = Ops::descale_mask(
                 mask_da,
                 self.width() as f32,
                 self.height() as f32,
@@ -145,9 +151,11 @@ impl YOLOPv2 {
                 .iter()
                 .map(|x| if x < &0.5 { 0.0 } else { 1.0 })
                 .collect::<Vec<_>>();
-            let mask_ll =
-                ops::build_dyn_image_from_raw(v, self.height() as u32, self.width() as u32);
-            let mask_ll = ops::descale_mask(
+            let v: ImageBuffer<image::Luma<_>, Vec<f32>> =
+                ImageBuffer::from_raw(self.width() as u32, self.height() as u32, v)
+                    .ok_or(anyhow::anyhow!("Faild to create image from raw vec"))?;
+            let mask_ll = image::DynamicImage::from(v);
+            let mask_ll = Ops::descale_mask(
                 mask_ll,
                 self.width() as f32,
                 self.height() as f32,

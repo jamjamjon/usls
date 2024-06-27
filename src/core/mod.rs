@@ -11,6 +11,7 @@ pub mod ops;
 mod options;
 mod tokenizer_stream;
 mod ts;
+mod x;
 
 pub use annotator::Annotator;
 pub use dataloader::DataLoader;
@@ -20,6 +21,8 @@ pub use engine::OrtEngine;
 pub use logits_sampler::LogitsSampler;
 pub use metric::Metric;
 pub use min_opt_max::MinOptMax;
+pub use ops::Ops;
 pub use options::Options;
 pub use tokenizer_stream::TokenizerStream;
 pub use ts::Ts;
+pub use x::X;
