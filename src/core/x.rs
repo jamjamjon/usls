@@ -79,19 +79,11 @@ impl X {
         width: u32,
         filter: &str,
         bg: u8,
+        resize_by: &str,
+        center: bool,
     ) -> Result<Self> {
-        Ok(Self(Ops::letterbox(xs, height, width, filter, bg)?))
-    }
-
-    pub fn resize_with_fixed_height(
-        xs: &[DynamicImage],
-        height: u32,
-        width: u32,
-        filter: &str,
-        bg: u8,
-    ) -> Result<Self> {
-        Ok(Self(Ops::resize_with_fixed_height(
-            xs, height, width, filter, bg,
+        Ok(Self(Ops::letterbox(
+            xs, height, width, filter, bg, resize_by, center,
         )?))
     }
 }

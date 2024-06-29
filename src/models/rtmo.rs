@@ -43,8 +43,10 @@ impl RTMO {
             xs,
             self.height() as u32,
             self.width() as u32,
-            "catmullRom",
+            "CatmullRom",
             114,
+            "auto",
+            false,
         )?
         .nhwc2nchw()?;
         let ys = self.engine.run(vec![xs_])?;

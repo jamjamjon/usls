@@ -36,7 +36,7 @@ impl MODNet {
                 xs,
                 self.height.opt as u32,
                 self.width.opt as u32,
-                "lanczos3",
+                "Lanczos3",
             ),
             Ops::Normalize(0., 255.),
             Ops::Nhwc2nchw,

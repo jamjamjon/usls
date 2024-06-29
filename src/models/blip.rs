@@ -48,7 +48,7 @@ impl Blip {
                 xs,
                 self.height.opt as u32,
                 self.width.opt as u32,
-                "bilinear",
+                "Bilinear",
             ),
             Ops::Normalize(0., 255.),
             Ops::Standardize(

@@ -51,8 +51,10 @@ impl DB {
                 xs,
                 self.height() as u32,
                 self.width() as u32,
-                "bilinear",
+                "Bilinear",
                 114,
+                "auto",
+                false,
             ),
             Ops::Normalize(0., 255.),
             Ops::Standardize(&[0.485, 0.456, 0.406], &[0.229, 0.224, 0.225], 3),
@@ -63,7 +65,6 @@ impl DB {
     }
 
     pub fn postprocess(&self, xs: Vec<X>, xs0: &[DynamicImage]) -> Result<Vec<Y>> {
-        // pub fn postprocess(&self, xs: Vec<Array<f32, IxDyn>>, xs0: &[DynamicImage]) -> Result<Vec<Y>> {
         let mut ys = Vec::new();
         for (idx, luma) in xs[0].axis_iter(Axis(0)).enumerate() {
             let mut y_bbox = Vec::new();
@@ -138,6 +139,7 @@ impl DB {
                     continue;
                 }
             }
+
             ys.push(
                 Y::default()
                     .with_bboxes(&y_bbox)

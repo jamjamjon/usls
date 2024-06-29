@@ -35,7 +35,7 @@ impl DepthAnything {
                 xs,
                 self.height.opt as u32,
                 self.width.opt as u32,
-                "lanczos3",
+                "Lanczos3",
             ),
             Ops::Normalize(0., 255.),
             Ops::Standardize(&[0.485, 0.456, 0.406], &[0.229, 0.224, 0.225], 3),

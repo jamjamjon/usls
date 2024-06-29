@@ -44,12 +44,14 @@ impl SVTR {
 
     pub fn run(&mut self, xs: &[DynamicImage]) -> Result<Vec<Y>> {
         let xs_ = X::apply(&[
-            Ops::ResizeWithFixedHeight(
+            Ops::Letterbox(
                 xs,
                 self.height.opt as u32,
                 self.width.opt as u32,
-                "bilinear",
+                "Bilinear",
                 0,
+                "auto",
+                false,
             ),
             Ops::Normalize(0., 255.),
             Ops::Nhwc2nchw,
