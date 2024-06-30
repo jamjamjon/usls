@@ -25,6 +25,8 @@ A Rust library integrated with **ONNXRuntime**, providing a collection of **Comp
 |<img src='examples/yolop/demo.png'  height="180px">| <img src='examples/face-parsing/demo.png'  height="180px"> | <img src='examples/db/demo.png'  height="180px"> |
 
 
+- 2024/06/30: **Accelerate model pre-processing and post-processing using SIMD**. YOLOv8-seg post-processing (~120ms => ~20ms), Depth-Anything post-processing (~23ms => ~2ms).
+  
 
 
 ## Supported Models
@@ -100,7 +102,7 @@ check **[ort guide](https://ort.pyke.io/setup/linking)**
 #### 1. Add `usls` as a dependency to your project's `Cargo.toml`
 
 ```shell
-cargo add --git https://github.com/jamjamjon/usls
+usls = { git = "https://github.com/jamjamjon/usls", rev = "xxx"}
 ```
 
 #### 2. Set `Options` and build model
