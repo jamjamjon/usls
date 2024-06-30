@@ -1,4 +1,5 @@
 use anyhow::Result;
+use fast_image_resize as fir;
 use fast_image_resize::{
     images::{CroppedImageMut, Image},
     pixels::PixelType,
@@ -6,6 +7,7 @@ use fast_image_resize::{
 };
 use image::{DynamicImage, GenericImageView};
 use ndarray::{s, Array, Axis, IxDyn};
+use rayon::prelude::*;
 
 use crate::X;
 
@@ -65,8 +67,8 @@ impl Ops<'_> {
         }
         let mut shape = vec![1; shape.len()];
         shape[dim] = mean.len();
-        let mean = Array::from_shape_vec(shape.clone(), mean.to_vec()).unwrap();
-        let std = Array::from_shape_vec(shape, std.to_vec()).unwrap();
+        let mean = Array::from_shape_vec(shape.clone(), mean.to_vec())?;
+        let std = Array::from_shape_vec(shape, std.to_vec())?;
         Ok((x - mean) / std)
     }
 
@@ -127,12 +129,69 @@ impl Ops<'_> {
         (x + divisor - 1) / divisor * divisor
     }
 
+    // deprecated
     pub fn descale_mask(mask: DynamicImage, w0: f32, h0: f32, w1: f32, h1: f32) -> DynamicImage {
         // 0 -> 1
         let (_, w, h) = Ops::scale_wh(w1, h1, w0, h0);
         let mut mask = mask.to_owned();
         let mask = mask.crop(0, 0, w as u32, h as u32);
         mask.resize_exact(w1 as u32, h1 as u32, image::imageops::FilterType::Triangle)
+    }
+
+    pub fn resize_lumaf32_vec(
+        v: &[f32],
+        w0: f32,
+        h0: f32,
+        w1: f32,
+        h1: f32,
+        crop_src: bool,
+        filter: &str,
+    ) -> Result<Vec<u8>> {
+        let src_mask = fir::images::Image::from_vec_u8(
+            w0 as _,
+            h0 as _,
+            v.iter().flat_map(|x| x.to_le_bytes()).collect(),
+            fir::PixelType::F32,
+        )?;
+        let mut dst_mask = fir::images::Image::new(w1 as _, h1 as _, src_mask.pixel_type());
+        let (mut resizer, mut options) = Self::build_resizer_filter(filter)?;
+        if crop_src {
+            let (_, w, h) = Self::scale_wh(w1 as _, h1 as _, w0 as _, h0 as _);
+            options = options.crop(0., 0., w.into(), h.into());
+        };
+        resizer.resize(&src_mask, &mut dst_mask, &options)?;
+
+        // u8*2 -> f32
+        let mask_f32: Vec<f32> = dst_mask
+            .into_vec()
+            .chunks_exact(4)
+            .map(|chunk| f32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]))
+            .collect();
+
+        // f32 -> u8
+        let v: Vec<u8> = mask_f32.par_iter().map(|&x| (x * 255.0) as u8).collect();
+        Ok(v)
+    }
+
+    pub fn resize_luma8_vec(
+        v: &[u8],
+        w0: f32,
+        h0: f32,
+        w1: f32,
+        h1: f32,
+        crop_src: bool,
+        filter: &str,
+    ) -> Result<Vec<u8>> {
+        let src_mask =
+            fir::images::Image::from_vec_u8(w0 as _, h0 as _, v.to_vec(), fir::PixelType::U8)?;
+        let mut dst_mask = fir::images::Image::new(w1 as _, h1 as _, src_mask.pixel_type());
+        let (mut resizer, mut options) = Self::build_resizer_filter(filter)?;
+        if crop_src {
+            let (_, w, h) = Self::scale_wh(w1 as _, h1 as _, w0 as _, h0 as _);
+            options = options.crop(0., 0., w.into(), h.into());
+        };
+        resizer.resize(&src_mask, &mut dst_mask, &options)?;
+        Ok(dst_mask.into_vec())
     }
 
     pub fn build_resizer_filter(ty: &str) -> Result<(Resizer, ResizeOptions)> {
@@ -165,11 +224,10 @@ impl Ops<'_> {
                 x.to_rgba8().into_raw()
             } else {
                 let mut dst_image = Image::new(width, height, PixelType::U8x3);
-                resizer.resize(x, &mut dst_image, &options).unwrap();
+                resizer.resize(x, &mut dst_image, &options)?;
                 dst_image.into_vec()
             };
-            let y_ = Array::from_shape_vec((height as usize, width as usize, 3), buffer)
-                .unwrap()
+            let y_ = Array::from_shape_vec((height as usize, width as usize, 3), buffer)?
                 .mapv(|x| x as f32);
             ys.slice_mut(s![idx, .., .., ..]).assign(&y_);
         }
@@ -211,8 +269,7 @@ impl Ops<'_> {
                     height,
                     vec![bg; 3 * height as usize * width as usize],
                     PixelType::U8x3,
-                )
-                .unwrap();
+                )?;
                 let (l, t) = if center {
                     if w == width {
                         (0, (height - h) / 2)
@@ -222,13 +279,11 @@ impl Ops<'_> {
                 } else {
                     (0, 0)
                 };
-                let mut cropped_dst_image =
-                    CroppedImageMut::new(&mut dst_image, l, t, w, h).unwrap();
-                resizer.resize(x, &mut cropped_dst_image, &options).unwrap();
+                let mut cropped_dst_image = CroppedImageMut::new(&mut dst_image, l, t, w, h)?;
+                resizer.resize(x, &mut cropped_dst_image, &options)?;
                 dst_image.into_vec()
             };
-            let y_ = Array::from_shape_vec((height as usize, width as usize, 3), buffer)
-                .unwrap()
+            let y_ = Array::from_shape_vec((height as usize, width as usize, 3), buffer)?
                 .mapv(|x| x as f32);
             ys.slice_mut(s![idx, .., .., ..]).assign(&y_);
         }

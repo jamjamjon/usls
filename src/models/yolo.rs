@@ -1,13 +1,11 @@
 use anyhow::Result;
 use clap::ValueEnum;
-use fast_image_resize as fir;
 use image::DynamicImage;
 use ndarray::{s, Array, Axis};
-use rayon::prelude::*;
 use regex::Regex;
 
 use crate::{
-    Bbox, DynConf, Keypoint, Mbr, MinOptMax, Ops, Options, OrtEngine, Polygon, Prob, X, Y,
+    Bbox, DynConf, Keypoint, Mbr, MinOptMax, Ops, Options, OrtEngine, Polygon, Prob, Vision, X, Y,
 };
 
 const CXYWH_OFFSET: usize = 4;
@@ -53,8 +51,10 @@ pub struct YOLO {
     apply_probs_softmax: bool,
 }
 
-impl YOLO {
-    pub fn new(options: Options) -> Result<Self> {
+impl Vision for YOLO {
+    type Input = DynamicImage;
+
+    fn new(options: Options) -> Result<Self> {
         let mut engine = OrtEngine::new(&options)?;
         let (batch, height, width) = (
             engine.batch().to_owned(),
@@ -165,44 +165,8 @@ impl YOLO {
         })
     }
 
-    pub fn run(&mut self, xs: &[DynamicImage]) -> Result<Vec<Y>> {
-        // // ----
-        // // speed test
-        // for _ in 0..10 {
-        //     // way 2
-        //     let t = std::time::Instant::now();
-        //     let _xs = X::apply(&[
-        //         Ops::Letterbox(
-        //             xs,
-        //             self.height() as u32,
-        //             self.width() as u32,
-        //             "CatmullRom",
-        //             114,
-        //             "auto",
-        //             false,
-        //         ),
-        //         Ops::Normalize(0., 255.),
-        //         Ops::Nhwc2nchw,
-        //     ])?;
-        //     println!(">> {:?}", std::time::Instant::now() - t);
-
-        //     //way 3
-        //     let t = std::time::Instant::now();
-        //     let _xs = X::letterbox(
-        //         xs,
-        //         self.height() as u32,
-        //         self.width() as u32,
-        //         "CatmullRom",
-        //         114,
-        //         "auto",
-        //         false,
-        //     )?
-        //     .normalize(0., 255.)?
-        //     .nhwc2nchw()?;
-        //     println!(">>> {:?}", std::time::Instant::now() - t);
-        // }
-        // // ----
-
+    // pub fn run(&mut self, xs: &[DynamicImage]) -> Result<Vec<Y>> {
+    fn preprocess(&self, xs: &[Self::Input]) -> Result<Vec<X>> {
         let xs_ = match self.task {
             YOLOTask::Classify => {
                 X::resize(xs, self.height() as u32, self.width() as u32, "Bilinear")?
@@ -223,12 +187,18 @@ impl YOLO {
                 Ops::Nhwc2nchw,
             ])?,
         };
-        let ys = self.engine.run(vec![xs_])?;
-        self.postprocess(ys, xs)
+
+        Ok(vec![xs_])
+        // let ys = self.engine.run(vec![xs_])?;
+        // self.postprocess(ys, xs)
     }
 
-    pub fn postprocess(&self, xs: Vec<X>, xs0: &[DynamicImage]) -> Result<Vec<Y>> {
-        let t_post = std::time::Instant::now();
+    fn inference(&mut self, xs: Vec<X>) -> Result<Vec<X>> {
+        self.engine.run(xs)
+    }
+
+    // pub fn postprocess(&self, xs: Vec<X>, xs0: &[DynamicImage]) -> Result<Vec<Y>> {
+    fn postprocess(&self, xs: Vec<X>, xs0: &[Self::Input]) -> Result<Vec<Y>> {
         let mut ys = Vec::new();
         let protos = if xs.len() == 2 { Some(&xs[1]) } else { None };
         for (idx, preds) in xs[0].axis_iter(Axis(0)).enumerate() {
@@ -448,52 +418,16 @@ impl YOLO {
                                 let proto = proto.into_shape((nm, mh * mw))?; // (nm, mh * mw)
                                 let mask = coefs.dot(&proto); // (mh, mw, n)
 
-                                // resize (845.043µs)
-                                let src_mask = fir::images::Image::from_vec_u8(
+                                // de-scale
+                                let mask = Ops::resize_lumaf32_vec(
+                                    &mask.into_raw_vec(),
                                     mw as _,
                                     mh as _,
-                                    mask.into_raw_vec()
-                                        .iter()
-                                        .flat_map(|x| x.to_le_bytes())
-                                        .collect(),
-                                    fir::PixelType::F32,
-                                )
-                                .unwrap();
-                                let mut dst_mask = fir::images::Image::new(
                                     image_width as _,
                                     image_height as _,
-                                    src_mask.pixel_type(),
-                                );
-                                let (_, w, h) =
-                                    Ops::scale_wh(image_width, image_height, mw as _, mh as _);
-                                let mut resizer = fir::Resizer::new();
-
-                                resizer
-                                    .resize(
-                                        &src_mask,
-                                        &mut dst_mask,
-                                        &fir::ResizeOptions::new()
-                                            .crop(0., 0., w.into(), h.into())
-                                            .resize_alg(fir::ResizeAlg::Convolution(
-                                                fir::FilterType::Bilinear,
-                                                // fir::FilterType::CatmullRom,
-                                                // fir::FilterType::Lanczos3,
-                                            )),
-                                    )
-                                    .unwrap();
-
-                                // u8*2 -> f32 (329.672µs)
-                                let mask_f32: Vec<f32> = dst_mask
-                                    .into_vec()
-                                    .chunks_exact(4)
-                                    .map(|chunk| {
-                                        f32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]])
-                                    })
-                                    .collect();
-
-                                // f32 -> u8(295.204µs)
-                                let mask: Vec<u8> =
-                                    mask_f32.par_iter().map(|&x| (x * 255.0) as u8).collect();
+                                    true,
+                                    "Bilinear",
+                                )?;
 
                                 let mut mask: image::ImageBuffer<image::Luma<_>, Vec<_>> =
                                     match image::ImageBuffer::from_raw(
@@ -547,10 +481,11 @@ impl YOLO {
                 }
             }
         }
-        println!("Post: {:?}", std::time::Instant::now() - t_post);
         Ok(ys)
     }
+}
 
+impl YOLO {
     pub fn batch(&self) -> isize {
         self.batch.opt
     }

@@ -48,18 +48,6 @@ impl Dinov2 {
     }
 
     pub fn run(&mut self, xs: &[DynamicImage]) -> Result<Y> {
-        // let xs_ = ops::resize(
-        //     xs,
-        //     self.height.opt as u32,
-        //     self.width.opt as u32,
-        //     "lanczos3",
-        // )?;
-        // let xs_ = ops::normalize(xs_, 0., 255.);
-        // let xs_ = ops::standardize(
-        //     xs_,
-        //     &[0.48145466, 0.4578275, 0.40821073],
-        //     &[0.26862954, 0.2613026, 0.2757771],
-        // );
         let xs_ = X::apply(&[
             Ops::Resize(
                 xs,

@@ -1,5 +1,5 @@
 use anyhow::Result;
-use image::{DynamicImage, ImageBuffer};
+use image::DynamicImage;
 use ndarray::Axis;
 
 use crate::{DynConf, Mbr, MinOptMax, Ops, Options, OrtEngine, Polygon, X, Y};
@@ -71,36 +71,41 @@ impl DB {
             let mut y_polygons: Vec<Polygon> = Vec::new();
             let mut y_mbrs: Vec<Mbr> = Vec::new();
 
-            // reshape
-            let h = luma.dim()[1];
-            let w = luma.dim()[2];
-            let luma = luma.into_shape((h, w, 1))?.into_owned();
-
-            // build image from ndarray
-            let v = luma
-                .into_raw_vec()
-                .iter()
-                .map(|x| if x <= &self.binary_thresh { 0.0 } else { *x })
-                .collect::<Vec<_>>();
-            let v: ImageBuffer<image::Luma<_>, Vec<f32>> =
-                ImageBuffer::from_raw(self.width() as u32, self.height() as u32, v)
-                    .ok_or(anyhow::anyhow!("Faild to create image from raw vec"))?;
-            let mut mask_im = image::DynamicImage::from(v);
-
             // input image
             let image_width = xs0[idx].width() as f32;
             let image_height = xs0[idx].height() as f32;
 
-            // rescale mask image
-            let (ratio, w_mask, h_mask) =
-                Ops::scale_wh(image_width, image_height, w as f32, h as f32);
-            let mask_im = mask_im.crop(0, 0, w_mask as u32, h_mask as u32);
-            let mask_im = mask_im.resize_exact(
-                image_width as u32,
-                image_height as u32,
-                image::imageops::FilterType::Triangle,
-            );
-            let mask_im = mask_im.into_luma8();
+            // reshape
+            let h = luma.dim()[1];
+            let w = luma.dim()[2];
+            let (ratio, _, _) = Ops::scale_wh(image_width, image_height, w as f32, h as f32);
+            let v = luma
+                .into_owned()
+                .into_raw_vec()
+                .iter()
+                .map(|x| {
+                    if x <= &self.binary_thresh {
+                        0u8
+                    } else {
+                        (*x * 255.0) as u8
+                    }
+                })
+                .collect::<Vec<_>>();
+
+            let luma = Ops::resize_luma8_vec(
+                &v,
+                self.width() as _,
+                self.height() as _,
+                image_width as _,
+                image_height as _,
+                true,
+                "Bilinear",
+            )?;
+            let mask_im: image::ImageBuffer<image::Luma<_>, Vec<_>> =
+                match image::ImageBuffer::from_raw(image_width as _, image_height as _, luma) {
+                    None => continue,
+                    Some(x) => x,
+                };
 
             // contours
             let contours: Vec<imageproc::contours::Contour<i32>> =
@@ -113,14 +118,18 @@ impl DB {
                 {
                     continue;
                 }
+
                 let mask = Polygon::default().with_points_imageproc(&contour.points);
                 let delta = mask.area() * ratio.round() as f64 * self.unclip_ratio as f64
                     / mask.perimeter();
+
+                // TODO: optimize
                 let mask = mask
                     .unclip(delta, image_width as f64, image_height as f64)
                     .resample(50)
                     // .simplify(6e-4)
                     .convex_hull();
+
                 if let Some(bbox) = mask.bbox() {
                     if bbox.height() < self.min_height || bbox.width() < self.min_width {
                         continue;

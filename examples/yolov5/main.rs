@@ -1,6 +1,6 @@
 use usls::{
     models::{YOLOTask, YOLOVersion, YOLO},
-    Annotator, DataLoader, Options,
+    Annotator, DataLoader, Options, Vision,
 };
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {

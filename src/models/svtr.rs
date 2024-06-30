@@ -96,7 +96,6 @@ impl SVTR {
 
             ys.push(Y::default().with_texts(&[text]))
         }
-
         Ok(ys)
     }
 }

@@ -1,4 +1,4 @@
-use usls::{coco, models::YOLO, Annotator, DataLoader, Options};
+use usls::{coco, models::YOLO, Annotator, DataLoader, Options, Vision};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // build model
@@ -37,6 +37,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // run & annotate
     for (xs, _paths) in dl {
         let ys = model.run(&xs)?;
+        // let ys = model.forward(&xs, true)?;
         annotator.annotate(&xs, &ys);
     }
 

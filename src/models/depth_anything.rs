@@ -1,6 +1,6 @@
 use crate::{Mask, MinOptMax, Ops, Options, OrtEngine, X, Y};
 use anyhow::Result;
-use image::{DynamicImage, ImageBuffer};
+use image::DynamicImage;
 use ndarray::Axis;
 
 #[derive(Debug)]
@@ -48,26 +48,32 @@ impl DepthAnything {
     pub fn postprocess(&self, xs: Vec<X>, xs0: &[DynamicImage]) -> Result<Vec<Y>> {
         let mut ys: Vec<Y> = Vec::new();
         for (idx, luma) in xs[0].axis_iter(Axis(0)).enumerate() {
-            let luma = luma
-                .into_shape((self.height() as usize, self.width() as usize, 1))?
-                .into_owned();
-            let v = luma.into_raw_vec();
+            let (w1, h1) = (xs0[idx].width(), xs0[idx].height());
+            let v = luma.into_owned().into_raw_vec();
             let max_ = v.iter().max_by(|x, y| x.total_cmp(y)).unwrap();
             let min_ = v.iter().min_by(|x, y| x.total_cmp(y)).unwrap();
             let v = v
                 .iter()
                 .map(|x| (((*x - min_) / (max_ - min_)) * 255.).clamp(0., 255.) as u8)
                 .collect::<Vec<_>>();
-            let luma: ImageBuffer<image::Luma<_>, Vec<u8>> =
-                ImageBuffer::from_raw(self.width() as u32, self.height() as u32, v)
-                    .expect("Faild to create image from ndarray");
-            let luma = image::DynamicImage::from(luma);
-            let luma = luma.resize_exact(
-                xs0[idx].width(),
-                xs0[idx].height(),
-                image::imageops::FilterType::CatmullRom,
+
+            let luma = Ops::resize_luma8_vec(
+                &v,
+                self.width() as _,
+                self.height() as _,
+                w1 as _,
+                h1 as _,
+                false,
+                "Bilinear",
+            )?;
+            let luma: image::ImageBuffer<image::Luma<_>, Vec<_>> =
+                match image::ImageBuffer::from_raw(w1 as _, h1 as _, luma) {
+                    None => continue,
+                    Some(x) => x,
+                };
+            ys.push(
+                Y::default().with_masks(&[Mask::default().with_mask(DynamicImage::from(luma))]),
             );
-            ys.push(Y::default().with_masks(&[Mask::default().with_mask(luma)]));
         }
         Ok(ys)
     }
