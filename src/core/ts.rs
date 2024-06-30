@@ -30,7 +30,6 @@ impl Ts {
         &self.ts
     }
 
-    // TODO: overhead?
     pub fn add_or_push(&mut self, i: usize, x: Duration) {
         match self.ts.get_mut(i) {
             Some(elem) => *elem += x,

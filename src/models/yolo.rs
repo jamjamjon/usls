@@ -1,10 +1,12 @@
 use anyhow::Result;
 use clap::ValueEnum;
-use image::{DynamicImage, ImageBuffer};
-use ndarray::{s, Array, Axis, IxDyn};
+use image::DynamicImage;
+use ndarray::{s, Array, Axis};
 use regex::Regex;
 
-use crate::{ops, Bbox, DynConf, Keypoint, Mbr, MinOptMax, Options, OrtEngine, Polygon, Prob, Y};
+use crate::{
+    Bbox, DynConf, Keypoint, Mbr, MinOptMax, Ops, Options, OrtEngine, Polygon, Prob, Vision, X, Y,
+};
 
 const CXYWH_OFFSET: usize = 4;
 const KPT_STEP: usize = 3;
@@ -49,8 +51,10 @@ pub struct YOLO {
     apply_probs_softmax: bool,
 }
 
-impl YOLO {
-    pub fn new(options: Options) -> Result<Self> {
+impl Vision for YOLO {
+    type Input = DynamicImage;
+
+    fn new(options: Options) -> Result<Self> {
         let mut engine = OrtEngine::new(&options)?;
         let (batch, height, width) = (
             engine.batch().to_owned(),
@@ -161,32 +165,46 @@ impl YOLO {
         })
     }
 
-    pub fn run(&mut self, xs: &[DynamicImage]) -> Result<Vec<Y>> {
+    // pub fn run(&mut self, xs: &[DynamicImage]) -> Result<Vec<Y>> {
+    fn preprocess(&self, xs: &[Self::Input]) -> Result<Vec<X>> {
         let xs_ = match self.task {
             YOLOTask::Classify => {
-                ops::resize(xs, self.height() as u32, self.width() as u32, "bilinear")?
+                X::resize(xs, self.height() as u32, self.width() as u32, "Bilinear")?
+                    .normalize(0., 255.)?
+                    .nhwc2nchw()?
             }
-            _ => ops::letterbox(
-                xs,
-                self.height() as u32,
-                self.width() as u32,
-                "catmullRom",
-                Some(114),
-            )?,
+            _ => X::apply(&[
+                Ops::Letterbox(
+                    xs,
+                    self.height() as u32,
+                    self.width() as u32,
+                    "CatmullRom",
+                    114,
+                    "auto",
+                    false,
+                ),
+                Ops::Normalize(0., 255.),
+                Ops::Nhwc2nchw,
+            ])?,
         };
-        let xs_ = ops::normalize(xs_, 0., 255.);
-        let ys = self.engine.run(&[xs_])?;
-        self.postprocess(ys, xs)
+
+        Ok(vec![xs_])
+        // let ys = self.engine.run(vec![xs_])?;
+        // self.postprocess(ys, xs)
     }
 
-    pub fn postprocess(&self, xs: Vec<Array<f32, IxDyn>>, xs0: &[DynamicImage]) -> Result<Vec<Y>> {
+    fn inference(&mut self, xs: Vec<X>) -> Result<Vec<X>> {
+        self.engine.run(xs)
+    }
+
+    // pub fn postprocess(&self, xs: Vec<X>, xs0: &[DynamicImage]) -> Result<Vec<Y>> {
+    fn postprocess(&self, xs: Vec<X>, xs0: &[Self::Input]) -> Result<Vec<Y>> {
         let mut ys = Vec::new();
         let protos = if xs.len() == 2 { Some(&xs[1]) } else { None };
         for (idx, preds) in xs[0].axis_iter(Axis(0)).enumerate() {
             let image_width = xs0[idx].width() as f32;
             let image_height = xs0[idx].height() as f32;
 
-            // decode
             match self.task {
                 YOLOTask::Classify => {
                     let y = if self.apply_probs_softmax {
@@ -253,7 +271,7 @@ impl YOLO {
                     let ratio = (self.width() as f32 / image_width)
                         .min(self.height() as f32 / image_height);
 
-                    // bboxes
+                    // Detection
                     for (i, pred) in preds
                         .axis_iter(if self.anchors_first { Axis(0) } else { Axis(1) })
                         .enumerate()
@@ -324,13 +342,13 @@ impl YOLO {
                         }
                     }
 
-                    // nms
+                    // NMS
                     let mut y = Y::default().with_bboxes(&y_bboxes);
                     if self.apply_nms {
                         y = y.apply_bboxes_nms(self.iou);
                     }
 
-                    // keypoints
+                    // Pose
                     if let YOLOTask::Pose = self.task {
                         if let Some(bboxes) = y.bboxes() {
                             let mut y_kpts: Vec<Vec<Keypoint>> = Vec::new();
@@ -377,7 +395,7 @@ impl YOLO {
                         }
                     }
 
-                    // masks
+                    // Segment
                     if let YOLOTask::Segment = self.task {
                         if let Some(bboxes) = y.bboxes() {
                             let mut y_polygons: Vec<Polygon> = Vec::new();
@@ -391,60 +409,55 @@ impl YOLO {
                                         .slice(s![preds.shape()[0] - self.nm.., bbox.id_born()])
                                         .to_vec()
                                 };
+
                                 let proto = protos.unwrap().slice(s![idx, .., .., ..]);
+                                let (nm, mh, mw) = proto.dim();
 
-                                // coefs * proto -> mask
-                                let (nm, nh, nw) = proto.dim();
+                                // coefs * proto => mask (311.427µs)
                                 let coefs = Array::from_shape_vec((1, nm), coefs)?; // (n, nm)
-                                let proto = proto.to_owned().into_shape((nm, nh * nw))?; // (nm, nh*nw)
-                                let mask = coefs.dot(&proto).into_shape((nh, nw, 1))?; // (nh, nw, n)
+                                let proto = proto.into_shape((nm, mh * mw))?; // (nm, mh * mw)
+                                let mask = coefs.dot(&proto); // (mh, mw, n)
 
-                                // build image from ndarray
-                                let mask: ImageBuffer<image::Luma<_>, Vec<f32>> =
-                                    match ImageBuffer::from_raw(
-                                        nw as u32,
-                                        nh as u32,
-                                        mask.clone().into_raw_vec(),
+                                // de-scale
+                                let mask = Ops::resize_lumaf32_vec(
+                                    &mask.into_raw_vec(),
+                                    mw as _,
+                                    mh as _,
+                                    image_width as _,
+                                    image_height as _,
+                                    true,
+                                    "Bilinear",
+                                )?;
+
+                                let mut mask: image::ImageBuffer<image::Luma<_>, Vec<_>> =
+                                    match image::ImageBuffer::from_raw(
+                                        image_width as _,
+                                        image_height as _,
+                                        mask,
                                     ) {
-                                        Some(buf) => buf,
                                         None => continue,
+                                        Some(x) => x,
                                     };
-                                let mask = image::DynamicImage::from(mask);
 
-                                // rescale
-                                let mask_original = ops::descale_mask(
-                                    mask,
-                                    nw as f32,
-                                    nh as f32,
-                                    image_width,
-                                    image_height,
-                                );
-                                let mut mask_original = mask_original.into_luma8();
+                                let (xmin, ymin, xmax, ymax) =
+                                    (bbox.xmin(), bbox.ymin(), bbox.xmax(), bbox.ymax());
 
-                                // crop mask
-                                for y in 0..image_height as usize {
-                                    for x in 0..image_width as usize {
-                                        if x < bbox.xmin() as usize
-                                            || x > bbox.xmax() as usize
-                                            || y < bbox.ymin() as usize
-                                            || y > bbox.ymax() as usize
-                                        // || mask_original.get_pixel(x as u32, y as u32).0 < [127]
+                                // Using bbox to crop the mask (75.93µs)
+                                for (y, row) in mask.enumerate_rows_mut() {
+                                    for (x, _, pixel) in row {
+                                        if x < xmin as _
+                                            || x > xmax as _
+                                            || y < ymin as _
+                                            || y > ymax as _
                                         {
-                                            mask_original.put_pixel(
-                                                x as u32,
-                                                y as u32,
-                                                image::Luma([0u8]),
-                                            );
+                                            *pixel = image::Luma([0u8]);
                                         }
                                     }
                                 }
 
-                                // get masks from image
+                                // Find contours (1.413853ms)
                                 let contours: Vec<imageproc::contours::Contour<i32>> =
-                                    imageproc::contours::find_contours_with_threshold(
-                                        &mask_original,
-                                        0,
-                                    );
+                                    imageproc::contours::find_contours_with_threshold(&mask, 0);
                                 let polygon = match contours
                                     .iter()
                                     .map(|x| {
@@ -458,6 +471,7 @@ impl YOLO {
                                     None => continue,
                                     Some(x) => x,
                                 };
+
                                 y_polygons.push(polygon);
                             }
                             y = y.with_polygons(&y_polygons);
@@ -469,7 +483,9 @@ impl YOLO {
         }
         Ok(ys)
     }
+}
 
+impl YOLO {
     pub fn batch(&self) -> isize {
         self.batch.opt
     }

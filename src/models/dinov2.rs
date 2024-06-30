@@ -1,7 +1,6 @@
-use crate::{ops, Embedding, MinOptMax, Options, OrtEngine, Y};
+use crate::{Embedding, MinOptMax, Ops, Options, OrtEngine, X, Y};
 use anyhow::Result;
 use image::DynamicImage;
-use ndarray::{Array, IxDyn};
 // use std::path::PathBuf;
 // use usearch::ffi::{IndexOptions, MetricKind, ScalarKind};
 
@@ -49,20 +48,23 @@ impl Dinov2 {
     }
 
     pub fn run(&mut self, xs: &[DynamicImage]) -> Result<Y> {
-        let xs_ = ops::resize(
-            xs,
-            self.height.opt as u32,
-            self.width.opt as u32,
-            "lanczos3",
-        )?;
-        let xs_ = ops::normalize(xs_, 0., 255.);
-        let xs_ = ops::standardize(
-            xs_,
-            &[0.48145466, 0.4578275, 0.40821073],
-            &[0.26862954, 0.2613026, 0.2757771],
-        );
-        let ys: Vec<Array<f32, IxDyn>> = self.engine.run(&[xs_])?;
-        Ok(Y::default().with_embedding(Embedding::new(ys[0].to_owned())))
+        let xs_ = X::apply(&[
+            Ops::Resize(
+                xs,
+                self.height.opt as u32,
+                self.width.opt as u32,
+                "Lanczos3",
+            ),
+            Ops::Normalize(0., 255.),
+            Ops::Standardize(
+                &[0.48145466, 0.4578275, 0.40821073],
+                &[0.26862954, 0.2613026, 0.2757771],
+                3,
+            ),
+            Ops::Nhwc2nchw,
+        ])?;
+        let ys = self.engine.run(vec![xs_])?;
+        Ok(Y::default().with_embedding(Embedding::from(ys[0].to_owned())))
     }
 
     // pub fn build_index(&self, metric: Metric) -> Result<usearch::Index> {

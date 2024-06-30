@@ -9,9 +9,7 @@ use ort::{
 use prost::Message;
 use std::collections::HashSet;
 
-use crate::{
-    home_dir, onnx, ops::make_divisible, Device, MinOptMax, Options, Ts, CHECK_MARK, CROSS_MARK,
-};
+use crate::{home_dir, onnx, Device, MinOptMax, Ops, Options, Ts, CHECK_MARK, CROSS_MARK, X};
 
 /// Ort Tensor Attrs: name, data_type, dims
 #[derive(Debug)]
@@ -57,7 +55,7 @@ impl OrtEngine {
             params += param;
 
             // mems
-            let param = make_divisible(param, byte_alignment);
+            let param = Ops::make_divisible(param, byte_alignment);
             let n = Self::nbytes_from_onnx_dtype_id(tensor_proto.data_type as usize);
             let wbmem = param * n;
             wbmems += wbmem;
@@ -258,17 +256,18 @@ impl OrtEngine {
 
     pub fn dry_run(&mut self) -> Result<()> {
         if self.num_dry_run > 0 {
-            let mut xs: Vec<Array<f32, IxDyn>> = Vec::new();
+            let mut xs = Vec::new();
             for i in self.inputs_minoptmax.iter() {
                 let mut x: Vec<usize> = Vec::new();
                 for i_ in i.iter() {
                     x.push(i_.opt as usize);
                 }
                 let x: Array<f32, IxDyn> = Array::ones(x).into_dyn();
-                xs.push(x);
+                xs.push(X::from(x));
             }
             for _ in 0..self.num_dry_run {
-                self.run(xs.as_ref())?;
+                // self.run(xs.as_ref())?;
+                self.run(xs.clone())?;
             }
             self.ts.clear();
             println!("{CHECK_MARK} Dryrun x{}", self.num_dry_run);
@@ -276,7 +275,7 @@ impl OrtEngine {
         Ok(())
     }
 
-    pub fn run(&mut self, xs: &[Array<f32, IxDyn>]) -> Result<Vec<Array<f32, IxDyn>>> {
+    pub fn run(&mut self, xs: Vec<X>) -> Result<Vec<X>> {
         // inputs dtype alignment
         let mut xs_ = Vec::new();
         let t_pre = std::time::Instant::now();
@@ -330,7 +329,8 @@ impl OrtEngine {
                     .into_owned(),
                 _ => todo!(),
             };
-            ys.push(y_);
+            // ys.push(y_);
+            ys.push(X::from(y_));
         }
         let t_post = t_post.elapsed();
         self.ts.add_or_push(2, t_post);

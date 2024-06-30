@@ -92,10 +92,12 @@ impl DataLoader {
     }
 
     pub fn try_read<P: AsRef<Path>>(path: P) -> Result<DynamicImage> {
-        image::io::Reader::open(&path)
+        let img = image::io::Reader::open(&path)
             .map_err(|_| anyhow!("Failed to open image at {:?}", path.as_ref()))?
             .decode()
-            .map_err(|_| anyhow!("Failed to decode image at {:?}", path.as_ref()))
+            .map_err(|_| anyhow!("Failed to decode image at {:?}", path.as_ref()))?
+            .into_rgb8();
+        Ok(DynamicImage::from(img))
     }
 
     pub fn with_batch(mut self, x: usize) -> Self {

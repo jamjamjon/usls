@@ -2,7 +2,7 @@ use anyhow::Result;
 use image::DynamicImage;
 use ndarray::{s, Array, Axis, IxDyn};
 
-use crate::{ops, Bbox, DynConf, MinOptMax, Options, OrtEngine, Polygon, Y};
+use crate::{Bbox, DynConf, MinOptMax, Ops, Options, OrtEngine, Polygon, X, Y};
 
 #[derive(Debug)]
 pub struct YOLOPv2 {
@@ -37,19 +37,24 @@ impl YOLOPv2 {
     }
 
     pub fn run(&mut self, xs: &[DynamicImage]) -> Result<Vec<Y>> {
-        let xs_ = ops::letterbox(
-            xs,
-            self.height() as u32,
-            self.width() as u32,
-            "bilinear",
-            Some(114),
-        )?;
-        let xs_ = ops::normalize(xs_, 0., 255.);
-        let ys = self.engine.run(&[xs_])?;
+        let xs_ = X::apply(&[
+            Ops::Letterbox(
+                xs,
+                self.height() as u32,
+                self.width() as u32,
+                "Bilinear",
+                114,
+                "auto",
+                false,
+            ),
+            Ops::Normalize(0., 255.),
+            Ops::Nhwc2nchw,
+        ])?;
+        let ys = self.engine.run(vec![xs_])?;
         self.postprocess(ys, xs)
     }
 
-    pub fn postprocess(&self, xs: Vec<Array<f32, IxDyn>>, xs0: &[DynamicImage]) -> Result<Vec<Y>> {
+    pub fn postprocess(&self, xs: Vec<X>, xs0: &[DynamicImage]) -> Result<Vec<Y>> {
         let mut ys: Vec<Y> = Vec::new();
         let (xs_da, xs_ll, xs_det) = (&xs[0], &xs[1], &xs[2]);
         for (idx, ((x_det, x_ll), x_da)) in xs_det
@@ -60,7 +65,7 @@ impl YOLOPv2 {
         {
             let image_width = xs0[idx].width() as f32;
             let image_height = xs0[idx].height() as f32;
-            let (ratio, _, _) = ops::scale_wh(
+            let (ratio, _, _) = Ops::scale_wh(
                 image_width,
                 image_height,
                 self.width() as f32,
@@ -97,32 +102,23 @@ impl YOLOPv2 {
                         .with_id(id as isize),
                 );
             }
+            let mut y_polygons: Vec<Polygon> = Vec::new();
 
             // Drivable area
             let x_da_0 = x_da.slice(s![0, .., ..]).to_owned();
             let x_da_1 = x_da.slice(s![1, .., ..]).to_owned();
             let x_da = x_da_1 - x_da_0;
-            let x_da = x_da
-                .into_shape((self.height() as usize, self.width() as usize, 1))?
-                .into_owned();
-            let v = x_da
-                .into_raw_vec()
-                .iter()
-                .map(|x| if x < &0.0 { 0.0 } else { 1.0 })
-                .collect::<Vec<_>>();
-            let mask_da =
-                ops::build_dyn_image_from_raw(v, self.height() as u32, self.width() as u32);
-            let mask_da = ops::descale_mask(
-                mask_da,
-                self.width() as f32,
-                self.height() as f32,
+            let contours = match self.get_contours_from_mask(
+                x_da.into_dyn(),
+                0.0,
+                self.width() as _,
+                self.height() as _,
                 image_width,
                 image_height,
-            );
-            let mask_da = mask_da.into_luma8();
-            let mut y_polygons: Vec<Polygon> = Vec::new();
-            let contours: Vec<imageproc::contours::Contour<i32>> =
-                imageproc::contours::find_contours_with_threshold(&mask_da, 0);
+            ) {
+                Err(_) => continue,
+                Ok(x) => x,
+            };
             if let Some(polygon) = contours
                 .iter()
                 .map(|x| {
@@ -137,26 +133,17 @@ impl YOLOPv2 {
             };
 
             // Lane line
-            let x_ll = x_ll
-                .into_shape((self.height() as usize, self.width() as usize, 1))?
-                .into_owned();
-            let v = x_ll
-                .into_raw_vec()
-                .iter()
-                .map(|x| if x < &0.5 { 0.0 } else { 1.0 })
-                .collect::<Vec<_>>();
-            let mask_ll =
-                ops::build_dyn_image_from_raw(v, self.height() as u32, self.width() as u32);
-            let mask_ll = ops::descale_mask(
-                mask_ll,
-                self.width() as f32,
-                self.height() as f32,
+            let contours = match self.get_contours_from_mask(
+                x_ll.to_owned(),
+                0.5,
+                self.width() as _,
+                self.height() as _,
                 image_width,
                 image_height,
-            );
-            let mask_ll = mask_ll.into_luma8();
-            let contours: Vec<imageproc::contours::Contour<i32>> =
-                imageproc::contours::find_contours_with_threshold(&mask_ll, 0);
+            ) {
+                Err(_) => continue,
+                Ok(x) => x,
+            };
             if let Some(polygon) = contours
                 .iter()
                 .map(|x| {
@@ -191,5 +178,24 @@ impl YOLOPv2 {
 
     pub fn height(&self) -> isize {
         self.height.opt
+    }
+
+    fn get_contours_from_mask(
+        &self,
+        mask: Array<f32, IxDyn>,
+        thresh: f32,
+        w0: f32,
+        h0: f32,
+        w1: f32,
+        h1: f32,
+    ) -> Result<Vec<imageproc::contours::Contour<i32>>> {
+        let mask = mask.mapv(|x| if x < thresh { 0u8 } else { 255u8 });
+        let mask = Ops::resize_luma8_vec(&mask.into_raw_vec(), w0, h0, w1, h1, false, "Bilinear")?;
+        let mask: image::ImageBuffer<image::Luma<_>, Vec<_>> =
+            image::ImageBuffer::from_raw(w1 as _, h1 as _, mask)
+                .ok_or(anyhow::anyhow!("Failed to build image"))?;
+        let contours: Vec<imageproc::contours::Contour<i32>> =
+            imageproc::contours::find_contours_with_threshold(&mask, 0);
+        Ok(contours)
     }
 }

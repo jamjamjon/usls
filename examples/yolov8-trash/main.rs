@@ -1,4 +1,4 @@
-use usls::{models::YOLO, Annotator, DataLoader, Options};
+use usls::{models::YOLO, Annotator, DataLoader, Options, Vision};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // 1.build model

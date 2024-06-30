@@ -16,7 +16,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // run
     let y = model.run(&x)?;
 
-    // // annotate
+    // annotate
     let annotator = Annotator::default()
         .with_saveout("RTMO")
         .with_skeletons(&coco::SKELETONS_16);
