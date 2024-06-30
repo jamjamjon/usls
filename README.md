@@ -33,11 +33,8 @@ A Rust library integrated with **ONNXRuntime**, providing a collection of **Comp
 
 |                               Model                               |         Task / Type         |         Example         | CUDA<br />f32 | CUDA<br />f16 |     TensorRT<br />f32     |     TensorRT<br />f16     |
 | :---------------------------------------------------------------: | :-------------------------: | :----------------------: | :-----------: | :-----------: | :------------------------: | :-----------------------: |
-|       [YOLOv8-obb](https://github.com/ultralytics/ultralytics)       |  Oriented Object Detection  |   [demo](examples/yolov8)   |      ✅      |      ✅      |             ✅             |            ✅            |
-|    [YOLOv8-detection](https://github.com/ultralytics/ultralytics)    |      Object Detection      |   [demo](examples/yolov8)   |      ✅      |      ✅      |             ✅             |            ✅            |
-|      [YOLOv8-pose](https://github.com/ultralytics/ultralytics)      |     Keypoint Detection     |   [demo](examples/yolov8)   |      ✅      |      ✅      |             ✅             |            ✅            |
-| [YOLOv8-classification](https://github.com/ultralytics/ultralytics) |       Classification       |   [demo](examples/yolov8)   |      ✅      |      ✅      |             ✅             |            ✅            |
-|  [YOLOv8-segmentation](https://github.com/ultralytics/ultralytics)  |    Instance Segmentation    |   [demo](examples/yolov8)   |      ✅      |      ✅      |             ✅             |            ✅            |
+|    [YOLOv5](https://github.com/ultralytics/yolov5)    |      Object Detection<br />Instance Segmentation<br />Classification      |   [demo](examples/yolov5)   |      ✅      |      ✅      |             ✅             |            ✅            |
+|       [YOLOv8-obb](https://github.com/ultralytics/ultralytics)       |  Object Detection<br />Instance Segmentation<br />Classification<br />Oriented Object Detection<br />Keypoint Detection  |   [demo](examples/yolov8)   |      ✅      |      ✅      |             ✅             |            ✅            |
 |            [YOLOv9](https://github.com/WongKinYiu/yolov9)            |      Object Detection      |   [demo](examples/yolov9)   |      ✅      |      ✅      |             ✅             |            ✅            |
 |            [YOLOv10](https://github.com/THU-MIG/yolov10)            |      Object Detection      |   [demo](examples/yolov10)   |      ✅      |      ✅      |             ✅             |            ✅            |
 |             [RT-DETR](https://arxiv.org/abs/2304.08069)             |      Object Detection      |   [demo](examples/rtdetr)   |      ✅      |      ✅      |             ✅             |            ✅            |
@@ -50,8 +47,6 @@ A Rust library integrated with **ONNXRuntime**, providing a collection of **Comp
 |               [SVTR](https://arxiv.org/abs/2205.00159)               |      Text Recognition      |    [demo](examples/svtr)    |      ✅      |      ✅      |             ✅             |            ✅            |
 | [RTMO](https://github.com/open-mmlab/mmpose/tree/main/projects/rtmo) |     Keypoint Detection     |    [demo](examples/rtmo)    |      ✅      |      ✅      |             ❌             |            ❌            |
 |             [YOLOPv2](https://arxiv.org/abs/2208.11434)             | Panoptic Driving Perception |   [demo](examples/yolop)   |      ✅      |      ✅      |             ✅             |            ✅            |
-|    [YOLOv5-classification](https://github.com/ultralytics/yolov5)    |      Object Detection      |   [demo](examples/yolov5)   |      ✅      |      ✅      |             ✅             |            ✅            |
-|     [YOLOv5-segmentation](https://github.com/ultralytics/yolov5)     |    Instance Segmentation    |   [demo](examples/yolov5)   |      ✅      |      ✅      |             ✅             |            ✅            |
 |     [Depth-Anything](https://github.com/LiheYoung/Depth-Anything)     |    Monocular Depth Estimation    |   [demo](examples/depth-anything)   |      ✅      |      ✅      |             ❌             |            ❌            |
 |     [MODNet](https://github.com/ZHKKKe/MODNet)     |    Image Matting    |   [demo](examples/modnet)   |      ✅      |      ✅      |             ✅             |            ✅            |
 
