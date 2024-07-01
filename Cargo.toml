@@ -44,4 +44,4 @@ ab_glyph = "0.2.23"
 geo = "0.28.0"
 prost = "0.12.4"
 human_bytes = "0.4.3"
-fast_image_resize = { git = "https://github.com/jamjamjon/fast_image_resize", branch = "dev" , features = ["image"]}
+fast_image_resize = { version = "4.0.0", git = "https://github.com/jamjamjon/fast_image_resize", branch = "dev" , features = ["image"]}
