@@ -32,7 +32,7 @@ pub struct OrtEngine {
     model_proto: onnx::ModelProto,
     params: usize,
     wbmems: usize,
-    pub ts: Ts,
+    ts: Ts,
 }
 
 impl OrtEngine {
@@ -353,7 +353,7 @@ impl OrtEngine {
         Ok(ys)
     }
 
-    pub fn _set_ixx(x: isize, ixx: &Option<MinOptMax>, i: usize, ii: usize) -> Option<MinOptMax> {
+    fn _set_ixx(x: isize, ixx: &Option<MinOptMax>, i: usize, ii: usize) -> Option<MinOptMax> {
         match x {
             -1 => {
                 match ixx {
@@ -369,7 +369,8 @@ impl OrtEngine {
         }
     }
 
-    pub fn nbytes_from_onnx_dtype_id(x: usize) -> usize {
+    #[allow(dead_code)]
+    fn nbytes_from_onnx_dtype_id(x: usize) -> usize {
         match x {
             7 | 11 | 13 => 8,     // i64, f64, u64
             1 | 6 | 12 => 4,      // f32, i32, u32
@@ -380,7 +381,8 @@ impl OrtEngine {
         }
     }
 
-    pub fn nbytes_from_onnx_dtype(x: &ort::TensorElementType) -> usize {
+    #[allow(dead_code)]
+    fn nbytes_from_onnx_dtype(x: &ort::TensorElementType) -> usize {
         match x {
             ort::TensorElementType::Float64
             | ort::TensorElementType::Uint64
@@ -399,6 +401,7 @@ impl OrtEngine {
         }
     }
 
+    #[allow(dead_code)]
     fn ort_dtype_from_onnx_dtype_id(value: i32) -> Option<ort::TensorElementType> {
         match value {
             0 => None,
@@ -629,5 +632,9 @@ impl OrtEngine {
 
     pub fn memory_weights(&self) -> usize {
         self.wbmems
+    }
+
+    pub fn ts(&self) -> &Ts {
+        &self.ts
     }
 }

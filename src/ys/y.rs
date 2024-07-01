@@ -1,5 +1,6 @@
 use crate::{Bbox, Embedding, Keypoint, Mask, Mbr, Polygon, Prob};
 
+/// Inference results container for each image.
 #[derive(Clone, PartialEq, Default)]
 pub struct Y {
     probs: Option<Prob>,

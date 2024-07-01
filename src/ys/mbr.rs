@@ -1,6 +1,6 @@
 use geo::{coord, line_string, Area, BooleanOps, Coord, EuclideanDistance, LineString, Polygon};
 
-/// Minimum Bounding Rectangle
+/// Minimum Bounding Rectangle.
 #[derive(Clone, PartialEq)]
 pub struct Mbr {
     ls: LineString,

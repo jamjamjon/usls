@@ -1,3 +1,5 @@
+//! Some constants releated with COCO dataset: [`SKELETONS_16`], [`KEYPOINTS_NAMES_17`], [`NAMES_80`]
+
 pub const SKELETONS_16: [(usize, usize); 16] = [
     (0, 1),
     (0, 2),

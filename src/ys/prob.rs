@@ -1,4 +1,4 @@
-/// Probabilities for classification
+/// Probabilities for classification.
 #[derive(Clone, PartialEq, Default)]
 pub struct Prob {
     probs: Vec<f32>,

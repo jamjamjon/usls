@@ -3,7 +3,7 @@ use ndarray::{Array, Axis, Ix2, IxDyn};
 
 use crate::X;
 
-/// Embedding
+/// Embedding for image or text.
 #[derive(Clone, PartialEq, Default)]
 pub struct Embedding(Array<f32, IxDyn>);
 

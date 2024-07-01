@@ -4,6 +4,7 @@ use ndarray::{Array, Dim, IxDyn, IxDynImpl};
 
 use crate::Ops;
 
+/// Model input, alias for [`Array<f32, IxDyn>`]
 #[derive(Debug, Clone, Default)]
 pub struct X(pub Array<f32, IxDyn>);
 

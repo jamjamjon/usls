@@ -109,7 +109,7 @@ impl Annotator {
         self
     }
 
-    /// Plotting BBOXes or not
+    /// Plotting bboxes or not
     pub fn without_bboxes(mut self, x: bool) -> Self {
         self.without_bboxes = x;
         self
@@ -195,7 +195,7 @@ impl Annotator {
         self
     }
 
-    /// Plotting MBRs or not
+    /// Plotting mbrs or not
     pub fn without_mbrs(mut self, x: bool) -> Self {
         self.without_mbrs = x;
         self

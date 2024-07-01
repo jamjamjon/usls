@@ -8,12 +8,13 @@ pub mod colormap256;
 
 pub use colormap256::*;
 
-pub const GITHUB_ASSETS: &str = "https://github.com/jamjamjon/assets/releases/download/v0.0.1";
-pub const CHECK_MARK: &str = "✅";
-pub const CROSS_MARK: &str = "❌";
-pub const SAFE_CROSS_MARK: &str = "❎";
+pub(crate) const GITHUB_ASSETS: &str =
+    "https://github.com/jamjamjon/assets/releases/download/v0.0.1";
+pub(crate) const CHECK_MARK: &str = "✅";
+pub(crate) const CROSS_MARK: &str = "❌";
+pub(crate) const SAFE_CROSS_MARK: &str = "❎";
 
-pub fn auto_load<P: AsRef<Path>>(src: P, sub: Option<&str>) -> Result<String> {
+pub(crate) fn auto_load<P: AsRef<Path>>(src: P, sub: Option<&str>) -> Result<String> {
     let src = src.as_ref();
     let p = if src.is_file() {
         src.into()
@@ -33,6 +34,7 @@ pub fn auto_load<P: AsRef<Path>>(src: P, sub: Option<&str>) -> Result<String> {
     Ok(p.to_str().unwrap().to_string())
 }
 
+/// `download` sth from src to dst
 pub fn download<P: AsRef<Path> + std::fmt::Debug>(
     src: &str,
     dst: P,
@@ -77,7 +79,7 @@ pub fn download<P: AsRef<Path> + std::fmt::Debug>(
     Ok(())
 }
 
-pub fn string_now(delimiter: &str) -> String {
+pub(crate) fn string_now(delimiter: &str) -> String {
     let t_now = chrono::Local::now();
     let fmt = format!(
         "%Y{}%m{}%d{}%H{}%M{}%S{}%f",
@@ -86,7 +88,8 @@ pub fn string_now(delimiter: &str) -> String {
     t_now.format(&fmt).to_string()
 }
 
-pub fn config_dir() -> PathBuf {
+#[allow(dead_code)]
+pub(crate) fn config_dir() -> PathBuf {
     match dirs::config_dir() {
         Some(mut d) => {
             d.push("usls");
@@ -99,7 +102,8 @@ pub fn config_dir() -> PathBuf {
     }
 }
 
-pub fn home_dir(sub: Option<&str>) -> PathBuf {
+#[allow(dead_code)]
+pub(crate) fn home_dir(sub: Option<&str>) -> PathBuf {
     match dirs::home_dir() {
         Some(mut d) => {
             d.push(".usls");

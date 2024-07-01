@@ -5,6 +5,7 @@ use geo::{
 
 use crate::{Bbox, Mbr};
 
+/// Polygon.
 #[derive(Clone, PartialEq)]
 pub struct Polygon {
     polygon: geo::Polygon,

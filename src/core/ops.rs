@@ -1,3 +1,5 @@
+//! Some processing functions to image and ndarray.
+
 use anyhow::Result;
 use fast_image_resize as fir;
 use fast_image_resize::{

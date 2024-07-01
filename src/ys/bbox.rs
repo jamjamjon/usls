@@ -1,4 +1,4 @@
-/// Bounding Box 2D
+/// Bounding Box 2D.
 #[derive(Clone, PartialEq, PartialOrd)]
 pub struct Bbox {
     x: f32,

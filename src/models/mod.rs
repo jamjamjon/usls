@@ -1,3 +1,5 @@
+//! Models provided: [`Blip`], [`Clip`], [`YOLO`], [`DepthAnything`], ...
+
 mod blip;
 mod clip;
 mod db;

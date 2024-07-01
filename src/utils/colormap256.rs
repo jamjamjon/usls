@@ -1,3 +1,5 @@
+//! Some colormap: [`TURBO`], [`INFERNO`], [`PLASMA`], [`VIRIDIS`], [`MAGMA`], [`BENTCOOLWARM`], [`BLACKBODY`], [`EXTENDEDKINDLMANN`], [`KINDLMANN`], [`SMOOTHCOOLWARM`].
+
 pub const TURBO: [[u8; 3]; 256] = [
     [48, 18, 59],
     [50, 21, 67],

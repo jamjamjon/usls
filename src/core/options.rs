@@ -1,3 +1,5 @@
+//! Options for build models.
+
 use anyhow::Result;
 
 use crate::{

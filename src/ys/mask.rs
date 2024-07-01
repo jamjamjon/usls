@@ -1,5 +1,6 @@
 use image::DynamicImage;
 
+/// Gray-Scale Mask.
 #[derive(Clone, PartialEq)]
 pub struct Mask {
     mask: DynamicImage,

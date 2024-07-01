@@ -1,6 +1,6 @@
 use std::ops::{Add, Div, Mul, Sub};
 
-/// Keypoint 2D
+/// Keypoint 2D.
 #[derive(PartialEq, Clone)]
 pub struct Keypoint {
     x: f32,
