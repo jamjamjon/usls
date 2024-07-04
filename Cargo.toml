@@ -1,6 +1,6 @@
 [package]
 name = "usls"
-version = "0.0.4"
+version = "0.0.5"
 edition = "2021"
 description = "A Rust library integrated with ONNXRuntime, providing a collection of ML models."
 repository = "https://github.com/jamjamjon/usls"
@@ -11,7 +11,7 @@ exclude = ["assets/*", "examples/*"]
 
 [dependencies]
 clap = { version = "4.2.4", features = ["derive"] }
-ndarray = { version = "0.15.6" }
+ndarray = { version = "0.15.6", features = ["rayon"] }
 ort = { version = "2.0.0-rc.2", default-features = false, features = [
     "load-dynamic",
     "copy-dylibs",

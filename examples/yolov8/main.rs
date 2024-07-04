@@ -17,18 +17,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_i00((1, 1, 4).into())
         .with_i02((224, 640, 800).into())
         .with_i03((224, 640, 800).into())
-        .with_confs(&[0.4, 0.15]) // class 0: 0.4, others: 0.15
+        .with_confs(&[0.4, 0.15]) // class_0: 0.4, others: 0.15
         .with_names2(&coco::KEYPOINTS_NAMES_17)
         .with_profile(false);
     let mut model = YOLO::new(options)?;
 
     // build dataloader
     let dl = DataLoader::default()
-        .with_batch(1)
+        .with_batch(model.batch() as _)
         .load("./assets/bus.jpg")?;
-    // .load("./assets/dota.png")?;
 
-    // build annotate
+    // build annotator
     let annotator = Annotator::default()
         .with_skeletons(&coco::SKELETONS_16)
         .with_bboxes_thickness(7)
@@ -36,8 +35,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // run & annotate
     for (xs, _paths) in dl {
-        let ys = model.run(&xs)?;
-        // let ys = model.forward(&xs, true)?;
+        // let ys = model.run(&xs)?;  // way one
+        let ys = model.forward(&xs, true)?; // way two
         annotator.annotate(&xs, &ys);
     }
 
