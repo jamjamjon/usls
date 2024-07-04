@@ -6,19 +6,19 @@ A Rust library integrated with **ONNXRuntime**, providing a collection of **Comp
 
 |                          Depth-Anything                          |
 | :--------------------------------------------------------------: |
-| `<img src='examples/depth-anything/demo.png'   width="800px">` |
+| <img src='examples/depth-anything/demo.png'   width="800px"> |
 
-|                        YOLOP-v2                        |    Text-Detection-Recognition<br />PPOCRv3, v4    |
+|                        YOLOP-v2                        |    Text-Detection-Recognition   |
 | :----------------------------------------------------: | :------------------------------------------------: |
-| `<img src='examples/yolop/demo.png'  width="385px">` | `<img src='examples/db/demo.png'  width="385x">` |
+| <img src='examples/yolop/demo.png'  width="385px"> | <img src='examples/db/demo.png'  width="385x"> |
 
 |                     Portrait Matting                     |
 | :------------------------------------------------------: |
-| `<img src='examples/modnet/demo.png'   width="800px">` |
+| <img src='examples/modnet/demo.png'   width="800px"> |
 
 |                           YOLOv8-Obb                           |
 | :------------------------------------------------------------: |
-| `<img src='examples/yolov8/demo-obb-2.png'   width="800px">` |
+| <img src='examples/yolov8/demos/demo-obb-2.png'   width="800px"> |
 
 ## Supported Models
 
@@ -59,7 +59,7 @@ Refer to **[ort guide](https://ort.pyke.io/setup/linking)**
 ## Demo
 
 ```Shell
-cargo run -r --example yolov8   # yolov10, blip, clip, yolop, svtr, db, yolo-world, ...
+cargo run -r --example yolov8   # yolov10, blip, clip, yolop, svtr, db, ...
 ```
 
 ## Integrate into your own project
@@ -102,7 +102,7 @@ let mut model = YOLO::new(options)?;
       .with_i02((416, 640, 800).into())   // dynamic height
       .with_i03((416, 640, 800).into())   // dynamic width
   ```
-- If you want to set a confidence level for each category
+- If you want to set a confidence for each category
 
   ```Rust
   let options = Options::default()
