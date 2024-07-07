@@ -65,8 +65,6 @@ impl MODNet {
                     None => continue,
                     Some(x) => x,
                 };
-            let luma = DynamicImage::from(luma);
-
             ys.push(Y::default().with_masks(&[Mask::default().with_mask(luma)]));
         }
         Ok(ys)

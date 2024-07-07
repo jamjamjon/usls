@@ -1,5 +1,7 @@
 use geo::{coord, line_string, Area, BooleanOps, Coord, EuclideanDistance, LineString, Polygon};
 
+use crate::Nms;
+
 /// Minimum Bounding Rectangle.
 #[derive(Clone, PartialEq)]
 pub struct Mbr {
@@ -7,6 +9,17 @@ pub struct Mbr {
     id: isize,
     confidence: f32,
     name: Option<String>,
+}
+impl Nms for Mbr {
+    /// Returns the confidence score of the bounding box.
+    fn confidence(&self) -> f32 {
+        self.confidence
+    }
+
+    /// Computes the intersection over union (IoU) between this bounding box and another.
+    fn iou(&self, other: &Self) -> f32 {
+        self.intersect(other) / self.union(other)
+    }
 }
 
 impl Default for Mbr {
@@ -100,9 +113,9 @@ impl Mbr {
         self.name.as_ref()
     }
 
-    pub fn confidence(&self) -> f32 {
-        self.confidence
-    }
+    // pub fn confidence(&self) -> f32 {
+    //     self.confidence
+    // }
 
     pub fn label(&self, with_name: bool, with_conf: bool, decimal_places: usize) -> String {
         let mut label = String::new();
@@ -196,9 +209,9 @@ impl Mbr {
         p1.union(&p2).unsigned_area() as f32
     }
 
-    pub fn iou(&self, other: &Mbr) -> f32 {
-        self.intersect(other) / self.union(other)
-    }
+    // pub fn iou(&self, other: &Mbr) -> f32 {
+    //     self.intersect(other) / self.union(other)
+    // }
 }
 
 #[cfg(test)]

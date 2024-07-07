@@ -4,7 +4,7 @@ use anyhow::Result;
 
 use crate::{
     auto_load,
-    models::{YOLOTask, YOLOVersion},
+    models::{YOLOFormat, YOLOTask, YOLOVersion},
     Device, MinOptMax,
 };
 
@@ -61,11 +61,10 @@ pub struct Options {
     pub min_width: Option<f32>,
     pub min_height: Option<f32>,
     pub unclip_ratio: f32, // DB
+    pub apply_probs_softmax: bool,
     pub yolo_task: Option<YOLOTask>,
     pub yolo_version: Option<YOLOVersion>,
-    pub anchors_first: bool, // yolo model output format like: [batch_size, anchors, xywh_clss_xxx]
-    pub conf_independent: bool, // xywh_conf_clss
-    pub apply_probs_softmax: bool,
+    pub yolo_format: Option<YOLOFormat>,
 }
 
 impl Default for Options {
@@ -119,9 +118,8 @@ impl Default for Options {
             unclip_ratio: 1.5,
             yolo_task: None,
             yolo_version: None,
-            anchors_first: false,
-            conf_independent: false,
             apply_probs_softmax: false,
+            yolo_format: None,
         }
     }
 }
@@ -169,11 +167,6 @@ impl Options {
 
     pub fn with_yolo_version(mut self, x: YOLOVersion) -> Self {
         self.yolo_version = Some(x);
-        self
-    }
-
-    pub fn with_conf_independent(mut self, x: bool) -> Self {
-        self.conf_independent = x;
         self
     }
 
@@ -227,8 +220,8 @@ impl Options {
         self
     }
 
-    pub fn with_anchors_first(mut self, x: bool) -> Self {
-        self.anchors_first = x;
+    pub fn with_yolo_format(mut self, x: YOLOFormat) -> Self {
+        self.yolo_format = Some(x);
         self
     }
 

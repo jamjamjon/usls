@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 mod bbox;
 mod embedding;
 mod keypoint;
@@ -15,3 +16,8 @@ pub use mbr::Mbr;
 pub use polygon::Polygon;
 pub use prob::Prob;
 pub use y::Y;
+
+pub trait Nms {
+    fn iou(&self, other: &Self) -> f32;
+    fn confidence(&self) -> f32;
+}

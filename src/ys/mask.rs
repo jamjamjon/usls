@@ -1,20 +1,18 @@
-use image::DynamicImage;
+use image::GrayImage;
 
-/// Gray-Scale Mask.
+/// Mask: Gray Image.
 #[derive(Clone, PartialEq)]
 pub struct Mask {
-    mask: DynamicImage,
-    mask_vec: Vec<u8>,
+    mask: GrayImage,
     id: isize,
     name: Option<String>,
-    confidence: f32, // placeholder
+    confidence: f32,
 }
 
 impl Default for Mask {
     fn default() -> Self {
         Self {
-            mask: DynamicImage::default(),
-            mask_vec: vec![],
+            mask: GrayImage::default(),
             id: -1,
             name: None,
             confidence: 0.,
@@ -25,22 +23,16 @@ impl Default for Mask {
 impl std::fmt::Debug for Mask {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Mask")
-            // .field("mask", &self.mask)
+            .field("dimensions", &self.dimensions())
             .field("id", &self.id)
             .field("name", &self.name)
-            // .field("confidence", &self.confidence)
             .finish()
     }
 }
 
 impl Mask {
-    pub fn with_mask(mut self, x: DynamicImage) -> Self {
+    pub fn with_mask(mut self, x: GrayImage) -> Self {
         self.mask = x;
-        self
-    }
-
-    pub fn with_vec(mut self, vec: &[u8]) -> Self {
-        self.mask_vec = vec.to_vec();
         self
     }
 
@@ -54,13 +46,12 @@ impl Mask {
         self
     }
 
-    pub fn mask(&self) -> &DynamicImage {
+    pub fn mask(&self) -> &GrayImage {
         &self.mask
     }
 
-    pub fn vec(&self) -> Vec<u8> {
-        // self.mask.to_luma8().into_raw()
-        self.mask_vec.clone()
+    pub fn to_vec(&self) -> Vec<u8> {
+        self.mask.to_vec()
     }
 
     pub fn id(&self) -> isize {
@@ -73,5 +64,17 @@ impl Mask {
 
     pub fn confidence(&self) -> f32 {
         self.confidence
+    }
+
+    pub fn height(&self) -> u32 {
+        self.mask.height()
+    }
+
+    pub fn width(&self) -> u32 {
+        self.mask.width()
+    }
+
+    pub fn dimensions(&self) -> (u32, u32) {
+        self.mask.dimensions()
     }
 }

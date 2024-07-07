@@ -162,7 +162,7 @@ impl YOLOPv2 {
                 Y::default()
                     .with_bboxes(&y_bboxes)
                     .with_polygons(&y_polygons)
-                    .apply_bboxes_nms(self.iou),
+                    .apply_nms(self.iou),
             );
         }
         Ok(ys)

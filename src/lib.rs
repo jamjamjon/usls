@@ -111,5 +111,6 @@ mod utils;
 mod ys;
 
 pub use core::*;
+pub use models::*;
 pub use utils::*;
 pub use ys::*;

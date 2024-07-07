@@ -1,55 +1,32 @@
 use anyhow::Result;
-use clap::ValueEnum;
 use image::DynamicImage;
 use ndarray::{s, Array, Axis};
 use rayon::prelude::*;
 use regex::Regex;
 
 use crate::{
-    Bbox, DynConf, Keypoint, Mbr, MinOptMax, Ops, Options, OrtEngine, Polygon, Prob, Vision, X, Y,
+    Bbox, BoxType, DynConf, Keypoint, Mask, Mbr, MinOptMax, Ops, Options, OrtEngine, Polygon, Prob,
+    Vision, YOLOFormat, YOLOTask, YOLOVersion, X, Y,
 };
-
-const CXYWH_OFFSET: usize = 4;
-const KPT_STEP: usize = 3;
-
-#[derive(Debug, Clone, ValueEnum)]
-pub enum YOLOTask {
-    Classify,
-    Detect,
-    Pose,
-    Segment,
-    Obb,
-}
-
-#[derive(Debug, Copy, Clone, ValueEnum)]
-pub enum YOLOVersion {
-    V5,
-    V8,
-    V9,
-    V10,
-    Customized,
-}
 
 #[derive(Debug)]
 pub struct YOLO {
     engine: OrtEngine,
     nc: usize,
-    nk: usize,
-    nm: usize,
+    nk: usize, // TODO
     height: MinOptMax,
     width: MinOptMax,
     batch: MinOptMax,
-    task: YOLOTask,
-    version: YOLOVersion,
     confs: DynConf,
     kconfs: DynConf,
     iou: f32,
     names: Option<Vec<String>>,
     names_kpt: Option<Vec<String>>,
     apply_nms: bool,
-    anchors_first: bool,
-    conf_independent: bool,
     apply_probs_softmax: bool,
+    task: YOLOTask,
+    yolo_format: YOLOFormat,
+    version: Option<YOLOVersion>,
 }
 
 impl Vision for YOLO {
@@ -62,45 +39,63 @@ impl Vision for YOLO {
             engine.height().to_owned(),
             engine.width().to_owned(),
         );
-        let task = match options.yolo_task {
-            Some(task) => task,
-            None => match engine.try_fetch("task") {
-                None => {
-                    println!("No clear YOLO task specified, using default: Detect");
-                    YOLOTask::Detect
+
+        // YOLO Task
+        let task = options
+            .yolo_task
+            .or(engine.try_fetch("task").and_then(|x| match x.as_str() {
+                "classify" => Some(YOLOTask::Classify),
+                "detect" => Some(YOLOTask::Detect),
+                "pose" => Some(YOLOTask::Pose),
+                "segment" => Some(YOLOTask::Segment),
+                "obb" => Some(YOLOTask::Obb),
+                s => {
+                    println!("YOLO Task: {s:?} is unsupported");
+                    None
                 }
-                Some(x) => match x.as_str() {
-                    "classify" => YOLOTask::Classify,
-                    "detect" => YOLOTask::Detect,
-                    "pose" => YOLOTask::Pose,
-                    "segment" => YOLOTask::Segment,
-                    "obb" => YOLOTask::Obb,
-                    x => todo!("YOLO Task: {x:?} is not supported"),
-                },
-            },
-        };
-        let version = match options.yolo_version {
-            None => {
-                println!("No clear YOLO version specified, using default: YOLOv8");
-                YOLOVersion::V8
+            }));
+
+        // YOLO Output Format
+        let (version, yolo_format, apply_nms, apply_probs_softmax) = match options.yolo_version {
+            Some(ver) => match &task {
+                None => anyhow::bail!("No clear YOLO Task specified."),
+                Some(task) => match task {
+                    YOLOTask::Classify => match ver {
+                        YOLOVersion::V5 => (Some(ver), YOLOFormat::NClss, None, Some(true)),
+                        YOLOVersion::V8 => (Some(ver), YOLOFormat::NClss, None, Some(false)),
+                        x => anyhow::bail!("YOLOTask::Classify is unsupported for {x:?}. Try using `.with_yolo_format()` for customization.")
+                    }
+                    YOLOTask::Detect => match ver {
+                        v @ YOLOVersion::V5 => (Some(v),YOLOFormat::NACxcywhConfClss, Some(true), None),
+                        YOLOVersion::V8 => (Some(ver),YOLOFormat::NCxcywhClssA, Some(true), None),
+                        YOLOVersion::V9 => (Some(ver),YOLOFormat::NCxcywhClssA, Some(true), None),
+                        YOLOVersion::V10 => (Some(ver),YOLOFormat::NAXyxyConfCls, Some(false), None),
+                    }
+                    YOLOTask::Pose => match ver {
+                        YOLOVersion::V8 => (Some(ver),YOLOFormat::NCxcywhClssXycsA, Some(true), None),
+                        x => anyhow::bail!("YOLOTask::Pose is unsupported for {x:?}. Try using `.with_yolo_format()` for customization.")
+                    }
+                    YOLOTask::Segment => match ver {
+                        YOLOVersion::V5 => (Some(ver), YOLOFormat::NACxcywhConfClssCoefs, Some(true), None),
+                        YOLOVersion::V8 => (Some(ver), YOLOFormat::NCxcywhClssCoefsA, Some(true), None),
+                        x => anyhow::bail!("YOLOTask::Segment is unsupported for {x:?}. Try using `.with_yolo_format()` for customization.")
+                    }
+                    YOLOTask::Obb => match ver {
+                        YOLOVersion::V8 => (Some(ver), YOLOFormat::NCxcywhClssRA, Some(true), None),
+                        x => anyhow::bail!("YOLOTask::Segment is unsupported for {x:?}. Try using `.with_yolo_format()` for customization.")
+                    }
+                }
             }
-            Some(x) => x,
+            None => match options.yolo_format {
+                None => anyhow::bail!("No clear YOLO version or YOLO Format specified."),
+                Some(fmt) => (None, fmt, None, None)
+            }
         };
+        let task = task.unwrap_or(yolo_format.task());
+        let apply_nms = apply_nms.unwrap_or(options.apply_nms);
+        let apply_probs_softmax = apply_probs_softmax.unwrap_or(options.apply_probs_softmax);
 
-        // output format
-        let (anchors_first, conf_independent, apply_nms, apply_probs_softmax) = match version {
-            YOLOVersion::V5 => (true, true, true, true),
-            YOLOVersion::V8 | YOLOVersion::V9 => (false, false, true, false),
-            YOLOVersion::V10 => (true, false, false, false),
-            YOLOVersion::Customized => (
-                options.anchors_first,
-                options.conf_independent,
-                options.apply_nms,
-                options.apply_probs_softmax,
-            ),
-        };
-
-        // try from custom class names, and then model metadata
+        // Try from custom class names, and then model metadata
         let mut names = options.names.or(Self::fetch_names(&engine));
         let nc = match options.nc {
             Some(nc) => {
@@ -110,7 +105,7 @@ impl Vision for YOLO {
                         assert_eq!(
                             nc,
                             names.len(),
-                            "the length of `nc` and `class names` is not equal."
+                            "The length of `nc` and `class names` is not equal."
                         );
                     }
                 }
@@ -123,10 +118,9 @@ impl Vision for YOLO {
                 ),
             },
         };
-
         let names_kpt = options.names2.or(None);
 
-        // try from model metadata
+        // Try from model metadata
         let nk = engine
             .try_fetch("kpt_shape")
             .map(|kpt_string| {
@@ -135,13 +129,15 @@ impl Vision for YOLO {
                 caps.get(1).unwrap().as_str().parse::<usize>().unwrap()
             })
             .unwrap_or(0_usize);
-        let nm = if let YOLOTask::Segment = task {
-            engine.oshapes()[1][1] as usize
-        } else {
-            0_usize
-        };
         let confs = DynConf::new(&options.confs, nc);
         let kconfs = DynConf::new(&options.kconfs, nk);
+
+        // Summary
+        println!(
+            "Task: {:?}, Version: {:?}, Outputs Format: {:?}, Apply NMS: {:?}",
+            task, version, yolo_format, apply_nms
+        );
+
         engine.dry_run()?;
 
         Ok(Self {
@@ -151,18 +147,16 @@ impl Vision for YOLO {
             iou: options.iou,
             nc,
             nk,
-            nm,
             height,
             width,
             batch,
             task,
-            version,
             names,
             names_kpt,
-            anchors_first,
-            conf_independent,
             apply_nms,
             apply_probs_softmax,
+            yolo_format,
+            version,
         })
     }
 
@@ -203,117 +197,168 @@ impl Vision for YOLO {
             .filter_map(|(idx, preds)| {
                 let image_width = xs0[idx].width() as f32;
                 let image_height = xs0[idx].height() as f32;
+                let ratio =
+                    (self.width() as f32 / image_width).min(self.height() as f32 / image_height);
 
                 match self.task {
-                    // Detection
-                    YOLOTask::Detect | YOLOTask::Segment | YOLOTask::Pose => {
-                        let ratio = (self.width() as f32 / image_width)
-                            .min(self.height() as f32 / image_height);
-                        let y_bboxes = preds
-                            .axis_iter(if self.anchors_first { Axis(0) } else { Axis(1) })
-                            .into_par_iter()
-                            .enumerate()
-                            .filter_map(|(i, pred)| match self.version {
-                                YOLOVersion::V10 => {
-                                    let class_id = pred[CXYWH_OFFSET + 1] as usize;
-                                    let confidence = pred[CXYWH_OFFSET];
-                                    if confidence < self.confs[class_id] {
-                                        None
-                                    } else {
-                                        let bbox = pred.slice(s![0..CXYWH_OFFSET]);
-                                        let x = bbox[0] / ratio;
-                                        let y = bbox[1] / ratio;
-                                        let x2 = bbox[2] / ratio;
-                                        let y2 = bbox[3] / ratio;
-                                        let w = x2 - x;
-                                        let h = y2 - y;
-                                        let y_bbox = Bbox::default()
-                                            .with_xywh(x, y, w, h)
-                                            .with_confidence(confidence)
-                                            .with_id(class_id as _)
-                                            .with_id_born(i as _)
-                                            .with_name(
-                                                self.names
-                                                    .as_ref()
-                                                    .map(|names| names[class_id].to_owned()),
-                                            );
-                                        Some(y_bbox)
-                                    }
-                                }
-                                _ => {
-                                    let (conf_, clss) = if self.conf_independent {
-                                        (
-                                            pred[CXYWH_OFFSET],
-                                            pred.slice(s![
-                                                CXYWH_OFFSET + 1..CXYWH_OFFSET + self.nc + 1
-                                            ]),
-                                        )
-                                    } else {
-                                        (1.0, pred.slice(s![CXYWH_OFFSET..CXYWH_OFFSET + self.nc]))
-                                    };
-                                    let (id, &confidence) = clss
-                                        .into_iter()
-                                        .enumerate()
-                                        .max_by(|a, b| a.1.total_cmp(b.1))?;
-                                    let confidence = confidence * conf_;
-                                    if confidence < self.confs[id] {
-                                        None
-                                    } else {
-                                        let bbox = pred.slice(s![0..CXYWH_OFFSET]);
-                                        let cx = bbox[0] / ratio;
-                                        let cy = bbox[1] / ratio;
-                                        let w = bbox[2] / ratio;
-                                        let h = bbox[3] / ratio;
-                                        let x = cx - w / 2.;
-                                        let y = cy - h / 2.;
-                                        let x = x.max(0.0).min(image_width);
-                                        let y = y.max(0.0).min(image_height);
-                                        let y_bbox = Bbox::default()
-                                            .with_xywh(x, y, w, h)
-                                            .with_confidence(confidence)
-                                            .with_id(id as isize)
-                                            .with_id_born(i as isize)
-                                            .with_name(
-                                                self.names
-                                                    .as_ref()
-                                                    .map(|names| names[id].to_owned()),
-                                            );
-                                        Some(y_bbox)
-                                    }
-                                }
-                            })
-                            .collect::<Vec<_>>();
+                    // Classifcation
+                    YOLOTask::Classify => {
+                        let y = if self.apply_probs_softmax {
+                            let exps = preds.mapv(|x| x.exp());
+                            let stds = exps.sum_axis(Axis(0));
+                            exps / stds
+                        } else {
+                            preds.into_owned()
+                        };
+                        Some(
+                            Y::default().with_probs(
+                                &Prob::default()
+                                    .with_probs(&y.into_raw_vec())
+                                    .with_names(self.names.to_owned()),
+                            ),
+                        )
+                    }
+                    _ => {
+                        // parse preds to get slices for each task
+                        let (
+                            slice_bboxes,
+                            slice_id,
+                            slice_clss,
+                            slice_kpts,
+                            slice_coefs,
+                            slice_radians,
+                        ) = self.yolo_format.parse_preds(preds, self.nc);
 
-                        // NMS
-                        let mut y = Y::default().with_bboxes(&y_bboxes);
-                        if self.apply_nms {
-                            y = y.apply_bboxes_nms(self.iou);
+                        let mut y = Y::default();
+                        let (y_bboxes, y_mbrs) =
+                            slice_bboxes
+                                .axis_iter(Axis(0))
+                                .into_par_iter()
+                                .enumerate()
+                                .filter_map(|(i, bbox)| {
+                                    // confidence & class_id
+                                    let (class_id, confidence) = match &slice_id {
+                                        Some(ids) => (ids[[i, 0]] as _, slice_clss[[i, 0]] as _),
+                                        None => {
+                                            let (class_id, &confidence) = slice_clss
+                                                .slice(s![i, ..])
+                                                .into_iter()
+                                                .enumerate()
+                                                .max_by(|a, b| a.1.total_cmp(b.1))?;
+                                            (class_id, confidence)
+                                        }
+                                    };
+
+                                    // confidence filtering
+                                    if confidence < self.confs[class_id] {
+                                        return None;
+                                    }
+
+                                    // Bboxes
+                                    let (cx, cy, x, y, w, h) = match self.yolo_format.box_type() {
+                                        BoxType::Cxcywh => {
+                                            let cx = bbox[0] / ratio;
+                                            let cy = bbox[1] / ratio;
+                                            let w = bbox[2] / ratio;
+                                            let h = bbox[3] / ratio;
+                                            let x = (cx - w / 2.).clamp(0.0, image_width);
+                                            let y = (cy - h / 2.).clamp(0.0, image_height);
+                                            (cx, cy, x, y, w, h)
+                                        }
+                                        BoxType::Xyxy => {
+                                            let x = bbox[0] / ratio;
+                                            let y = bbox[1] / ratio;
+                                            let x2 = bbox[2] / ratio;
+                                            let y2 = bbox[3] / ratio;
+                                            let (w, h) = (x2 - x, y2 - y);
+                                            let cx = x + w / 2.;
+                                            let cy = y + h / 2.;
+                                            (cx, cy, x, y, w, h)
+                                        }
+                                        _ => todo!(),
+                                    };
+
+                                    let (y_bbox, y_mbr) =
+                                        match &slice_radians {
+                                            Some(slice_radians) => {
+                                                let radians = slice_radians[[i, 0]];
+                                                let (w, h, radians) = if w > h {
+                                                    (w, h, radians)
+                                                } else {
+                                                    (h, w, radians + std::f32::consts::PI / 2.)
+                                                };
+                                                let radians = radians % std::f32::consts::PI;
+                                                (
+                                                    None,
+                                                    Some(
+                                                        Mbr::from_cxcywhr(
+                                                            cx as f64,
+                                                            cy as f64,
+                                                            w as f64,
+                                                            h as f64,
+                                                            radians as f64,
+                                                        )
+                                                        .with_confidence(confidence)
+                                                        .with_id(class_id as isize)
+                                                        .with_name(self.names.as_ref().map(
+                                                            |names| names[class_id].to_owned(),
+                                                        )),
+                                                    ),
+                                                )
+                                            }
+                                            None => (
+                                                Some(
+                                                    Bbox::default()
+                                                        .with_xywh(x, y, w, h)
+                                                        .with_confidence(confidence)
+                                                        .with_id(class_id as isize)
+                                                        .with_id_born(i as isize)
+                                                        .with_name(self.names.as_ref().map(
+                                                            |names| names[class_id].to_owned(),
+                                                        )),
+                                                ),
+                                                None,
+                                            ),
+                                        };
+
+                                    Some((y_bbox, y_mbr))
+                                })
+                                .collect::<(Vec<_>, Vec<_>)>();
+
+                        let y_bboxes: Vec<Bbox> = y_bboxes.into_iter().flatten().collect();
+                        let y_mbrs: Vec<Mbr> = y_mbrs.into_iter().flatten().collect();
+
+                        // Mbrs
+                        if !y_mbrs.is_empty() {
+                            y = y.with_mbrs(&y_mbrs);
+                            if self.apply_nms {
+                                y = y.apply_nms(self.iou);
+                            }
+                            return Some(y);
+                        }
+
+                        // Bboxes
+                        if !y_bboxes.is_empty() {
+                            y = y.with_bboxes(&y_bboxes);
+                            if self.apply_nms {
+                                y = y.apply_nms(self.iou);
+                            }
                         }
 
                         // Pose
-                        if let YOLOTask::Pose = self.task {
+                        if let Some(pred_kpts) = slice_kpts {
+                            let kpt_step = self.yolo_format.kpt_step().unwrap_or(3);
                             if let Some(bboxes) = y.bboxes() {
                                 let y_kpts = bboxes
                                     .into_par_iter()
                                     .filter_map(|bbox| {
-                                        let pred = if self.anchors_first {
-                                            preds.slice(s![
-                                                bbox.id_born(),
-                                                preds.shape()[1] - KPT_STEP * self.nk..,
-                                            ])
-                                        } else {
-                                            preds.slice(s![
-                                                preds.shape()[0] - KPT_STEP * self.nk..,
-                                                bbox.id_born(),
-                                            ])
-                                        };
-
+                                        let pred = pred_kpts.slice(s![bbox.id_born(), ..]);
                                         let kpts = (0..self.nk)
                                             .into_par_iter()
                                             .map(|i| {
-                                                let kx = pred[KPT_STEP * i] / ratio;
-                                                let ky = pred[KPT_STEP * i + 1] / ratio;
-                                                let kconf = pred[KPT_STEP * i + 2];
+                                                let kx = pred[kpt_step * i] / ratio;
+                                                let ky = pred[kpt_step * i + 1] / ratio;
+                                                let kconf = pred[kpt_step * i + 2];
                                                 if kconf < self.kconfs[i] {
                                                     Keypoint::default()
                                                 } else {
@@ -335,32 +380,18 @@ impl Vision for YOLO {
                                         Some(kpts)
                                     })
                                     .collect::<Vec<_>>();
-
                                 y = y.with_keypoints(&y_kpts);
                             }
                         }
 
                         // Segment
-                        if let YOLOTask::Segment = self.task {
+                        if let Some(coefs) = slice_coefs {
                             if let Some(bboxes) = y.bboxes() {
-                                let y_polygons = bboxes
+                                let (y_polygons, y_masks) = bboxes
                                     .into_par_iter()
                                     .filter_map(|bbox| {
-                                        let coefs = if self.anchors_first {
-                                            preds
-                                                .slice(s![
-                                                    bbox.id_born(),
-                                                    preds.shape()[1] - self.nm..
-                                                ])
-                                                .to_vec()
-                                        } else {
-                                            preds
-                                                .slice(s![
-                                                    preds.shape()[0] - self.nm..,
-                                                    bbox.id_born()
-                                                ])
-                                                .to_vec()
-                                        };
+                                        let coefs = coefs.slice(s![bbox.id_born(), ..]).to_vec();
+
                                         let proto = protos.as_ref()?.slice(s![idx, .., .., ..]);
                                         let (nm, mh, mw) = proto.dim();
 
@@ -409,94 +440,34 @@ impl Vision for YOLO {
                                                 &mask, 0,
                                             );
 
-                                        contours
-                                            .into_par_iter()
-                                            .map(|x| {
-                                                Polygon::default()
-                                                    .with_id(bbox.id())
-                                                    .with_points_imageproc(&x.points)
-                                                    .with_name(bbox.name().cloned())
-                                            })
-                                            .max_by(|x, y| x.area().total_cmp(&y.area()))
+                                        Some((
+                                            contours
+                                                .into_par_iter()
+                                                .map(|x| {
+                                                    Polygon::default()
+                                                        .with_id(bbox.id())
+                                                        .with_points_imageproc(&x.points)
+                                                        .with_name(bbox.name().cloned())
+                                                })
+                                                .max_by(|x, y| x.area().total_cmp(&y.area()))?,
+                                            Mask::default()
+                                                .with_mask(mask)
+                                                .with_id(bbox.id())
+                                                .with_name(bbox.name().cloned()),
+                                        ))
                                     })
-                                    .collect::<Vec<_>>();
-                                y = y.with_polygons(&y_polygons);
+                                    .collect::<(Vec<_>, Vec<_>)>();
+
+                                y = y.with_polygons(&y_polygons).with_masks(&y_masks);
                             }
                         }
+
                         Some(y)
-                    }
-                    YOLOTask::Classify => {
-                        let y = if self.apply_probs_softmax {
-                            let exps = preds.mapv(|x| x.exp());
-                            let stds = exps.sum_axis(Axis(0));
-                            exps / stds
-                        } else {
-                            preds.into_owned()
-                        };
-                        Some(
-                            Y::default().with_probs(
-                                Prob::default()
-                                    .with_probs(&y.into_raw_vec())
-                                    .with_names(self.names.to_owned()),
-                            ),
-                        )
-                    }
-                    YOLOTask::Obb => {
-                        let ratio = (self.width() as f32 / image_width)
-                            .min(self.height() as f32 / image_height);
-
-                        let y_mbrs = preds
-                            .axis_iter(if self.anchors_first { Axis(0) } else { Axis(1) })
-                            .into_par_iter()
-                            .filter_map(|pred| {
-                                {
-                                    // xywhclsr
-                                    let clss = pred.slice(s![CXYWH_OFFSET..CXYWH_OFFSET + self.nc]);
-                                    let radians = pred[pred.len() - 1];
-                                    let (id, &confidence) = clss
-                                        .into_iter()
-                                        .enumerate()
-                                        .max_by(|a, b| a.1.total_cmp(b.1))?;
-                                    if confidence < self.confs[id] {
-                                        None
-                                    } else {
-                                        let xywh = pred.slice(s![0..CXYWH_OFFSET]);
-                                        let cx = xywh[0] / ratio;
-                                        let cy = xywh[1] / ratio;
-                                        let w = xywh[2] / ratio;
-                                        let h = xywh[3] / ratio;
-                                        let (w, h, radians) = if w > h {
-                                            (w, h, radians)
-                                        } else {
-                                            (h, w, radians + std::f32::consts::PI / 2.)
-                                        };
-                                        let radians = radians % std::f32::consts::PI;
-                                        Some(
-                                            Mbr::from_cxcywhr(
-                                                cx as f64,
-                                                cy as f64,
-                                                w as f64,
-                                                h as f64,
-                                                radians as f64,
-                                            )
-                                            .with_confidence(confidence)
-                                            .with_id(id as isize)
-                                            .with_name(
-                                                self.names
-                                                    .as_ref()
-                                                    .map(|names| names[id].to_owned()),
-                                            ),
-                                        )
-                                    }
-                                }
-                            })
-                            .collect::<Vec<_>>();
-
-                        Some(Y::default().with_mbrs(&y_mbrs).apply_mbrs_nms(self.iou))
                     }
                 }
             })
             .collect();
+
         Ok(ys)
     }
 }
@@ -512,6 +483,18 @@ impl YOLO {
 
     pub fn height(&self) -> isize {
         self.height.opt
+    }
+
+    pub fn version(&self) -> Option<&YOLOVersion> {
+        self.version.as_ref()
+    }
+
+    pub fn task(&self) -> &YOLOTask {
+        &self.task
+    }
+
+    pub fn yolo_format(&self) -> &YOLOFormat {
+        &self.yolo_format
     }
 
     fn fetch_names(engine: &OrtEngine) -> Option<Vec<String>> {
