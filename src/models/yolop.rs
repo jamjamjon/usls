@@ -22,8 +22,8 @@ impl YOLOPv2 {
             engine.height().to_owned(),
             engine.width().to_owned(),
         );
-        let nc = 80;
-        let confs = DynConf::new(&options.kconfs, nc);
+        let confs = DynConf::new(&options.kconfs, 80);
+        let iou = options.iou.unwrap_or(0.45f32);
         engine.dry_run()?;
 
         Ok(Self {
@@ -32,7 +32,7 @@ impl YOLOPv2 {
             height,
             width,
             batch,
-            iou: options.iou,
+            iou,
         })
     }
 

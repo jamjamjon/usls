@@ -10,7 +10,7 @@ mod rtdetr;
 mod rtmo;
 mod svtr;
 mod yolo;
-mod yolo_format;
+mod yolo_;
 mod yolop;
 
 pub use blip::Blip;
@@ -23,5 +23,8 @@ pub use rtdetr::RTDETR;
 pub use rtmo::RTMO;
 pub use svtr::SVTR;
 pub use yolo::YOLO;
-pub use yolo_format::{BoxType, YOLOFormat, YOLOTask, YOLOVersion};
+pub use yolo_::*;
+// {
+//     AnchorsPosition, BoxType, ClssType, KptsType, YOLOFormat, YOLOPreds, YOLOTask, YOLOVersion,
+// };
 pub use yolop::YOLOPv2;

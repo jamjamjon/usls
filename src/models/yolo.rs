@@ -6,7 +6,7 @@ use regex::Regex;
 
 use crate::{
     Bbox, BoxType, DynConf, Keypoint, Mask, Mbr, MinOptMax, Ops, Options, OrtEngine, Polygon, Prob,
-    Vision, YOLOFormat, YOLOTask, YOLOVersion, X, Y,
+    Vision, YOLOPreds, YOLOTask, YOLOVersion, X, Y,
 };
 
 #[derive(Debug)]
@@ -25,7 +25,7 @@ pub struct YOLO {
     apply_nms: bool,
     apply_probs_softmax: bool,
     task: YOLOTask,
-    yolo_format: YOLOFormat,
+    yolo_preds: YOLOPreds,
     version: Option<YOLOVersion>,
 }
 
@@ -55,47 +55,47 @@ impl Vision for YOLO {
                 }
             }));
 
-        // YOLO Output Format
-        let (version, yolo_format, apply_nms, apply_probs_softmax) = match options.yolo_version {
+        // YOLO Outputs Format
+        let (version, yolo_preds) = match options.yolo_version {
             Some(ver) => match &task {
-                None => anyhow::bail!("No clear YOLO Task specified."),
+                None => anyhow::bail!("No clear YOLO Task specified for Version: {ver:?}."),
                 Some(task) => match task {
                     YOLOTask::Classify => match ver {
-                        YOLOVersion::V5 => (Some(ver), YOLOFormat::NClss, None, Some(true)),
-                        YOLOVersion::V8 => (Some(ver), YOLOFormat::NClss, None, Some(false)),
-                        x => anyhow::bail!("YOLOTask::Classify is unsupported for {x:?}. Try using `.with_yolo_format()` for customization.")
+                        YOLOVersion::V5 => (Some(ver), YOLOPreds::n_clss().apply_softmax(true)),
+                        YOLOVersion::V8 => (Some(ver), YOLOPreds::n_clss()),
+                        x => anyhow::bail!("YOLOTask::Classify is unsupported for {x:?}. Try using `.with_yolo_preds()` for customization.")
                     }
                     YOLOTask::Detect => match ver {
-                        v @ YOLOVersion::V5 => (Some(v),YOLOFormat::NACxcywhConfClss, Some(true), None),
-                        YOLOVersion::V8 => (Some(ver),YOLOFormat::NCxcywhClssA, Some(true), None),
-                        YOLOVersion::V9 => (Some(ver),YOLOFormat::NCxcywhClssA, Some(true), None),
-                        YOLOVersion::V10 => (Some(ver),YOLOFormat::NAXyxyConfCls, Some(false), None),
+                        YOLOVersion::V5 | YOLOVersion::V6 | YOLOVersion::V7 => (Some(ver),YOLOPreds::n_a_cxcywh_confclss()),
+                        YOLOVersion::V8 => (Some(ver),YOLOPreds::n_cxcywh_clss_a()),
+                        YOLOVersion::V9 => (Some(ver),YOLOPreds::n_cxcywh_clss_a()),
+                        YOLOVersion::V10 => (Some(ver),YOLOPreds::n_a_xyxy_confcls().apply_nms(false)),
                     }
                     YOLOTask::Pose => match ver {
-                        YOLOVersion::V8 => (Some(ver),YOLOFormat::NCxcywhClssXycsA, Some(true), None),
-                        x => anyhow::bail!("YOLOTask::Pose is unsupported for {x:?}. Try using `.with_yolo_format()` for customization.")
+                        YOLOVersion::V8 => (Some(ver),YOLOPreds::n_cxcywh_clss_xycs_a()),
+                        x => anyhow::bail!("YOLOTask::Pose is unsupported for {x:?}. Try using `.with_yolo_preds()` for customization.")
                     }
                     YOLOTask::Segment => match ver {
-                        YOLOVersion::V5 => (Some(ver), YOLOFormat::NACxcywhConfClssCoefs, Some(true), None),
-                        YOLOVersion::V8 => (Some(ver), YOLOFormat::NCxcywhClssCoefsA, Some(true), None),
-                        x => anyhow::bail!("YOLOTask::Segment is unsupported for {x:?}. Try using `.with_yolo_format()` for customization.")
+                        YOLOVersion::V5 => (Some(ver), YOLOPreds::n_a_cxcywh_confclss_coefs()),
+                        YOLOVersion::V8 => (Some(ver), YOLOPreds::n_cxcywh_clss_coefs_a()),
+                        x => anyhow::bail!("YOLOTask::Segment is unsupported for {x:?}. Try using `.with_yolo_preds()` for customization.")
                     }
                     YOLOTask::Obb => match ver {
-                        YOLOVersion::V8 => (Some(ver), YOLOFormat::NCxcywhClssRA, Some(true), None),
-                        x => anyhow::bail!("YOLOTask::Segment is unsupported for {x:?}. Try using `.with_yolo_format()` for customization.")
+                        YOLOVersion::V8 => (Some(ver), YOLOPreds::n_cxcywh_clss_r_a()),
+                        x => anyhow::bail!("YOLOTask::Segment is unsupported for {x:?}. Try using `.with_yolo_preds()` for customization.")
                     }
                 }
             }
-            None => match options.yolo_format {
+            None => match options.yolo_preds {
                 None => anyhow::bail!("No clear YOLO version or YOLO Format specified."),
-                Some(fmt) => (None, fmt, None, None)
+                Some(fmt) => (None, fmt)
             }
         };
-        let task = task.unwrap_or(yolo_format.task());
-        let apply_nms = apply_nms.unwrap_or(options.apply_nms);
-        let apply_probs_softmax = apply_probs_softmax.unwrap_or(options.apply_probs_softmax);
 
-        // Try from custom class names, and then model metadata
+        let task = task.unwrap_or(yolo_preds.task());
+        let (apply_nms, apply_probs_softmax) = (yolo_preds.apply_nms, yolo_preds.apply_softmax);
+
+        // Class names
         let mut names = options.names.or(Self::fetch_names(&engine));
         let nc = match options.nc {
             Some(nc) => {
@@ -114,13 +114,15 @@ impl Vision for YOLO {
             None => match &names {
                 Some(names) => names.len(),
                 None => panic!(
-                    "Can not parse model without `nc` and `class names`. Try to make it explicit."
+                    "Can not parse model without `nc` and `class names`. Try to make it explicit with `options.with_nc(80)`"
                 ),
             },
         };
-        let names_kpt = options.names2.or(None);
 
-        // Try from model metadata
+        // Keypoints names
+        let names_kpt = options.names2;
+
+        // The number of keypoints
         let nk = engine
             .try_fetch("kpt_shape")
             .map(|kpt_string| {
@@ -131,12 +133,10 @@ impl Vision for YOLO {
             .unwrap_or(0_usize);
         let confs = DynConf::new(&options.confs, nc);
         let kconfs = DynConf::new(&options.kconfs, nk);
+        let iou = options.iou.unwrap_or(0.45);
 
         // Summary
-        println!(
-            "Task: {:?}, Version: {:?}, Outputs Format: {:?}, Apply NMS: {:?}",
-            task, version, yolo_format, apply_nms
-        );
+        println!("YOLO Task: {:?}, Version: {:?}", task, version);
 
         engine.dry_run()?;
 
@@ -144,7 +144,7 @@ impl Vision for YOLO {
             engine,
             confs,
             kconfs,
-            iou: options.iou,
+            iou,
             nc,
             nk,
             height,
@@ -155,7 +155,7 @@ impl Vision for YOLO {
             names_kpt,
             apply_nms,
             apply_probs_softmax,
-            yolo_format,
+            yolo_preds,
             version,
         })
     }
@@ -227,7 +227,7 @@ impl Vision for YOLO {
                             slice_kpts,
                             slice_coefs,
                             slice_radians,
-                        ) = self.yolo_format.parse_preds(preds, self.nc);
+                        ) = self.yolo_preds.parse_preds(preds, self.nc);
 
                         let mut y = Y::default();
                         let (y_bboxes, y_mbrs) =
@@ -255,28 +255,29 @@ impl Vision for YOLO {
                                     }
 
                                     // Bboxes
-                                    let (cx, cy, x, y, w, h) = match self.yolo_format.box_type() {
-                                        BoxType::Cxcywh => {
-                                            let cx = bbox[0] / ratio;
-                                            let cy = bbox[1] / ratio;
-                                            let w = bbox[2] / ratio;
-                                            let h = bbox[3] / ratio;
-                                            let x = (cx - w / 2.).clamp(0.0, image_width);
-                                            let y = (cy - h / 2.).clamp(0.0, image_height);
-                                            (cx, cy, x, y, w, h)
-                                        }
-                                        BoxType::Xyxy => {
-                                            let x = bbox[0] / ratio;
-                                            let y = bbox[1] / ratio;
-                                            let x2 = bbox[2] / ratio;
-                                            let y2 = bbox[3] / ratio;
-                                            let (w, h) = (x2 - x, y2 - y);
-                                            let cx = x + w / 2.;
-                                            let cy = y + h / 2.;
-                                            (cx, cy, x, y, w, h)
-                                        }
-                                        _ => todo!(),
-                                    };
+                                    let (cx, cy, x, y, w, h) =
+                                        match self.yolo_preds.bbox.as_ref()? {
+                                            BoxType::Cxcywh => {
+                                                let cx = bbox[0] / ratio;
+                                                let cy = bbox[1] / ratio;
+                                                let w = bbox[2] / ratio;
+                                                let h = bbox[3] / ratio;
+                                                let x = (cx - w / 2.).clamp(0.0, image_width);
+                                                let y = (cy - h / 2.).clamp(0.0, image_height);
+                                                (cx, cy, x, y, w, h)
+                                            }
+                                            BoxType::Xyxy => {
+                                                let x = bbox[0] / ratio;
+                                                let y = bbox[1] / ratio;
+                                                let x2 = bbox[2] / ratio;
+                                                let y2 = bbox[3] / ratio;
+                                                let (w, h) = (x2 - x, y2 - y);
+                                                let cx = x + w / 2.;
+                                                let cy = y + h / 2.;
+                                                (cx, cy, x, y, w, h)
+                                            }
+                                            _ => todo!(),
+                                        };
 
                                     let (y_bbox, y_mbr) =
                                         match &slice_radians {
@@ -347,7 +348,7 @@ impl Vision for YOLO {
 
                         // Pose
                         if let Some(pred_kpts) = slice_kpts {
-                            let kpt_step = self.yolo_format.kpt_step().unwrap_or(3);
+                            let kpt_step = self.yolo_preds.kpt_step().unwrap_or(3);
                             if let Some(bboxes) = y.bboxes() {
                                 let y_kpts = bboxes
                                     .into_par_iter()
@@ -493,9 +494,9 @@ impl YOLO {
         &self.task
     }
 
-    pub fn yolo_format(&self) -> &YOLOFormat {
-        &self.yolo_format
-    }
+    // pub fn yolo_preds(&self) -> &YOLOPreds {
+    //     &self.yolo_preds
+    // }
 
     fn fetch_names(engine: &OrtEngine) -> Option<Vec<String>> {
         // fetch class names from onnx metadata

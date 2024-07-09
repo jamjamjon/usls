@@ -4,7 +4,7 @@ use anyhow::Result;
 
 use crate::{
     auto_load,
-    models::{YOLOFormat, YOLOTask, YOLOVersion},
+    models::{YOLOPreds, YOLOTask, YOLOVersion},
     Device, MinOptMax,
 };
 
@@ -51,8 +51,7 @@ pub struct Options {
     pub nm: Option<usize>,
     pub confs: Vec<f32>,
     pub kconfs: Vec<f32>,
-    pub iou: f32,
-    pub apply_nms: bool,
+    pub iou: Option<f32>,
     pub tokenizer: Option<String>,
     pub vocab: Option<String>,
     pub names: Option<Vec<String>>,  // names
@@ -61,10 +60,9 @@ pub struct Options {
     pub min_width: Option<f32>,
     pub min_height: Option<f32>,
     pub unclip_ratio: f32, // DB
-    pub apply_probs_softmax: bool,
     pub yolo_task: Option<YOLOTask>,
     pub yolo_version: Option<YOLOVersion>,
-    pub yolo_format: Option<YOLOFormat>,
+    pub yolo_preds: Option<YOLOPreds>,
 }
 
 impl Default for Options {
@@ -106,8 +104,7 @@ impl Default for Options {
             nm: None,
             confs: vec![0.4f32],
             kconfs: vec![0.5f32],
-            iou: 0.45f32,
-            apply_nms: true,
+            iou: None,
             tokenizer: None,
             vocab: None,
             names: None,
@@ -118,8 +115,7 @@ impl Default for Options {
             unclip_ratio: 1.5,
             yolo_task: None,
             yolo_version: None,
-            apply_probs_softmax: false,
-            yolo_format: None,
+            yolo_preds: None,
         }
     }
 }
@@ -170,11 +166,6 @@ impl Options {
         self
     }
 
-    pub fn apply_probs_softmax(mut self, x: bool) -> Self {
-        self.apply_probs_softmax = x;
-        self
-    }
-
     pub fn with_profile(mut self, profile: bool) -> Self {
         self.profile = profile;
         self
@@ -220,13 +211,8 @@ impl Options {
         self
     }
 
-    pub fn with_yolo_format(mut self, x: YOLOFormat) -> Self {
-        self.yolo_format = Some(x);
-        self
-    }
-
-    pub fn with_nms(mut self, apply_nms: bool) -> Self {
-        self.apply_nms = apply_nms;
+    pub fn with_yolo_preds(mut self, x: YOLOPreds) -> Self {
+        self.yolo_preds = Some(x);
         self
     }
 
@@ -241,7 +227,7 @@ impl Options {
     }
 
     pub fn with_iou(mut self, x: f32) -> Self {
-        self.iou = x;
+        self.iou = Some(x);
         self
     }
 

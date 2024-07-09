@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 mod bbox;
 mod embedding;
 mod keypoint;

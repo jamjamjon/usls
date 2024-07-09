@@ -10,6 +10,7 @@ pub struct Mbr {
     confidence: f32,
     name: Option<String>,
 }
+
 impl Nms for Mbr {
     /// Returns the confidence score of the bounding box.
     fn confidence(&self) -> f32 {
@@ -113,10 +114,6 @@ impl Mbr {
         self.name.as_ref()
     }
 
-    // pub fn confidence(&self) -> f32 {
-    //     self.confidence
-    // }
-
     pub fn label(&self, with_name: bool, with_conf: bool, decimal_places: usize) -> String {
         let mut label = String::new();
         if with_name {
@@ -208,15 +205,12 @@ impl Mbr {
         let p2 = Polygon::new(other.ls.clone(), vec![]);
         p1.union(&p2).unsigned_area() as f32
     }
-
-    // pub fn iou(&self, other: &Mbr) -> f32 {
-    //     self.intersect(other) / self.union(other)
-    // }
 }
 
 #[cfg(test)]
 mod tests_mbr {
     use super::Mbr;
+    use crate::Nms;
     use geo::{coord, line_string};
 
     #[test]

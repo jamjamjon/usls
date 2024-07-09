@@ -1,8 +1,7 @@
+use anyhow::Result;
 use clap::Parser;
 
-use usls::{
-    coco, models::YOLO, Annotator, DataLoader, Options, Vision, YOLOFormat, YOLOTask, YOLOVersion,
-};
+use usls::{coco, models::YOLO, Annotator, DataLoader, Options, Vision, YOLOTask, YOLOVersion};
 
 #[derive(Parser, Clone)]
 #[command(author, version, about, long_about = None)]
@@ -16,9 +15,8 @@ pub struct Args {
     #[arg(long, value_enum, default_value_t = YOLOVersion::V8)]
     pub version: YOLOVersion,
 
-    #[arg(long, value_enum, default_value_t = YOLOFormat::NCxcywhClssA)]
-    pub format: YOLOFormat,
-
+    // #[arg(long, value_enum, default_value_t = YOLOFormat::NCxcywhClssA)]
+    // pub format: YOLOFormat,
     #[arg(long, default_value_t = 224)]
     pub width_min: isize,
 
@@ -36,6 +34,9 @@ pub struct Args {
 
     #[arg(long, default_value_t = 800)]
     pub height_max: isize,
+
+    #[arg(long, default_value_t = 80)]
+    pub nc: usize,
 
     #[arg(long)]
     pub trt: bool,
@@ -59,7 +60,7 @@ pub struct Args {
     pub plot: bool,
 }
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+fn main() -> Result<()> {
     let args = Args::parse();
 
     // build options
@@ -68,13 +69,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // version & task
     let options = match args.version {
         YOLOVersion::V5 => match args.task {
-            YOLOTask::Classify => options.with_model("../models/yolov5s-cls.onnx")?,
-            YOLOTask::Detect => options.with_model("../models/yolov5s.onnx")?,
-            YOLOTask::Segment => options.with_model("../models/yolov5s.onnx")?,
-            t => todo!("{t:?} is unsupported for {:?}", args.version),
+            YOLOTask::Classify => options.with_model("yolov5n-cls-dyn.onnx")?,
+            YOLOTask::Detect => options.with_model("yolov5n-dyn.onnx")?,
+            YOLOTask::Segment => options.with_model("yolov5n-seg-dyn.onnx")?,
+            t => anyhow::bail!("Task: {t:?} is unsupported for {:?}", args.version),
+        },
+        YOLOVersion::V6 => match args.task {
+            YOLOTask::Detect => options.with_model("yolov6n-dyn.onnx")?.with_nc(args.nc),
+            t => anyhow::bail!("Task: {t:?} is unsupported for {:?}", args.version),
+        },
+        YOLOVersion::V7 => match args.task {
+            YOLOTask::Detect => options.with_model("yolov7-tiny-dyn.onnx")?.with_nc(args.nc),
+            t => anyhow::bail!("Task: {t:?} is unsupported for {:?}", args.version),
         },
         YOLOVersion::V8 => match args.task {
-            YOLOTask::Classify => options.with_model("yolov8m-cls-dyn-cls.onnx")?,
+            YOLOTask::Classify => options.with_model("yolov8m-cls-dyn.onnx")?,
             YOLOTask::Detect => options.with_model("yolov8m-dyn.onnx")?,
             YOLOTask::Segment => options.with_model("yolov8m-seg-dyn.onnx")?,
             YOLOTask::Pose => options.with_model("yolov8m-pose-dyn.onnx")?,
@@ -82,11 +91,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         },
         YOLOVersion::V9 => match args.task {
             YOLOTask::Detect => options.with_model("yolov9-c-dyn-f16.onnx")?,
-            t => todo!("{t:?} is unsupported for {:?}", args.version),
+            t => anyhow::bail!("Task: {t:?} is unsupported for {:?}", args.version),
         },
         YOLOVersion::V10 => match args.task {
             YOLOTask::Detect => options.with_model("yolov10n-dyn.onnx")?,
-            t => todo!("{t:?} is unsupported for {:?}", args.version),
+            t => anyhow::bail!("Task: {t:?} is unsupported for {:?}", args.version),
         },
     }
     .with_yolo_version(args.version)
