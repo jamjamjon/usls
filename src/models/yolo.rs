@@ -224,6 +224,7 @@ impl Vision for YOLO {
                             slice_bboxes,
                             slice_id,
                             slice_clss,
+                            slice_confs,
                             slice_kpts,
                             slice_coefs,
                             slice_radians,
@@ -245,7 +246,14 @@ impl Vision for YOLO {
                                                 .into_iter()
                                                 .enumerate()
                                                 .max_by(|a, b| a.1.total_cmp(b.1))?;
-                                            (class_id, confidence)
+
+                                            match &slice_confs {
+                                                None => (class_id, confidence),
+                                                Some(slice_confs) => {
+                                                    (class_id, confidence * slice_confs[[i, 0]])
+                                                }
+                                            }
+                                            // (class_id, confidence)
                                         }
                                     };
 
