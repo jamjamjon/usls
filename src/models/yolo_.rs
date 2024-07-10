@@ -17,9 +17,7 @@ pub enum YOLOVersion {
     V8,
     V9,
     V10,
-    // YOLOX,
-    // YOLOv3,
-    // YOLOv4,
+    RTDETR,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -150,12 +148,12 @@ impl YOLOPreds {
         }
     }
 
-    pub fn n_cxcywh_clss_a_n() -> Self {
+    pub fn n_a_cxcywh_clss_n() -> Self {
         // RTDETR
         Self {
             bbox: Some(BoxType::Cxcywh),
             clss: ClssType::Clss,
-            anchors: Some(AnchorsPosition::After),
+            anchors: Some(AnchorsPosition::Before),
             is_bbox_normalized: true,
             ..Default::default()
         }
@@ -210,6 +208,10 @@ impl YOLOPreds {
         }
     }
 
+    pub fn box_type(&self) -> Option<&BoxType> {
+        self.bbox.as_ref()
+    }
+
     pub fn is_anchors_first(&self) -> bool {
         matches!(self.anchors, Some(AnchorsPosition::Before))
     }
@@ -246,10 +248,10 @@ impl YOLOPreds {
     #[allow(clippy::type_complexity)]
     pub fn parse_preds<'a>(
         &'a self,
-        preds: ArrayBase<ViewRepr<&'a f32>, Dim<IxDynImpl>>,
+        x: ArrayBase<ViewRepr<&'a f32>, Dim<IxDynImpl>>,
         nc: usize,
     ) -> (
-        ArrayView<f32, IxDyn>,
+        Option<ArrayView<f32, IxDyn>>,
         Option<ArrayView<f32, IxDyn>>,
         ArrayView<f32, IxDyn>,
         Option<ArrayView<f32, IxDyn>>,
@@ -257,84 +259,60 @@ impl YOLOPreds {
         Option<ArrayView<f32, IxDyn>>,
         Option<ArrayView<f32, IxDyn>>,
     ) {
-        let preds = if self.is_anchors_first() {
-            preds
-        } else {
-            preds.reversed_axes()
-        };
+        match self.task() {
+            YOLOTask::Classify => (None, None, x, None, None, None, None),
+            _ => {
+                let x = if self.is_anchors_first() {
+                    x
+                } else {
+                    x.reversed_axes()
+                };
 
-        // get each tasks slices
-        let (slice_bboxes, xs) = preds.split_at(Axis(1), 4);
-        let (slice_id, slice_clss, slice_confs, xs) = match self.clss {
-            ClssType::ConfClss => {
-                let slice_id = None;
-                let (confs, xs) = xs.split_at(Axis(1), 1);
-                let (clss, xs) = xs.split_at(Axis(1), nc);
-                // let confs = confs.broadcast((confs.shape()[0], nc)).unwrap(); // 267ns
-                // let clss = &confs * &clss;
-                // let slice_clss = clss.to_owned();
-                let slice_clss = clss;
-                let slice_confs = Some(confs);
-                (slice_id, slice_clss, slice_confs, xs)
-            }
-            ClssType::ClssConf => {
-                let slice_id = None;
-                let (clss, xs) = xs.split_at(Axis(1), nc);
-                let (confs, xs) = xs.split_at(Axis(1), 1);
-                // let confs = confs.broadcast((confs.shape()[0], nc)).unwrap();
-                // TODO: par
-                // let clss = &confs * &clss;
-                // let slice_clss = clss;
-                // let slice_clss = clss.to_owned();
-                let slice_clss = clss;
-                let slice_confs = Some(confs);
-                // (slice_id, slice_clss, xs)
-                (slice_id, slice_clss, slice_confs, xs)
-            }
-            ClssType::ConfCls => {
-                let (clss, xs) = xs.split_at(Axis(1), 1);
-                let (ids, xs) = xs.split_at(Axis(1), 1);
-                let slice_id = Some(ids);
-                // let slice_clss = clss.to_owned();
-                let slice_clss = clss;
-                let slice_confs = None;
-                (slice_id, slice_clss, slice_confs, xs)
-            }
-            ClssType::ClsConf => {
-                let (ids, xs) = xs.split_at(Axis(1), 1);
-                let (clss, xs) = xs.split_at(Axis(1), 1);
-                let slice_id = Some(ids);
-                let slice_clss = clss;
-                // let slice_clss = clss.to_owned();
-                // (slice_id, slice_clss, xs)
-                let slice_confs = None;
-                (slice_id, slice_clss, slice_confs, xs)
-            }
-            ClssType::Clss => {
-                let slice_id = None;
-                let (clss, xs) = xs.split_at(Axis(1), nc);
-                // let slice_clss = clss.to_owned();
-                let slice_clss = clss;
-                // (slice_id, slice_clss, xs)
-                let slice_confs = None;
-                (slice_id, slice_clss, slice_confs, xs)
-            }
-        };
-        let (slice_kpts, slice_coefs, slice_radians) = match self.task() {
-            YOLOTask::Pose => (Some(xs), None, None),
-            YOLOTask::Segment => (None, Some(xs), None),
-            YOLOTask::Obb => (None, None, Some(xs)),
-            _ => (None, None, None),
-        };
+                // get each tasks slices
+                let (slice_bboxes, xs) = x.split_at(Axis(1), 4);
+                let (slice_id, slice_clss, slice_confs, xs) = match self.clss {
+                    ClssType::ConfClss => {
+                        let (confs, xs) = xs.split_at(Axis(1), 1);
+                        let (clss, xs) = xs.split_at(Axis(1), nc);
+                        (None, clss, Some(confs), xs)
+                    }
+                    ClssType::ClssConf => {
+                        let (clss, xs) = xs.split_at(Axis(1), nc);
+                        let (confs, xs) = xs.split_at(Axis(1), 1);
+                        (None, clss, Some(confs), xs)
+                    }
+                    ClssType::ConfCls => {
+                        let (clss, xs) = xs.split_at(Axis(1), 1);
+                        let (ids, xs) = xs.split_at(Axis(1), 1);
+                        (Some(ids), clss, None, xs)
+                    }
+                    ClssType::ClsConf => {
+                        let (ids, xs) = xs.split_at(Axis(1), 1);
+                        let (clss, xs) = xs.split_at(Axis(1), 1);
+                        (Some(ids), clss, None, xs)
+                    }
+                    ClssType::Clss => {
+                        let (clss, xs) = xs.split_at(Axis(1), nc);
+                        (None, clss, None, xs)
+                    }
+                };
+                let (slice_kpts, slice_coefs, slice_radians) = match self.task() {
+                    YOLOTask::Pose => (Some(xs), None, None),
+                    YOLOTask::Segment => (None, Some(xs), None),
+                    YOLOTask::Obb => (None, None, Some(xs)),
+                    _ => (None, None, None),
+                };
 
-        (
-            slice_bboxes,
-            slice_id,
-            slice_clss,
-            slice_confs,
-            slice_kpts,
-            slice_coefs,
-            slice_radians,
-        )
+                (
+                    Some(slice_bboxes),
+                    slice_id,
+                    slice_clss,
+                    slice_confs,
+                    slice_kpts,
+                    slice_coefs,
+                    slice_radians,
+                )
+            }
+        }
     }
 }

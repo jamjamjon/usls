@@ -5,74 +5,67 @@
 ## Options for all YOLOs
 
 ```Rust
+// FastSAM
+cargo run -r --example yolo -- --plot --task segment --version v8 --model FastSAM-s-dyn-f16.onnx
+
 // YOLOv5-Classify
 let options = options
     .with_yolo_version(args.version)
     .with_yolo_task(args.task)
-    // .with_yolo_format(YOLOFormat::NClss)
     .with_model("../models/yolov5s-cls.onnx")?;
 
 // YOLOv5-Detect
 let options = options
     .with_yolo_version(YOLOVersion::V5)
     .with_yolo_task(YOLOTask::Detect)
-    // .with_yolo_format(YOLOFormat::NACxcywhConfClss)
     .with_model("../models/yolov5s.onnx")?;
 
 // YOLOv5-Segment
 let options = options
     .with_yolo_version(YOLOVersion::V5)
     .with_yolo_task(YOLOTask::Segment)
-    // .with_yolo_format(YOLOFormat::NACxcywhConfClssCoefs)
     .with_model("../models/yolov5s.onnx")?;
 
 // YOLOv8-Detect
 let options = options
     .with_yolo_version(YOLOVersion::V8)
     .with_yolo_task(YOLOTask::Detect)
-    // .with_yolo_format(YOLOFormat::NCxcywhClssA)
     .with_model("yolov8m-dyn.onnx")?;
 
 // YOLOv8-Classify
 let options = options
     .with_yolo_version(YOLOVersion::V8)
     .with_yolo_task(YOLOTask::Classify)
-    // .with_yolo_format(YOLOFormat::NClss)
     .with_model("yolov8m-cls-dyn.onnx")?;
 
 // YOLOv8-Pose
 let options = options
     .with_yolo_version(YOLOVersion::V8)
     .with_yolo_task(YOLOTask::Pose)
-    // .with_yolo_format(YOLOFormat::NCxcywhClssXycsA)
     .with_model("yolov8m-pose-dyn.onnx")?;
 
 // YOLOv8-Segment
 let options = options
     .with_yolo_version(YOLOVersion::V8)
     .with_yolo_task(YOLOTask::Segment)
-    // .with_yolo_format(YOLOFormat::NCxcywhClssCoefsA)
     .with_model("yolov8m-seg-dyn.onnx")?;
 
 // YOLOv8-Obb
 let options = options
     .with_yolo_version(YOLOVersion::V8)
     .with_yolo_task(YOLOTask::Obb)
-    // .with_yolo_format(YOLOFormat::NCxcywhClssRA)
     .with_model("yolov8m-obb-dyn.onnx")?;
 
 // YOLOv9-Detect
 let options = options
     .with_yolo_version(YOLOVersion::V9)
     .with_yolo_task(YOLOTask::Detect)
-    // .with_yolo_format(YOLOFormat::NCxcywhClssA)
     .with_model("yolov9-c-dyn-f16.onnx")?;
 
 // YOLOv10-Detect
 let options = options
     .with_yolo_version(YOLOVersion::V10)
     .with_yolo_task(YOLOTask::Detect)
-    // .with_yolo_format(YOLOFormat::NAXyxyConfCls) //
     .with_model("yolov10n-dyn.onnx")?;
 ```
 

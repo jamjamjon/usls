@@ -13,7 +13,7 @@ use crate::{
 pub struct YOLO {
     engine: OrtEngine,
     nc: usize,
-    nk: usize, // TODO
+    nk: usize,
     height: MinOptMax,
     width: MinOptMax,
     batch: MinOptMax,
@@ -22,10 +22,8 @@ pub struct YOLO {
     iou: f32,
     names: Option<Vec<String>>,
     names_kpt: Option<Vec<String>>,
-    apply_nms: bool,
-    apply_probs_softmax: bool,
     task: YOLOTask,
-    yolo_preds: YOLOPreds,
+    layout: YOLOPreds,
     version: Option<YOLOVersion>,
 }
 
@@ -56,7 +54,7 @@ impl Vision for YOLO {
             }));
 
         // YOLO Outputs Format
-        let (version, yolo_preds) = match options.yolo_version {
+        let (version, layout) = match options.yolo_version {
             Some(ver) => match &task {
                 None => anyhow::bail!("No clear YOLO Task specified for Version: {ver:?}."),
                 Some(task) => match task {
@@ -70,6 +68,7 @@ impl Vision for YOLO {
                         YOLOVersion::V8 => (Some(ver),YOLOPreds::n_cxcywh_clss_a()),
                         YOLOVersion::V9 => (Some(ver),YOLOPreds::n_cxcywh_clss_a()),
                         YOLOVersion::V10 => (Some(ver),YOLOPreds::n_a_xyxy_confcls().apply_nms(false)),
+                        YOLOVersion::RTDETR => (Some(ver),YOLOPreds::n_a_cxcywh_clss_n().apply_nms(false)),
                     }
                     YOLOTask::Pose => match ver {
                         YOLOVersion::V8 => (Some(ver),YOLOPreds::n_cxcywh_clss_xycs_a()),
@@ -92,10 +91,9 @@ impl Vision for YOLO {
             }
         };
 
-        let task = task.unwrap_or(yolo_preds.task());
-        let (apply_nms, apply_probs_softmax) = (yolo_preds.apply_nms, yolo_preds.apply_softmax);
+        let task = task.unwrap_or(layout.task());
 
-        // Class names
+        // TODO: nc & Class names
         let mut names = options.names.or(Self::fetch_names(&engine));
         let nc = match options.nc {
             Some(nc) => {
@@ -153,9 +151,7 @@ impl Vision for YOLO {
             task,
             names,
             names_kpt,
-            apply_nms,
-            apply_probs_softmax,
-            yolo_preds,
+            layout,
             version,
         })
     }
@@ -195,285 +191,302 @@ impl Vision for YOLO {
             .into_par_iter()
             .enumerate()
             .filter_map(|(idx, preds)| {
+                let mut y = Y::default();
+
+                // parse preditions
+                let (
+                    slice_bboxes,
+                    slice_id,
+                    slice_clss,
+                    slice_confs,
+                    slice_kpts,
+                    slice_coefs,
+                    slice_radians,
+                ) = self.layout.parse_preds(preds, self.nc);
+
+                // Classifcation
+                if let YOLOTask::Classify = self.task {
+                    let x = if self.layout.apply_softmax {
+                        let exps = slice_clss.mapv(|x| x.exp());
+                        let stds = exps.sum_axis(Axis(0));
+                        exps / stds
+                    } else {
+                        slice_clss.into_owned()
+                    };
+                    return Some(
+                        y.with_probs(
+                            &Prob::default()
+                                .with_probs(&x.into_raw_vec())
+                                .with_names(self.names.to_owned()),
+                        ),
+                    );
+                }
+
                 let image_width = xs0[idx].width() as f32;
                 let image_height = xs0[idx].height() as f32;
                 let ratio =
                     (self.width() as f32 / image_width).min(self.height() as f32 / image_height);
 
-                match self.task {
-                    // Classifcation
-                    YOLOTask::Classify => {
-                        let y = if self.apply_probs_softmax {
-                            let exps = preds.mapv(|x| x.exp());
-                            let stds = exps.sum_axis(Axis(0));
-                            exps / stds
-                        } else {
-                            preds.into_owned()
-                        };
-                        Some(
-                            Y::default().with_probs(
-                                &Prob::default()
-                                    .with_probs(&y.into_raw_vec())
-                                    .with_names(self.names.to_owned()),
-                            ),
-                        )
-                    }
-                    _ => {
-                        // parse preds to get slices for each task
-                        let (
-                            slice_bboxes,
-                            slice_id,
-                            slice_clss,
-                            slice_confs,
-                            slice_kpts,
-                            slice_coefs,
-                            slice_radians,
-                        ) = self.yolo_preds.parse_preds(preds, self.nc);
+                // Other tasks
+                let (y_bboxes, y_mbrs) = slice_bboxes?
+                    .axis_iter(Axis(0))
+                    .into_par_iter()
+                    .enumerate()
+                    .filter_map(|(i, bbox)| {
+                        // confidence & class_id
+                        let (class_id, confidence) = match &slice_id {
+                            Some(ids) => (ids[[i, 0]] as _, slice_clss[[i, 0]] as _),
+                            None => {
+                                let (class_id, &confidence) = slice_clss
+                                    .slice(s![i, ..])
+                                    .into_iter()
+                                    .enumerate()
+                                    .max_by(|a, b| a.1.total_cmp(b.1))?;
 
-                        let mut y = Y::default();
-                        let (y_bboxes, y_mbrs) =
-                            slice_bboxes
-                                .axis_iter(Axis(0))
-                                .into_par_iter()
-                                .enumerate()
-                                .filter_map(|(i, bbox)| {
-                                    // confidence & class_id
-                                    let (class_id, confidence) = match &slice_id {
-                                        Some(ids) => (ids[[i, 0]] as _, slice_clss[[i, 0]] as _),
-                                        None => {
-                                            let (class_id, &confidence) = slice_clss
-                                                .slice(s![i, ..])
-                                                .into_iter()
-                                                .enumerate()
-                                                .max_by(|a, b| a.1.total_cmp(b.1))?;
-
-                                            match &slice_confs {
-                                                None => (class_id, confidence),
-                                                Some(slice_confs) => {
-                                                    (class_id, confidence * slice_confs[[i, 0]])
-                                                }
-                                            }
-                                            // (class_id, confidence)
-                                        }
-                                    };
-
-                                    // confidence filtering
-                                    if confidence < self.confs[class_id] {
-                                        return None;
+                                match &slice_confs {
+                                    None => (class_id, confidence),
+                                    Some(slice_confs) => {
+                                        (class_id, confidence * slice_confs[[i, 0]])
                                     }
-
-                                    // Bboxes
-                                    let (cx, cy, x, y, w, h) =
-                                        match self.yolo_preds.bbox.as_ref()? {
-                                            BoxType::Cxcywh => {
-                                                let cx = bbox[0] / ratio;
-                                                let cy = bbox[1] / ratio;
-                                                let w = bbox[2] / ratio;
-                                                let h = bbox[3] / ratio;
-                                                let x = (cx - w / 2.).clamp(0.0, image_width);
-                                                let y = (cy - h / 2.).clamp(0.0, image_height);
-                                                (cx, cy, x, y, w, h)
-                                            }
-                                            BoxType::Xyxy => {
-                                                let x = bbox[0] / ratio;
-                                                let y = bbox[1] / ratio;
-                                                let x2 = bbox[2] / ratio;
-                                                let y2 = bbox[3] / ratio;
-                                                let (w, h) = (x2 - x, y2 - y);
-                                                let cx = x + w / 2.;
-                                                let cy = y + h / 2.;
-                                                (cx, cy, x, y, w, h)
-                                            }
-                                            _ => todo!(),
-                                        };
-
-                                    let (y_bbox, y_mbr) =
-                                        match &slice_radians {
-                                            Some(slice_radians) => {
-                                                let radians = slice_radians[[i, 0]];
-                                                let (w, h, radians) = if w > h {
-                                                    (w, h, radians)
-                                                } else {
-                                                    (h, w, radians + std::f32::consts::PI / 2.)
-                                                };
-                                                let radians = radians % std::f32::consts::PI;
-                                                (
-                                                    None,
-                                                    Some(
-                                                        Mbr::from_cxcywhr(
-                                                            cx as f64,
-                                                            cy as f64,
-                                                            w as f64,
-                                                            h as f64,
-                                                            radians as f64,
-                                                        )
-                                                        .with_confidence(confidence)
-                                                        .with_id(class_id as isize)
-                                                        .with_name(self.names.as_ref().map(
-                                                            |names| names[class_id].to_owned(),
-                                                        )),
-                                                    ),
-                                                )
-                                            }
-                                            None => (
-                                                Some(
-                                                    Bbox::default()
-                                                        .with_xywh(x, y, w, h)
-                                                        .with_confidence(confidence)
-                                                        .with_id(class_id as isize)
-                                                        .with_id_born(i as isize)
-                                                        .with_name(self.names.as_ref().map(
-                                                            |names| names[class_id].to_owned(),
-                                                        )),
-                                                ),
-                                                None,
-                                            ),
-                                        };
-
-                                    Some((y_bbox, y_mbr))
-                                })
-                                .collect::<(Vec<_>, Vec<_>)>();
-
-                        let y_bboxes: Vec<Bbox> = y_bboxes.into_iter().flatten().collect();
-                        let y_mbrs: Vec<Mbr> = y_mbrs.into_iter().flatten().collect();
-
-                        // Mbrs
-                        if !y_mbrs.is_empty() {
-                            y = y.with_mbrs(&y_mbrs);
-                            if self.apply_nms {
-                                y = y.apply_nms(self.iou);
+                                }
                             }
-                            return Some(y);
+                        };
+
+                        // confidence filtering
+                        if confidence < self.confs[class_id] {
+                            return None;
                         }
 
                         // Bboxes
-                        if !y_bboxes.is_empty() {
-                            y = y.with_bboxes(&y_bboxes);
-                            if self.apply_nms {
-                                y = y.apply_nms(self.iou);
+                        let bbox = bbox.mapv(|x| x / ratio);
+                        let bbox = if self.layout.is_bbox_normalized {
+                            (
+                                bbox[0] * self.width() as f32,
+                                bbox[1] * self.height() as f32,
+                                bbox[2] * self.width() as f32,
+                                bbox[3] * self.height() as f32,
+                            )
+                        } else {
+                            (bbox[0], bbox[1], bbox[2], bbox[3])
+                        };
+                        let (cx, cy, x, y, w, h) = match self.layout.box_type()? {
+                            BoxType::Cxcywh => {
+                                let (cx, cy, w, h) = bbox;
+                                let x = (cx - w / 2.).max(0.);
+                                let y = (cy - h / 2.).max(0.);
+                                (cx, cy, x, y, w, h)
                             }
-                        }
-
-                        // Pose
-                        if let Some(pred_kpts) = slice_kpts {
-                            let kpt_step = self.yolo_preds.kpt_step().unwrap_or(3);
-                            if let Some(bboxes) = y.bboxes() {
-                                let y_kpts = bboxes
-                                    .into_par_iter()
-                                    .filter_map(|bbox| {
-                                        let pred = pred_kpts.slice(s![bbox.id_born(), ..]);
-                                        let kpts = (0..self.nk)
-                                            .into_par_iter()
-                                            .map(|i| {
-                                                let kx = pred[kpt_step * i] / ratio;
-                                                let ky = pred[kpt_step * i + 1] / ratio;
-                                                let kconf = pred[kpt_step * i + 2];
-                                                if kconf < self.kconfs[i] {
-                                                    Keypoint::default()
-                                                } else {
-                                                    Keypoint::default()
-                                                        .with_id(i as isize)
-                                                        .with_confidence(kconf)
-                                                        .with_name(
-                                                            self.names_kpt
-                                                                .as_ref()
-                                                                .map(|names| names[i].to_owned()),
-                                                        )
-                                                        .with_xy(
-                                                            kx.max(0.0f32).min(image_width),
-                                                            ky.max(0.0f32).min(image_height),
-                                                        )
-                                                }
-                                            })
-                                            .collect::<Vec<_>>();
-                                        Some(kpts)
-                                    })
-                                    .collect::<Vec<_>>();
-                                y = y.with_keypoints(&y_kpts);
+                            BoxType::Xyxy => {
+                                let (x, y, x2, y2) = bbox;
+                                let (w, h) = (x2 - x, y2 - y);
+                                let (cx, cy) = ((x + x2) / 2., (y + y2) / 2.);
+                                (cx, cy, x, y, w, h)
                             }
-                        }
+                            BoxType::Xywh => {
+                                let (x, y, w, h) = bbox;
+                                let (cx, cy) = (x + w / 2., y + h / 2.);
+                                (cx, cy, x, y, w, h)
+                            }
+                            BoxType::Cxcyxy => {
+                                let (cx, cy, x2, y2) = bbox;
+                                let (w, h) = ((x2 - cx) * 2., (y2 - cy) * 2.);
+                                let x = (x2 - w).max(0.);
+                                let y = (y2 - h).max(0.);
+                                (cx, cy, x, y, w, h)
+                            }
+                            BoxType::XyCxcy => {
+                                let (x, y, cx, cy) = bbox;
+                                let (w, h) = ((cx - x) * 2., (cy - y) * 2.);
+                                (cx, cy, x, y, w, h)
+                            }
+                        };
 
-                        // Segment
-                        if let Some(coefs) = slice_coefs {
-                            if let Some(bboxes) = y.bboxes() {
-                                let (y_polygons, y_masks) = bboxes
-                                    .into_par_iter()
-                                    .filter_map(|bbox| {
-                                        let coefs = coefs.slice(s![bbox.id_born(), ..]).to_vec();
-
-                                        let proto = protos.as_ref()?.slice(s![idx, .., .., ..]);
-                                        let (nm, mh, mw) = proto.dim();
-
-                                        // coefs * proto => mask
-                                        let coefs = Array::from_shape_vec((1, nm), coefs).ok()?; // (n, nm)
-                                        let proto = proto.into_shape((nm, mh * mw)).ok()?; // (nm, mh * mw)
-                                        let mask = coefs.dot(&proto); // (mh, mw, n)
-
-                                        // Mask rescale
-                                        let mask = Ops::resize_lumaf32_vec(
-                                            &mask.into_raw_vec(),
-                                            mw as _,
-                                            mh as _,
-                                            image_width as _,
-                                            image_height as _,
-                                            true,
-                                            "Bilinear",
+                        let (y_bbox, y_mbr) = match &slice_radians {
+                            Some(slice_radians) => {
+                                let radians = slice_radians[[i, 0]];
+                                let (w, h, radians) = if w > h {
+                                    (w, h, radians)
+                                } else {
+                                    (h, w, radians + std::f32::consts::PI / 2.)
+                                };
+                                let radians = radians % std::f32::consts::PI;
+                                (
+                                    None,
+                                    Some(
+                                        Mbr::from_cxcywhr(
+                                            cx as f64,
+                                            cy as f64,
+                                            w as f64,
+                                            h as f64,
+                                            radians as f64,
                                         )
-                                        .ok()?;
-
-                                        let mut mask: image::ImageBuffer<image::Luma<_>, Vec<_>> =
-                                            image::ImageBuffer::from_raw(
-                                                image_width as _,
-                                                image_height as _,
-                                                mask,
-                                            )?;
-                                        let (xmin, ymin, xmax, ymax) =
-                                            (bbox.xmin(), bbox.ymin(), bbox.xmax(), bbox.ymax());
-
-                                        // Using bbox to crop the mask
-                                        for (y, row) in mask.enumerate_rows_mut() {
-                                            for (x, _, pixel) in row {
-                                                if x < xmin as _
-                                                    || x > xmax as _
-                                                    || y < ymin as _
-                                                    || y > ymax as _
-                                                {
-                                                    *pixel = image::Luma([0u8]);
-                                                }
-                                            }
-                                        }
-
-                                        // Find contours
-                                        let contours: Vec<imageproc::contours::Contour<i32>> =
-                                            imageproc::contours::find_contours_with_threshold(
-                                                &mask, 0,
-                                            );
-
-                                        Some((
-                                            contours
-                                                .into_par_iter()
-                                                .map(|x| {
-                                                    Polygon::default()
-                                                        .with_id(bbox.id())
-                                                        .with_points_imageproc(&x.points)
-                                                        .with_name(bbox.name().cloned())
-                                                })
-                                                .max_by(|x, y| x.area().total_cmp(&y.area()))?,
-                                            Mask::default()
-                                                .with_mask(mask)
-                                                .with_id(bbox.id())
-                                                .with_name(bbox.name().cloned()),
-                                        ))
-                                    })
-                                    .collect::<(Vec<_>, Vec<_>)>();
-
-                                y = y.with_polygons(&y_polygons).with_masks(&y_masks);
+                                        .with_confidence(confidence)
+                                        .with_id(class_id as isize)
+                                        .with_name(
+                                            self.names
+                                                .as_ref()
+                                                .map(|names| names[class_id].to_owned()),
+                                        ),
+                                    ),
+                                )
                             }
-                        }
+                            None => (
+                                Some(
+                                    Bbox::default()
+                                        .with_xywh(x, y, w, h)
+                                        .with_confidence(confidence)
+                                        .with_id(class_id as isize)
+                                        .with_id_born(i as isize)
+                                        .with_name(
+                                            self.names
+                                                .as_ref()
+                                                .map(|names| names[class_id].to_owned()),
+                                        ),
+                                ),
+                                None,
+                            ),
+                        };
 
-                        Some(y)
+                        Some((y_bbox, y_mbr))
+                    })
+                    .collect::<(Vec<_>, Vec<_>)>();
+
+                let y_bboxes: Vec<Bbox> = y_bboxes.into_iter().flatten().collect();
+                let y_mbrs: Vec<Mbr> = y_mbrs.into_iter().flatten().collect();
+
+                // Mbrs
+                if !y_mbrs.is_empty() {
+                    y = y.with_mbrs(&y_mbrs);
+                    if self.layout.apply_nms {
+                        y = y.apply_nms(self.iou);
+                    }
+                    return Some(y);
+                }
+
+                // Bboxes
+                if !y_bboxes.is_empty() {
+                    y = y.with_bboxes(&y_bboxes);
+                    if self.layout.apply_nms {
+                        y = y.apply_nms(self.iou);
                     }
                 }
+
+                // Pose
+                if let Some(pred_kpts) = slice_kpts {
+                    let kpt_step = self.layout.kpt_step().unwrap_or(3);
+                    if let Some(bboxes) = y.bboxes() {
+                        let y_kpts = bboxes
+                            .into_par_iter()
+                            .filter_map(|bbox| {
+                                let pred = pred_kpts.slice(s![bbox.id_born(), ..]);
+                                let kpts = (0..self.nk)
+                                    .into_par_iter()
+                                    .map(|i| {
+                                        let kx = pred[kpt_step * i] / ratio;
+                                        let ky = pred[kpt_step * i + 1] / ratio;
+                                        let kconf = pred[kpt_step * i + 2];
+                                        if kconf < self.kconfs[i] {
+                                            Keypoint::default()
+                                        } else {
+                                            Keypoint::default()
+                                                .with_id(i as isize)
+                                                .with_confidence(kconf)
+                                                .with_name(
+                                                    self.names_kpt
+                                                        .as_ref()
+                                                        .map(|names| names[i].to_owned()),
+                                                )
+                                                .with_xy(
+                                                    kx.max(0.0f32).min(image_width),
+                                                    ky.max(0.0f32).min(image_height),
+                                                )
+                                        }
+                                    })
+                                    .collect::<Vec<_>>();
+                                Some(kpts)
+                            })
+                            .collect::<Vec<_>>();
+                        y = y.with_keypoints(&y_kpts);
+                    }
+                }
+
+                // Segment
+                if let Some(coefs) = slice_coefs {
+                    if let Some(bboxes) = y.bboxes() {
+                        let (y_polygons, y_masks) = bboxes
+                            .into_par_iter()
+                            .filter_map(|bbox| {
+                                let coefs = coefs.slice(s![bbox.id_born(), ..]).to_vec();
+
+                                let proto = protos.as_ref()?.slice(s![idx, .., .., ..]);
+                                let (nm, mh, mw) = proto.dim();
+
+                                // coefs * proto => mask
+                                let coefs = Array::from_shape_vec((1, nm), coefs).ok()?; // (n, nm)
+                                let proto = proto.into_shape((nm, mh * mw)).ok()?; // (nm, mh * mw)
+                                let mask = coefs.dot(&proto); // (mh, mw, n)
+
+                                // Mask rescale
+                                let mask = Ops::resize_lumaf32_vec(
+                                    &mask.into_raw_vec(),
+                                    mw as _,
+                                    mh as _,
+                                    image_width as _,
+                                    image_height as _,
+                                    true,
+                                    "Bilinear",
+                                )
+                                .ok()?;
+
+                                let mut mask: image::ImageBuffer<image::Luma<_>, Vec<_>> =
+                                    image::ImageBuffer::from_raw(
+                                        image_width as _,
+                                        image_height as _,
+                                        mask,
+                                    )?;
+                                let (xmin, ymin, xmax, ymax) =
+                                    (bbox.xmin(), bbox.ymin(), bbox.xmax(), bbox.ymax());
+
+                                // Using bbox to crop the mask
+                                for (y, row) in mask.enumerate_rows_mut() {
+                                    for (x, _, pixel) in row {
+                                        if x < xmin as _
+                                            || x > xmax as _
+                                            || y < ymin as _
+                                            || y > ymax as _
+                                        {
+                                            *pixel = image::Luma([0u8]);
+                                        }
+                                    }
+                                }
+
+                                // Find contours
+                                let contours: Vec<imageproc::contours::Contour<i32>> =
+                                    imageproc::contours::find_contours_with_threshold(&mask, 0);
+
+                                Some((
+                                    contours
+                                        .into_par_iter()
+                                        .map(|x| {
+                                            Polygon::default()
+                                                .with_id(bbox.id())
+                                                .with_points_imageproc(&x.points)
+                                                .with_name(bbox.name().cloned())
+                                        })
+                                        .max_by(|x, y| x.area().total_cmp(&y.area()))?,
+                                    Mask::default()
+                                        .with_mask(mask)
+                                        .with_id(bbox.id())
+                                        .with_name(bbox.name().cloned()),
+                                ))
+                            })
+                            .collect::<(Vec<_>, Vec<_>)>();
+
+                        y = y.with_polygons(&y_polygons).with_masks(&y_masks);
+                    }
+                }
+
+                Some(y)
             })
             .collect();
 
@@ -502,8 +515,8 @@ impl YOLO {
         &self.task
     }
 
-    // pub fn yolo_preds(&self) -> &YOLOPreds {
-    //     &self.yolo_preds
+    // pub fn layout(&self) -> &YOLOPreds {
+    //     &self.layout
     // }
 
     fn fetch_names(engine: &OrtEngine) -> Option<Vec<String>> {
