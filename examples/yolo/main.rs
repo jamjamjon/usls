@@ -18,8 +18,6 @@ pub struct Args {
     #[arg(long, value_enum, default_value_t = YOLOVersion::V8)]
     pub version: YOLOVersion,
 
-    // #[arg(long, value_enum, default_value_t = YOLOFormat::NCxcywhClssA)]
-    // pub format: YOLOFormat,
     #[arg(long, default_value_t = 224)]
     pub width_min: isize,
 
@@ -60,7 +58,7 @@ pub struct Args {
     pub profile: bool,
 
     #[arg(long)]
-    pub plot: bool,
+    pub no_plot: bool,
 }
 
 fn main() -> Result<()> {
@@ -133,7 +131,6 @@ fn main() -> Result<()> {
         .with_yolo_task(args.task);
 
     // device
-
     let options = if args.cuda {
         options.with_cuda(args.device_id)
     } else if args.trt {
@@ -152,7 +149,7 @@ fn main() -> Result<()> {
         .with_i00((1, 1, 4).into())
         .with_i02((args.height_min, args.height, args.height_max).into())
         .with_i03((args.width_min, args.width, args.width_max).into())
-        .with_confs(&[0.4, 0.15]) // class_0: 0.4, others: 0.15
+        .with_confs(&[0.2, 0.15]) // class_0: 0.4, others: 0.15
         // .with_names(&coco::NAMES_80)
         .with_names2(&coco::KEYPOINTS_NAMES_17)
         .with_profile(args.profile);
@@ -174,10 +171,9 @@ fn main() -> Result<()> {
     for (xs, _paths) in dl {
         // let ys = model.run(&xs)?;  // way one
         let ys = model.forward(&xs, args.profile)?; // way two
-        if args.plot {
+        if !args.no_plot {
             annotator.annotate(&xs, &ys);
         }
-        // println!("{:?}", ys);
     }
 
     Ok(())

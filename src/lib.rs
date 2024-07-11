@@ -34,7 +34,9 @@
 //! use usls::{coco, models::YOLO, Annotator, DataLoader, Options, Vision};
 //!
 //! let options = Options::default()
-//!     .with_model("yolov8m-seg-dyn.onnx")?
+//!     .with_yolo_version(YOLOVersion::V8)  // YOLOVersion: V5, V6, V7, V8, V9, V10, RTDETR
+//!     .with_yolo_task(YOLOTask::Detect)  // YOLOTask: Classify, Detect, Pose, Segment, Obb
+//!     .with_model("xxxx.onnx")?;
 //!     .with_trt(0)
 //!     .with_fp16(true)
 //!     .with_i00((1, 1, 4).into())
@@ -63,8 +65,8 @@
 //!
 //! ```Rust, no_run
 //! let annotator = Annotator::default()
-//!     .with_bboxes_thickness(7)
-//!     .with_saveout("YOLOv8");
+//!     .with_bboxes_thickness(4)
+//!     .with_saveout("YOLOs");
 //! ```
 //!
 //! #### 4. Run and annotate

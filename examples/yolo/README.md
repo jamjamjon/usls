@@ -1,79 +1,80 @@
-## Quick Start
+
+## TODO: Demo pictures(combine into one)
 
 
 
-## Options for all YOLOs
+### Quick Start for all YOLOs
+```Shell
 
+# Classify
+cargo run -r --example yolo -- --task classify --version v5  # YOLOv5 
+cargo run -r --example yolo -- --task classify --version v8  # YOLOv8 
+
+# Detect
+cargo run -r --example yolo -- --task detect --version v5  # YOLOv5 
+cargo run -r --example yolo -- --task detect --version v6  # YOLOv6
+cargo run -r --example yolo -- --task detect --version v7  # YOLOv7
+cargo run -r --example yolo -- --task detect --version v8  # YOLOv8
+cargo run -r --example yolo -- --task detect --version v9  # YOLOv9
+cargo run -r --example yolo -- --task detect --version v10 # YOLOv10
+cargo run -r --example yolo -- --task detect --version rtdetr  # YOLOv8-RTDETR
+cargo run -r --example yolo -- --task detect --version v8 --model yolov8s-world-v2-shoes.onnx  # YOLOv8-world
+
+# Pose
+cargo run -r --example yolo -- --task pose --version v8  # YOLOv8-Pose
+
+# Segment
+cargo run -r --example yolo -- --task segment --version v5  # YOLOv5-Segment
+cargo run -r --example yolo -- --task segment --version v8  # YOLOv8-Segment
+cargo run -r --example yolo -- --task segment --version v8 --model FastSAM-s-dyn-f16.onnx  # FastSAM
+
+# Obb
+cargo run -r --example yolo -- --task obb --version v8  # YOLOv8-Obb
+```
+
+**Some other options**  
+`--source` to specify the input image  
+`--model` to specify the ONNX model  
+`--width --height` to specify the resolution  
+`--nc` to specify the number of model's classes  
+`--plot` to annotate   
+`--profile` to profile  
+`--cuda --trt --coreml` to select device  
+`--device_id` to decide which device to use  
+`--half` to use float16 when using TensorRT EP  
+
+
+
+### YOLOs configs with `Options` 
+
+**Use `YOLOVersion` and `YOLOTask`**
 ```Rust
-// FastSAM
-cargo run -r --example yolo -- --plot --task segment --version v8 --model FastSAM-s-dyn-f16.onnx
+let options = Options::default()
+    .with_yolo_version(YOLOVersion::V5)  // YOLOVersion: V5, V6, V7, V8, V9, V10, RTDETR
+    .with_yolo_task(YOLOTask::Classify)  // YOLOTask: Classify, Detect, Pose, Segment, Obb
+    .with_model("xxxx.onnx")?;
 
-// YOLOv5-Classify
-let options = options
-    .with_yolo_version(args.version)
-    .with_yolo_task(args.task)
-    .with_model("../models/yolov5s-cls.onnx")?;
-
-// YOLOv5-Detect
-let options = options
-    .with_yolo_version(YOLOVersion::V5)
-    .with_yolo_task(YOLOTask::Detect)
-    .with_model("../models/yolov5s.onnx")?;
-
-// YOLOv5-Segment
-let options = options
-    .with_yolo_version(YOLOVersion::V5)
-    .with_yolo_task(YOLOTask::Segment)
-    .with_model("../models/yolov5s.onnx")?;
-
-// YOLOv8-Detect
-let options = options
-    .with_yolo_version(YOLOVersion::V8)
-    .with_yolo_task(YOLOTask::Detect)
-    .with_model("yolov8m-dyn.onnx")?;
-
-// YOLOv8-Classify
-let options = options
-    .with_yolo_version(YOLOVersion::V8)
-    .with_yolo_task(YOLOTask::Classify)
-    .with_model("yolov8m-cls-dyn.onnx")?;
-
-// YOLOv8-Pose
-let options = options
-    .with_yolo_version(YOLOVersion::V8)
-    .with_yolo_task(YOLOTask::Pose)
-    .with_model("yolov8m-pose-dyn.onnx")?;
-
-// YOLOv8-Segment
-let options = options
-    .with_yolo_version(YOLOVersion::V8)
-    .with_yolo_task(YOLOTask::Segment)
-    .with_model("yolov8m-seg-dyn.onnx")?;
-
-// YOLOv8-Obb
-let options = options
-    .with_yolo_version(YOLOVersion::V8)
-    .with_yolo_task(YOLOTask::Obb)
-    .with_model("yolov8m-obb-dyn.onnx")?;
-
-// YOLOv9-Detect
-let options = options
-    .with_yolo_version(YOLOVersion::V9)
-    .with_yolo_task(YOLOTask::Detect)
-    .with_model("yolov9-c-dyn-f16.onnx")?;
-
-// YOLOv10-Detect
-let options = options
-    .with_yolo_version(YOLOVersion::V10)
-    .with_yolo_task(YOLOTask::Detect)
-    .with_model("yolov10n-dyn.onnx")?;
 ```
 
+**Cutomized your YOLOs model**
+```Rust
+// This config is for YOLOv8-Segment 
+use usls::{AnchorsPosition, BoxType, ClssType, YOLOPreds};
 
-
-```shell
-cargo run -r --example yolov8
+let options = Options::default()
+    .with_yolo_preds(
+        YOLOPreds {
+            bbox: Some(BoxType::Cxcywh),
+            clss: ClssType::Clss,
+            coefs: Some(true),
+            anchors: Some(AnchorsPosition::After),
+            ..Default::default()
+        }
+    )
+    .with_model("xxxx.onnx")?;
 ```
+
+# -----------------------------------------------------------
 
 ## Export `YOLOv8` ONNX Models
 

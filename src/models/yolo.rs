@@ -93,7 +93,7 @@ impl Vision for YOLO {
 
         let task = task.unwrap_or(layout.task());
 
-        // TODO: nc & Class names
+        // The number of classes & Class names
         let mut names = options.names.or(Self::fetch_names(&engine));
         let nc = match options.nc {
             Some(nc) => {
@@ -217,7 +217,7 @@ impl Vision for YOLO {
                         y.with_probs(
                             &Prob::default()
                                 .with_probs(&x.into_raw_vec())
-                                .with_names(self.names.to_owned()),
+                                .with_names(self.names.clone()),
                         ),
                     );
                 }
@@ -252,7 +252,7 @@ impl Vision for YOLO {
                             }
                         };
 
-                        // confidence filtering
+                        // filtering
                         if confidence < self.confs[class_id] {
                             return None;
                         }
@@ -325,7 +325,7 @@ impl Vision for YOLO {
                                         .with_name(
                                             self.names
                                                 .as_ref()
-                                                .map(|names| names[class_id].to_owned()),
+                                                .map(|names| names[class_id].clone()),
                                         ),
                                     ),
                                 )
@@ -340,7 +340,7 @@ impl Vision for YOLO {
                                         .with_name(
                                             self.names
                                                 .as_ref()
-                                                .map(|names| names[class_id].to_owned()),
+                                                .map(|names| names[class_id].clone()),
                                         ),
                                 ),
                                 None,
@@ -394,7 +394,7 @@ impl Vision for YOLO {
                                                 .with_name(
                                                     self.names_kpt
                                                         .as_ref()
-                                                        .map(|names| names[i].to_owned()),
+                                                        .map(|names| names[i].clone()),
                                                 )
                                                 .with_xy(
                                                     kx.max(0.0f32).min(image_width),
@@ -515,9 +515,9 @@ impl YOLO {
         &self.task
     }
 
-    // pub fn layout(&self) -> &YOLOPreds {
-    //     &self.layout
-    // }
+    pub fn layout(&self) -> &YOLOPreds {
+        &self.layout
+    }
 
     fn fetch_names(engine: &OrtEngine) -> Option<Vec<String>> {
         // fetch class names from onnx metadata
