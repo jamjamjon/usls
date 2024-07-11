@@ -23,6 +23,8 @@ A Rust library integrated with **ONNXRuntime**, providing a collection of **Comp
 |                               Model                               |                                                      Task / Type                                                      |           Example           | CUDA<br />f32 | CUDA<br />f16 |     TensorRT<br />f32     |     TensorRT<br />f16     |
 | :---------------------------------------------------------------: | :--------------------------------------------------------------------------------------------------------------------: | :--------------------------: | :-----------: | :-----------: | :------------------------: | :-----------------------: |
 |           [YOLOv5](https://github.com/ultralytics/yolov5)           |                            Classification<br />Object Detection<br />Instance Segmentation                            |     [demo](examples/yolo)     |      ✅      |      ✅      |             ✅             |            ✅            |
+|           [YOLOv6](https://github.com/meituan/YOLOv6)         |                           Object Detection                           |     [demo](examples/yolo)     |      ✅      |      ✅      |             ✅             |            ✅            |
+|           [YOLOv7](https://github.com/WongKinYiu/yolov7)         |                            Object Detection                            |     [demo](examples/yolo)     |      ✅      |      ✅      |             ✅             |            ✅            |
 |         [YOLOv8](https://github.com/ultralytics/ultralytics)         | Object Detection<br />Instance Segmentation<br />Classification<br />Oriented Object Detection<br />Keypoint Detection |     [demo](examples/yolo)     |      ✅      |      ✅      |             ✅             |            ✅            |
 |            [YOLOv9](https://github.com/WongKinYiu/yolov9)            |                                                    Object Detection                                                    |     [demo](examples/yolo)     |      ✅      |      ✅      |             ✅             |            ✅            |
 |            [YOLOv10](https://github.com/THU-MIG/yolov10)            |                                                    Object Detection                                                    |    [demo](examples/yolo)    |      ✅      |      ✅      |             ✅             |            ✅            |
@@ -62,9 +64,6 @@ cargo run -r --example yolov8   # yolov10, blip, clip, yolop, svtr, db, ...
 
 ## Integrate into your own project
 
-<details close>
-<summary>Expand</summary>
-
 ### 1. Add `usls` as a dependency to your project's `Cargo.toml`
 
 ```Shell
@@ -81,7 +80,9 @@ usls = { git = "https://github.com/jamjamjon/usls", rev = "???sha???"}
 
 ```Rust
 let options = Options::default()
-    .with_model("../models/yolov8m-seg-dyn-f16.onnx");
+    .with_yolo_version(YOLOVersion::V5)  // YOLOVersion: V5, V6, V7, V8, V9, V10, RTDETR
+    .with_yolo_task(YOLOTask::Classify)  // YOLOTask: Classify, Detect, Pose, Segment, Obb
+    .with_model("xxxx.onnx")?;
 let mut model = YOLO::new(options)?;
 ```
 
@@ -104,9 +105,9 @@ let mut model = YOLO::new(options)?;
 
   ```Rust
   let options = Options::default()
-      .with_confs(&[0.4, 0.15]) // class 0: 0.4, others: 0.15
+      .with_confs(&[0.4, 0.15]) // class_0: 0.4, others: 0.15
   ```
-- Go check [Options](src/options.rs) for more model options.
+- Go check [Options](src/core/options.rs) for more model options.
 
 #### 3. Prepare inputs, and then you're ready to go
 
@@ -132,26 +133,13 @@ let y = model.run(&x)?;
 #### 4. Annotate and save results
 
 ```Rust
-let annotator = Annotator::default().with_saveout("YOLOv8");
+let annotator = Annotator::default().with_saveout("YOLO");
 annotator.annotate(&x, &y);
 ```
 
 #### 5. Get results
 
 The inference outputs of provided models will be saved to `Vec<Y>`.
-
-```Rust
-pub struct Y {
-    probs: Option<Prob>,
-    bboxes: Option<Vec<Bbox>>,
-    keypoints: Option<Vec<Vec<Keypoint>>>,
-    mbrs: Option<Vec<Mbr>>,
-    polygons: Option<Vec<Polygon>>,
-    texts: Option<Vec<String>>,
-    masks: Option<Vec<Mask>>,
-    embedding: Option<Embedding>,
-}
-```
 
 - You can get detection bboxes with `y.bboxes()`:
 
@@ -174,8 +162,5 @@ pub struct Y {
       }
   }
   ```
-
-  More `Bbox` methods here: `src/ys/bbox.rs`
-- Other tasks results can be found at: `src/ys/y.rs`
-
-</details>
+  
+- Other:  [Docs](https://docs.rs/usls/latest/usls/struct.Y.html)
