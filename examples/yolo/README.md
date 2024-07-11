@@ -1,3 +1,4 @@
+<h1 align='center'>YOLO-Series</h1>
 
 
 |      Detection     |    Instance Segmentation   |   Pose     | 
@@ -20,7 +21,7 @@
 
 
 
-### Quick Start
+## Quick Start
 ```Shell
 
 # Classify
@@ -49,8 +50,10 @@ cargo run -r --example yolo -- --task segment --version v8 --model FastSAM-s-dyn
 cargo run -r --example yolo -- --task obb --version v8  # YOLOv8-Obb
 ```
 
-**Some other options**  
-`--source` to specify the input images
+<details close>
+<summary>other options</summary>
+
+`--source` to specify the input images  
 `--model` to specify the ONNX model  
 `--width --height` to specify the input resolution  
 `--nc` to specify the number of model's classes  
@@ -59,11 +62,14 @@ cargo run -r --example yolo -- --task obb --version v8  # YOLOv8-Obb
 `--cuda --trt --coreml --device_id` to select device  
 `--half` to use float16 when using TensorRT EP  
 
+</details>
 
 
 ## YOLOs configs with `Options` 
 
-**Use `YOLOVersion` and `YOLOTask`**
+<details open>
+<summary>Use official YOLO Models</summary>
+
 ```Rust
 let options = Options::default()
     .with_yolo_version(YOLOVersion::V5)  // YOLOVersion: V5, V6, V7, V8, V9, V10, RTDETR
@@ -71,8 +77,11 @@ let options = Options::default()
     .with_model("xxxx.onnx")?;
 
 ```
+</details>
 
-**Cutomized your YOLOs model**
+<details open>
+<summary>Cutomized your own YOLO model</summary>
+
 ```Rust
 // This config is for YOLOv8-Segment 
 use usls::{AnchorsPosition, BoxType, ClssType, YOLOPreds};
@@ -89,7 +98,7 @@ let options = Options::default()
     )
     .with_model("xxxx.onnx")?;
 ```
-
+</details>
 
 ## Other YOLOv8 Solution Models
 
