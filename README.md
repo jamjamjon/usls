@@ -1,14 +1,15 @@
 # usls
 
-[![Static Badge](https://img.shields.io/crates/v/usls.svg?style=for-the-badge&logo=rust)](https://crates.io/crates/usls) [![Static Badge](https://img.shields.io/badge/Documents-usls-blue?style=for-the-badge&logo=docs.rs)](https://docs.rs/usls) [![Static Badge](https://img.shields.io/badge/GitHub-black?style=for-the-badge&logo=github)](https://github.com/jamjamjon/usls) ![Static Badge](https://img.shields.io/crates/d/usls?style=for-the-badge)
+[![Static Badge](https://img.shields.io/crates/v/usls.svg?style=for-the-badge&logo=rust)](https://crates.io/crates/usls) ![Static Badge](https://img.shields.io/crates/d/usls?style=for-the-badge) [![Static Badge](https://img.shields.io/badge/Documents-usls-blue?style=for-the-badge&logo=docs.rs)](https://docs.rs/usls) [![Static Badge](https://img.shields.io/badge/GitHub-black?style=for-the-badge&logo=github)](https://github.com/jamjamjon/usls)
 
 A Rust library integrated with **ONNXRuntime**, providing a collection of **Computer Vison** and **Vision-Language** models including [YOLOv5](https://github.com/ultralytics/yolov5), [YOLOv8](https://github.com/ultralytics/ultralytics), [YOLOv9](https://github.com/WongKinYiu/yolov9), [YOLOv10](https://github.com/THU-MIG/yolov10), [RTDETR](https://arxiv.org/abs/2304.08069), [CLIP](https://github.com/openai/CLIP), [DINOv2](https://github.com/facebookresearch/dinov2), [FastSAM](https://github.com/CASIA-IVA-Lab/FastSAM), [YOLO-World](https://github.com/AILab-CVC/YOLO-World), [BLIP](https://arxiv.org/abs/2201.12086), [PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR), [Depth-Anything](https://github.com/LiheYoung/Depth-Anything), [MODNet](https://github.com/ZHKKKe/MODNet) and others.
 
-|                          Depth-Anything                          |
+|                          Monocular Depth Estimation              |
 | :--------------------------------------------------------------: |
 | <img src='examples/depth-anything/demo.png'   width="800px"> |
 
-|                        YOLOP-v2                        |    Text-Detection-Recognition   |
+
+|                        Panoptic Driving Perception                        |    Text-Detection-Recognition   |
 | :----------------------------------------------------: | :------------------------------------------------: |
 | <img src='examples/yolop/demo.png'  width="385px"> | <img src='examples/db/demo.png'  width="385x"> |
 
@@ -16,21 +17,18 @@ A Rust library integrated with **ONNXRuntime**, providing a collection of **Comp
 | :------------------------------------------------------: |
 | <img src='examples/modnet/demo.png'   width="800px"> |
 
-|                           YOLOv8-Obb                           |
-| :------------------------------------------------------------: |
-| <img src='examples/yolov8/demos/demo-obb-2.png'   width="800px"> |
 
 ## Supported Models
 
 |                               Model                               |                                                      Task / Type                                                      |           Example           | CUDA<br />f32 | CUDA<br />f16 |     TensorRT<br />f32     |     TensorRT<br />f16     |
 | :---------------------------------------------------------------: | :--------------------------------------------------------------------------------------------------------------------: | :--------------------------: | :-----------: | :-----------: | :------------------------: | :-----------------------: |
-|           [YOLOv5](https://github.com/ultralytics/yolov5)           |                            Classification<br />Object Detection<br />Instance Segmentation                            |     [demo](examples/yolov5)     |      ✅      |      ✅      |             ✅             |            ✅            |
-|         [YOLOv8](https://github.com/ultralytics/ultralytics)         | Object Detection<br />Instance Segmentation<br />Classification<br />Oriented Object Detection<br />Keypoint Detection |     [demo](examples/yolov8)     |      ✅      |      ✅      |             ✅             |            ✅            |
-|            [YOLOv9](https://github.com/WongKinYiu/yolov9)            |                                                    Object Detection                                                    |     [demo](examples/yolov9)     |      ✅      |      ✅      |             ✅             |            ✅            |
-|            [YOLOv10](https://github.com/THU-MIG/yolov10)            |                                                    Object Detection                                                    |    [demo](examples/yolov10)    |      ✅      |      ✅      |             ✅             |            ✅            |
-|              [RTDETR](https://arxiv.org/abs/2304.08069)              |                                                    Object Detection                                                    |     [demo](examples/rtdetr)     |      ✅      |      ✅      |             ✅             |            ✅            |
-|         [FastSAM](https://github.com/CASIA-IVA-Lab/FastSAM)         |                                                 Instance Segmentation                                                 |    [demo](examples/fastsam)    |      ✅      |      ✅      |             ✅             |            ✅            |
-|        [YOLO-World](https://github.com/AILab-CVC/YOLO-World)        |                                                    Object Detection                                                    |   [demo](examples/yolo-world)   |      ✅      |      ✅      |             ✅             |            ✅            |
+|           [YOLOv5](https://github.com/ultralytics/yolov5)           |                            Classification<br />Object Detection<br />Instance Segmentation                            |     [demo](examples/yolo)     |      ✅      |      ✅      |             ✅             |            ✅            |
+|         [YOLOv8](https://github.com/ultralytics/ultralytics)         | Object Detection<br />Instance Segmentation<br />Classification<br />Oriented Object Detection<br />Keypoint Detection |     [demo](examples/yolo)     |      ✅      |      ✅      |             ✅             |            ✅            |
+|            [YOLOv9](https://github.com/WongKinYiu/yolov9)            |                                                    Object Detection                                                    |     [demo](examples/yolo)     |      ✅      |      ✅      |             ✅             |            ✅            |
+|            [YOLOv10](https://github.com/THU-MIG/yolov10)            |                                                    Object Detection                                                    |    [demo](examples/yolo)    |      ✅      |      ✅      |             ✅             |            ✅            |
+|              [RTDETR](https://arxiv.org/abs/2304.08069)              |                                                    Object Detection                                                    |     [demo](examples/yolo)     |      ✅      |      ✅      |             ✅             |            ✅            |
+|         [FastSAM](https://github.com/CASIA-IVA-Lab/FastSAM)         |                                                 Instance Segmentation                                                 |    [demo](examples/yolo)    |      ✅      |      ✅      |             ✅             |            ✅            |
+|        [YOLO-World](https://github.com/AILab-CVC/YOLO-World)        |                                                    Object Detection                                                    |   [demo](examples/yolo)   |      ✅      |      ✅      |             ✅             |            ✅            |
 |         [DINOv2](https://github.com/facebookresearch/dinov2)         |                                                 Vision-Self-Supervised                                                 |     [demo](examples/dinov2)     |      ✅      |      ✅      |             ✅             |            ✅            |
 |                [CLIP](https://github.com/openai/CLIP)                |                                                    Vision-Language                                                    |      [demo](examples/clip)      |      ✅      |      ✅      | ✅ visual<br />❌ textual | ✅ visual<br />❌ textual |
 |              [BLIP](https://github.com/salesforce/BLIP)              |                                                    Vision-Language                                                    |      [demo](examples/blip)      |      ✅      |      ✅      | ✅ visual<br />❌ textual | ✅ visual<br />❌ textual |
@@ -38,7 +36,7 @@ A Rust library integrated with **ONNXRuntime**, providing a collection of **Comp
 |               [SVTR](https://arxiv.org/abs/2205.00159)               |                                                    Text Recognition                                                    |      [demo](examples/svtr)      |      ✅      |      ✅      |             ✅             |            ✅            |
 | [RTMO](https://github.com/open-mmlab/mmpose/tree/main/projects/rtmo) |                                                   Keypoint Detection                                                   |      [demo](examples/rtmo)      |      ✅      |      ✅      |             ❌             |            ❌            |
 |             [YOLOPv2](https://arxiv.org/abs/2208.11434)             |                                              Panoptic Driving Perception                                              |     [demo](examples/yolop)     |      ✅      |      ✅      |             ✅             |            ✅            |
-|    [Depth-Anything<br />v1,v2](https://github.com/LiheYoung/Depth-Anything)    |                                               Monocular Depth Estimation                                               | [demo](examples/depth-anything) |      ✅      |      ✅      |             ❌             |            ❌            |
+|    [Depth-Anything<br />(v1, v2)](https://github.com/LiheYoung/Depth-Anything)    |                                               Monocular Depth Estimation                                               | [demo](examples/depth-anything) |      ✅      |      ✅      |             ❌             |            ❌            |
 |              [MODNet](https://github.com/ZHKKKe/MODNet)              |                                                     Image Matting                                                     |     [demo](examples/modnet)     |      ✅      |      ✅      |             ✅             |            ✅            |
 
 ## Installation
