@@ -1,9 +1,12 @@
 
-## TODO: Demo pictures(combine into one)
+
+|      Detection     |    Instance Segmentation   |   Pose     |    Classification   |    Obb   |
+| :---------------: | :------------------------: |:---------------: | :------------------------: |:------------------------: |
+| <img src='examples/yolo/demos/det.png'  width="250px">  | <img src='examples/yolo/demos/seg.png'  width="250px"> |<img src='examples/yolo/demos/pose.png'  width="250px">  | <img src='examples/yolo/demos/cls.png'  width="250px"> |<img src='examples/yolo/demos/obb.png'  width="250px">
 
 
 
-### Quick Start for all YOLOs
+### Quick Start
 ```Shell
 
 # Classify
@@ -33,19 +36,18 @@ cargo run -r --example yolo -- --task obb --version v8  # YOLOv8-Obb
 ```
 
 **Some other options**  
-`--source` to specify the input image  
+`--source` to specify the input images
 `--model` to specify the ONNX model  
-`--width --height` to specify the resolution  
+`--width --height` to specify the input resolution  
 `--nc` to specify the number of model's classes  
-`--plot` to annotate   
+`--plot` to annotate with inference results  
 `--profile` to profile  
-`--cuda --trt --coreml` to select device  
-`--device_id` to decide which device to use  
+`--cuda --trt --coreml --device_id` to select device  
 `--half` to use float16 when using TensorRT EP  
 
 
 
-### YOLOs configs with `Options` 
+## YOLOs configs with `Options` 
 
 **Use `YOLOVersion` and `YOLOTask`**
 ```Rust
@@ -74,11 +76,50 @@ let options = Options::default()
     .with_model("xxxx.onnx")?;
 ```
 
-# -----------------------------------------------------------
 
-## Export `YOLOv8` ONNX Models
+## Other YOLOv8 Solution Models
 
-```bash
+|          Model          |    Weights   | Datasets|
+|:---------------------: | :--------------------------: | :-------------------------------: |
+| Face-Landmark Detection |   [yolov8-face-dyn-f16](https://github.com/jamjamjon/assets/releases/download/v0.0.1/yolov8-face-dyn-f16.onnx)         | |
+| Head Detection |   [yolov8-head-f16](https://github.com/jamjamjon/assets/releases/download/v0.0.1/yolov8-head-f16.onnx)         | |
+| Fall Detection |   [yolov8-falldown-f16](https://github.com/jamjamjon/assets/releases/download/v0.0.1/yolov8-falldown-f16.onnx)          | |
+| Trash Detection |   [yolov8-plastic-bag-f16](https://github.com/jamjamjon/assets/releases/download/v0.0.1/yolov8-plastic-bag-f16.onnx)         | |
+| FaceParsing |  [face-parsing-dyn](https://github.com/jamjamjon/assets/releases/download/v0.0.1/face-parsing-dyn.onnx)  | [CelebAMask-HQ](https://github.com/switchablenorms/CelebAMask-HQ/tree/master/face_parsing)<br />[[Processed YOLO labels]](https://github.com/jamjamjon/assets/releases/download/v0.0.1/CelebAMask-HQ-YOLO-Labels.zip)[[Python Script]](https://github.com/jamjamjon/assets/releases/download/v0.0.1/CelebAMask-HQ-YOLO-Labels.zip) |
+
+
+
+
+## Export ONNX Models
+
+
+<details close>
+<summary>YOLOv5</summary>
+    
+[Here](https://docs.ultralytics.com/yolov5/tutorials/model_export/)
+
+</details>
+
+
+<details close>
+<summary>YOLOv6</summary>
+
+[Here](https://github.com/meituan/YOLOv6/tree/main/deploy/ONNX)
+
+</details>
+
+
+<details close>
+<summary>YOLOv7</summary>
+
+[Here](https://github.com/WongKinYiu/yolov7?tab=readme-ov-file#export)
+
+</details>
+
+<details close>
+<summary>YOLOv8</summary>
+    
+```Shell
 pip install -U ultralytics
 
 # export onnx model with dynamic shapes
@@ -95,24 +136,23 @@ yolo export model=yolov8m-pose.pt format=onnx simplify
 yolo export model=yolov8m-seg.pt format=onnx simplify
 yolo export model=yolov8m-obb.pt format=onnx simplify
 ```
+</details>
 
-## Result
 
-|         Task         | Annotated image                                             |
-| :-------------------: | ----------------------------------------------------------- |
-|          Obb          |                                                             |
-| Instance Segmentation | <img src='examples/yolov8/demos/seg.png' height="300px">  |
-|    Classification    | <img src='examples/yolov8/demos/cls.png' height="300px">  |
-|       Detection       | <img src='examples/yolov8/demos/det.png' height="300px">  |
-|         Pose         | <img src='examples/yolov8/demos/pose.png' height="300px"> |
+<details close>
+<summary>YOLOv9</summary>
 
-## Other YOLOv8 Solution Models
+[Here](https://github.com/WongKinYiu/yolov9/blob/main/export.py)
 
-|          Model          |    Weights                | Result              | Datasets                                                                                                                                                                                                                                                                                                                  |
-| :---------------------: | :--------------------------: | :-------------------------------: | ------ |
-| Face-Landmark Detection |                                                      [yolov8-face-dyn-f16](https://github.com/jamjamjon/assets/releases/download/v0.0.1/yolov8-face-dyn-f16.onnx)                                      | <img src='examples/yolov8/demos/face.png' height="300px">  |                                                                                                                                                                                                                                                                                                                           |
-|     Head Detection     |                                                          [yolov8-head-f16](https://github.com/jamjamjon/assets/releases/download/v0.0.1/yolov8-head-f16.onnx)                                                          | <img src='examples/yolov8/demos/head.png' height="300px"> |                                                                                                                                                                                                                                                                                                                           |
-|     Fall Detection     |                                                      [yolov8-falldown-f16](https://github.com/jamjamjon/assets/releases/download/v0.0.1/yolov8-falldown-f16.onnx)                                                      |<img src='examples/yolov8/demos/falldown.png' height="300px"> |                                                                                                                                                                                                                                                                                                                           |
-|     Trash Detection     |                                                   [yolov8-plastic-bag-f16](https://github.com/jamjamjon/assets/releases/download/v0.0.1/yolov8-plastic-bag-f16.onnx)                                                   |  <img src='examples/yolov8/demos/trash.png' height="300px">  |                                                                                                                                                                                                                                                                                                                           |
-|         FastSAM         |                                                        [FastSAM-s-dyn-f16](https://github.com/jamjamjon/assets/releases/download/v0.0.1/FastSAM-s-dyn-f16.onnx)                                                        |                                                                                |         <img src='examples/yolov8/demos/fastsam.png' height="300px">                        |
-|       FaceParsing       | [face-parsing-dyn](https://github.com/jamjamjon/assets/releases/download/v0.0.1/face-parsing-dyn.onnx) |        <img src='examples/yolov8/demos/face-parsing.png' height="300px">                                                                        | [CelebAMask-HQ](https://github.com/switchablenorms/CelebAMask-HQ/tree/master/face_parsing)<br />[[Processed YOLO labels]](https://github.com/jamjamjon/assets/releases/download/v0.0.1/CelebAMask-HQ-YOLO-Labels.zip)[[Python Script]](https://github.com/jamjamjon/assets/releases/download/v0.0.1/CelebAMask-HQ-YOLO-Labels.zip) |
+</details>
+
+<details close>
+<summary>YOLOv10</summary>
+
+[Here](https://github.com/THU-MIG/yolov10#export)
+
+</details>
+
+
+
+
