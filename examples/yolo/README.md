@@ -1,8 +1,22 @@
 
 
-|      Detection     |    Instance Segmentation   |   Pose     |    Classification   |    Obb   |
-| :---------------: | :------------------------: |:---------------: | :------------------------: |:------------------------: |
-| <img src='examples/yolo/demos/det.png'  width="250px">  | <img src='examples/yolo/demos/seg.png'  width="250px"> |<img src='examples/yolo/demos/pose.png'  width="250px">  | <img src='examples/yolo/demos/cls.png'  width="250px"> |<img src='examples/yolo/demos/obb.png'  width="250px">
+|      Detection     |    Instance Segmentation   |   Pose     | 
+| :---------------: | :------------------------: |:---------------: |
+| <img src='./demos/det.png'  width="300px">  | <img src='./demos/seg.png'  width="300px"> |<img src='./demos/pose.png'  width="300px">  | 
+
+|    Classification   |    Obb   |
+| :------------------------: |:------------------------: |
+|<img src='./demos/cls.png'  width="300px"> |<img src='./demos/obb-2.png'  width="628px">
+
+|    Head Detection   |    Fall Detection   | Trash Detection   |
+| :------------------------: |:------------------------: |:------------------------: |
+|<img src='./demos/head.png'  width="300px"> |<img src='./demos/falldown.png'  width="300px">|<img src='./demos/trash.png'  width="300px">
+
+|    YOLO-World   |    Face Parsing   | FastSAM   |
+| :------------------------: |:------------------------: |:------------------------: |
+|<img src='./demos/yolov8-world.png'  width="300px"> |<img src='./demos/face-parsing.png'  width="300px">|<img src='./demos/fastsam.png'  width="300px">
+
+
 
 
 
