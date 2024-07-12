@@ -43,12 +43,12 @@ A Rust library integrated with **ONNXRuntime**, providing a collection of **Comp
 
 ## Installation
 
-Refer to **[ort guide](https://ort.pyke.io/setup/linking)**
+Refer to [ort docs](https://ort.pyke.io/setup/linking)
 
 <details close>
 <summary>For Linux or MacOS users</summary>
 
-- Firstly, download from latest release from [ONNXRuntime Releases](https://github.com/microsoft/onnxruntime/releases)
+- Download from [ONNXRuntime Releases](https://github.com/microsoft/onnxruntime/releases)
 - Then linking
   ```Shell
   export ORT_DYLIB_PATH=/Users/qweasd/Desktop/onnxruntime-osx-arm64-1.17.1/lib/libonnxruntime.1.17.1.dylib
@@ -56,10 +56,10 @@ Refer to **[ort guide](https://ort.pyke.io/setup/linking)**
 
 </details>
 
-## Demo
+## Quick Start
 
 ```Shell
-cargo run -r --example yolov8   # yolov10, blip, clip, yolop, svtr, db, ...
+cargo run -r --example yolo   # blip, clip, yolop, svtr, db, ...
 ```
 
 ## Integrate into your own project
@@ -76,7 +76,7 @@ Or you can use specific commit
 usls = { git = "https://github.com/jamjamjon/usls", rev = "???sha???"}
 ```
 
-### 2. Set `Options` and build model
+### 2. Build model
 
 ```Rust
 let options = Options::default()
@@ -109,7 +109,7 @@ let mut model = YOLO::new(options)?;
   ```
 - Go check [Options](src/core/options.rs) for more model options.
 
-#### 3. Prepare inputs, and then you're ready to go
+#### 3. Load images
 
 - Build `DataLoader` to load images
 
@@ -130,7 +130,7 @@ let x = vec![DataLoader::try_read("./assets/bus.jpg")?];
 let y = model.run(&x)?;
 ```
 
-#### 4. Annotate and save results
+#### 4. Annotate and save
 
 ```Rust
 let annotator = Annotator::default().with_saveout("YOLO");
