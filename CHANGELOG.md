@@ -15,7 +15,7 @@
 - Updated documentation for `bbox.rs`.
 - Updated the README.md.
 - Added `with_yolo_preds()` to `Options`.
-- Added support for Depth-Anything-v2.
+- Added support for `Depth-Anything-v2`.
 - Added `RTDETR` to the `YOLOVersion` struct.
 
 ### Removed
