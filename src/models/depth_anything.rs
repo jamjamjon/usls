@@ -71,9 +71,7 @@ impl DepthAnything {
                     None => continue,
                     Some(x) => x,
                 };
-            ys.push(
-                Y::default().with_masks(&[Mask::default().with_mask(DynamicImage::from(luma))]),
-            );
+            ys.push(Y::default().with_masks(&[Mask::default().with_mask(luma)]));
         }
         Ok(ys)
     }

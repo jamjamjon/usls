@@ -226,11 +226,13 @@ impl Annotator {
         self
     }
 
+    /// Plotting polygons' areas or not
     pub fn without_polygons(mut self, x: bool) -> Self {
         self.without_polygons = x;
         self
     }
 
+    /// Plotting polygons' contours or not
     pub fn without_contours(mut self, x: bool) -> Self {
         self.without_contours = x;
         self
@@ -248,6 +250,12 @@ impl Annotator {
 
     pub fn with_polygons_text_bg(mut self, x: bool) -> Self {
         self.with_polygons_text_bg = x;
+        self
+    }
+
+    /// Plotting masks or not
+    pub fn without_masks(mut self, x: bool) -> Self {
+        self.without_masks = x;
         self
     }
 
@@ -328,41 +336,41 @@ impl Annotator {
             // polygons
             if !self.without_polygons {
                 if let Some(xs) = &y.polygons() {
-                    self.plot_polygons(&mut img_rgba, xs)
+                    self.plot_polygons(&mut img_rgba, xs);
+                }
+            }
+
+            // masks
+            if !self.without_masks {
+                if let Some(xs) = &y.masks() {
+                    self.plot_masks(&mut img_rgba, xs);
                 }
             }
 
             // bboxes
             if !self.without_bboxes {
                 if let Some(xs) = &y.bboxes() {
-                    self.plot_bboxes(&mut img_rgba, xs)
+                    self.plot_bboxes(&mut img_rgba, xs);
                 }
             }
 
             // mbrs
             if !self.without_mbrs {
                 if let Some(xs) = &y.mbrs() {
-                    self.plot_mbrs(&mut img_rgba, xs)
+                    self.plot_mbrs(&mut img_rgba, xs);
                 }
             }
 
             // keypoints
             if !self.without_keypoints {
                 if let Some(xs) = &y.keypoints() {
-                    self.plot_keypoints(&mut img_rgba, xs)
+                    self.plot_keypoints(&mut img_rgba, xs);
                 }
             }
 
             // probs
             if let Some(xs) = &y.probs() {
-                self.plot_probs(&mut img_rgba, xs)
-            }
-
-            // masks
-            if !self.without_masks {
-                if let Some(xs) = &y.masks() {
-                    self.plot_masks(&mut img_rgba, xs)
-                }
+                self.plot_probs(&mut img_rgba, xs);
             }
 
             // save
@@ -618,7 +626,7 @@ impl Annotator {
                 });
                 image::DynamicImage::from(luma)
             } else {
-                mask.mask().to_owned()
+                image::DynamicImage::from(mask.mask().to_owned())
             };
             let luma = luma.resize_exact(
                 w / scale,

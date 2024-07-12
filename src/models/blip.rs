@@ -59,7 +59,7 @@ impl Blip {
             Ops::Nhwc2nchw,
         ])?;
         let ys = self.visual.run(vec![xs_])?;
-        Ok(Y::default().with_embedding(Embedding::from(ys[0].to_owned())))
+        Ok(Y::default().with_embedding(&Embedding::from(ys[0].to_owned())))
     }
 
     pub fn caption(
