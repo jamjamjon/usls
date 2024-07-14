@@ -116,7 +116,7 @@ fn main() -> Result<()> {
             },
             YOLOVersion::V10 => match args.task {
                 YOLOTask::Detect => {
-                    options.with_model(&args.model.unwrap_or("yolov10n-dyn.onnx".to_string()))?
+                    options.with_model(&args.model.unwrap_or("yolov10n.onnx".to_string()))?
                 }
                 t => anyhow::bail!("Task: {t:?} is unsupported for {:?}", args.version),
             },

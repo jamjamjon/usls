@@ -12,7 +12,7 @@ exclude = ["assets/*", "examples/*"]
 [dependencies]
 clap = { version = "4.2.4", features = ["derive"] }
 ndarray = { version = "0.15.6", features = ["rayon"] }
-ort = { version = "2.0.0-rc.2", default-features = false, features = [
+ort = { git = "https://github.com/pykeio/ort.git", default-features = false, features = [
     "load-dynamic",
     "copy-dylibs",
     "half",
@@ -24,7 +24,7 @@ ort = { version = "2.0.0-rc.2", default-features = false, features = [
     "rocm",
     "openvino",
     "operator-libraries"
-] }
+], rev = "467d127c5877b099e1d0f605d38b74d221b6121c"}
 anyhow = { version = "1.0.75" }
 regex = { version = "1.5.4" }
 rand = { version = "0.8.5" }
