@@ -246,7 +246,7 @@ impl OrtEngine {
     }
 
     fn build_cpu(builder: &SessionBuilder) -> Result<()> {
-        let ep = ort::CUDAExecutionProvider::default();
+        let ep = ort::CPUExecutionProvider::default();
         if ep.is_available()? && ep.register(builder).is_ok() {
             Ok(())
         } else {
