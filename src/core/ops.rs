@@ -223,7 +223,7 @@ impl Ops<'_> {
         let (mut resizer, options) = Self::build_resizer_filter(filter)?;
         for (idx, x) in xs.iter().enumerate() {
             let buffer = if x.dimensions() == (width, height) {
-                x.to_rgba8().into_raw()
+                x.to_rgb8().into_raw()
             } else {
                 let mut dst_image = Image::new(width, height, PixelType::U8x3);
                 resizer.resize(x, &mut dst_image, &options)?;
@@ -251,7 +251,7 @@ impl Ops<'_> {
         for (idx, x) in xs.iter().enumerate() {
             let (w0, h0) = x.dimensions();
             let buffer = if w0 == width && h0 == height {
-                x.to_rgba8().into_raw()
+                x.to_rgb8().into_raw()
             } else {
                 let (w, h) = match resize_by {
                     "auto" => {

@@ -92,7 +92,7 @@ impl DataLoader {
     }
 
     pub fn try_read<P: AsRef<Path>>(path: P) -> Result<DynamicImage> {
-        let img = image::io::Reader::open(&path)
+        let img = image::ImageReader::open(&path)
             .map_err(|_| anyhow!("Failed to open image at {:?}", path.as_ref()))?
             .decode()
             .map_err(|_| anyhow!("Failed to decode image at {:?}", path.as_ref()))?
