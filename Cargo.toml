@@ -1,6 +1,6 @@
 [package]
 name = "usls"
-version = "0.0.5"
+version = "0.0.6"
 edition = "2021"
 description = "A Rust library integrated with ONNXRuntime, providing a collection of ML models."
 repository = "https://github.com/jamjamjon/usls"
@@ -38,7 +38,7 @@ walkdir = { version = "2.5.0" }
 tokenizers = { version = "0.15.2" }
 rayon = "1.10.0"
 indicatif = "0.17.8"
-image = "0.25.1"
+image = "0.25.2"
 imageproc = { version = "0.24" }
 ab_glyph = "0.2.23"
 geo = "0.28.0"
