@@ -41,7 +41,7 @@ impl OrtEngine {
         let model_proto = Self::load_onnx(&config.onnx_path)?;
         let graph = match &model_proto.graph {
             Some(graph) => graph,
-            None => anyhow::bail!("No graph found in this proto"),
+            None => anyhow::bail!("No graph found in this proto. Failed to parse ONNX model."),
         };
 
         // model params & mems
@@ -499,14 +499,12 @@ impl OrtEngine {
             let tensor_type = match Self::ort_dtype_from_onnx_dtype_id(tensor_type) {
                 Some(dtype) => dtype,
                 None => continue,
-                // None => anyhow::bail!("DType not supported"),
             };
             dtypes.push(tensor_type);
 
             let shapes = match &tensor.shape {
                 Some(shapes) => shapes,
                 None => continue,
-                // None => anyhow::bail!("DType has no shapes"),
             };
             let mut shape_: Vec<isize> = Vec::new();
             for shape in shapes.dim.iter() {

@@ -16,7 +16,7 @@ pub struct Args {
     pub task: YOLOTask,
 
     #[arg(long, value_enum, default_value_t = YOLOVersion::V8)]
-    pub version: YOLOVersion,
+    pub ver: YOLOVersion,
 
     #[arg(long, default_value_t = 224)]
     pub width_min: isize,
@@ -69,7 +69,7 @@ fn main() -> Result<()> {
 
     // version & task
     let options =
-        match args.version {
+        match args.ver {
             YOLOVersion::V5 => {
                 match args.task {
                     YOLOTask::Classify => options
@@ -79,20 +79,20 @@ fn main() -> Result<()> {
                     }
                     YOLOTask::Segment => options
                         .with_model(&args.model.unwrap_or("yolov5n-seg-dyn.onnx".to_string()))?,
-                    t => anyhow::bail!("Task: {t:?} is unsupported for {:?}", args.version),
+                    t => anyhow::bail!("Task: {t:?} is unsupported for {:?}", args.ver),
                 }
             }
             YOLOVersion::V6 => match args.task {
                 YOLOTask::Detect => options
                     .with_model(&args.model.unwrap_or("yolov6n-dyn.onnx".to_string()))?
                     .with_nc(args.nc),
-                t => anyhow::bail!("Task: {t:?} is unsupported for {:?}", args.version),
+                t => anyhow::bail!("Task: {t:?} is unsupported for {:?}", args.ver),
             },
             YOLOVersion::V7 => match args.task {
                 YOLOTask::Detect => options
                     .with_model(&args.model.unwrap_or("yolov7-tiny-dyn.onnx".to_string()))?
                     .with_nc(args.nc),
-                t => anyhow::bail!("Task: {t:?} is unsupported for {:?}", args.version),
+                t => anyhow::bail!("Task: {t:?} is unsupported for {:?}", args.ver),
             },
             YOLOVersion::V8 => {
                 match args.task {
@@ -112,22 +112,22 @@ fn main() -> Result<()> {
             YOLOVersion::V9 => match args.task {
                 YOLOTask::Detect => options
                     .with_model(&args.model.unwrap_or("yolov9-c-dyn-f16.onnx".to_string()))?,
-                t => anyhow::bail!("Task: {t:?} is unsupported for {:?}", args.version),
+                t => anyhow::bail!("Task: {t:?} is unsupported for {:?}", args.ver),
             },
             YOLOVersion::V10 => match args.task {
                 YOLOTask::Detect => {
                     options.with_model(&args.model.unwrap_or("yolov10n.onnx".to_string()))?
                 }
-                t => anyhow::bail!("Task: {t:?} is unsupported for {:?}", args.version),
+                t => anyhow::bail!("Task: {t:?} is unsupported for {:?}", args.ver),
             },
             YOLOVersion::RTDETR => match args.task {
                 YOLOTask::Detect => {
                     options.with_model(&args.model.unwrap_or("rtdetr-l-f16.onnx".to_string()))?
                 }
-                t => anyhow::bail!("Task: {t:?} is unsupported for {:?}", args.version),
+                t => anyhow::bail!("Task: {t:?} is unsupported for {:?}", args.ver),
             },
         }
-        .with_yolo_version(args.version)
+        .with_yolo_version(args.ver)
         .with_yolo_task(args.task);
 
     // device

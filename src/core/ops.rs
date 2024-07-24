@@ -1,7 +1,6 @@
 //! Some processing functions to image and ndarray.
 
 use anyhow::Result;
-use fast_image_resize as fir;
 use fast_image_resize::{
     images::{CroppedImageMut, Image},
     pixels::PixelType,
@@ -10,8 +9,6 @@ use fast_image_resize::{
 use image::{DynamicImage, GenericImageView};
 use ndarray::{s, Array, Axis, IxDyn};
 use rayon::prelude::*;
-
-use crate::X;
 
 pub enum Ops<'a> {
     Resize(&'a [DynamicImage], u32, u32, &'a str),
@@ -26,30 +23,13 @@ pub enum Ops<'a> {
 }
 
 impl Ops<'_> {
-    pub fn apply(ops: &[Self]) -> Result<X> {
-        let mut y = X::default();
-
-        for op in ops {
-            y = match op {
-                Self::Resize(xs, h, w, filter) => X::resize(xs, *h, *w, filter)?,
-                Self::Letterbox(xs, h, w, filter, bg, resize_by, center) => {
-                    X::letterbox(xs, *h, *w, filter, *bg, resize_by, *center)?
-                }
-                Self::Normalize(min_, max_) => y.normalize(*min_, *max_)?,
-                Self::Standardize(mean, std, d) => y.standardize(mean, std, *d)?,
-                Self::Permute(shape) => y.permute(shape)?,
-                Self::InsertAxis(d) => y.insert_axis(*d)?,
-                Self::Nhwc2nchw => y.nhwc2nchw()?,
-                Self::Nchw2nhwc => y.nchw2nhwc()?,
-                _ => todo!(),
-            }
-        }
-        Ok(y)
-    }
-
     pub fn normalize(x: Array<f32, IxDyn>, min: f32, max: f32) -> Result<Array<f32, IxDyn>> {
-        if min > max {
-            anyhow::bail!("Input `min` is greater than `max`");
+        if min >= max {
+            anyhow::bail!(
+                "Invalid range in `normalize`: `min` ({}) must be less than `max` ({}).",
+                min,
+                max
+            );
         }
         Ok((x - min) / (max - min))
     }
@@ -61,11 +41,11 @@ impl Ops<'_> {
         dim: usize,
     ) -> Result<Array<f32, IxDyn>> {
         if mean.len() != std.len() {
-            anyhow::bail!("The lengths of mean and std are not equal.");
+            anyhow::bail!("`standardize`: `mean` and `std` lengths are not equal. Mean length: {}, Std length: {}.", mean.len(), std.len());
         }
         let shape = x.shape();
         if dim >= shape.len() || shape[dim] != mean.len() {
-            anyhow::bail!("The specified dimension or mean/std length is inconsistent with the input dimensions.");
+            anyhow::bail!("`standardize`: Dimension mismatch. `dim` is {} but shape length is {} or `mean` length is {}.", dim, shape.len(), mean.len());
         }
         let mut shape = vec![1; shape.len()];
         shape[dim] = mean.len();
@@ -77,11 +57,11 @@ impl Ops<'_> {
     pub fn permute(x: Array<f32, IxDyn>, shape: &[usize]) -> Result<Array<f32, IxDyn>> {
         if shape.len() != x.shape().len() {
             anyhow::bail!(
-                "Shape inconsistent. Target: {:?}, {}, got: {:?}, {}",
-                x.shape(),
+                "`permute`: Shape length mismatch. Expected: {}, got: {}. Target shape: {:?}, provided shape: {:?}.",
                 x.shape().len(),
-                shape,
-                shape.len()
+                shape.len(),
+                x.shape(),
+                shape
             );
         }
         Ok(x.permuted_axes(shape.to_vec()).into_dyn())
@@ -98,7 +78,7 @@ impl Ops<'_> {
     pub fn insert_axis(x: Array<f32, IxDyn>, d: usize) -> Result<Array<f32, IxDyn>> {
         if x.shape().len() < d {
             anyhow::bail!(
-                "The specified axis insertion position {} exceeds the shape's maximum limit of {}.",
+                "`insert_axis`: The specified axis position {} exceeds the maximum shape length {}.",
                 d,
                 x.shape().len()
             );
@@ -109,7 +89,7 @@ impl Ops<'_> {
     pub fn norm(xs: Array<f32, IxDyn>, d: usize) -> Result<Array<f32, IxDyn>> {
         if xs.shape().len() < d {
             anyhow::bail!(
-                "The specified axis {} exceeds the shape's maximum limit of {}.",
+                "`norm`: Specified axis {} exceeds the maximum dimension length {}.",
                 d,
                 xs.shape().len()
             );
@@ -149,22 +129,22 @@ impl Ops<'_> {
         crop_src: bool,
         filter: &str,
     ) -> Result<Vec<u8>> {
-        let src_mask = fir::images::Image::from_vec_u8(
+        let src = Image::from_vec_u8(
             w0 as _,
             h0 as _,
             v.iter().flat_map(|x| x.to_le_bytes()).collect(),
-            fir::PixelType::F32,
+            PixelType::F32,
         )?;
-        let mut dst_mask = fir::images::Image::new(w1 as _, h1 as _, src_mask.pixel_type());
+        let mut dst = Image::new(w1 as _, h1 as _, src.pixel_type());
         let (mut resizer, mut options) = Self::build_resizer_filter(filter)?;
         if crop_src {
             let (_, w, h) = Self::scale_wh(w1 as _, h1 as _, w0 as _, h0 as _);
             options = options.crop(0., 0., w.into(), h.into());
         };
-        resizer.resize(&src_mask, &mut dst_mask, &options)?;
+        resizer.resize(&src, &mut dst, &options)?;
 
         // u8*2 -> f32
-        let mask_f32: Vec<f32> = dst_mask
+        let mask_f32: Vec<f32> = dst
             .into_vec()
             .chunks_exact(4)
             .map(|chunk| f32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]))
@@ -184,16 +164,15 @@ impl Ops<'_> {
         crop_src: bool,
         filter: &str,
     ) -> Result<Vec<u8>> {
-        let src_mask =
-            fir::images::Image::from_vec_u8(w0 as _, h0 as _, v.to_vec(), fir::PixelType::U8)?;
-        let mut dst_mask = fir::images::Image::new(w1 as _, h1 as _, src_mask.pixel_type());
+        let src = Image::from_vec_u8(w0 as _, h0 as _, v.to_vec(), PixelType::U8)?;
+        let mut dst = Image::new(w1 as _, h1 as _, src.pixel_type());
         let (mut resizer, mut options) = Self::build_resizer_filter(filter)?;
         if crop_src {
             let (_, w, h) = Self::scale_wh(w1 as _, h1 as _, w0 as _, h0 as _);
             options = options.crop(0., 0., w.into(), h.into());
         };
-        resizer.resize(&src_mask, &mut dst_mask, &options)?;
-        Ok(dst_mask.into_vec())
+        resizer.resize(&src, &mut dst, &options)?;
+        Ok(dst.into_vec())
     }
 
     pub fn build_resizer_filter(ty: &str) -> Result<(Resizer, ResizeOptions)> {
@@ -205,7 +184,7 @@ impl Ops<'_> {
             "Mitchell" => FilterType::Mitchell,
             "Gaussian" => FilterType::Gaussian,
             "Lanczos3" => FilterType::Lanczos3,
-            _ => anyhow::bail!("Unsupported resize filter type: {ty}"),
+            _ => anyhow::bail!("Unsupported resizer's filter type: {ty}"),
         };
         Ok((
             Resizer::new(),
@@ -215,22 +194,22 @@ impl Ops<'_> {
 
     pub fn resize(
         xs: &[DynamicImage],
-        height: u32,
-        width: u32,
+        th: u32,
+        tw: u32,
         filter: &str,
     ) -> Result<Array<f32, IxDyn>> {
-        let mut ys = Array::ones((xs.len(), height as usize, width as usize, 3)).into_dyn();
+        let mut ys = Array::ones((xs.len(), th as usize, tw as usize, 3)).into_dyn();
         let (mut resizer, options) = Self::build_resizer_filter(filter)?;
         for (idx, x) in xs.iter().enumerate() {
-            let buffer = if x.dimensions() == (width, height) {
+            let buffer = if x.dimensions() == (tw, th) {
                 x.to_rgb8().into_raw()
             } else {
-                let mut dst_image = Image::new(width, height, PixelType::U8x3);
-                resizer.resize(x, &mut dst_image, &options)?;
-                dst_image.into_vec()
+                let mut dst = Image::new(tw, th, PixelType::U8x3);
+                resizer.resize(x, &mut dst, &options)?;
+                dst.into_vec()
             };
-            let y_ = Array::from_shape_vec((height as usize, width as usize, 3), buffer)?
-                .mapv(|x| x as f32);
+            let y_ =
+                Array::from_shape_vec((th as usize, tw as usize, 3), buffer)?.mapv(|x| x as f32);
             ys.slice_mut(s![idx, .., .., ..]).assign(&y_);
         }
         Ok(ys)
@@ -238,55 +217,55 @@ impl Ops<'_> {
 
     pub fn letterbox(
         xs: &[DynamicImage],
-        height: u32,
-        width: u32,
+        th: u32,
+        tw: u32,
         filter: &str,
         bg: u8,
         resize_by: &str,
         center: bool,
     ) -> Result<Array<f32, IxDyn>> {
-        let mut ys = Array::ones((xs.len(), height as usize, width as usize, 3)).into_dyn();
+        let mut ys = Array::ones((xs.len(), th as usize, tw as usize, 3)).into_dyn();
         let (mut resizer, options) = Self::build_resizer_filter(filter)?;
 
         for (idx, x) in xs.iter().enumerate() {
             let (w0, h0) = x.dimensions();
-            let buffer = if w0 == width && h0 == height {
+            let buffer = if w0 == tw && h0 == th {
                 x.to_rgb8().into_raw()
             } else {
                 let (w, h) = match resize_by {
                     "auto" => {
-                        let r = (width as f32 / w0 as f32).min(height as f32 / h0 as f32);
+                        let r = (tw as f32 / w0 as f32).min(th as f32 / h0 as f32);
                         (
                             (w0 as f32 * r).round() as u32,
                             (h0 as f32 * r).round() as u32,
                         )
                     }
-                    "height" => (height * w0 / h0, height),
-                    "width" => (width, width * h0 / w0),
-                    _ => anyhow::bail!("Option: width, height, auto"),
+                    "height" => (th * w0 / h0, th),
+                    "width" => (tw, tw * h0 / w0),
+                    _ => anyhow::bail!("Options for `letterbox`: width, height, auto"),
                 };
 
-                let mut dst_image = Image::from_vec_u8(
-                    width,
-                    height,
-                    vec![bg; 3 * height as usize * width as usize],
+                let mut dst = Image::from_vec_u8(
+                    tw,
+                    th,
+                    vec![bg; 3 * th as usize * tw as usize],
                     PixelType::U8x3,
                 )?;
                 let (l, t) = if center {
-                    if w == width {
-                        (0, (height - h) / 2)
+                    if w == tw {
+                        (0, (th - h) / 2)
                     } else {
-                        ((width - w) / 2, 0)
+                        ((tw - w) / 2, 0)
                     }
                 } else {
                     (0, 0)
                 };
-                let mut cropped_dst_image = CroppedImageMut::new(&mut dst_image, l, t, w, h)?;
-                resizer.resize(x, &mut cropped_dst_image, &options)?;
-                dst_image.into_vec()
+                let mut dst_cropped = CroppedImageMut::new(&mut dst, l, t, w, h)?;
+                resizer.resize(x, &mut dst_cropped, &options)?;
+                dst.into_vec()
             };
-            let y_ = Array::from_shape_vec((height as usize, width as usize, 3), buffer)?
-                .mapv(|x| x as f32);
+            let y_ =
+                Array::from_shape_vec((th as usize, tw as usize, 3), buffer)?.mapv(|x| x as f32);
             ys.slice_mut(s![idx, .., .., ..]).assign(&y_);
         }
         Ok(ys)

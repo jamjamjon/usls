@@ -28,7 +28,23 @@ impl X {
     }
 
     pub fn apply(ops: &[Ops]) -> Result<Self> {
-        Ops::apply(ops)
+        let mut y = Self::default();
+        for op in ops {
+            y = match op {
+                Ops::Resize(xs, h, w, filter) => Self::resize(xs, *h, *w, filter)?,
+                Ops::Letterbox(xs, h, w, filter, bg, resize_by, center) => {
+                    Self::letterbox(xs, *h, *w, filter, *bg, resize_by, *center)?
+                }
+                Ops::Normalize(min_, max_) => y.normalize(*min_, *max_)?,
+                Ops::Standardize(mean, std, d) => y.standardize(mean, std, *d)?,
+                Ops::Permute(shape) => y.permute(shape)?,
+                Ops::InsertAxis(d) => y.insert_axis(*d)?,
+                Ops::Nhwc2nchw => y.nhwc2nchw()?,
+                Ops::Nchw2nhwc => y.nchw2nhwc()?,
+                _ => todo!(),
+            }
+        }
+        Ok(y)
     }
 
     pub fn permute(mut self, shape: &[usize]) -> Result<Self> {
