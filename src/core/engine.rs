@@ -4,7 +4,6 @@ use human_bytes::human_bytes;
 use ndarray::{Array, IxDyn};
 use ort::{
     ExecutionProvider, Session, SessionBuilder, TensorElementType, TensorRTExecutionProvider,
-    MINOR_VERSION,
 };
 use prost::Message;
 use std::collections::HashSet;
@@ -146,7 +145,7 @@ impl OrtEngine {
 
         // summary
         println!(
-            "{CHECK_MARK} ORT: 1.{MINOR_VERSION}.x | Opset: {} | EP: {:?} | Dtype: {:?} | Parameters: {}",
+            "{CHECK_MARK} ONNX | OpSet: {} | EP: {:?} | DType: {:?} | Params: {}",
             model_proto.opset_import[0].version,
             device,
             inputs_attrs.dtypes,

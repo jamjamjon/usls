@@ -163,7 +163,7 @@ fn main() -> Result<()> {
     // build annotator
     let annotator = Annotator::default()
         .with_skeletons(&coco::SKELETONS_16)
-        .with_bboxes_thickness(7)
+        .with_bboxes_thickness(4)
         .without_masks(true) // No masks plotting.
         .with_saveout("YOLO-Series");
 

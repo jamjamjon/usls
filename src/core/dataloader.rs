@@ -53,42 +53,31 @@ impl Default for DataLoader {
 }
 
 impl DataLoader {
-    pub fn load<P: AsRef<Path>>(&mut self, source: P) -> Result<Self> {
-        let source = source.as_ref();
-        let mut paths = VecDeque::new();
-
-        match source {
-            s if s.is_file() => paths.push_back(s.to_path_buf()),
-            s if s.is_dir() => {
-                for entry in WalkDir::new(s)
-                    .into_iter()
-                    .filter_entry(|e| !Self::_is_hidden(e))
-                {
-                    let entry = entry.unwrap();
-                    if entry.file_type().is_dir() {
-                        continue;
+    pub fn load<P: AsRef<Path>>(mut self, source: P) -> Result<Self> {
+        self.paths = match source.as_ref() {
+            s if s.is_file() => VecDeque::from([s.to_path_buf()]),
+            s if s.is_dir() => WalkDir::new(s)
+                .into_iter()
+                .filter_entry(|e| !Self::_is_hidden(e))
+                .filter_map(|entry| match entry {
+                    Err(_) => None,
+                    Ok(entry) => {
+                        if entry.file_type().is_dir() {
+                            return None;
+                        }
+                        if !self.recursive && entry.depth() > 1 {
+                            return None;
+                        }
+                        Some(entry.path().to_path_buf())
                     }
-                    if !self.recursive && entry.depth() > 1 {
-                        continue;
-                    }
-                    paths.push_back(entry.path().to_path_buf());
-                }
-            }
+                })
+                .collect::<VecDeque<_>>(),
             // s if s.starts_with("rtsp://") || s.starts_with("rtmp://") || s.starts_with("http://")|| s.starts_with("https://") => todo!(),
             s if !s.exists() => bail!("{s:?} Not Exists"),
             _ => todo!(),
-        }
-        let n_new = paths.len();
-        self.paths.append(&mut paths);
-        println!(
-            "{CHECK_MARK} Found images x{n_new} ({} total)",
-            self.paths.len()
-        );
-        Ok(Self {
-            paths: self.paths.to_owned(),
-            batch: self.batch,
-            recursive: self.recursive,
-        })
+        };
+        println!("{CHECK_MARK} Found file x{}", self.paths.len());
+        Ok(self)
     }
 
     pub fn try_read<P: AsRef<Path>>(path: P) -> Result<DynamicImage> {

@@ -1,4 +1,4 @@
-//! A Rust library integrated with ONNXRuntime, providing a collection of Computer Vision and Vision-Language models.
+//! A Rust library integrated with ONNXRuntime, providing a collection of **Computer Vision** and **Vision-Language** models.
 //!
 //! # Supported Models
 //!
