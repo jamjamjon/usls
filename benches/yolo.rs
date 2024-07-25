@@ -3,10 +3,6 @@ use criterion::{black_box, criterion_group, criterion_main, Criterion};
 
 use usls::{coco, models::YOLO, DataLoader, Options, Vision, YOLOTask, YOLOVersion};
 
-// fn yolo_bench(model: &mut YOLO, xs: &[image::DynamicImage]) {
-//     let _ys = model.run(&xs).unwrap();
-// }
-
 enum Stage {
     Pre,
     Run,
@@ -26,7 +22,7 @@ fn yolo_stage_bench(
     let mut t_pipeline = std::time::Duration::new(0, 0);
     for _ in 0..n {
         let t0 = std::time::Instant::now();
-        let xs = model.preprocess(&x).unwrap();
+        let xs = model.preprocess(x).unwrap();
         t_pre += t0.elapsed();
 
         let t = std::time::Instant::now();
@@ -34,7 +30,7 @@ fn yolo_stage_bench(
         t_run += t.elapsed();
 
         let t = std::time::Instant::now();
-        let _ys = black_box(model.postprocess(xs, &x).unwrap());
+        let _ys = black_box(model.postprocess(xs, x).unwrap());
         let t1 = t.elapsed();
         t_post += t1;
         t_pipeline = t1;
@@ -69,10 +65,6 @@ pub fn benchmark_cuda(c: &mut Criterion, h: isize, w: isize) -> Result<()> {
     let mut model = YOLO::new(options)?;
 
     let xs = vec![DataLoader::try_read("./assets/bus.jpg")?];
-
-    // group.bench_function("whole-pipeline", |b| {
-    //     b.iter(|| yolo_bench(black_box(&mut model), black_box(&xs)))
-    // });
 
     group.bench_function("pre-process", |b| {
         b.iter_custom(|n| yolo_stage_bench(&mut model, &xs, Stage::Pre, n))
