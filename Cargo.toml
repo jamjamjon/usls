@@ -47,12 +47,3 @@ human_bytes = "0.4.3"
 fast_image_resize = { version = "4.2.1", features = ["image"]}
 
 
-[dev-dependencies]
-criterion = "0.5.1"
-
-[[bench]]
-name = "yolo"
-harness = false
-
-[lib]
-bench = false
