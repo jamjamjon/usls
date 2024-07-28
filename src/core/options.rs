@@ -39,7 +39,30 @@ pub struct Options {
     pub i33: Option<MinOptMax>,
     pub i34: Option<MinOptMax>,
     pub i35: Option<MinOptMax>,
-
+    pub i40: Option<MinOptMax>,
+    pub i41: Option<MinOptMax>,
+    pub i42: Option<MinOptMax>,
+    pub i43: Option<MinOptMax>,
+    pub i44: Option<MinOptMax>,
+    pub i45: Option<MinOptMax>,
+    pub i50: Option<MinOptMax>,
+    pub i51: Option<MinOptMax>,
+    pub i52: Option<MinOptMax>,
+    pub i53: Option<MinOptMax>,
+    pub i54: Option<MinOptMax>,
+    pub i55: Option<MinOptMax>,
+    pub i60: Option<MinOptMax>,
+    pub i61: Option<MinOptMax>,
+    pub i62: Option<MinOptMax>,
+    pub i63: Option<MinOptMax>,
+    pub i64_: Option<MinOptMax>,
+    pub i65: Option<MinOptMax>,
+    pub i70: Option<MinOptMax>,
+    pub i71: Option<MinOptMax>,
+    pub i72: Option<MinOptMax>,
+    pub i73: Option<MinOptMax>,
+    pub i74: Option<MinOptMax>,
+    pub i75: Option<MinOptMax>,
     // trt related
     pub trt_engine_cache_enable: bool,
     pub trt_int8_enable: bool,
@@ -63,6 +86,7 @@ pub struct Options {
     pub yolo_task: Option<YOLOTask>,
     pub yolo_version: Option<YOLOVersion>,
     pub yolo_preds: Option<YOLOPreds>,
+    pub find_contours: bool,
 }
 
 impl Default for Options {
@@ -96,6 +120,30 @@ impl Default for Options {
             i33: None,
             i34: None,
             i35: None,
+            i40: None,
+            i41: None,
+            i42: None,
+            i43: None,
+            i44: None,
+            i45: None,
+            i50: None,
+            i51: None,
+            i52: None,
+            i53: None,
+            i54: None,
+            i55: None,
+            i60: None,
+            i61: None,
+            i62: None,
+            i63: None,
+            i64_: None,
+            i65: None,
+            i70: None,
+            i71: None,
+            i72: None,
+            i73: None,
+            i74: None,
+            i75: None,
             trt_engine_cache_enable: true,
             trt_int8_enable: false,
             trt_fp16_enable: false,
@@ -116,6 +164,7 @@ impl Default for Options {
             yolo_task: None,
             yolo_version: None,
             yolo_preds: None,
+            find_contours: false,
         }
     }
 }
@@ -168,6 +217,11 @@ impl Options {
 
     pub fn with_profile(mut self, profile: bool) -> Self {
         self.profile = profile;
+        self
+    }
+
+    pub fn with_find_contours(mut self, x: bool) -> Self {
+        self.find_contours = x;
         self
     }
 
@@ -358,6 +412,126 @@ impl Options {
 
     pub fn with_i35(mut self, x: MinOptMax) -> Self {
         self.i35 = Some(x);
+        self
+    }
+
+    pub fn with_i40(mut self, x: MinOptMax) -> Self {
+        self.i40 = Some(x);
+        self
+    }
+
+    pub fn with_i41(mut self, x: MinOptMax) -> Self {
+        self.i41 = Some(x);
+        self
+    }
+
+    pub fn with_i42(mut self, x: MinOptMax) -> Self {
+        self.i42 = Some(x);
+        self
+    }
+
+    pub fn with_i43(mut self, x: MinOptMax) -> Self {
+        self.i43 = Some(x);
+        self
+    }
+
+    pub fn with_i44(mut self, x: MinOptMax) -> Self {
+        self.i44 = Some(x);
+        self
+    }
+
+    pub fn with_i45(mut self, x: MinOptMax) -> Self {
+        self.i45 = Some(x);
+        self
+    }
+
+    pub fn with_i50(mut self, x: MinOptMax) -> Self {
+        self.i50 = Some(x);
+        self
+    }
+
+    pub fn with_i51(mut self, x: MinOptMax) -> Self {
+        self.i51 = Some(x);
+        self
+    }
+
+    pub fn with_i52(mut self, x: MinOptMax) -> Self {
+        self.i52 = Some(x);
+        self
+    }
+
+    pub fn with_i53(mut self, x: MinOptMax) -> Self {
+        self.i53 = Some(x);
+        self
+    }
+
+    pub fn with_i54(mut self, x: MinOptMax) -> Self {
+        self.i54 = Some(x);
+        self
+    }
+
+    pub fn with_i55(mut self, x: MinOptMax) -> Self {
+        self.i55 = Some(x);
+        self
+    }
+
+    pub fn with_i60(mut self, x: MinOptMax) -> Self {
+        self.i60 = Some(x);
+        self
+    }
+
+    pub fn with_i61(mut self, x: MinOptMax) -> Self {
+        self.i61 = Some(x);
+        self
+    }
+
+    pub fn with_i62(mut self, x: MinOptMax) -> Self {
+        self.i62 = Some(x);
+        self
+    }
+
+    pub fn with_i63(mut self, x: MinOptMax) -> Self {
+        self.i63 = Some(x);
+        self
+    }
+
+    pub fn with_i64(mut self, x: MinOptMax) -> Self {
+        self.i64_ = Some(x);
+        self
+    }
+
+    pub fn with_i65(mut self, x: MinOptMax) -> Self {
+        self.i65 = Some(x);
+        self
+    }
+
+    pub fn with_i70(mut self, x: MinOptMax) -> Self {
+        self.i70 = Some(x);
+        self
+    }
+
+    pub fn with_i71(mut self, x: MinOptMax) -> Self {
+        self.i71 = Some(x);
+        self
+    }
+
+    pub fn with_i72(mut self, x: MinOptMax) -> Self {
+        self.i72 = Some(x);
+        self
+    }
+
+    pub fn with_i73(mut self, x: MinOptMax) -> Self {
+        self.i73 = Some(x);
+        self
+    }
+
+    pub fn with_i74(mut self, x: MinOptMax) -> Self {
+        self.i74 = Some(x);
+        self
+    }
+
+    pub fn with_i75(mut self, x: MinOptMax) -> Self {
+        self.i75 = Some(x);
         self
     }
 }

@@ -8,6 +8,7 @@ mod dinov2;
 mod modnet;
 mod rtdetr;
 mod rtmo;
+mod sam;
 mod svtr;
 mod yolo;
 mod yolo_;
@@ -21,10 +22,8 @@ pub use dinov2::Dinov2;
 pub use modnet::MODNet;
 pub use rtdetr::RTDETR;
 pub use rtmo::RTMO;
+pub use sam::{SamPrompt, SAM};
 pub use svtr::SVTR;
 pub use yolo::YOLO;
 pub use yolo_::*;
-// {
-//     AnchorsPosition, BoxType, ClssType, KptsType, YOLOFormat, YOLOPreds, YOLOTask, YOLOVersion,
-// };
 pub use yolop::YOLOPv2;

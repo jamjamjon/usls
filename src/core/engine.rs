@@ -100,6 +100,30 @@ impl OrtEngine {
                     (3, 3) => Self::_set_ixx(x, &config.i33, i, ii).unwrap_or(x_default),
                     (3, 4) => Self::_set_ixx(x, &config.i34, i, ii).unwrap_or(x_default),
                     (3, 5) => Self::_set_ixx(x, &config.i35, i, ii).unwrap_or(x_default),
+                    (4, 0) => Self::_set_ixx(x, &config.i40, i, ii).unwrap_or(x_default),
+                    (4, 1) => Self::_set_ixx(x, &config.i41, i, ii).unwrap_or(x_default),
+                    (4, 2) => Self::_set_ixx(x, &config.i42, i, ii).unwrap_or(x_default),
+                    (4, 3) => Self::_set_ixx(x, &config.i43, i, ii).unwrap_or(x_default),
+                    (4, 4) => Self::_set_ixx(x, &config.i44, i, ii).unwrap_or(x_default),
+                    (4, 5) => Self::_set_ixx(x, &config.i45, i, ii).unwrap_or(x_default),
+                    (5, 0) => Self::_set_ixx(x, &config.i50, i, ii).unwrap_or(x_default),
+                    (5, 1) => Self::_set_ixx(x, &config.i51, i, ii).unwrap_or(x_default),
+                    (5, 2) => Self::_set_ixx(x, &config.i52, i, ii).unwrap_or(x_default),
+                    (5, 3) => Self::_set_ixx(x, &config.i53, i, ii).unwrap_or(x_default),
+                    (5, 4) => Self::_set_ixx(x, &config.i54, i, ii).unwrap_or(x_default),
+                    (5, 5) => Self::_set_ixx(x, &config.i55, i, ii).unwrap_or(x_default),
+                    (6, 0) => Self::_set_ixx(x, &config.i60, i, ii).unwrap_or(x_default),
+                    (6, 1) => Self::_set_ixx(x, &config.i61, i, ii).unwrap_or(x_default),
+                    (6, 2) => Self::_set_ixx(x, &config.i62, i, ii).unwrap_or(x_default),
+                    (6, 3) => Self::_set_ixx(x, &config.i63, i, ii).unwrap_or(x_default),
+                    (6, 4) => Self::_set_ixx(x, &config.i64_, i, ii).unwrap_or(x_default),
+                    (6, 5) => Self::_set_ixx(x, &config.i65, i, ii).unwrap_or(x_default),
+                    (7, 0) => Self::_set_ixx(x, &config.i70, i, ii).unwrap_or(x_default),
+                    (7, 1) => Self::_set_ixx(x, &config.i71, i, ii).unwrap_or(x_default),
+                    (7, 2) => Self::_set_ixx(x, &config.i72, i, ii).unwrap_or(x_default),
+                    (7, 3) => Self::_set_ixx(x, &config.i73, i, ii).unwrap_or(x_default),
+                    (7, 4) => Self::_set_ixx(x, &config.i74, i, ii).unwrap_or(x_default),
+                    (7, 5) => Self::_set_ixx(x, &config.i75, i, ii).unwrap_or(x_default),
                     _ => todo!(),
                 };
                 v_.push(x);
@@ -289,6 +313,12 @@ impl OrtEngine {
                 }
                 TensorElementType::Int64 => {
                     ort::Value::from_array(x.mapv(|x_| x_ as i64).view())?.into_dyn()
+                }
+                TensorElementType::Uint8 => {
+                    ort::Value::from_array(x.mapv(|x_| x_ as u8).view())?.into_dyn()
+                }
+                TensorElementType::Int8 => {
+                    ort::Value::from_array(x.mapv(|x_| x_ as i8).view())?.into_dyn()
                 }
                 _ => todo!(),
             };

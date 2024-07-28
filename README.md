@@ -67,7 +67,7 @@ cargo run -r --example yolo   # blip, clip, yolop, svtr, db, ...
 
 ## Integrate into your own project
 
-### 1. Add `usls` as a dependency to your project's `Cargo.toml`
+### Add `usls` as a dependency to your project's `Cargo.toml`
 
 ```Shell
 cargo add usls

@@ -152,6 +152,7 @@ fn main() -> Result<()> {
         .with_confs(&[0.2, 0.15]) // class_0: 0.4, others: 0.15
         // .with_names(&coco::NAMES_80)
         .with_names2(&coco::KEYPOINTS_NAMES_17)
+        .with_find_contours(false) // find contours or not
         .with_profile(args.profile);
     let mut model = YOLO::new(options)?;
 
@@ -164,7 +165,7 @@ fn main() -> Result<()> {
     let annotator = Annotator::default()
         .with_skeletons(&coco::SKELETONS_16)
         .with_bboxes_thickness(4)
-        .without_masks(true) // No masks plotting.
+        .without_masks(false) // No masks plotting when doing segment task.
         .with_saveout("YOLO-Series");
 
     // run & annotate

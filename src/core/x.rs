@@ -14,6 +14,12 @@ impl From<Array<f32, IxDyn>> for X {
     }
 }
 
+impl From<Vec<f32>> for X {
+    fn from(x: Vec<f32>) -> Self {
+        Self(Array::from_vec(x).into_dyn().into_owned())
+    }
+}
+
 impl std::ops::Deref for X {
     type Target = Array<f32, IxDyn>;
 

@@ -340,13 +340,6 @@ impl Annotator {
                 }
             }
 
-            // masks
-            if !self.without_masks {
-                if let Some(xs) = &y.masks() {
-                    self.plot_masks(&mut img_rgba, xs);
-                }
-            }
-
             // bboxes
             if !self.without_bboxes {
                 if let Some(xs) = &y.bboxes() {
@@ -365,6 +358,13 @@ impl Annotator {
             if !self.without_keypoints {
                 if let Some(xs) = &y.keypoints() {
                     self.plot_keypoints(&mut img_rgba, xs);
+                }
+            }
+
+            // masks
+            if !self.without_masks {
+                if let Some(xs) = &y.masks() {
+                    self.plot_masks(&mut img_rgba, xs);
                 }
             }
 
