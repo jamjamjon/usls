@@ -27,7 +27,7 @@ impl Blip {
             visual.height().to_owned(),
             visual.width().to_owned(),
         );
-        let tokenizer = Tokenizer::from_file(&options_textual.tokenizer.unwrap()).unwrap();
+        let tokenizer = Tokenizer::from_file(options_textual.tokenizer.unwrap()).unwrap();
         let tokenizer = TokenizerStream::new(tokenizer);
         visual.dry_run()?;
         textual.dry_run()?;
