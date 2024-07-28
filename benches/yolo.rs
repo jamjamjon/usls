@@ -31,9 +31,8 @@ fn yolo_stage_bench(
 
         let t = std::time::Instant::now();
         let _ys = black_box(model.postprocess(xs, x).unwrap());
-        let t1 = t.elapsed();
-        t_post += t1;
-        t_pipeline = t1;
+        t_post += t.elapsed();
+        t_pipeline += t0.elapsed();
     }
     match stage {
         Stage::Pre => t_pre,

@@ -149,7 +149,7 @@ impl SAM {
 
                 // contours
                 let mut rng = thread_rng();
-                let id = rng.gen_range(0..=255);
+                let id = rng.gen_range(0..20);
                 if self.find_contours {
                     let contours: Vec<imageproc::contours::Contour<i32>> =
                         imageproc::contours::find_contours_with_threshold(&luma, 0);

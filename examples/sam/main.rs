@@ -28,10 +28,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // build annotator
     let annotator = Annotator::default()
+        .with_bboxes_thickness(7)
         .without_bboxes_name(true)
         .without_bboxes_conf(true)
-        .without_mbrs_name(true)
-        .without_mbrs_conf(true)
+        .without_mbrs(true)
         .with_saveout("SAM");
 
     // run & annotate

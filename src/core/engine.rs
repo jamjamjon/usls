@@ -169,7 +169,7 @@ impl OrtEngine {
 
         // summary
         println!(
-            "{CHECK_MARK} ONNX | OpSet: {} | EP: {:?} | DType: {:?} | Params: {}",
+            "{CHECK_MARK} Backend: ONNXRuntime | OpSet: {} | EP: {:?} | DType: {:?} | Params: {}",
             model_proto.opset_import[0].version,
             device,
             inputs_attrs.dtypes,
