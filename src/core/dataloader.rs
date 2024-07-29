@@ -82,9 +82,29 @@ impl DataLoader {
 
     pub fn try_read<P: AsRef<Path>>(path: P) -> Result<DynamicImage> {
         let img = image::ImageReader::open(&path)
-            .map_err(|_| anyhow!("Failed to open image at {:?}", path.as_ref()))?
+            .map_err(|err| {
+                anyhow!(
+                    "Failed to open image at {:?}. Error: {:?}",
+                    path.as_ref(),
+                    err
+                )
+            })?
+            .with_guessed_format()
+            .map_err(|err| {
+                anyhow!(
+                    "Failed to make a format guess based on the content: {:?}. Error: {:?}",
+                    path.as_ref(),
+                    err
+                )
+            })?
             .decode()
-            .map_err(|_| anyhow!("Failed to decode image at {:?}", path.as_ref()))?
+            .map_err(|err| {
+                anyhow!(
+                    "Failed to decode image at {:?}. Error: {:?}",
+                    path.as_ref(),
+                    err
+                )
+            })?
             .into_rgb8();
         Ok(DynamicImage::from(img))
     }

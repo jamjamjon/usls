@@ -22,7 +22,7 @@ pub use dinov2::Dinov2;
 pub use modnet::MODNet;
 pub use rtdetr::RTDETR;
 pub use rtmo::RTMO;
-pub use sam::{SamPrompt, SAM};
+pub use sam::{SamKind, SamPrompt, SAM};
 pub use svtr::SVTR;
 pub use yolo::YOLO;
 pub use yolo_::*;

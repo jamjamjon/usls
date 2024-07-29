@@ -1,5 +1,5 @@
 use usls::{
-    models::{SamPrompt, YOLOTask, YOLOVersion, SAM, YOLO},
+    models::{SamKind, SamPrompt, YOLOTask, YOLOVersion, SAM, YOLO},
     Annotator, DataLoader, Options, Vision,
 };
 
@@ -11,7 +11,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let options_decoder = Options::default()
         .with_i11((1, 1, 1).into())
         .with_i21((1, 1, 1).into())
-        .with_find_contours(true) // find contours or not
+        .with_find_contours(true)
+        .with_sam_kind(SamKind::Sam)
         .with_model("mobile-sam-vit-t-decoder.onnx")?;
     let mut sam = SAM::new(options_encoder, options_decoder)?;
 

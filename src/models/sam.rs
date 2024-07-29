@@ -1,9 +1,17 @@
 use anyhow::Result;
 use image::DynamicImage;
-use ndarray::{Array, Axis};
+use ndarray::{s, Array, Axis};
 use rand::prelude::*;
 
-use crate::{Bbox, DynConf, Mask, Mbr, MinOptMax, Ops, Options, OrtEngine, Polygon, X, Y};
+use crate::{Bbox, DynConf, Mask, MinOptMax, Ops, Options, OrtEngine, Polygon, X, Y};
+
+#[derive(Debug, Clone)]
+pub enum SamKind {
+    Sam,
+    MobileSam,
+    SamHq,
+    EdgeSam,
+}
 
 #[derive(Debug, Default, Clone)]
 pub struct SamPrompt {
@@ -58,6 +66,7 @@ pub struct SAM {
     batch: MinOptMax,
     pub conf: DynConf,
     find_contours: bool,
+    kind: SamKind,
 }
 
 impl SAM {
@@ -70,6 +79,8 @@ impl SAM {
             encoder.inputs_minoptmax()[0][3].to_owned(),
         );
         let conf = DynConf::new(&options_decoder.confs, 1);
+        // TODO: make it explicit
+        let kind = options_decoder.sam_kind.unwrap_or(SamKind::Sam);
 
         encoder.dry_run()?;
         decoder.dry_run()?;
@@ -82,6 +93,7 @@ impl SAM {
             width,
             conf,
             find_contours: options_decoder.find_contours,
+            kind,
         })
     }
 
@@ -104,6 +116,7 @@ impl SAM {
             Ops::Standardize(&[123.675, 116.28, 103.53], &[58.395, 57.12, 57.375], 3),
             Ops::Nhwc2nchw,
         ])?;
+
         self.encoder.run(vec![xs_])
     }
 
@@ -114,33 +127,90 @@ impl SAM {
         prompts: &[SamPrompt],
     ) -> Result<Vec<Y>> {
         let mut ys: Vec<Y> = Vec::new();
+
         for (idx, image_embedding) in xs[0].axis_iter(Axis(0)).enumerate() {
             let image_width = xs0[idx].width() as f32;
             let image_height = xs0[idx].height() as f32;
             let ratio =
                 (self.width() as f32 / image_width).min(self.height() as f32 / image_height);
+            let args = match self.kind {
+                SamKind::Sam | SamKind::MobileSam => {
+                    vec![
+                        X::from(image_embedding.into_dyn().into_owned()).insert_axis(0)?, // image_embedding
+                        prompts[idx].point_coords(ratio)?, // point_coords
+                        prompts[idx].point_labels()?,      // point_labels
+                        X::zeros(&[1, 1, self.height_low_res() as _, self.width_low_res() as _]), // mask_input,
+                        X::zeros(&[1]),                           // has_mask_input
+                        X::from(vec![image_height, image_width]), // orig_im_size
+                    ]
+                }
+                SamKind::SamHq => {
+                    vec![
+                        X::from(image_embedding.into_dyn().into_owned()).insert_axis(0)?, // image_embedding
+                        X::from(xs[1].slice(s![idx, .., .., ..]).into_dyn().into_owned())
+                            .insert_axis(0)?
+                            .insert_axis(0)?, // image_embedding
+                        prompts[idx].point_coords(ratio)?, // point_coords
+                        prompts[idx].point_labels()?,      // point_labels
+                        X::zeros(&[1, 1, self.height_low_res() as _, self.width_low_res() as _]), // mask_input,
+                        X::zeros(&[1]),                           // has_mask_input
+                        X::from(vec![image_height, image_width]), // orig_im_size
+                    ]
+                }
+                SamKind::EdgeSam => {
+                    vec![
+                        X::from(image_embedding.into_dyn().into_owned()).insert_axis(0)?, // image_embedding
+                        prompts[idx].point_coords(ratio)?, // point_coords
+                        prompts[idx].point_labels()?,      // point_labels
+                    ]
+                }
+            };
 
-            let ys_ = self.decoder.run(vec![
-                X::from(image_embedding.into_dyn().into_owned()).insert_axis(0)?, // image_embedding
-                prompts[idx].point_coords(ratio)?,                                // point_coords
-                prompts[idx].point_labels()?,                                     // point_labels
-                X::zeros(&[1, 1, self.height_low_res() as _, self.width_low_res() as _]), // mask_input,
-                X::zeros(&[1]),                           // has_mask_input
-                X::from(vec![image_height, image_width]), // orig_im_size
-            ])?;
+            let ys_ = self.decoder.run(args)?;
 
             let mut y_masks: Vec<Mask> = Vec::new();
             let mut y_polygons: Vec<Polygon> = Vec::new();
             let mut y_bboxes: Vec<Bbox> = Vec::new();
-            let mut y_mbrs: Vec<Mbr> = Vec::new();
 
-            for (mask, iou) in ys_[0].axis_iter(Axis(0)).zip(ys_[1].axis_iter(Axis(0))) {
-                if iou[0] < self.conf[0] {
+            // TODO: EdgeSam only return low_res_mask
+            let (masks, confs) = match (ys_[0].ndim(), ys_[1].ndim()) {
+                (2, 4) => (&ys_[1], &ys_[0]),
+                (4, 2) => (&ys_[0], &ys_[1]),
+                _ => anyhow::bail!("Decoder output error"),
+            };
+
+            for (mask, iou) in masks.axis_iter(Axis(0)).zip(confs.axis_iter(Axis(0))) {
+                // pick the best one
+                let (i, conf) = iou
+                    .to_owned()
+                    .into_raw_vec()
+                    .into_iter()
+                    .enumerate()
+                    .max_by(|a, b| a.1.total_cmp(&b.1))
+                    .unwrap();
+
+                if conf < self.conf[0] {
                     continue;
                 }
-                let luma = mask
-                    .map(|x| if *x > 0. { 255u8 } else { 0u8 })
-                    .into_raw_vec();
+                let luma = match self.kind {
+                    SamKind::EdgeSam => {
+                        let luma = mask.slice(s![i, .., ..]).to_owned().into_raw_vec();
+                        Ops::resize_lumaf32_vec(
+                            &luma,
+                            256.,
+                            256.,
+                            image_width as _,
+                            image_height as _,
+                            true,
+                            "Bilinear",
+                        )?
+                    }
+                    _ => mask
+                        .slice(s![i, .., ..])
+                        .map(|x| if *x > 0. { 255u8 } else { 0u8 })
+                        .into_raw_vec(),
+                };
+
                 let luma: image::ImageBuffer<image::Luma<_>, Vec<_>> =
                     match image::ImageBuffer::from_raw(image_width as _, image_height as _, luma) {
                         None => continue,
@@ -158,9 +228,7 @@ impl SAM {
                         if let Some(bbox) = polygon.bbox() {
                             y_bboxes.push(bbox.with_confidence(iou[0]).with_id(id));
                         };
-                        if let Some(mbr) = polygon.mbr() {
-                            y_mbrs.push(mbr.with_confidence(iou[0]).with_id(id));
-                        }
+
                         y_polygons.push(polygon.with_confidence(iou[0]).with_id(id));
                     }
                 }
@@ -176,9 +244,6 @@ impl SAM {
             }
             if !y_bboxes.is_empty() {
                 y = y.with_bboxes(&y_bboxes);
-            }
-            if !y_mbrs.is_empty() {
-                y = y.with_mbrs(&y_mbrs);
             }
             ys.push(y);
         }

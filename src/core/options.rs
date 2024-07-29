@@ -4,7 +4,7 @@ use anyhow::Result;
 
 use crate::{
     auto_load,
-    models::{YOLOPreds, YOLOTask, YOLOVersion},
+    models::{SamKind, YOLOPreds, YOLOTask, YOLOVersion},
     Device, MinOptMax,
 };
 
@@ -87,6 +87,7 @@ pub struct Options {
     pub yolo_version: Option<YOLOVersion>,
     pub yolo_preds: Option<YOLOPreds>,
     pub find_contours: bool,
+    pub sam_kind: Option<SamKind>,
 }
 
 impl Default for Options {
@@ -165,6 +166,7 @@ impl Default for Options {
             yolo_version: None,
             yolo_preds: None,
             find_contours: false,
+            sam_kind: None,
         }
     }
 }
@@ -222,6 +224,11 @@ impl Options {
 
     pub fn with_find_contours(mut self, x: bool) -> Self {
         self.find_contours = x;
+        self
+    }
+
+    pub fn with_sam_kind(mut self, x: SamKind) -> Self {
+        self.sam_kind = Some(x);
         self
     }
 
