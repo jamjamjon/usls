@@ -221,9 +221,8 @@ impl SAM {
                 let mask = mask.slice(s![i, .., ..]);
                 let (h, w) = mask.dim();
                 let luma = if self.use_low_res_mask {
-                    let luma = mask.to_owned().into_raw_vec();
                     Ops::resize_lumaf32_vec(
-                        &luma,
+                        &mask.mapv(|x| if x < 0. { 0. } else { x }).into_raw_vec(),
                         w as _,
                         h as _,
                         image_width as _,
@@ -232,7 +231,7 @@ impl SAM {
                         "Bilinear",
                     )?
                 } else {
-                    mask.map(|x| if *x > 0. { 255u8 } else { 0u8 })
+                    mask.mapv(|x| if x > 0. { 255u8 } else { 0u8 })
                         .into_raw_vec()
                 };
 
