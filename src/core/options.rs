@@ -88,6 +88,7 @@ pub struct Options {
     pub yolo_preds: Option<YOLOPreds>,
     pub find_contours: bool,
     pub sam_kind: Option<SamKind>,
+    pub use_low_res_mask: Option<bool>,
 }
 
 impl Default for Options {
@@ -167,6 +168,7 @@ impl Default for Options {
             yolo_preds: None,
             find_contours: false,
             sam_kind: None,
+            use_low_res_mask: None,
         }
     }
 }
@@ -229,6 +231,11 @@ impl Options {
 
     pub fn with_sam_kind(mut self, x: SamKind) -> Self {
         self.sam_kind = Some(x);
+        self
+    }
+
+    pub fn use_low_res_mask(mut self, x: bool) -> Self {
+        self.use_low_res_mask = Some(x);
         self
     }
 

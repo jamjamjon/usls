@@ -1,74 +1,89 @@
+use clap::Parser;
+
 use usls::{
     models::{SamKind, SamPrompt, SAM},
     Annotator, DataLoader, Options,
 };
 
+#[derive(Parser)]
+#[command(author, version, about, long_about = None)]
+pub struct Args {
+    #[arg(long, value_enum, default_value_t = SamKind::Sam)]
+    pub kind: SamKind,
+
+    #[arg(long, default_value_t = 0)]
+    pub device_id: usize,
+
+    #[arg(long)]
+    pub use_low_res_mask: bool,
+}
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let device_id = 0;
-    let kind = SamKind::Sam;
-    // let kind = SamKind::SamHq;
-    // let kind = SamKind::EdgeSam;
+    let args = Args::parse();
 
-    let (options_encoder, options_decoder) = match kind {
-        SamKind::Sam | SamKind::MobileSam => {
-            let options_encoder = Options::default()
-                // .with_model("sam-vit-b-01ec64-encoder-qnt.onnx")?;
-                // .with_model("sam-vit-b-01ec64-encoder.onnx")?;
-                .with_model("mobile-sam-vit-t-encoder.onnx")?;
-
+    let (options_encoder, options_decoder, saveout) = match args.kind {
+        SamKind::Sam => {
+            let options_encoder =
+                Options::default().with_model("sam-vit-b-01ec64-encoder-qnt.onnx")?;
+            // .with_model("sam-vit-b-01ec64-encoder.onnx")?;
             let options_decoder = Options::default()
                 .with_i00((1, 1, 1).into())
                 .with_i11((1, 1, 1).into())
                 .with_i21((1, 1, 1).into())
                 .with_sam_kind(SamKind::Sam)
-                // .with_model("sam-vit-b-01ec64-decoder-singlemask.onnx")?;
                 // .with_model("sam-vit-b-01ec64-decoder.onnx")?;
-                .with_model("mobile-sam-vit-t-decoder.onnx")?;
+                .with_model("sam-vit-b-01ec64-decoder-singlemask.onnx")?;
+            (options_encoder, options_decoder, "SAM")
+        }
+        SamKind::MobileSam => {
+            let options_encoder = Options::default().with_model("mobile-sam-vit-t-encoder.onnx")?;
 
-            (options_encoder, options_decoder)
+            let options_decoder = Options::default()
+                .with_i00((1, 1, 1).into())
+                .with_i11((1, 1, 1).into())
+                .with_i21((1, 1, 1).into())
+                .with_sam_kind(SamKind::MobileSam)
+                .with_model("mobile-sam-vit-t-decoder.onnx")?;
+            (options_encoder, options_decoder, "Mobile-SAM")
         }
         SamKind::SamHq => {
-            let options_encoder = Options::default()
-                // .with_model("sam-hq-vit-b-encoder.onnx")?;
-                .with_model("sam-hq-vit-t-encoder.onnx")?;
+            let options_encoder = Options::default().with_model("sam-hq-vit-t-encoder.onnx")?;
 
             let options_decoder = Options::default()
                 .with_i00((1, 1, 1).into())
                 .with_i21((1, 1, 1).into())
                 .with_i31((1, 1, 1).into())
                 .with_sam_kind(SamKind::SamHq)
-                // .with_model("sam-hq-vit-b-decoder.onnx")?;
                 .with_model("sam-hq-vit-t-decoder.onnx")?;
-            (options_encoder, options_decoder)
+            (options_encoder, options_decoder, "SAM-HQ")
         }
         SamKind::EdgeSam => {
-            let options_encoder =
-                Options::default().with_model("/home/qweasd/Downloads/edge-sam-3x-encoder.onnx")?;
-
+            let options_encoder = Options::default().with_model("edge-sam-3x-encoder.onnx")?;
             let options_decoder = Options::default()
                 .with_i00((1, 1, 1).into())
                 .with_i11((1, 1, 1).into())
                 .with_i21((1, 1, 1).into())
                 .with_sam_kind(SamKind::EdgeSam)
-                .with_model("/home/qweasd/Downloads/edge-sam-3x-decoder.onnx")?;
-            (options_encoder, options_decoder)
+                .with_model("edge-sam-3x-decoder.onnx")?;
+            (options_encoder, options_decoder, "Edge-SAM")
         }
     };
     let options_encoder = options_encoder
-        .with_cuda(device_id)
+        .with_cuda(args.device_id)
         .with_i00((1, 1, 1).into())
         .with_i02((800, 1024, 1024).into())
         .with_i03((800, 1024, 1024).into());
     let options_decoder = options_decoder
-        .with_cuda(device_id)
-        .with_find_contours(true); // find contours or not
+        .with_cuda(args.device_id)
+        .use_low_res_mask(args.use_low_res_mask)
+        .with_find_contours(true);
 
     // build model
     let mut model = SAM::new(options_encoder, options_decoder)?;
 
     // build dataloader
     let dl = DataLoader::default()
-        .with_batch(model.batch() as _)
+        .with_batch(1)
         .load("./assets/truck.jpg")?;
 
     // build annotator
@@ -77,7 +92,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .without_bboxes_name(true)
         .without_bboxes_conf(true)
         .without_mbrs(true)
-        .with_saveout("SAM");
+        .with_saveout(saveout);
 
     // run & annotate
     for (xs, _paths) in dl {

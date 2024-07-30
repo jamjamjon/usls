@@ -175,7 +175,3 @@ yolo export model=yolov8m-obb.pt format=onnx simplify
 [Here](https://github.com/THU-MIG/yolov10#export)
 
 </details>
-
-
-
-

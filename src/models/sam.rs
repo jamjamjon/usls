@@ -3,9 +3,9 @@ use image::DynamicImage;
 use ndarray::{s, Array, Axis};
 use rand::prelude::*;
 
-use crate::{Bbox, DynConf, Mask, MinOptMax, Ops, Options, OrtEngine, Polygon, X, Y};
+use crate::{DynConf, Mask, MinOptMax, Ops, Options, OrtEngine, Polygon, X, Y};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, clap::ValueEnum)]
 pub enum SamKind {
     Sam,
     MobileSam,
@@ -20,6 +20,10 @@ pub struct SamPrompt {
 }
 
 impl SamPrompt {
+    pub fn everything() -> Self {
+        todo!()
+    }
+
     pub fn with_postive_point(mut self, x: f32, y: f32) -> Self {
         self.points.extend_from_slice(&[x, y]);
         self.labels.push(1.);
@@ -67,6 +71,7 @@ pub struct SAM {
     pub conf: DynConf,
     find_contours: bool,
     kind: SamKind,
+    use_low_res_mask: bool,
 }
 
 impl SAM {
@@ -79,8 +84,18 @@ impl SAM {
             encoder.inputs_minoptmax()[0][3].to_owned(),
         );
         let conf = DynConf::new(&options_decoder.confs, 1);
-        // TODO: make it explicit
-        let kind = options_decoder.sam_kind.unwrap_or(SamKind::Sam);
+
+        let kind = match options_decoder.sam_kind {
+            Some(x) => x,
+            None => anyhow::bail!("Error: no clear `SamKind` specified."),
+        };
+        let find_contours = options_decoder.find_contours;
+        let use_low_res_mask = match kind {
+            SamKind::Sam | SamKind::MobileSam | SamKind::SamHq => {
+                options_decoder.use_low_res_mask.unwrap_or(false)
+            }
+            SamKind::EdgeSam => true,
+        };
 
         encoder.dry_run()?;
         decoder.dry_run()?;
@@ -92,8 +107,9 @@ impl SAM {
             height,
             width,
             conf,
-            find_contours: options_decoder.find_contours,
             kind,
+            find_contours,
+            use_low_res_mask,
         })
     }
 
@@ -149,19 +165,19 @@ impl SAM {
                         X::from(image_embedding.into_dyn().into_owned()).insert_axis(0)?, // image_embedding
                         X::from(xs[1].slice(s![idx, .., .., ..]).into_dyn().into_owned())
                             .insert_axis(0)?
-                            .insert_axis(0)?, // image_embedding
+                            .insert_axis(0)?, // intern_embedding
                         prompts[idx].point_coords(ratio)?, // point_coords
                         prompts[idx].point_labels()?,      // point_labels
-                        X::zeros(&[1, 1, self.height_low_res() as _, self.width_low_res() as _]), // mask_input,
+                        X::zeros(&[1, 1, self.height_low_res() as _, self.width_low_res() as _]), // mask_input
                         X::zeros(&[1]),                           // has_mask_input
                         X::from(vec![image_height, image_width]), // orig_im_size
                     ]
                 }
                 SamKind::EdgeSam => {
                     vec![
-                        X::from(image_embedding.into_dyn().into_owned()).insert_axis(0)?, // image_embedding
-                        prompts[idx].point_coords(ratio)?, // point_coords
-                        prompts[idx].point_labels()?,      // point_labels
+                        X::from(image_embedding.into_dyn().into_owned()).insert_axis(0)?,
+                        prompts[idx].point_coords(ratio)?,
+                        prompts[idx].point_labels()?,
                     ]
                 }
             };
@@ -170,45 +186,54 @@ impl SAM {
 
             let mut y_masks: Vec<Mask> = Vec::new();
             let mut y_polygons: Vec<Polygon> = Vec::new();
-            let mut y_bboxes: Vec<Bbox> = Vec::new();
 
-            // TODO: EdgeSam only return low_res_mask
-            let (masks, confs) = match (ys_[0].ndim(), ys_[1].ndim()) {
-                (2, 4) => (&ys_[1], &ys_[0]),
-                (4, 2) => (&ys_[0], &ys_[1]),
-                _ => anyhow::bail!("Decoder output error"),
+            // masks & confs
+            let (masks, confs) = match self.kind {
+                SamKind::Sam | SamKind::MobileSam | SamKind::SamHq => {
+                    if !self.use_low_res_mask {
+                        (&ys_[0], &ys_[1])
+                    } else {
+                        (&ys_[2], &ys_[1])
+                    }
+                }
+                SamKind::EdgeSam => match (ys_[0].ndim(), ys_[1].ndim()) {
+                    (2, 4) => (&ys_[1], &ys_[0]),
+                    (4, 2) => (&ys_[0], &ys_[1]),
+                    _ => anyhow::bail!("Can not parse the outputs of decoder."),
+                },
             };
 
             for (mask, iou) in masks.axis_iter(Axis(0)).zip(confs.axis_iter(Axis(0))) {
-                // pick the best one
-                let (i, conf) = iou
+                let (i, conf) = match iou
                     .to_owned()
                     .into_raw_vec()
                     .into_iter()
                     .enumerate()
                     .max_by(|a, b| a.1.total_cmp(&b.1))
-                    .unwrap();
+                {
+                    Some((i, c)) => (i, c),
+                    None => continue,
+                };
 
                 if conf < self.conf[0] {
                     continue;
                 }
-                let luma = match self.kind {
-                    SamKind::EdgeSam => {
-                        let luma = mask.slice(s![i, .., ..]).to_owned().into_raw_vec();
-                        Ops::resize_lumaf32_vec(
-                            &luma,
-                            256.,
-                            256.,
-                            image_width as _,
-                            image_height as _,
-                            true,
-                            "Bilinear",
-                        )?
-                    }
-                    _ => mask
-                        .slice(s![i, .., ..])
-                        .map(|x| if *x > 0. { 255u8 } else { 0u8 })
-                        .into_raw_vec(),
+                let mask = mask.slice(s![i, .., ..]);
+                let (h, w) = mask.dim();
+                let luma = if self.use_low_res_mask {
+                    let luma = mask.to_owned().into_raw_vec();
+                    Ops::resize_lumaf32_vec(
+                        &luma,
+                        w as _,
+                        h as _,
+                        image_width as _,
+                        image_height as _,
+                        true,
+                        "Bilinear",
+                    )?
+                } else {
+                    mask.map(|x| if *x > 0. { 255u8 } else { 0u8 })
+                        .into_raw_vec()
                 };
 
                 let luma: image::ImageBuffer<image::Luma<_>, Vec<_>> =
@@ -225,10 +250,6 @@ impl SAM {
                         imageproc::contours::find_contours_with_threshold(&luma, 0);
                     for c in contours.iter() {
                         let polygon = Polygon::default().with_points_imageproc(&c.points);
-                        if let Some(bbox) = polygon.bbox() {
-                            y_bboxes.push(bbox.with_confidence(iou[0]).with_id(id));
-                        };
-
                         y_polygons.push(polygon.with_confidence(iou[0]).with_id(id));
                     }
                 }
@@ -242,9 +263,7 @@ impl SAM {
             if !y_polygons.is_empty() {
                 y = y.with_polygons(&y_polygons);
             }
-            if !y_bboxes.is_empty() {
-                y = y.with_bboxes(&y_bboxes);
-            }
+
             ys.push(y);
         }
 
