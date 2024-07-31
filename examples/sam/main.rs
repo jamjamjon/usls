@@ -21,6 +21,7 @@ pub struct Args {
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = Args::parse();
 
+    // Options
     let (options_encoder, options_decoder, saveout) = match args.kind {
         SamKind::Sam => {
             let options_encoder = Options::default()
@@ -80,45 +81,26 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .use_low_res_mask(args.use_low_res_mask)
         .with_find_contours(true);
 
-    // build model
+    // Build model
     let mut model = SAM::new(options_encoder, options_decoder)?;
 
-    // build dataloader
-    let dl = DataLoader::default()
-        .with_batch(1)
-        .load("./assets/truck.jpg")?;
+    // Load image
+    let xs = vec![DataLoader::try_read("./assets/truck.jpg")?];
 
-    // build annotator
-    let annotator = Annotator::default()
-        .with_bboxes_thickness(7)
-        .without_bboxes_name(true)
-        .without_bboxes_conf(true)
-        .without_mbrs(true)
-        .with_saveout(saveout);
+    // Build annotator
+    let annotator = Annotator::default().with_saveout(saveout);
 
-    // run & annotate
-    for (xs, _paths) in dl {
-        // prompt
-        let prompts = vec![
-            SamPrompt::default().with_postive_point(500., 375.), // postive point
-                                                                 // .with_postive_point(1125., 625.), // postive point
-                                                                 // .with_postive_point(774., 366.), // postive point
-                                                                 // .with_negative_point(774., 366.),   // negative point
-                                                                 // .with_bbox(300., 175., 525., 500.), // bbox
-                                                                 // .with_bbox(215., 297., 643., 459.), // bbox
+    // Prompt
+    let prompts = vec![
+        SamPrompt::default()
+            // .with_postive_point(500., 375.), // postive point
+            // .with_negative_point(774., 366.),   // negative point
+            .with_bbox(215., 297., 643., 459.), // bbox
+    ];
 
-                                                                 // .with_bbox(26., 20., 873., 990.), // bbox
-                                                                 // .with_postive_point(223., 140.) // example 2
-                                                                 // .with_postive_point(488., 523.), // example 2
-                                                                 // .with_postive_point(221., 482.) // example 3
-                                                                 // .with_postive_point(498., 633.) // example 3
-                                                                 // .with_postive_point(750., 379.), // example 3
-                                                                 // .with_bbox(310., 228., 424., 296.) // bbox example 7
-                                                                 // .with_bbox(45., 260., 515., 470.), // bbox example 7
-        ];
-        let ys = model.run(&xs, &prompts)?;
-        annotator.annotate(&xs, &ys);
-    }
+    // Run & Annotate
+    let ys = model.run(&xs, &prompts)?;
+    annotator.annotate(&xs, &ys);
 
     Ok(())
 }

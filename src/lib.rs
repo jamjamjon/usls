@@ -10,6 +10,10 @@
 //! - [YOLOv10](https://github.com/THU-MIG/yolov10): Object Detection
 //! - [RT-DETR](https://arxiv.org/abs/2304.08069): Object Detection
 //! - [FastSAM](https://github.com/CASIA-IVA-Lab/FastSAM): Instance Segmentation
+//! - [SAM](https://github.com/facebookresearch/segment-anything): Segmentation Anything
+//! - [MobileSAM](https://github.com/ChaoningZhang/MobileSAM): Segmentation Anything
+//! - [EdgeSAM](https://github.com/chongzhou96/EdgeSAM): Segmentation Anything
+//! - [SAM-HQ](https://github.com/SysCV/sam-hq): Segmentation Anything
 //! - [YOLO-World](https://github.com/AILab-CVC/YOLO-World): Object Detection
 //! - [DINOv2](https://github.com/facebookresearch/dinov2): Vision-Self-Supervised
 //! - [CLIP](https://github.com/openai/CLIP): Vision-Language
