@@ -8,6 +8,14 @@
 A Rust library integrated with **ONNXRuntime**, providing a collection of **Computer Vison** and **Vision-Language** models including [YOLOv5](https://github.com/ultralytics/yolov5), [YOLOv6](https://github.com/meituan/YOLOv6), [YOLOv7](https://github.com/WongKinYiu/yolov7), [YOLOv8](https://github.com/ultralytics/ultralytics), [YOLOv9](https://github.com/WongKinYiu/yolov9), [YOLOv10](https://github.com/THU-MIG/yolov10), [RTDETR](https://arxiv.org/abs/2304.08069), [SAM](https://github.com/facebookresearch/segment-anything), [MobileSAM](https://github.com/ChaoningZhang/MobileSAM), [EdgeSAM](https://github.com/chongzhou96/EdgeSAM), [SAM-HQ](https://github.com/SysCV/sam-hq), [CLIP](https://github.com/openai/CLIP), [DINOv2](https://github.com/facebookresearch/dinov2), [FastSAM](https://github.com/CASIA-IVA-Lab/FastSAM), [YOLO-World](https://github.com/AILab-CVC/YOLO-World), [BLIP](https://arxiv.org/abs/2201.12086), [PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR), [Depth-Anything](https://github.com/LiheYoung/Depth-Anything), [MODNet](https://github.com/ZHKKKe/MODNet) and others.
 
 
+|                     Segment Anything                     |
+| :------------------------------------------------------: |
+| <img src='examples/sam/demo2.png'   width="800px"> |
+
+|                     YOLO + SAM                     |
+| :------------------------------------------------------: |
+| <img src='examples/yolo-sam/demo.png'   width="800px"> |
+
 
 |                          Monocular Depth Estimation              |
 | :--------------------------------------------------------------: |
@@ -18,9 +26,7 @@ A Rust library integrated with **ONNXRuntime**, providing a collection of **Comp
 | :----------------------------------------------------: | :------------------------------------------------: |
 | <img src='examples/yolop/demo.png'  width="385px"> | <img src='examples/db/demo.png'  width="385x"> |
 
-|                     Portrait Matting                     |
-| :------------------------------------------------------: |
-| <img src='examples/modnet/demo.png'   width="800px"> |
+
 
 
 ## Supported Models
@@ -35,6 +41,10 @@ A Rust library integrated with **ONNXRuntime**, providing a collection of **Comp
 |            [YOLOv10](https://github.com/THU-MIG/yolov10)            |                                                    Object Detection                                                    |    [demo](examples/yolo)    |      ✅      |      ✅      |             ✅             |            ✅            |
 |              [RTDETR](https://arxiv.org/abs/2304.08069)              |                                                    Object Detection                                                    |     [demo](examples/yolo)     |      ✅      |      ✅      |             ✅             |            ✅            |
 |         [FastSAM](https://github.com/CASIA-IVA-Lab/FastSAM)         |                                                 Instance Segmentation                                                 |    [demo](examples/yolo)    |      ✅      |      ✅      |             ✅             |            ✅            |
+|         [SAM](https://github.com/facebookresearch/segment-anything)         |                                                 Segmente Anything                                               |    [demo](examples/sam)    |      ✅      |      ✅      |                          |                        |
+|         [MobileSAM](https://github.com/ChaoningZhang/MobileSAM)         |                                                 Segmente Anything                                               |    [demo](examples/sam)    |      ✅      |      ✅      |                          |                        |
+|         [EdgeSAM](https://github.com/chongzhou96/EdgeSAM)        |                                                 Segmente Anything                                               |    [demo](examples/sam)    |      ✅      |      ✅      |                          |                        |
+|        [SAM-HQ](https://github.com/SysCV/sam-hq)        |                                                 Segmente Anything                                               |    [demo](examples/sam)    |      ✅      |      ✅      |                          |                        |
 |        [YOLO-World](https://github.com/AILab-CVC/YOLO-World)        |                                                    Object Detection                                                    |   [demo](examples/yolo)   |      ✅      |      ✅      |             ✅             |            ✅            |
 |         [DINOv2](https://github.com/facebookresearch/dinov2)         |                                                 Vision-Self-Supervised                                                 |     [demo](examples/dinov2)     |      ✅      |      ✅      |             ✅             |            ✅            |
 |                [CLIP](https://github.com/openai/CLIP)                |                                                    Vision-Language                                                    |      [demo](examples/clip)      |      ✅      |      ✅      | ✅ visual<br />❌ textual | ✅ visual<br />❌ textual |
@@ -69,14 +79,13 @@ cargo run -r --example yolo   # blip, clip, yolop, svtr, db, ...
 
 ## Integrate into your own project
 
-Add `usls` as a dependency to your project's `Cargo.toml`
+
 
 ```Shell
+# Add `usls` as a dependency to your project's `Cargo.toml`
 cargo add usls
-```
 
-Or you can use specific commit
-
-```Shell
+# Or you can use specific commit
 usls = { git = "https://github.com/jamjamjon/usls", rev = "???sha???"}
+
 ```
