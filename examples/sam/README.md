@@ -6,9 +6,6 @@
 cargo run -r --example sam
 
 # MobileSAM
-cargo run -r --example sam -- --kind edge-sam
-
-# MobileSAM
 cargo run -r --example sam -- --kind mobile-sam
 
 # EdgeSAM
