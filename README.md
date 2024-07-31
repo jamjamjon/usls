@@ -10,7 +10,7 @@ A Rust library integrated with **ONNXRuntime**, providing a collection of **Comp
 
 |                     Segment Anything                     |
 | :------------------------------------------------------: |
-| <img src='examples/sam/demo2.png'   width="800px"> |
+| <img src='examples/sam/demo.png'   width="800px"> |
 
 |                     YOLO + SAM                     |
 | :------------------------------------------------------: |
