@@ -23,16 +23,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let (options_encoder, options_decoder, saveout) = match args.kind {
         SamKind::Sam => {
-            let options_encoder =
-                Options::default().with_model("sam-vit-b-01ec64-encoder-qnt.onnx")?;
-            // .with_model("sam-vit-b-01ec64-encoder.onnx")?;
+            let options_encoder = Options::default()
+                // .with_model("sam-vit-b-encoder.onnx")?;
+                .with_model("sam-vit-b-encoder-u8.onnx")?;
+
             let options_decoder = Options::default()
                 .with_i00((1, 1, 1).into())
                 .with_i11((1, 1, 1).into())
                 .with_i21((1, 1, 1).into())
                 .with_sam_kind(SamKind::Sam)
-                // .with_model("sam-vit-b-01ec64-decoder.onnx")?;
-                .with_model("sam-vit-b-01ec64-decoder-singlemask.onnx")?;
+                // .with_model("sam-vit-b-decoder.onnx")?;
+                // .with_model("sam-vit-b-decoder-singlemask.onnx")?;
+                .with_model("sam-vit-b-decoder-u8.onnx")?;
             (options_encoder, options_decoder, "SAM")
         }
         SamKind::MobileSam => {
