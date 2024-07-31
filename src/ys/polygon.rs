@@ -64,6 +64,11 @@ impl Polygon {
         self
     }
 
+    pub fn with_confidence(mut self, x: f32) -> Self {
+        self.confidence = x;
+        self
+    }
+
     pub fn id(&self) -> isize {
         self.id
     }

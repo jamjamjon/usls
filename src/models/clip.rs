@@ -28,7 +28,7 @@ impl Clip {
             visual.inputs_minoptmax()[0][2].to_owned(),
             visual.inputs_minoptmax()[0][3].to_owned(),
         );
-        let mut tokenizer = Tokenizer::from_file(&options_textual.tokenizer.unwrap()).unwrap();
+        let mut tokenizer = Tokenizer::from_file(options_textual.tokenizer.unwrap()).unwrap();
         tokenizer.with_padding(Some(PaddingParams {
             strategy: PaddingStrategy::Fixed(context_length),
             direction: PaddingDirection::Right,

@@ -24,6 +24,7 @@ pub struct YOLO {
     names_kpt: Option<Vec<String>>,
     task: YOLOTask,
     layout: YOLOPreds,
+    find_contours: bool,
     version: Option<YOLOVersion>,
 }
 
@@ -153,6 +154,7 @@ impl Vision for YOLO {
             names_kpt,
             layout,
             version,
+            find_contours: options.find_contours,
         })
     }
 
@@ -417,7 +419,6 @@ impl Vision for YOLO {
                             .into_par_iter()
                             .filter_map(|bbox| {
                                 let coefs = coefs.slice(s![bbox.id_born(), ..]).to_vec();
-
                                 let proto = protos.as_ref()?.slice(s![idx, .., .., ..]);
                                 let (nm, mh, mw) = proto.dim();
 
@@ -461,10 +462,9 @@ impl Vision for YOLO {
                                 }
 
                                 // Find contours
-                                let contours: Vec<imageproc::contours::Contour<i32>> =
-                                    imageproc::contours::find_contours_with_threshold(&mask, 0);
-
-                                Some((
+                                let polygons = if self.find_contours {
+                                    let contours: Vec<imageproc::contours::Contour<i32>> =
+                                        imageproc::contours::find_contours_with_threshold(&mask, 0);
                                     contours
                                         .into_par_iter()
                                         .map(|x| {
@@ -473,7 +473,13 @@ impl Vision for YOLO {
                                                 .with_points_imageproc(&x.points)
                                                 .with_name(bbox.name().cloned())
                                         })
-                                        .max_by(|x, y| x.area().total_cmp(&y.area()))?,
+                                        .max_by(|x, y| x.area().total_cmp(&y.area()))?
+                                } else {
+                                    Polygon::default()
+                                };
+
+                                Some((
+                                    polygons,
                                     Mask::default()
                                         .with_mask(mask)
                                         .with_id(bbox.id())
@@ -482,7 +488,12 @@ impl Vision for YOLO {
                             })
                             .collect::<(Vec<_>, Vec<_>)>();
 
-                        y = y.with_polygons(&y_polygons).with_masks(&y_masks);
+                        if !y_polygons.is_empty() {
+                            y = y.with_polygons(&y_polygons);
+                        }
+                        if !y_masks.is_empty() {
+                            y = y.with_masks(&y_masks);
+                        }
                     }
                 }
 

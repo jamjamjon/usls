@@ -119,31 +119,31 @@ impl DB {
                     continue;
                 }
 
-                let mask = Polygon::default().with_points_imageproc(&contour.points);
-                let delta = mask.area() * ratio.round() as f64 * self.unclip_ratio as f64
-                    / mask.perimeter();
+                let polygon = Polygon::default().with_points_imageproc(&contour.points);
+                let delta = polygon.area() * ratio.round() as f64 * self.unclip_ratio as f64
+                    / polygon.perimeter();
 
                 // TODO: optimize
-                let mask = mask
+                let polygon = polygon
                     .unclip(delta, image_width as f64, image_height as f64)
                     .resample(50)
                     // .simplify(6e-4)
                     .convex_hull();
 
-                if let Some(bbox) = mask.bbox() {
+                if let Some(bbox) = polygon.bbox() {
                     if bbox.height() < self.min_height || bbox.width() < self.min_width {
                         continue;
                     }
-                    let confidence = mask.area() as f32 / bbox.area();
+                    let confidence = polygon.area() as f32 / bbox.area();
                     if confidence < self.confs[0] {
                         continue;
                     }
                     y_bbox.push(bbox.with_confidence(confidence).with_id(0));
 
-                    if let Some(mbr) = mask.mbr() {
+                    if let Some(mbr) = polygon.mbr() {
                         y_mbrs.push(mbr.with_confidence(confidence).with_id(0));
                     }
-                    y_polygons.push(mask.with_id(0));
+                    y_polygons.push(polygon.with_id(0));
                 } else {
                     continue;
                 }

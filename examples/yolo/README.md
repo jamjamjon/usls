@@ -25,29 +25,29 @@
 ```Shell
 
 # Classify
-cargo run -r --example yolo -- --task classify --version v5  # YOLOv5 
-cargo run -r --example yolo -- --task classify --version v8  # YOLOv8 
+cargo run -r --example yolo -- --task classify --ver v5  # YOLOv5 
+cargo run -r --example yolo -- --task classify --ver v8  # YOLOv8 
 
 # Detect
-cargo run -r --example yolo -- --task detect --version v5  # YOLOv5 
-cargo run -r --example yolo -- --task detect --version v6  # YOLOv6
-cargo run -r --example yolo -- --task detect --version v7  # YOLOv7
-cargo run -r --example yolo -- --task detect --version v8  # YOLOv8
-cargo run -r --example yolo -- --task detect --version v9  # YOLOv9
-cargo run -r --example yolo -- --task detect --version v10 # YOLOv10
-cargo run -r --example yolo -- --task detect --version rtdetr  # YOLOv8-RTDETR
-cargo run -r --example yolo -- --task detect --version v8 --model yolov8s-world-v2-shoes.onnx  # YOLOv8-world
+cargo run -r --example yolo -- --task detect --ver v5  # YOLOv5 
+cargo run -r --example yolo -- --task detect --ver v6  # YOLOv6
+cargo run -r --example yolo -- --task detect --ver v7  # YOLOv7
+cargo run -r --example yolo -- --task detect --ver v8  # YOLOv8
+cargo run -r --example yolo -- --task detect --ver v9  # YOLOv9
+cargo run -r --example yolo -- --task detect --ver v10 # YOLOv10
+cargo run -r --example yolo -- --task detect --ver rtdetr  # YOLOv8-RTDETR
+cargo run -r --example yolo -- --task detect --ver v8 --model yolov8s-world-v2-shoes.onnx  # YOLOv8-world
 
 # Pose
-cargo run -r --example yolo -- --task pose --version v8  # YOLOv8-Pose
+cargo run -r --example yolo -- --task pose --ver v8  # YOLOv8-Pose
 
 # Segment
-cargo run -r --example yolo -- --task segment --version v5  # YOLOv5-Segment
-cargo run -r --example yolo -- --task segment --version v8  # YOLOv8-Segment
-cargo run -r --example yolo -- --task segment --version v8 --model FastSAM-s-dyn-f16.onnx  # FastSAM
+cargo run -r --example yolo -- --task segment --ver v5  # YOLOv5-Segment
+cargo run -r --example yolo -- --task segment --ver v8  # YOLOv8-Segment
+cargo run -r --example yolo -- --task segment --ver v8 --model FastSAM-s-dyn-f16.onnx  # FastSAM
 
 # Obb
-cargo run -r --example yolo -- --task obb --version v8  # YOLOv8-Obb
+cargo run -r --example yolo -- --task obb --ver v8  # YOLOv8-Obb
 ```
 
 <details close>
@@ -175,7 +175,3 @@ yolo export model=yolov8m-obb.pt format=onnx simplify
 [Here](https://github.com/THU-MIG/yolov10#export)
 
 </details>
-
-
-
-
