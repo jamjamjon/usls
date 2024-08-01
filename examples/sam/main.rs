@@ -38,6 +38,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .with_model("sam-vit-b-decoder-u8.onnx")?;
             (options_encoder, options_decoder, "SAM")
         }
+        SamKind::Sam2 => {
+            let options_encoder = Options::default()
+                // .with_model("sam2-hiera-tiny-encoder.onnx")?;
+                // .with_model("sam2-hiera-small-encoder.onnx")?;
+                .with_model("sam2-hiera-base-plus-encoder.onnx")?;
+            let options_decoder = Options::default()
+                .with_i31((1, 1, 1).into())
+                .with_i41((1, 1, 1).into())
+                .with_sam_kind(SamKind::Sam2)
+                // .with_model("sam2-hiera-tiny-decoder.onnx")?;
+                // .with_model("sam2-hiera-small-decoder.onnx")?;
+                .with_model("sam2-hiera-base-plus-decoder.onnx")?;
+            (options_encoder, options_decoder, "SAM2")
+        }
         SamKind::MobileSam => {
             let options_encoder = Options::default().with_model("mobile-sam-vit-t-encoder.onnx")?;
 
