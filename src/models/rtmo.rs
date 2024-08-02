@@ -2,7 +2,7 @@ use anyhow::Result;
 use image::DynamicImage;
 use ndarray::Axis;
 
-use crate::{Bbox, DynConf, Keypoint, MinOptMax, Options, OrtEngine, X, Y};
+use crate::{Bbox, DynConf, Keypoint, MinOptMax, Options, OrtEngine, Xs, X, Y};
 
 #[derive(Debug)]
 pub struct RTMO {
@@ -53,7 +53,7 @@ impl RTMO {
         self.postprocess(ys, xs)
     }
 
-    pub fn postprocess(&self, xs: Vec<X>, xs0: &[DynamicImage]) -> Result<Vec<Y>> {
+    pub fn postprocess(&self, xs: Xs, xs0: &[DynamicImage]) -> Result<Vec<Y>> {
         let mut ys: Vec<Y> = Vec::new();
         let (preds_bboxes, preds_kpts) = if xs[0].ndim() == 3 {
             (&xs[0], &xs[1])

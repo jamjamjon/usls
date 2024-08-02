@@ -2,7 +2,7 @@ use anyhow::Result;
 use image::DynamicImage;
 use ndarray::{s, Array, Axis, IxDyn};
 
-use crate::{Bbox, DynConf, MinOptMax, Ops, Options, OrtEngine, Polygon, X, Y};
+use crate::{Bbox, DynConf, MinOptMax, Ops, Options, OrtEngine, Polygon, Xs, X, Y};
 
 #[derive(Debug)]
 pub struct YOLOPv2 {
@@ -54,7 +54,8 @@ impl YOLOPv2 {
         self.postprocess(ys, xs)
     }
 
-    pub fn postprocess(&self, xs: Vec<X>, xs0: &[DynamicImage]) -> Result<Vec<Y>> {
+    pub fn postprocess(&self, xs: Xs, xs0: &[DynamicImage]) -> Result<Vec<Y>> {
+        // pub fn postprocess(&self, xs: Vec<X>, xs0: &[DynamicImage]) -> Result<Vec<Y>> {
         let mut ys: Vec<Y> = Vec::new();
         let (xs_da, xs_ll, xs_det) = (&xs[0], &xs[1], &xs[2]);
         for (idx, ((x_det, x_ll), x_da)) in xs_det

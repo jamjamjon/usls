@@ -2,7 +2,7 @@ use anyhow::Result;
 use image::DynamicImage;
 use ndarray::Axis;
 
-use crate::{DynConf, Mbr, MinOptMax, Ops, Options, OrtEngine, Polygon, X, Y};
+use crate::{DynConf, Mbr, MinOptMax, Ops, Options, OrtEngine, Polygon, Xs, X, Y};
 
 #[derive(Debug)]
 pub struct DB {
@@ -64,7 +64,7 @@ impl DB {
         self.postprocess(ys, xs)
     }
 
-    pub fn postprocess(&self, xs: Vec<X>, xs0: &[DynamicImage]) -> Result<Vec<Y>> {
+    pub fn postprocess(&self, xs: Xs, xs0: &[DynamicImage]) -> Result<Vec<Y>> {
         let mut ys = Vec::new();
         for (idx, luma) in xs[0].axis_iter(Axis(0)).enumerate() {
             let mut y_bbox = Vec::new();

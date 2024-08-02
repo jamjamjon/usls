@@ -8,7 +8,7 @@ use ort::{
 use prost::Message;
 use std::collections::HashSet;
 
-use crate::{home_dir, onnx, Device, MinOptMax, Ops, Options, Ts, CHECK_MARK, CROSS_MARK, X};
+use crate::{home_dir, onnx, Device, MinOptMax, Ops, Options, Ts, Xs, CHECK_MARK, CROSS_MARK, X};
 
 /// Ort Tensor Attrs: name, data_type, dims
 #[derive(Debug)]
@@ -298,7 +298,7 @@ impl OrtEngine {
         Ok(())
     }
 
-    pub fn run(&mut self, xs: Vec<X>) -> Result<Vec<X>> {
+    pub fn run(&mut self, xs: Vec<X>) -> Result<Xs> {
         // inputs dtype alignment
         let mut xs_ = Vec::new();
         let t_pre = std::time::Instant::now();
@@ -334,7 +334,7 @@ impl OrtEngine {
         self.ts.add_or_push(1, t_run);
 
         // oputput
-        let mut ys = Vec::new();
+        let mut ys = Xs::new();
         let t_post = std::time::Instant::now();
         for (dtype, name) in self
             .outputs_attrs
@@ -358,8 +358,7 @@ impl OrtEngine {
                     .into_owned(),
                 _ => todo!(),
             };
-            // ys.push(y_);
-            ys.push(X::from(y_));
+            ys.add(name.as_str(), X::from(y_))?;
         }
         let t_post = t_post.elapsed();
         self.ts.add_or_push(2, t_post);

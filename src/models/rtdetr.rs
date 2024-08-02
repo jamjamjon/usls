@@ -3,7 +3,7 @@ use image::DynamicImage;
 use ndarray::{s, Axis};
 use regex::Regex;
 
-use crate::{Bbox, DynConf, MinOptMax, Ops, Options, OrtEngine, X, Y};
+use crate::{Bbox, DynConf, MinOptMax, Ops, Options, OrtEngine, Xs, X, Y};
 
 #[derive(Debug)]
 pub struct RTDETR {
@@ -73,7 +73,7 @@ impl RTDETR {
         self.postprocess(ys, xs)
     }
 
-    pub fn postprocess(&self, xs: Vec<X>, xs0: &[DynamicImage]) -> Result<Vec<Y>> {
+    pub fn postprocess(&self, xs: Xs, xs0: &[DynamicImage]) -> Result<Vec<Y>> {
         const CXYWH_OFFSET: usize = 4; // cxcywh
         let preds = &xs[0];
 

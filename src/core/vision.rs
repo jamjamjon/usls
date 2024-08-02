@@ -1,4 +1,4 @@
-use crate::{Options, X, Y};
+use crate::{Options, Xs, X, Y};
 
 pub trait Vision: Sized {
     type Input; // DynamicImage
@@ -10,10 +10,10 @@ pub trait Vision: Sized {
     fn preprocess(&self, xs: &[Self::Input]) -> anyhow::Result<Vec<X>>;
 
     /// Executes the model on the preprocessed data.
-    fn inference(&mut self, xs: Vec<X>) -> anyhow::Result<Vec<X>>;
+    fn inference(&mut self, xs: Vec<X>) -> anyhow::Result<Xs>;
 
     /// Postprocesses the model's output.
-    fn postprocess(&self, xs: Vec<X>, xs0: &[Self::Input]) -> anyhow::Result<Vec<Y>>;
+    fn postprocess(&self, xs: Xs, xs0: &[Self::Input]) -> anyhow::Result<Vec<Y>>;
 
     /// Executes the full pipeline.
     fn run(&mut self, xs: &[Self::Input]) -> anyhow::Result<Vec<Y>> {

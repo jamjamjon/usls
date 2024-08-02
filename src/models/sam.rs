@@ -3,7 +3,7 @@ use image::DynamicImage;
 use ndarray::{s, Array, Axis};
 use rand::prelude::*;
 
-use crate::{DynConf, Mask, MinOptMax, Ops, Options, OrtEngine, Polygon, X, Y};
+use crate::{DynConf, Mask, MinOptMax, Ops, Options, OrtEngine, Polygon, Xs, X, Y};
 
 #[derive(Debug, Clone, clap::ValueEnum)]
 pub enum SamKind {
@@ -119,7 +119,7 @@ impl SAM {
         self.decode(ys, xs, prompts)
     }
 
-    pub fn encode(&mut self, xs: &[DynamicImage]) -> Result<Vec<X>> {
+    pub fn encode(&mut self, xs: &[DynamicImage]) -> Result<Xs> {
         let xs_ = X::apply(&[
             Ops::Letterbox(
                 xs,
@@ -139,7 +139,7 @@ impl SAM {
 
     pub fn decode(
         &mut self,
-        xs: Vec<X>,
+        xs: Xs,
         xs0: &[DynamicImage],
         prompts: &[SamPrompt],
     ) -> Result<Vec<Y>> {
@@ -212,7 +212,6 @@ impl SAM {
                     ]
                 }
             };
-
             let ys_ = self.decoder.run(args)?;
 
             let mut y_masks: Vec<Mask> = Vec::new();
@@ -223,16 +222,14 @@ impl SAM {
                 SamKind::Sam | SamKind::MobileSam | SamKind::SamHq => {
                     if !self.use_low_res_mask {
                         (&ys_[0], &ys_[1])
+                        // (&ys_["masks"], &ys_["iou_predictions"])
                     } else {
                         (&ys_[2], &ys_[1])
+                        // (&ys_["low_res_masks"], &ys_["iou_predictions"])
                     }
                 }
                 SamKind::Sam2 => (&ys_[0], &ys_[1]),
-                SamKind::EdgeSam => match (ys_[0].ndim(), ys_[1].ndim()) {
-                    (2, 4) => (&ys_[1], &ys_[0]),
-                    (4, 2) => (&ys_[0], &ys_[1]),
-                    _ => anyhow::bail!("Can not parse the outputs of decoder."),
-                },
+                SamKind::EdgeSam => (&ys_["masks"], &ys_["scores"]),
             };
 
             for (mask, iou) in masks.axis_iter(Axis(0)).zip(confs.axis_iter(Axis(0))) {
@@ -251,6 +248,7 @@ impl SAM {
                     continue;
                 }
                 let mask = mask.slice(s![i, .., ..]);
+
                 let (h, w) = mask.dim();
                 let luma = if self.use_low_res_mask {
                     Ops::resize_lumaf32_vec(
