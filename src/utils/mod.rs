@@ -1,5 +1,6 @@
 use anyhow::{anyhow, Result};
 use indicatif::{ProgressBar, ProgressStyle};
+use rand::{distributions::Alphanumeric, thread_rng, Rng};
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 
@@ -77,6 +78,14 @@ pub fn download<P: AsRef<Path> + std::fmt::Debug>(
     pb.finish();
     println!();
     Ok(())
+}
+
+pub(crate) fn string_random(n: usize) -> String {
+    thread_rng()
+        .sample_iter(&Alphanumeric)
+        .take(n)
+        .map(char::from)
+        .collect()
 }
 
 pub(crate) fn string_now(delimiter: &str) -> String {

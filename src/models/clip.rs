@@ -3,7 +3,7 @@ use image::DynamicImage;
 use ndarray::Array2;
 use tokenizers::{PaddingDirection, PaddingParams, PaddingStrategy, Tokenizer};
 
-use crate::{Embedding, MinOptMax, Ops, Options, OrtEngine, X, Y};
+use crate::{Embedding, MinOptMax, Ops, Options, OrtEngine, Xs, X, Y};
 
 #[derive(Debug)]
 pub struct Clip {
@@ -69,7 +69,7 @@ impl Clip {
             ),
             Ops::Nhwc2nchw,
         ])?;
-        let ys = self.visual.run(vec![xs_])?;
+        let ys = self.visual.run(Xs::from(xs_))?;
         Ok(Y::default().with_embedding(&Embedding::from(ys[0].to_owned())))
     }
 
@@ -84,7 +84,7 @@ impl Clip {
             .collect();
         let xs = Array2::from_shape_vec((texts.len(), self.context_length), xs)?.into_dyn();
         let xs = X::from(xs);
-        let ys = self.textual.run(vec![xs])?;
+        let ys = self.textual.run(Xs::from(xs))?;
         Ok(Y::default().with_embedding(&Embedding::from(ys[0].to_owned())))
     }
 

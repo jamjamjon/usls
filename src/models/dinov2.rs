@@ -1,4 +1,4 @@
-use crate::{Embedding, MinOptMax, Ops, Options, OrtEngine, X, Y};
+use crate::{Embedding, MinOptMax, Ops, Options, OrtEngine, Xs, X, Y};
 use anyhow::Result;
 use image::DynamicImage;
 // use std::path::PathBuf;
@@ -63,7 +63,7 @@ impl Dinov2 {
             ),
             Ops::Nhwc2nchw,
         ])?;
-        let ys = self.engine.run(vec![xs_])?;
+        let ys = self.engine.run(Xs::from(xs_))?;
         Ok(Y::default().with_embedding(&Embedding::from(ys[0].to_owned())))
     }
 

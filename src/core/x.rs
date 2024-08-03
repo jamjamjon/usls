@@ -4,7 +4,7 @@ use ndarray::{Array, Dim, IxDyn, IxDynImpl};
 
 use crate::Ops;
 
-/// Model input, alias for [`Array<f32, IxDyn>`]
+/// Model input, wrapper over [`Array<f32, IxDyn>`]
 #[derive(Debug, Clone, Default)]
 pub struct X(pub Array<f32, IxDyn>);
 
@@ -30,7 +30,11 @@ impl std::ops::Deref for X {
 
 impl X {
     pub fn zeros(shape: &[usize]) -> Self {
-        Self(Array::zeros(Dim(IxDynImpl::from(shape.to_vec()))))
+        Self::from(Array::zeros(Dim(IxDynImpl::from(shape.to_vec()))))
+    }
+
+    pub fn ones(shape: &[usize]) -> Self {
+        Self::from(Array::ones(Dim(IxDynImpl::from(shape.to_vec()))))
     }
 
     pub fn apply(ops: &[Ops]) -> Result<Self> {
@@ -77,6 +81,10 @@ impl X {
         self.0.shape()
     }
 
+    pub fn ndim(&self) -> usize {
+        self.0.ndim()
+    }
+
     pub fn normalize(mut self, min_: f32, max_: f32) -> Result<Self> {
         self.0 = Ops::normalize(self.0, min_, max_)?;
         Ok(self)
@@ -93,7 +101,7 @@ impl X {
     }
 
     pub fn resize(xs: &[DynamicImage], height: u32, width: u32, filter: &str) -> Result<Self> {
-        Ok(Self(Ops::resize(xs, height, width, filter)?))
+        Ok(Self::from(Ops::resize(xs, height, width, filter)?))
     }
 
     pub fn letterbox(
@@ -105,7 +113,7 @@ impl X {
         resize_by: &str,
         center: bool,
     ) -> Result<Self> {
-        Ok(Self(Ops::letterbox(
+        Ok(Self::from(Ops::letterbox(
             xs, height, width, filter, bg, resize_by, center,
         )?))
     }

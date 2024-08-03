@@ -6,7 +6,7 @@ use regex::Regex;
 
 use crate::{
     Bbox, BoxType, DynConf, Keypoint, Mask, Mbr, MinOptMax, Ops, Options, OrtEngine, Polygon, Prob,
-    Vision, YOLOPreds, YOLOTask, YOLOVersion, X, Y,
+    Vision, Xs, YOLOPreds, YOLOTask, YOLOVersion, X, Y,
 };
 
 #[derive(Debug)]
@@ -158,7 +158,7 @@ impl Vision for YOLO {
         })
     }
 
-    fn preprocess(&self, xs: &[Self::Input]) -> Result<Vec<X>> {
+    fn preprocess(&self, xs: &[Self::Input]) -> Result<Xs> {
         let xs_ = match self.task {
             YOLOTask::Classify => {
                 X::resize(xs, self.height() as u32, self.width() as u32, "Bilinear")?
@@ -179,14 +179,14 @@ impl Vision for YOLO {
                 Ops::Nhwc2nchw,
             ])?,
         };
-        Ok(vec![xs_])
+        Ok(Xs::from(xs_))
     }
 
-    fn inference(&mut self, xs: Vec<X>) -> Result<Vec<X>> {
+    fn inference(&mut self, xs: Xs) -> Result<Xs> {
         self.engine.run(xs)
     }
 
-    fn postprocess(&self, xs: Vec<X>, xs0: &[Self::Input]) -> Result<Vec<Y>> {
+    fn postprocess(&self, xs: Xs, xs0: &[Self::Input]) -> Result<Vec<Y>> {
         let protos = if xs.len() == 2 { Some(&xs[1]) } else { None };
         let ys: Vec<Y> = xs[0]
             .axis_iter(Axis(0))

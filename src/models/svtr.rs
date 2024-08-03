@@ -2,7 +2,7 @@ use anyhow::Result;
 use image::DynamicImage;
 use ndarray::Axis;
 
-use crate::{DynConf, MinOptMax, Ops, Options, OrtEngine, X, Y};
+use crate::{DynConf, MinOptMax, Ops, Options, OrtEngine, Xs, X, Y};
 
 #[derive(Debug)]
 pub struct SVTR {
@@ -57,11 +57,11 @@ impl SVTR {
             Ops::Nhwc2nchw,
         ])?;
 
-        let ys = self.engine.run(vec![xs_])?;
+        let ys = self.engine.run(Xs::from(xs_))?;
         self.postprocess(ys)
     }
 
-    pub fn postprocess(&self, xs: Vec<X>) -> Result<Vec<Y>> {
+    pub fn postprocess(&self, xs: Xs) -> Result<Vec<Y>> {
         let mut ys: Vec<Y> = Vec::new();
         for batch in xs[0].axis_iter(Axis(0)) {
             let preds = batch

@@ -4,7 +4,9 @@ use ndarray::{s, Array, Axis, IxDyn};
 use std::io::Write;
 use tokenizers::Tokenizer;
 
-use crate::{Embedding, LogitsSampler, MinOptMax, Ops, Options, OrtEngine, TokenizerStream, X, Y};
+use crate::{
+    Embedding, LogitsSampler, MinOptMax, Ops, Options, OrtEngine, TokenizerStream, Xs, X, Y,
+};
 
 #[derive(Debug)]
 pub struct Blip {
@@ -58,7 +60,7 @@ impl Blip {
             ),
             Ops::Nhwc2nchw,
         ])?;
-        let ys = self.visual.run(vec![xs_])?;
+        let ys = self.visual.run(Xs::from(xs_))?;
         Ok(Y::default().with_embedding(&Embedding::from(ys[0].to_owned())))
     }
 
@@ -108,12 +110,12 @@ impl Blip {
                 Array::ones(input_ids_nd.shape()).into_dyn();
             let input_ids_attn_mask = X::from(input_ids_attn_mask);
 
-            let y = self.textual.run(vec![
+            let y = self.textual.run(Xs::from(vec![
                 input_ids_nd,
                 input_ids_attn_mask,
                 X::from(image_embeds.data().to_owned()),
                 X::from(image_embeds_attn_mask.to_owned()),
-            ])?; // N, length, vocab_size
+            ]))?; // N, length, vocab_size
             let y = y[0].slice(s!(0, -1.., ..));
             let logits = y.slice(s!(0, ..)).to_vec();
             let token_id = logits_sampler.decode(&logits)?;
