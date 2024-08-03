@@ -2,12 +2,30 @@ use anyhow::Result;
 use std::collections::HashMap;
 use std::ops::{Deref, Index};
 
-use crate::X;
+use crate::{string_random, X};
 
 #[derive(Debug, Default, Clone)]
 pub struct Xs {
-    names: Vec<String>,
     map: HashMap<String, X>,
+    names: Vec<String>,
+}
+
+impl From<X> for Xs {
+    fn from(x: X) -> Self {
+        let mut xs = Self::default();
+        xs.push(x);
+        xs
+    }
+}
+
+impl From<Vec<X>> for Xs {
+    fn from(xs: Vec<X>) -> Self {
+        let mut ys = Self::default();
+        for x in xs {
+            ys.push(x);
+        }
+        ys
+    }
 }
 
 impl Xs {
@@ -17,12 +35,25 @@ impl Xs {
         }
     }
 
-    pub fn add(&mut self, key: &str, value: X) -> Result<()> {
+    pub fn push(&mut self, value: X) {
+        loop {
+            let key = string_random(5);
+            if !self.map.contains_key(&key) {
+                self.names.push(key.to_string());
+                self.map.insert(key.to_string(), value);
+                break;
+            }
+        }
+    }
+
+    pub fn push_kv(&mut self, key: &str, value: X) -> Result<()> {
         if !self.map.contains_key(key) {
             self.names.push(key.to_string());
+            self.map.insert(key.to_string(), value);
+            Ok(())
+        } else {
+            anyhow::bail!("Xs already contains key: {:?}", key)
         }
-        self.map.insert(key.to_string(), value);
-        Ok(())
     }
 
     pub fn names(&self) -> &Vec<String> {
@@ -57,11 +88,26 @@ impl Index<usize> for Xs {
     }
 }
 
+pub struct XsIter<'a> {
+    inner: std::vec::IntoIter<&'a X>,
+}
+
+impl<'a> Iterator for XsIter<'a> {
+    type Item = &'a X;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.inner.next()
+    }
+}
+
 impl<'a> IntoIterator for &'a Xs {
     type Item = &'a X;
-    type IntoIter = std::collections::hash_map::Values<'a, String, X>;
+    type IntoIter = XsIter<'a>;
 
     fn into_iter(self) -> Self::IntoIter {
-        self.map.values()
+        let values: Vec<&X> = self.names.iter().map(|x| &self.map[x]).collect();
+        XsIter {
+            inner: values.into_iter(),
+        }
     }
 }

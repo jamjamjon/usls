@@ -41,7 +41,7 @@ impl DepthAnything {
             Ops::Standardize(&[0.485, 0.456, 0.406], &[0.229, 0.224, 0.225], 3),
             Ops::Nhwc2nchw,
         ])?;
-        let ys = self.engine.run(vec![xs_])?;
+        let ys = self.engine.run(Xs::from(xs_))?;
         self.postprocess(ys, xs)
     }
 

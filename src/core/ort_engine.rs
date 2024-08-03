@@ -288,6 +288,7 @@ impl OrtEngine {
                 let x: Array<f32, IxDyn> = Array::ones(x).into_dyn();
                 xs.push(X::from(x));
             }
+            let xs = Xs::from(xs);
             for _ in 0..self.num_dry_run {
                 // self.run(xs.as_ref())?;
                 self.run(xs.clone())?;
@@ -298,11 +299,11 @@ impl OrtEngine {
         Ok(())
     }
 
-    pub fn run(&mut self, xs: Vec<X>) -> Result<Xs> {
+    pub fn run(&mut self, xs: Xs) -> Result<Xs> {
         // inputs dtype alignment
         let mut xs_ = Vec::new();
         let t_pre = std::time::Instant::now();
-        for (idtype, x) in self.inputs_attrs.dtypes.iter().zip(xs.iter()) {
+        for (idtype, x) in self.inputs_attrs.dtypes.iter().zip(xs.into_iter()) {
             let x_ = match &idtype {
                 TensorElementType::Float32 => ort::Value::from_array(x.view())?.into_dyn(),
                 TensorElementType::Float16 => {
@@ -358,7 +359,7 @@ impl OrtEngine {
                     .into_owned(),
                 _ => todo!(),
             };
-            ys.add(name.as_str(), X::from(y_))?;
+            ys.push_kv(name.as_str(), X::from(y_))?;
         }
         let t_post = t_post.elapsed();
         self.ts.add_or_push(2, t_post);

@@ -134,7 +134,7 @@ impl SAM {
             Ops::Nhwc2nchw,
         ])?;
 
-        self.encoder.run(vec![xs_])
+        self.encoder.run(Xs::from(xs_))
     }
 
     pub fn decode(
@@ -212,7 +212,8 @@ impl SAM {
                     ]
                 }
             };
-            let ys_ = self.decoder.run(args)?;
+
+            let ys_ = self.decoder.run(Xs::from(args))?;
 
             let mut y_masks: Vec<Mask> = Vec::new();
             let mut y_polygons: Vec<Polygon> = Vec::new();

@@ -158,7 +158,7 @@ impl Vision for YOLO {
         })
     }
 
-    fn preprocess(&self, xs: &[Self::Input]) -> Result<Vec<X>> {
+    fn preprocess(&self, xs: &[Self::Input]) -> Result<Xs> {
         let xs_ = match self.task {
             YOLOTask::Classify => {
                 X::resize(xs, self.height() as u32, self.width() as u32, "Bilinear")?
@@ -179,10 +179,10 @@ impl Vision for YOLO {
                 Ops::Nhwc2nchw,
             ])?,
         };
-        Ok(vec![xs_])
+        Ok(Xs::from(xs_))
     }
 
-    fn inference(&mut self, xs: Vec<X>) -> Result<Xs> {
+    fn inference(&mut self, xs: Xs) -> Result<Xs> {
         self.engine.run(xs)
     }
 

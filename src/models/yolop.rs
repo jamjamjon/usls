@@ -50,7 +50,7 @@ impl YOLOPv2 {
             Ops::Normalize(0., 255.),
             Ops::Nhwc2nchw,
         ])?;
-        let ys = self.engine.run(vec![xs_])?;
+        let ys = self.engine.run(Xs::from(xs_))?;
         self.postprocess(ys, xs)
     }
 
