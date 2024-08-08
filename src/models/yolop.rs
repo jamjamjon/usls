@@ -126,7 +126,7 @@ impl YOLOPv2 {
                     Polygon::default()
                         .with_id(0)
                         .with_points_imageproc(&x.points)
-                        .with_name(Some("Drivable area".to_string()))
+                        .with_name("Drivable area")
                 })
                 .max_by(|x, y| x.area().total_cmp(&y.area()))
             {
@@ -151,7 +151,7 @@ impl YOLOPv2 {
                     Polygon::default()
                         .with_id(1)
                         .with_points_imageproc(&x.points)
-                        .with_name(Some("Lane line".to_string()))
+                        .with_name("Lane line")
                 })
                 .max_by(|x, y| x.area().total_cmp(&y.area()))
             {

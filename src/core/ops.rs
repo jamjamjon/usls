@@ -20,6 +20,7 @@ pub enum Ops<'a> {
     Nhwc2nchw,
     Nchw2nhwc,
     Norm,
+    Sigmoid,
 }
 
 impl Ops<'_> {
@@ -32,6 +33,10 @@ impl Ops<'_> {
             );
         }
         Ok((x - min) / (max - min))
+    }
+
+    pub fn sigmoid(x: Array<f32, IxDyn>) -> Array<f32, IxDyn> {
+        x.mapv(|x| 1. / ((-x).exp() + 1.))
     }
 
     pub fn standardize(

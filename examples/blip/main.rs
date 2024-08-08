@@ -10,7 +10,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // textual
     let options_textual = Options::default()
         .with_model("blip-textual-base.onnx")?
-        .with_tokenizer("tokenizer-blip.json")?
+        // .with_tokenizer("tokenizer-blip.json")?
         .with_i00((1, 1, 4).into()) // input_id: batch
         .with_i01((1, 1, 4).into()) // input_id: seq_len
         .with_i10((1, 1, 4).into()) // attention_mask: batch
@@ -23,9 +23,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut model = Blip::new(options_visual, options_textual)?;
 
     // image caption (this demo use batch_size=1)
-    let x = vec![DataLoader::try_read("./assets/bus.jpg")?];
-    let _y = model.caption(&x, None, true)?; // unconditional
-    let y = model.caption(&x, Some("three man"), true)?; // conditional
+    let xs = vec![DataLoader::try_read("./assets/bus.jpg")?];
+    let image_embeddings = model.encode_images(&xs)?;
+    let _y = model.caption(&image_embeddings, None, true)?; // unconditional
+    let y = model.caption(&image_embeddings, Some("three man"), true)?; // conditional
     println!("{:?}", y[0].texts());
 
     Ok(())

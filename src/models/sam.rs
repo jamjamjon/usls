@@ -116,7 +116,7 @@ impl SAM {
 
     pub fn run(&mut self, xs: &[DynamicImage], prompts: &[SamPrompt]) -> Result<Vec<Y>> {
         let ys = self.encode(xs)?;
-        self.decode(ys, xs, prompts)
+        self.decode(&ys, xs, prompts)
     }
 
     pub fn encode(&mut self, xs: &[DynamicImage]) -> Result<Xs> {
@@ -139,7 +139,7 @@ impl SAM {
 
     pub fn decode(
         &mut self,
-        xs: Xs,
+        xs: &Xs,
         xs0: &[DynamicImage],
         prompts: &[SamPrompt],
     ) -> Result<Vec<Y>> {

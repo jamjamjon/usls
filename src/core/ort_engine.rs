@@ -321,6 +321,9 @@ impl OrtEngine {
                 TensorElementType::Int8 => {
                     ort::Value::from_array(x.mapv(|x_| x_ as i8).view())?.into_dyn()
                 }
+                TensorElementType::Bool => {
+                    ort::Value::from_array(x.mapv(|x_| x_ != 0.).view())?.into_dyn()
+                }
                 _ => todo!(),
             };
             xs_.push(Into::<ort::SessionInputValue<'_>>::into(x_));

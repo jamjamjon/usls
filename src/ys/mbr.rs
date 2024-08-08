@@ -101,8 +101,8 @@ impl Mbr {
         self
     }
 
-    pub fn with_name(mut self, x: Option<String>) -> Self {
-        self.name = x;
+    pub fn with_name(mut self, x: &str) -> Self {
+        self.name = Some(x.to_string());
         self
     }
 

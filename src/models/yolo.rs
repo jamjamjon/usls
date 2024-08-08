@@ -215,13 +215,13 @@ impl Vision for YOLO {
                     } else {
                         slice_clss.into_owned()
                     };
-                    return Some(
-                        y.with_probs(
-                            &Prob::default()
-                                .with_probs(&x.into_raw_vec())
-                                .with_names(self.names.clone()),
-                        ),
-                    );
+                    let mut probs = Prob::default().with_probs(&x.into_raw_vec());
+                    if let Some(names) = &self.names {
+                        probs =
+                            probs.with_names(&names.iter().map(|x| x.as_str()).collect::<Vec<_>>());
+                    }
+
+                    return Some(y.with_probs(&probs));
                 }
 
                 let image_width = xs0[idx].width() as f32;
@@ -312,41 +312,34 @@ impl Vision for YOLO {
                                     (h, w, radians + std::f32::consts::PI / 2.)
                                 };
                                 let radians = radians % std::f32::consts::PI;
-                                (
-                                    None,
-                                    Some(
-                                        Mbr::from_cxcywhr(
-                                            cx as f64,
-                                            cy as f64,
-                                            w as f64,
-                                            h as f64,
-                                            radians as f64,
-                                        )
-                                        .with_confidence(confidence)
-                                        .with_id(class_id as isize)
-                                        .with_name(
-                                            self.names
-                                                .as_ref()
-                                                .map(|names| names[class_id].clone()),
-                                        ),
-                                    ),
+
+                                let mut mbr = Mbr::from_cxcywhr(
+                                    cx as f64,
+                                    cy as f64,
+                                    w as f64,
+                                    h as f64,
+                                    radians as f64,
                                 )
+                                .with_confidence(confidence)
+                                .with_id(class_id as isize);
+                                if let Some(names) = &self.names {
+                                    mbr = mbr.with_name(&names[class_id]);
+                                }
+
+                                (None, Some(mbr))
                             }
-                            None => (
-                                Some(
-                                    Bbox::default()
-                                        .with_xywh(x, y, w, h)
-                                        .with_confidence(confidence)
-                                        .with_id(class_id as isize)
-                                        .with_id_born(i as isize)
-                                        .with_name(
-                                            self.names
-                                                .as_ref()
-                                                .map(|names| names[class_id].clone()),
-                                        ),
-                                ),
-                                None,
-                            ),
+                            None => {
+                                let mut bbox = Bbox::default()
+                                    .with_xywh(x, y, w, h)
+                                    .with_confidence(confidence)
+                                    .with_id(class_id as isize)
+                                    .with_id_born(i as isize);
+                                if let Some(names) = &self.names {
+                                    bbox = bbox.with_name(&names[class_id]);
+                                }
+
+                                (Some(bbox), None)
+                            }
                         };
 
                         Some((y_bbox, y_mbr))
@@ -390,18 +383,18 @@ impl Vision for YOLO {
                                         if kconf < self.kconfs[i] {
                                             Keypoint::default()
                                         } else {
-                                            Keypoint::default()
+                                            let mut kpt = Keypoint::default()
                                                 .with_id(i as isize)
                                                 .with_confidence(kconf)
-                                                .with_name(
-                                                    self.names_kpt
-                                                        .as_ref()
-                                                        .map(|names| names[i].clone()),
-                                                )
                                                 .with_xy(
                                                     kx.max(0.0f32).min(image_width),
                                                     ky.max(0.0f32).min(image_height),
-                                                )
+                                                );
+
+                                            if let Some(names) = &self.names_kpt {
+                                                kpt = kpt.with_name(&names[i]);
+                                            }
+                                            kpt
                                         }
                                     })
                                     .collect::<Vec<_>>();
@@ -468,23 +461,25 @@ impl Vision for YOLO {
                                     contours
                                         .into_par_iter()
                                         .map(|x| {
-                                            Polygon::default()
+                                            let mut polygon = Polygon::default()
                                                 .with_id(bbox.id())
-                                                .with_points_imageproc(&x.points)
-                                                .with_name(bbox.name().cloned())
+                                                .with_points_imageproc(&x.points);
+                                            if let Some(name) = bbox.name() {
+                                                polygon = polygon.with_name(name);
+                                            }
+                                            polygon
                                         })
                                         .max_by(|x, y| x.area().total_cmp(&y.area()))?
                                 } else {
                                     Polygon::default()
                                 };
 
-                                Some((
-                                    polygons,
-                                    Mask::default()
-                                        .with_mask(mask)
-                                        .with_id(bbox.id())
-                                        .with_name(bbox.name().cloned()),
-                                ))
+                                let mut mask = Mask::default().with_mask(mask).with_id(bbox.id());
+                                if let Some(name) = bbox.name() {
+                                    mask = mask.with_name(name);
+                                }
+
+                                Some((polygons, mask))
                             })
                             .collect::<(Vec<_>, Vec<_>)>();
 

@@ -5,7 +5,8 @@ use std::io::Write;
 use tokenizers::Tokenizer;
 
 use crate::{
-    Embedding, LogitsSampler, MinOptMax, Ops, Options, OrtEngine, TokenizerStream, Xs, X, Y,
+    auto_load, Embedding, LogitsSampler, MinOptMax, Ops, Options, OrtEngine, TokenizerStream, Xs,
+    X, Y,
 };
 
 #[derive(Debug)]
@@ -29,7 +30,19 @@ impl Blip {
             visual.height().to_owned(),
             visual.width().to_owned(),
         );
-        let tokenizer = Tokenizer::from_file(options_textual.tokenizer.unwrap()).unwrap();
+
+        let tokenizer = match options_textual.tokenizer {
+            Some(x) => x,
+            None => match auto_load("tokenizer-blip.json", Some("tokenizers")) {
+                Err(err) => anyhow::bail!("No tokenizer's file found: {:?}", err),
+                Ok(x) => x,
+            },
+        };
+        let tokenizer = match Tokenizer::from_file(tokenizer) {
+            Err(err) => anyhow::bail!("Failed to build tokenizer: {:?}", err),
+            Ok(x) => x,
+        };
+
         let tokenizer = TokenizerStream::new(tokenizer);
         visual.dry_run()?;
         textual.dry_run()?;
@@ -64,15 +77,12 @@ impl Blip {
         Ok(Y::default().with_embedding(&Embedding::from(ys[0].to_owned())))
     }
 
-    pub fn caption(
-        &mut self,
-        x: &[DynamicImage],
-        prompt: Option<&str>,
-        show: bool,
-    ) -> Result<Vec<Y>> {
+    pub fn caption(&mut self, xs: &Y, prompt: Option<&str>, show: bool) -> Result<Vec<Y>> {
         let mut ys: Vec<Y> = Vec::new();
-        let image_embeds = self.encode_images(x)?;
-        let image_embeds = image_embeds.embedding().unwrap();
+        let image_embeds = match xs.embedding() {
+            Some(image_embeds) => image_embeds,
+            None => anyhow::bail!("No image embeddings found"),
+        };
         let image_embeds_attn_mask: Array<f32, IxDyn> =
             Array::ones((1, image_embeds.data().shape()[1])).into_dyn();
         let mut y_text = String::new();
@@ -86,13 +96,11 @@ impl Blip {
                 vec![0.0f32]
             }
             Some(prompt) => {
-                let encodings = self.tokenizer.tokenizer().encode(prompt, false);
-                let ids: Vec<f32> = encodings
-                    .unwrap()
-                    .get_ids()
-                    .iter()
-                    .map(|x| *x as f32)
-                    .collect();
+                let encodings = match self.tokenizer.tokenizer().encode(prompt, false) {
+                    Err(err) => anyhow::bail!("{}", err),
+                    Ok(x) => x,
+                };
+                let ids: Vec<f32> = encodings.get_ids().iter().map(|x| *x as f32).collect();
                 if show {
                     print!("[Conditional]: {} ", prompt);
                 }

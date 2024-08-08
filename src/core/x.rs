@@ -51,10 +51,16 @@ impl X {
                 Ops::InsertAxis(d) => y.insert_axis(*d)?,
                 Ops::Nhwc2nchw => y.nhwc2nchw()?,
                 Ops::Nchw2nhwc => y.nchw2nhwc()?,
+                Ops::Sigmoid => y.sigmoid()?,
                 _ => todo!(),
             }
         }
         Ok(y)
+    }
+
+    pub fn sigmoid(mut self) -> Result<Self> {
+        self.0 = Ops::sigmoid(self.0);
+        Ok(self)
     }
 
     pub fn permute(mut self, shape: &[usize]) -> Result<Self> {
