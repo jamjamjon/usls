@@ -1,6 +1,6 @@
 use anyhow::Result;
 use image::DynamicImage;
-use ndarray::{s, Array, Axis, IxDyn};
+use ndarray::s;
 use std::io::Write;
 use tokenizers::Tokenizer;
 
@@ -80,11 +80,11 @@ impl Blip {
     pub fn caption(&mut self, xs: &Y, prompt: Option<&str>, show: bool) -> Result<Vec<Y>> {
         let mut ys: Vec<Y> = Vec::new();
         let image_embeds = match xs.embedding() {
-            Some(image_embeds) => image_embeds,
-            None => anyhow::bail!("No image embeddings found"),
+            Some(x) => X::from(x.data().to_owned()),
+            None => anyhow::bail!("No image embeddings found."),
         };
-        let image_embeds_attn_mask: Array<f32, IxDyn> =
-            Array::ones((1, image_embeds.data().shape()[1])).into_dyn();
+        let image_embeds_attn_mask = X::ones(&[self.batch_visual(), image_embeds.dims()[1]]);
+
         let mut y_text = String::new();
 
         // conditional
@@ -111,18 +111,16 @@ impl Blip {
 
         let mut logits_sampler = LogitsSampler::new();
         loop {
-            let input_ids_nd: Array<f32, IxDyn> = Array::from_vec(input_ids.to_owned()).into_dyn();
-            let input_ids_nd = input_ids_nd.insert_axis(Axis(0));
-            let input_ids_nd = X::from(input_ids_nd);
-            let input_ids_attn_mask: Array<f32, IxDyn> =
-                Array::ones(input_ids_nd.shape()).into_dyn();
-            let input_ids_attn_mask = X::from(input_ids_attn_mask);
+            let input_ids_nd = X::from(input_ids.to_owned())
+                .insert_axis(0)?
+                .repeat(0, self.batch_textual())?;
+            let input_ids_attn_mask = X::ones(input_ids_nd.dims());
 
             let y = self.textual.run(Xs::from(vec![
                 input_ids_nd,
                 input_ids_attn_mask,
-                X::from(image_embeds.data().to_owned()),
-                X::from(image_embeds_attn_mask.to_owned()),
+                image_embeds.clone(),
+                image_embeds_attn_mask.clone(),
             ]))?; // N, length, vocab_size
             let y = y[0].slice(s!(0, -1.., ..));
             let logits = y.slice(s!(0, ..)).to_vec();

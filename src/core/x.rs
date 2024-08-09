@@ -1,6 +1,6 @@
 use anyhow::Result;
 use image::DynamicImage;
-use ndarray::{Array, Dim, IxDyn, IxDynImpl};
+use ndarray::{Array, Dim, IntoDimension, IxDyn, IxDynImpl};
 
 use crate::Ops;
 
@@ -63,6 +63,16 @@ impl X {
         Ok(self)
     }
 
+    pub fn broadcast<D: IntoDimension + std::fmt::Debug + Copy>(mut self, dim: D) -> Result<Self> {
+        self.0 = Ops::broadcast(self.0, dim)?;
+        Ok(self)
+    }
+
+    pub fn to_shape<D: ndarray::ShapeArg>(mut self, dim: D) -> Result<Self> {
+        self.0 = Ops::to_shape(self.0, dim)?;
+        Ok(self)
+    }
+
     pub fn permute(mut self, shape: &[usize]) -> Result<Self> {
         self.0 = Ops::permute(self.0, shape)?;
         Ok(self)
@@ -80,6 +90,11 @@ impl X {
 
     pub fn insert_axis(mut self, d: usize) -> Result<Self> {
         self.0 = Ops::insert_axis(self.0, d)?;
+        Ok(self)
+    }
+
+    pub fn repeat(mut self, d: usize, n: usize) -> Result<Self> {
+        self.0 = Ops::repeat(self.0, d, n)?;
         Ok(self)
     }
 

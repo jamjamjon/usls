@@ -16,9 +16,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_i50((1, 1, 4).into())
         .with_i51((256, 256, 512).into())
         .with_i52((256, 256, 512).into())
-        .with_model("groundingdino-swin-t-ogc.onnx")? // TODO: export one more robust onnx model
-        .with_confs(&[0.22])
-        // .with_cpu()
+        .with_model("groundingdino-swint-ogc-dyn-u8.onnx")? // TODO: current onnx model does not support bs > 1
+        // .with_model("groundingdino-swint-ogc-dyn-f32.onnx")?
+        .with_confs(&[0.2])
         .with_profile(false);
     let mut model = GroundingDINO::new(opts)?;
 
@@ -26,7 +26,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let x = [DataLoader::try_read("./assets/bus.jpg")?];
     let texts = [
         "person", "hand", "shoes", "bus", "dog", "cat", "sign", "tie", "monitor", "window",
-        "glasses", "tree",
+        "glasses", "tree", "head",
     ];
 
     // Run and annotate

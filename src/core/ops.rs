@@ -7,7 +7,7 @@ use fast_image_resize::{
     FilterType, ResizeAlg, ResizeOptions, Resizer,
 };
 use image::{DynamicImage, GenericImageView};
-use ndarray::{s, Array, Axis, IxDyn};
+use ndarray::{s, Array, Axis, IntoDimension, IxDyn};
 use rayon::prelude::*;
 
 pub enum Ops<'a> {
@@ -21,6 +21,9 @@ pub enum Ops<'a> {
     Nchw2nhwc,
     Norm,
     Sigmoid,
+    Broadcast,
+    ToShape,
+    Repeat,
 }
 
 impl Ops<'_> {
@@ -37,6 +40,37 @@ impl Ops<'_> {
 
     pub fn sigmoid(x: Array<f32, IxDyn>) -> Array<f32, IxDyn> {
         x.mapv(|x| 1. / ((-x).exp() + 1.))
+    }
+
+    pub fn broadcast<D: IntoDimension + std::fmt::Debug + Copy>(
+        x: Array<f32, IxDyn>,
+        dim: D,
+    ) -> Result<Array<f32, IxDyn>> {
+        match x.broadcast(dim) {
+            Some(x) => Ok(x.to_owned().into_dyn()),
+            None => anyhow::bail!(
+                "Failed to broadcast. Shape: {:?}, dim: {:?}",
+                x.shape(),
+                dim
+            ),
+        }
+    }
+
+    pub fn repeat(x: Array<f32, IxDyn>, d: usize, n: usize) -> Result<Array<f32, IxDyn>> {
+        if d >= x.ndim() {
+            anyhow::bail!("Index {d} is out of bounds with size {}.", x.ndim());
+        } else {
+            let mut dim = x.shape().to_vec();
+            dim[d] = n;
+            Self::broadcast(x, dim.as_slice())
+        }
+    }
+
+    pub fn to_shape<D: ndarray::ShapeArg>(
+        x: Array<f32, IxDyn>,
+        dim: D,
+    ) -> Result<Array<f32, IxDyn>> {
+        Ok(x.to_shape(dim).map(|x| x.to_owned().into_dyn())?)
     }
 
     pub fn standardize(

@@ -1,10 +1,9 @@
+use crate::{auto_load, Bbox, DynConf, MinOptMax, Ops, Options, OrtEngine, Xs, X, Y};
 use anyhow::Result;
 use image::DynamicImage;
 use ndarray::{s, Array, Axis};
 use rayon::prelude::*;
-use tokenizers::Tokenizer;
-
-use crate::{auto_load, Bbox, DynConf, MinOptMax, Ops, Options, OrtEngine, Xs, X, Y};
+use tokenizers::{Encoding, Tokenizer};
 
 #[derive(Debug)]
 pub struct GroundingDINO {
@@ -89,51 +88,30 @@ impl GroundingDINO {
                 .map(|&x| x as f32)
                 .collect::<Vec<_>>(),
         )
-        .insert_axis(0)?;
+        .insert_axis(0)?
+        .repeat(0, self.batch() as usize)?;
 
         // token_type_ids
-        let token_type_ids = X::zeros(&[self.batch() as usize, input_ids.len()]);
+        let token_type_ids = X::zeros(&[self.batch() as usize, tokens.len()]);
 
         // attention_mask
-        let attention_mask = X::ones(&[self.batch() as usize, input_ids.len()]);
+        let attention_mask = X::ones(&[self.batch() as usize, tokens.len()]);
 
         // position_ids
-        let position_ids = encoding
-            .get_tokens()
-            .iter()
-            .map(|x| if x == "." { 1. } else { 0. })
-            .collect::<Vec<_>>();
-        let mut position_ids_c = position_ids.clone();
-        position_ids_c[0] = 1.;
-        let n = position_ids_c.len();
-        position_ids_c[n - 1] = 1.;
-        let position_ids = X::from(position_ids).insert_axis(0)?;
+        let position_ids = X::from(
+            encoding
+                .get_tokens()
+                .iter()
+                .map(|x| if x == "." { 1. } else { 0. })
+                .collect::<Vec<_>>(),
+        )
+        .insert_axis(0)?
+        .repeat(0, self.batch() as usize)?;
 
         // text_self_attention_masks
-        let mut text_self_attention_masks =
-            Array::zeros((input_ids.len(), input_ids.len())).into_dyn();
-        let mut i_last = -1;
-        for (i, &v) in position_ids_c.iter().enumerate() {
-            if v == 0. {
-                if i_last == -1 {
-                    i_last = i as isize;
-                } else {
-                    i_last = -1;
-                }
-            } else if v == 1. {
-                if i_last == -1 {
-                    text_self_attention_masks.slice_mut(s![i, i]).fill(1.);
-                } else {
-                    text_self_attention_masks
-                        .slice_mut(s![i_last as _..i + 1, i_last as _..i + 1])
-                        .fill(1.);
-                }
-                i_last = -1;
-            } else {
-                continue;
-            }
-        }
-        let text_self_attention_masks = X::from(text_self_attention_masks).insert_axis(0)?;
+        let text_self_attention_masks = Self::gen_text_self_attention_masks(&encoding)?
+            .insert_axis(0)?
+            .repeat(0, self.batch() as usize)?;
 
         // run
         let ys = self.engine.run(Xs::from(vec![
@@ -205,7 +183,7 @@ impl GroundingDINO {
         Ok(ys)
     }
 
-    pub fn parse_texts(texts: &[&str]) -> String {
+    fn parse_texts(texts: &[&str]) -> String {
         let mut y = String::new();
         for text in texts.iter() {
             if !text.is_empty() {
@@ -213,6 +191,40 @@ impl GroundingDINO {
             }
         }
         y
+    }
+
+    fn gen_text_self_attention_masks(encoding: &Encoding) -> Result<X> {
+        let mut vs = encoding
+            .get_tokens()
+            .iter()
+            .map(|x| if x == "." { 1. } else { 0. })
+            .collect::<Vec<_>>();
+
+        let n = vs.len();
+        vs[0] = 1.;
+        vs[n - 1] = 1.;
+        let mut ys = Array::zeros((n, n)).into_dyn();
+        let mut i_last = -1;
+        for (i, &v) in vs.iter().enumerate() {
+            if v == 0. {
+                if i_last == -1 {
+                    i_last = i as isize;
+                } else {
+                    i_last = -1;
+                }
+            } else if v == 1. {
+                if i_last == -1 {
+                    ys.slice_mut(s![i, i]).fill(1.);
+                } else {
+                    ys.slice_mut(s![i_last as _..i + 1, i_last as _..i + 1])
+                        .fill(1.);
+                }
+                i_last = -1;
+            } else {
+                continue;
+            }
+        }
+        Ok(X::from(ys))
     }
 
     pub fn conf_visual(&self) -> f32 {
