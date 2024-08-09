@@ -73,10 +73,13 @@ pub struct Options {
     pub nk: Option<usize>,
     pub nm: Option<usize>,
     pub confs: Vec<f32>,
+    pub confs2: Vec<f32>,
+    pub confs3: Vec<f32>,
     pub kconfs: Vec<f32>,
     pub iou: Option<f32>,
     pub tokenizer: Option<String>,
     pub vocab: Option<String>,
+    pub context_length: Option<usize>,
     pub names: Option<Vec<String>>,  // names
     pub names2: Option<Vec<String>>, // names2
     pub names3: Option<Vec<String>>, // names3
@@ -152,11 +155,14 @@ impl Default for Options {
             nc: None,
             nk: None,
             nm: None,
-            confs: vec![0.4f32],
+            confs: vec![0.3f32],
+            confs2: vec![0.3f32],
+            confs3: vec![0.3f32],
             kconfs: vec![0.5f32],
             iou: None,
             tokenizer: None,
             vocab: None,
+            context_length: None,
             names: None,
             names2: None,
             names3: None,
@@ -255,12 +261,17 @@ impl Options {
     }
 
     pub fn with_vocab(mut self, vocab: &str) -> Result<Self> {
-        self.vocab = Some(auto_load(vocab, Some("models"))?);
+        self.vocab = Some(auto_load(vocab, Some("tokenizers"))?);
         Ok(self)
     }
 
+    pub fn with_context_length(mut self, n: usize) -> Self {
+        self.context_length = Some(n);
+        self
+    }
+
     pub fn with_tokenizer(mut self, tokenizer: &str) -> Result<Self> {
-        self.tokenizer = Some(auto_load(tokenizer, Some("models"))?);
+        self.tokenizer = Some(auto_load(tokenizer, Some("tokenizers"))?);
         Ok(self)
     }
 
@@ -299,8 +310,18 @@ impl Options {
         self
     }
 
-    pub fn with_confs(mut self, confs: &[f32]) -> Self {
-        self.confs = confs.to_vec();
+    pub fn with_confs(mut self, x: &[f32]) -> Self {
+        self.confs = x.to_vec();
+        self
+    }
+
+    pub fn with_confs2(mut self, x: &[f32]) -> Self {
+        self.confs2 = x.to_vec();
+        self
+    }
+
+    pub fn with_confs3(mut self, x: &[f32]) -> Self {
+        self.confs3 = x.to_vec();
         self
     }
 

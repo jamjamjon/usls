@@ -12,8 +12,9 @@ impl std::fmt::Debug for Prob {
 }
 
 impl Prob {
-    pub fn with_names(mut self, x: Option<Vec<String>>) -> Self {
-        self.names = x;
+    pub fn with_names(mut self, names: &[&str]) -> Self {
+        let names = names.iter().map(|x| x.to_string()).collect::<Vec<String>>();
+        self.names = Some(names);
         self
     }
 

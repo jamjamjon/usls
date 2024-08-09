@@ -97,7 +97,7 @@ impl RTMO {
                         )
                         .with_confidence(confidence)
                         .with_id(0isize)
-                        .with_name(Some(String::from("Person"))),
+                        .with_name("Person"),
                 );
 
                 // keypoints

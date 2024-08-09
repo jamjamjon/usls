@@ -1,11 +1,12 @@
 use anyhow::Result;
 use image::DynamicImage;
-use ndarray::{s, Array, Axis, IxDyn};
+use ndarray::s;
 use std::io::Write;
 use tokenizers::Tokenizer;
 
 use crate::{
-    Embedding, LogitsSampler, MinOptMax, Ops, Options, OrtEngine, TokenizerStream, Xs, X, Y,
+    auto_load, Embedding, LogitsSampler, MinOptMax, Ops, Options, OrtEngine, TokenizerStream, Xs,
+    X, Y,
 };
 
 #[derive(Debug)]
@@ -29,7 +30,19 @@ impl Blip {
             visual.height().to_owned(),
             visual.width().to_owned(),
         );
-        let tokenizer = Tokenizer::from_file(options_textual.tokenizer.unwrap()).unwrap();
+
+        let tokenizer = match options_textual.tokenizer {
+            Some(x) => x,
+            None => match auto_load("tokenizer-blip.json", Some("tokenizers")) {
+                Err(err) => anyhow::bail!("No tokenizer's file found: {:?}", err),
+                Ok(x) => x,
+            },
+        };
+        let tokenizer = match Tokenizer::from_file(tokenizer) {
+            Err(err) => anyhow::bail!("Failed to build tokenizer: {:?}", err),
+            Ok(x) => x,
+        };
+
         let tokenizer = TokenizerStream::new(tokenizer);
         visual.dry_run()?;
         textual.dry_run()?;
@@ -64,17 +77,14 @@ impl Blip {
         Ok(Y::default().with_embedding(&Embedding::from(ys[0].to_owned())))
     }
 
-    pub fn caption(
-        &mut self,
-        x: &[DynamicImage],
-        prompt: Option<&str>,
-        show: bool,
-    ) -> Result<Vec<Y>> {
+    pub fn caption(&mut self, xs: &Y, prompt: Option<&str>, show: bool) -> Result<Vec<Y>> {
         let mut ys: Vec<Y> = Vec::new();
-        let image_embeds = self.encode_images(x)?;
-        let image_embeds = image_embeds.embedding().unwrap();
-        let image_embeds_attn_mask: Array<f32, IxDyn> =
-            Array::ones((1, image_embeds.data().shape()[1])).into_dyn();
+        let image_embeds = match xs.embedding() {
+            Some(x) => X::from(x.data().to_owned()),
+            None => anyhow::bail!("No image embeddings found."),
+        };
+        let image_embeds_attn_mask = X::ones(&[self.batch_visual(), image_embeds.dims()[1]]);
+
         let mut y_text = String::new();
 
         // conditional
@@ -86,13 +96,11 @@ impl Blip {
                 vec![0.0f32]
             }
             Some(prompt) => {
-                let encodings = self.tokenizer.tokenizer().encode(prompt, false);
-                let ids: Vec<f32> = encodings
-                    .unwrap()
-                    .get_ids()
-                    .iter()
-                    .map(|x| *x as f32)
-                    .collect();
+                let encodings = match self.tokenizer.tokenizer().encode(prompt, false) {
+                    Err(err) => anyhow::bail!("{}", err),
+                    Ok(x) => x,
+                };
+                let ids: Vec<f32> = encodings.get_ids().iter().map(|x| *x as f32).collect();
                 if show {
                     print!("[Conditional]: {} ", prompt);
                 }
@@ -103,18 +111,16 @@ impl Blip {
 
         let mut logits_sampler = LogitsSampler::new();
         loop {
-            let input_ids_nd: Array<f32, IxDyn> = Array::from_vec(input_ids.to_owned()).into_dyn();
-            let input_ids_nd = input_ids_nd.insert_axis(Axis(0));
-            let input_ids_nd = X::from(input_ids_nd);
-            let input_ids_attn_mask: Array<f32, IxDyn> =
-                Array::ones(input_ids_nd.shape()).into_dyn();
-            let input_ids_attn_mask = X::from(input_ids_attn_mask);
+            let input_ids_nd = X::from(input_ids.to_owned())
+                .insert_axis(0)?
+                .repeat(0, self.batch_textual())?;
+            let input_ids_attn_mask = X::ones(input_ids_nd.dims());
 
             let y = self.textual.run(Xs::from(vec![
                 input_ids_nd,
                 input_ids_attn_mask,
-                X::from(image_embeds.data().to_owned()),
-                X::from(image_embeds_attn_mask.to_owned()),
+                image_embeds.clone(),
+                image_embeds_attn_mask.clone(),
             ]))?; // N, length, vocab_size
             let y = y[0].slice(s!(0, -1.., ..));
             let logits = y.slice(s!(0, ..)).to_vec();

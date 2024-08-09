@@ -3,7 +3,7 @@ use image::DynamicImage;
 use ndarray::Array2;
 use tokenizers::{PaddingDirection, PaddingParams, PaddingStrategy, Tokenizer};
 
-use crate::{Embedding, MinOptMax, Ops, Options, OrtEngine, Xs, X, Y};
+use crate::{auto_load, Embedding, MinOptMax, Ops, Options, OrtEngine, Xs, X, Y};
 
 #[derive(Debug)]
 pub struct Clip {
@@ -28,7 +28,19 @@ impl Clip {
             visual.inputs_minoptmax()[0][2].to_owned(),
             visual.inputs_minoptmax()[0][3].to_owned(),
         );
-        let mut tokenizer = Tokenizer::from_file(options_textual.tokenizer.unwrap()).unwrap();
+
+        let tokenizer = match options_textual.tokenizer {
+            Some(x) => x,
+            None => match auto_load("tokenizer-clip.json", Some("tokenizers")) {
+                Err(err) => anyhow::bail!("No tokenizer's file found: {:?}", err),
+                Ok(x) => x,
+            },
+        };
+        let mut tokenizer = match Tokenizer::from_file(tokenizer) {
+            Err(err) => anyhow::bail!("Failed to build tokenizer: {:?}", err),
+            Ok(x) => x,
+        };
+
         tokenizer.with_padding(Some(PaddingParams {
             strategy: PaddingStrategy::Fixed(context_length),
             direction: PaddingDirection::Right,
@@ -74,10 +86,10 @@ impl Clip {
     }
 
     pub fn encode_texts(&mut self, texts: &[String]) -> Result<Y> {
-        let encodings = self
-            .tokenizer
-            .encode_batch(texts.to_owned(), false)
-            .unwrap();
+        let encodings = match self.tokenizer.encode_batch(texts.to_owned(), false) {
+            Err(err) => anyhow::bail!("{:?}", err),
+            Ok(x) => x,
+        };
         let xs: Vec<f32> = encodings
             .iter()
             .flat_map(|i| i.get_ids().iter().map(|&b| b as f32))

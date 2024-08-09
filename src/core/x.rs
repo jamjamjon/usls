@@ -1,6 +1,6 @@
 use anyhow::Result;
 use image::DynamicImage;
-use ndarray::{Array, Dim, IxDyn, IxDynImpl};
+use ndarray::{Array, Dim, IntoDimension, IxDyn, IxDynImpl};
 
 use crate::Ops;
 
@@ -51,10 +51,26 @@ impl X {
                 Ops::InsertAxis(d) => y.insert_axis(*d)?,
                 Ops::Nhwc2nchw => y.nhwc2nchw()?,
                 Ops::Nchw2nhwc => y.nchw2nhwc()?,
+                Ops::Sigmoid => y.sigmoid()?,
                 _ => todo!(),
             }
         }
         Ok(y)
+    }
+
+    pub fn sigmoid(mut self) -> Result<Self> {
+        self.0 = Ops::sigmoid(self.0);
+        Ok(self)
+    }
+
+    pub fn broadcast<D: IntoDimension + std::fmt::Debug + Copy>(mut self, dim: D) -> Result<Self> {
+        self.0 = Ops::broadcast(self.0, dim)?;
+        Ok(self)
+    }
+
+    pub fn to_shape<D: ndarray::ShapeArg>(mut self, dim: D) -> Result<Self> {
+        self.0 = Ops::to_shape(self.0, dim)?;
+        Ok(self)
     }
 
     pub fn permute(mut self, shape: &[usize]) -> Result<Self> {
@@ -74,6 +90,11 @@ impl X {
 
     pub fn insert_axis(mut self, d: usize) -> Result<Self> {
         self.0 = Ops::insert_axis(self.0, d)?;
+        Ok(self)
+    }
+
+    pub fn repeat(mut self, d: usize, n: usize) -> Result<Self> {
+        self.0 = Ops::repeat(self.0, d, n)?;
         Ok(self)
     }
 

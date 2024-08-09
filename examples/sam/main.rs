@@ -99,7 +99,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut model = SAM::new(options_encoder, options_decoder)?;
 
     // Load image
-    let xs = vec![DataLoader::try_read("./assets/truck.jpg")?];
+    let xs = [
+        DataLoader::try_read("./assets/truck.jpg")?,
+        // DataLoader::try_read("./assets/dog.jpg")?,
+    ];
 
     // Build annotator
     let annotator = Annotator::default().with_saveout(saveout);
