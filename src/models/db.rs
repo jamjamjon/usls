@@ -81,7 +81,8 @@ impl DB {
             let (ratio, _, _) = Ops::scale_wh(image_width, image_height, w as f32, h as f32);
             let v = luma
                 .into_owned()
-                .into_raw_vec()
+                .into_raw_vec_and_offset()
+                .0
                 .iter()
                 .map(|x| {
                     if x <= &self.binary_thresh {

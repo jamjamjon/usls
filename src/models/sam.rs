@@ -247,7 +247,8 @@ impl SAM {
             for (mask, iou) in masks.axis_iter(Axis(0)).zip(confs.axis_iter(Axis(0))) {
                 let (i, conf) = match iou
                     .to_owned()
-                    .into_raw_vec()
+                    .into_raw_vec_and_offset()
+                    .0
                     .into_iter()
                     .enumerate()
                     .max_by(|a, b| a.1.total_cmp(&b.1))
@@ -264,7 +265,7 @@ impl SAM {
                 let (h, w) = mask.dim();
                 let luma = if self.use_low_res_mask {
                     Ops::resize_lumaf32_vec(
-                        &mask.to_owned().into_raw_vec(),
+                        &mask.into_owned().into_raw_vec_and_offset().0,
                         w as _,
                         h as _,
                         image_width as _,
@@ -274,7 +275,8 @@ impl SAM {
                     )?
                 } else {
                     mask.mapv(|x| if x > 0. { 255u8 } else { 0u8 })
-                        .into_raw_vec()
+                        .into_raw_vec_and_offset()
+                        .0
                 };
 
                 let luma: image::ImageBuffer<image::Luma<_>, Vec<_>> =

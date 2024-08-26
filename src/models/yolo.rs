@@ -215,7 +215,7 @@ impl Vision for YOLO {
                     } else {
                         slice_clss.into_owned()
                     };
-                    let mut probs = Prob::default().with_probs(&x.into_raw_vec());
+                    let mut probs = Prob::default().with_probs(&x.into_raw_vec_and_offset().0);
                     if let Some(names) = &self.names {
                         probs =
                             probs.with_names(&names.iter().map(|x| x.as_str()).collect::<Vec<_>>());
@@ -417,12 +417,12 @@ impl Vision for YOLO {
 
                                 // coefs * proto => mask
                                 let coefs = Array::from_shape_vec((1, nm), coefs).ok()?; // (n, nm)
-                                let proto = proto.into_shape((nm, mh * mw)).ok()?; // (nm, mh * mw)
+                                let proto = proto.to_shape((nm, mh * mw)).ok()?; // (nm, mh * mw)
                                 let mask = coefs.dot(&proto); // (mh, mw, n)
 
                                 // Mask rescale
                                 let mask = Ops::resize_lumaf32_vec(
-                                    &mask.into_raw_vec(),
+                                    &mask.into_raw_vec_and_offset().0,
                                     mw as _,
                                     mh as _,
                                     image_width as _,

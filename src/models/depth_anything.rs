@@ -49,7 +49,7 @@ impl DepthAnything {
         let mut ys: Vec<Y> = Vec::new();
         for (idx, luma) in xs[0].axis_iter(Axis(0)).enumerate() {
             let (w1, h1) = (xs0[idx].width(), xs0[idx].height());
-            let v = luma.into_owned().into_raw_vec();
+            let v = luma.into_owned().into_raw_vec_and_offset().0;
             let max_ = v.iter().max_by(|x, y| x.total_cmp(y)).unwrap();
             let min_ = v.iter().min_by(|x, y| x.total_cmp(y)).unwrap();
             let v = v
