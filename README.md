@@ -1,7 +1,7 @@
 # usls
 
-[![Static Badge](https://img.shields.io/crates/v/usls.svg?style=for-the-badge&logo=rust)](https://crates.io/crates/usls) [![Static Badge](https://img.shields.io/badge/ONNXRuntime-v1.17.x-yellow?style=for-the-badge&logo=docs.rs)](https://github.com/microsoft/onnxruntime/releases) [![Static Badge](https://img.shields.io/badge/CUDA-11.x-green?style=for-the-badge&logo=docs.rs)](https://developer.nvidia.com/cuda-toolkit-archive) [![Static Badge](https://img.shields.io/badge/TRT-8.6.x.x-blue?style=for-the-badge&logo=docs.rs)](https://developer.nvidia.com/tensorrt)  
-[![Static Badge](https://img.shields.io/badge/Documents-usls-blue?style=for-the-badge&logo=docs.rs)](https://docs.rs/usls) ![Static Badge](https://img.shields.io/crates/d/usls?style=for-the-badge)
+[![Static Badge](https://img.shields.io/badge/ONNXRuntime-v1.19.x-yellow?style=for-the-badge&logo=docs.rs)](https://github.com/microsoft/onnxruntime/releases) [![Static Badge](https://img.shields.io/badge/CUDA-12.x-green?style=for-the-badge&logo=docs.rs)](https://developer.nvidia.com/cuda-toolkit-archive) [![Static Badge](https://img.shields.io/badge/TRT-10.x.x.x-blue?style=for-the-badge&logo=docs.rs)](https://developer.nvidia.com/tensorrt)  
+[![Static Badge](https://img.shields.io/badge/Documents-usls-blue?style=for-the-badge&logo=docs.rs)](https://docs.rs/usls) ![Static Badge](https://img.shields.io/crates/d/usls?style=for-the-badge) [![Static Badge](https://img.shields.io/crates/v/usls.svg?style=for-the-badge&logo=rust)](https://crates.io/crates/usls)
 
 
 
