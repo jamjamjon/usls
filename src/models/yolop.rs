@@ -191,7 +191,15 @@ impl YOLOPv2 {
         h1: f32,
     ) -> Result<Vec<imageproc::contours::Contour<i32>>> {
         let mask = mask.mapv(|x| if x < thresh { 0u8 } else { 255u8 });
-        let mask = Ops::resize_luma8_vec(&mask.into_raw_vec(), w0, h0, w1, h1, false, "Bilinear")?;
+        let mask = Ops::resize_luma8_vec(
+            &mask.into_raw_vec_and_offset().0,
+            w0,
+            h0,
+            w1,
+            h1,
+            false,
+            "Bilinear",
+        )?;
         let mask: image::ImageBuffer<image::Luma<_>, Vec<_>> =
             image::ImageBuffer::from_raw(w1 as _, h1 as _, mask)
                 .ok_or(anyhow::anyhow!("Failed to build image"))?;

@@ -290,7 +290,6 @@ impl OrtEngine {
             }
             let xs = Xs::from(xs);
             for _ in 0..self.num_dry_run {
-                // self.run(xs.as_ref())?;
                 self.run(xs.clone())?;
             }
             self.ts.clear();
