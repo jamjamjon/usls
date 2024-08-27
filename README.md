@@ -3,6 +3,9 @@
 </p>
 
 <p align="center">
+    | <a href="https://docs.rs/usls"><strong>Documentation</strong></a> |
+    <br>
+    <br>
     <a href='https://github.com/microsoft/onnxruntime/releases'>
       <img src='https://img.shields.io/badge/ONNXRuntime-v1.19.x-239DFF?style=for-the-badge&logo=onnx' alt='ONNXRuntime Release Page'>
     </a>
@@ -26,10 +29,7 @@
    <a href="">
        <img alt="Crates.io Total Downloads" src="https://img.shields.io/crates/d/usls?style=for-the-badge&color=3ECC5F">
    </a>
-    <br>
-    <br>
-    | <a href="https://docs.rs/usls"><strong>Documentation</strong></a> |
-    <br>
+    
 </p>
 
 **`usls`** is a Rust library integrated with **ONNXRuntime** that provides a collection of state-of-the-art models for **Computer Vision** and **Vision-Language** tasks, including:
