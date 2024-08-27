@@ -74,7 +74,7 @@
 </details>
 
 
-## 👾 Linking
+## ⛳️ Linking
 
 - #### For detailed setup instructions, refer to the [ORT documentation](https://ort.pyke.io/setup/linking).
 
@@ -86,13 +86,13 @@
        ```
 
 
-## 🍾 Quick Start
+## 🎈 Quick Start
 
 ```Shell
 cargo run -r --example yolo   # blip, clip, yolop, svtr, db, ...
 ```
 
-## 🎉 Integrate Into Your Own Project
+## 🥂 Integrate Into Your Own Project
 
 Add `usls` as a dependency to your project's `Cargo.toml`
 ```Shell
@@ -105,5 +105,5 @@ Or use a specific commit:
 usls = { git = "https://github.com/jamjamjon/usls", rev = "commit-sha" }
 ```
 
-## 🔖 License
+## 📌 License
 This project is licensed under [LICENSE](LICENSE).
