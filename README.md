@@ -76,16 +76,14 @@
 
 ## 👾 Linking
 
-For detailed setup instructions, refer to the [ORT documentation](https://ort.pyke.io/setup/linking).
+- #### For detailed setup instructions, refer to the [ORT documentation](https://ort.pyke.io/setup/linking).
 
-<details>
-<summary>For Linux or macOS users</summary>
-
-1. Download the ONNXRuntime package from the [Releases page](https://github.com/microsoft/onnxruntime/releases).
-2. Set up the library path by exporting the `ORT_DYLIB_PATH` environment variable:
-   ```shell
-   export ORT_DYLIB_PATH=/path/to/onnxruntime/lib/libonnxruntime.so.1.19.0
-</details>
+- #### For Linux or macOS users</summary>
+    1. Download the ONNXRuntime package from the [Releases page](https://github.com/microsoft/onnxruntime/releases).
+    2. Set up the library path by exporting the `ORT_DYLIB_PATH` environment variable:
+       ```shell
+       export ORT_DYLIB_PATH=/path/to/onnxruntime/lib/libonnxruntime.so.1.19.0
+       ```
 
 
 ## 🍾 Quick Start
