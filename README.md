@@ -76,7 +76,7 @@
 
 ## 👾 Linking
 
-For detailed setup instructions, refer to the [ONNXRuntime documentation](https://ort.pyke.io/setup/linking).
+For detailed setup instructions, refer to the [ORT documentation](https://ort.pyke.io/setup/linking).
 
 <details>
 <summary>For Linux or macOS users</summary>
