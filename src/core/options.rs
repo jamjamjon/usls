@@ -4,7 +4,7 @@ use anyhow::Result;
 
 use crate::{
     auto_load,
-    models::{SamKind, YOLOPreds, YOLOTask, YOLOVersion},
+    models::{SamKind, SapiensTask, YOLOPreds, YOLOTask, YOLOVersion},
     Device, MinOptMax,
 };
 
@@ -92,6 +92,7 @@ pub struct Options {
     pub find_contours: bool,
     pub sam_kind: Option<SamKind>,
     pub use_low_res_mask: Option<bool>,
+    pub sapiens_task: Option<SapiensTask>,
 }
 
 impl Default for Options {
@@ -175,6 +176,7 @@ impl Default for Options {
             find_contours: false,
             sam_kind: None,
             use_low_res_mask: None,
+            sapiens_task: None,
         }
     }
 }
@@ -217,6 +219,11 @@ impl Options {
 
     pub fn with_yolo_task(mut self, x: YOLOTask) -> Self {
         self.yolo_task = Some(x);
+        self
+    }
+
+    pub fn with_sapiens_task(mut self, x: SapiensTask) -> Self {
+        self.sapiens_task = Some(x);
         self
     }
 

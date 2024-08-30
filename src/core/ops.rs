@@ -159,7 +159,7 @@ impl Ops<'_> {
         mask.resize_exact(w1 as u32, h1 as u32, image::imageops::FilterType::Triangle)
     }
 
-    pub fn resize_lumaf32_vec(
+    pub fn resize_lumaf32_u8(
         v: &[f32],
         w0: f32,
         h0: f32,
@@ -168,6 +168,20 @@ impl Ops<'_> {
         crop_src: bool,
         filter: &str,
     ) -> Result<Vec<u8>> {
+        let mask_f32 = Self::resize_lumaf32_f32(v, w0, h0, w1, h1, crop_src, filter)?;
+        let v: Vec<u8> = mask_f32.par_iter().map(|&x| (x * 255.0) as u8).collect();
+        Ok(v)
+    }
+
+    pub fn resize_lumaf32_f32(
+        v: &[f32],
+        w0: f32,
+        h0: f32,
+        w1: f32,
+        h1: f32,
+        crop_src: bool,
+        filter: &str,
+    ) -> Result<Vec<f32>> {
         let src = Image::from_vec_u8(
             w0 as _,
             h0 as _,
@@ -189,9 +203,7 @@ impl Ops<'_> {
             .map(|chunk| f32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]))
             .collect();
 
-        // f32 -> u8
-        let v: Vec<u8> = mask_f32.par_iter().map(|&x| (x * 255.0) as u8).collect();
-        Ok(v)
+        Ok(mask_f32)
     }
 
     pub fn resize_luma8_vec(

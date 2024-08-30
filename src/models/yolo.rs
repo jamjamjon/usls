@@ -421,7 +421,7 @@ impl Vision for YOLO {
                                 let mask = coefs.dot(&proto); // (mh, mw, n)
 
                                 // Mask rescale
-                                let mask = Ops::resize_lumaf32_vec(
+                                let mask = Ops::resize_lumaf32_u8(
                                     &mask.into_raw_vec_and_offset().0,
                                     mw as _,
                                     mh as _,

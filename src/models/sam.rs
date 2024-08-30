@@ -264,7 +264,7 @@ impl SAM {
 
                 let (h, w) = mask.dim();
                 let luma = if self.use_low_res_mask {
-                    Ops::resize_lumaf32_vec(
+                    Ops::resize_lumaf32_u8(
                         &mask.into_owned().into_raw_vec_and_offset().0,
                         w as _,
                         h as _,
