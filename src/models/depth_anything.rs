@@ -57,7 +57,7 @@ impl DepthAnything {
                 .map(|x| (((*x - min_) / (max_ - min_)) * 255.).clamp(0., 255.) as u8)
                 .collect::<Vec<_>>();
 
-            let luma = Ops::resize_luma8_vec(
+            let luma = Ops::resize_luma8_u8(
                 &v,
                 self.width() as _,
                 self.height() as _,

@@ -1,7 +1,10 @@
 use anyhow::Result;
 use clap::Parser;
 
-use usls::{coco, models::YOLO, Annotator, DataLoader, Options, Vision, YOLOTask, YOLOVersion};
+use usls::{
+    models::YOLO, Annotator, DataLoader, Options, Vision, YOLOTask, YOLOVersion, COCO_KEYPOINTS_17,
+    COCO_SKELETONS_16,
+};
 
 #[derive(Parser, Clone)]
 #[command(author, version, about, long_about = None)]
@@ -174,8 +177,8 @@ fn main() -> Result<()> {
         .with_i02((args.height_min, args.height, args.height_max).into())
         .with_i03((args.width_min, args.width, args.width_max).into())
         .with_confs(&[0.2, 0.15]) // class_0: 0.4, others: 0.15
-        // .with_names(&coco::NAMES_80)
-        .with_names2(&coco::KEYPOINTS_NAMES_17)
+        // .with_names(&COCO_CLASS_NAMES_80)
+        .with_names2(&COCO_KEYPOINTS_17)
         .with_find_contours(!args.no_contours) // find contours or not
         .with_profile(args.profile);
     let mut model = YOLO::new(options)?;
@@ -187,7 +190,7 @@ fn main() -> Result<()> {
 
     // build annotator
     let annotator = Annotator::default()
-        .with_skeletons(&coco::SKELETONS_16)
+        .with_skeletons(&COCO_SKELETONS_16)
         .with_bboxes_thickness(4)
         .without_masks(true) // No masks plotting when doing segment task.
         .with_saveout(saveout);

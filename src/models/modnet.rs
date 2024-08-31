@@ -51,7 +51,7 @@ impl MODNet {
         for (idx, luma) in xs[0].axis_iter(Axis(0)).enumerate() {
             let (w1, h1) = (xs0[idx].width(), xs0[idx].height());
             let luma = luma.mapv(|x| (x * 255.0) as u8);
-            let luma = Ops::resize_luma8_vec(
+            let luma = Ops::resize_luma8_u8(
                 &luma.into_raw_vec_and_offset().0,
                 self.width() as _,
                 self.height() as _,

@@ -4,10 +4,11 @@ use rand::{distributions::Alphanumeric, thread_rng, Rng};
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 
-pub mod coco;
 pub mod colormap256;
+pub mod names;
 
 pub use colormap256::*;
+pub use names::*;
 
 pub(crate) const GITHUB_ASSETS: &str =
     "https://github.com/jamjamjon/assets/releases/download/v0.0.1";

@@ -1,7 +1,7 @@
 use anyhow::Result;
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 
-use usls::{coco, models::YOLO, DataLoader, Options, Vision, YOLOTask, YOLOVersion};
+use usls::{models::YOLO, DataLoader, Options, Vision, YOLOTask, YOLOVersion, COCO_KEYPOINTS_17};
 
 enum Stage {
     Pre,
@@ -60,7 +60,7 @@ pub fn benchmark_cuda(c: &mut Criterion, h: isize, w: isize) -> Result<()> {
         .with_i02((320, h, 1280).into())
         .with_i03((320, w, 1280).into())
         .with_confs(&[0.2, 0.15]) // class_0: 0.4, others: 0.15
-        .with_names2(&coco::KEYPOINTS_NAMES_17);
+        .with_names2(&COCO_KEYPOINTS_17);
     let mut model = YOLO::new(options)?;
 
     let xs = vec![DataLoader::try_read("./assets/bus.jpg")?];

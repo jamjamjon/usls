@@ -1,6 +1,6 @@
-//! Some constants releated with COCO dataset: [`SKELETONS_16`], [`KEYPOINTS_NAMES_17`], [`NAMES_80`]
+//! Some constants releated with COCO dataset: [`COCO_SKELETONS_16`], [`COCO_KEYPOINTS_17`], [`COCO_CLASS_NAMES_80`]
 
-pub const SKELETONS_16: [(usize, usize); 16] = [
+pub const COCO_SKELETONS_16: [(usize, usize); 16] = [
     (0, 1),
     (0, 2),
     (1, 3),
@@ -19,7 +19,7 @@ pub const SKELETONS_16: [(usize, usize); 16] = [
     (14, 16),
 ];
 
-pub const KEYPOINTS_NAMES_17: [&str; 17] = [
+pub const COCO_KEYPOINTS_17: [&str; 17] = [
     "nose",
     "left_eye",
     "right_eye",
@@ -39,7 +39,7 @@ pub const KEYPOINTS_NAMES_17: [&str; 17] = [
     "right_ankle",
 ];
 
-pub const NAMES_80: [&str; 80] = [
+pub const COCO_CLASS_NAMES_80: [&str; 80] = [
     "person",
     "bicycle",
     "car",
@@ -120,4 +120,35 @@ pub const NAMES_80: [&str; 80] = [
     "teddy bear",
     "hair drier",
     "toothbrush",
+];
+
+pub const BODY_PARTS_28: [&str; 28] = [
+    "Background",
+    "Apparel",
+    "Face Neck",
+    "Hair",
+    "Left Foot",
+    "Left Hand",
+    "Left Lower Arm",
+    "Left Lower Leg",
+    "Left Shoe",
+    "Left Sock",
+    "Left Upper Arm",
+    "Left Upper Leg",
+    "Lower Clothing",
+    "Right Foot",
+    "Right Hand",
+    "Right Lower Arm",
+    "Right Lower Leg",
+    "Right Shoe",
+    "Right Sock",
+    "Right Upper Arm",
+    "Right Upper Leg",
+    "Torso",
+    "Upper Clothing",
+    "Lower Lip",
+    "Upper Lip",
+    "Lower Teeth",
+    "Upper Teeth",
+    "Tongue",
 ];

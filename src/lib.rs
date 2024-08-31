@@ -24,6 +24,7 @@
 //! - [YOLOPv2](https://arxiv.org/abs/2208.11434): Panoptic Driving Perception
 //! - [Depth-Anything (v1, v2)](https://github.com/LiheYoung/Depth-Anything): Monocular Depth Estimation
 //! - [MODNet](https://github.com/ZHKKKe/MODNet): Image Matting
+//! - [Sapiens](https://arxiv.org/abs/2408.12569): Human-centric Vision Tasks
 //!
 //! # Examples
 //!
@@ -35,7 +36,7 @@
 //! Using provided [`models`] with [`Options`]
 //!
 //! ```rust, no_run
-//! use usls::{coco, models::YOLO, Annotator, DataLoader, Options, Vision};
+//! use usls::{ models::YOLO, Annotator, DataLoader, Options, Vision, COCO_CLASS_NAMES_80};
 //!
 //! let options = Options::default()
 //!     .with_yolo_version(YOLOVersion::V8)  // YOLOVersion: V5, V6, V7, V8, V9, V10, RTDETR
@@ -74,7 +75,7 @@
 //!
 //! ```rust, no_run
 //! let options = Options::default()
-//!     .with_names(&coco::NAMES_80);
+//!     .with_names(&COCO_CLASS_NAMES_80);
 //! ```
 //!
 //! More options can be found in the [`Options`] documentation.

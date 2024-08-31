@@ -7,7 +7,7 @@ use fast_image_resize::{
     FilterType, ResizeAlg, ResizeOptions, Resizer,
 };
 use image::{DynamicImage, GenericImageView};
-use ndarray::{s, Array, Axis, IntoDimension, IxDyn};
+use ndarray::{s, Array, Array3, Axis, IntoDimension, IxDyn};
 use rayon::prelude::*;
 
 pub enum Ops<'a> {
@@ -159,7 +159,41 @@ impl Ops<'_> {
         mask.resize_exact(w1 as u32, h1 as u32, image::imageops::FilterType::Triangle)
     }
 
-    pub fn resize_lumaf32_vec(
+    // pub fn argmax(xs: Array<f32, IxDyn>, d: usize, keep_dims: bool) -> Result<Array<f32, IxDyn>> {
+    //     let mask = Array::zeros(xs.raw_dim());
+    //     todo!();
+    // }
+
+    pub fn interpolate_3d(
+        xs: Array<f32, IxDyn>,
+        tw: f32,
+        th: f32,
+        filter: &str,
+    ) -> Result<Array<f32, IxDyn>> {
+        let d_max = xs.ndim();
+        if d_max != 3 {
+            anyhow::bail!("`interpolate_3d`: The input's ndim: {} is not 3.", d_max);
+        }
+        let (n, h, w) = (xs.shape()[0], xs.shape()[1], xs.shape()[2]);
+        let mut ys = Array3::zeros((n, th as usize, tw as usize));
+        for (i, luma) in xs.axis_iter(Axis(0)).enumerate() {
+            let v = Ops::resize_lumaf32_f32(
+                &luma.to_owned().into_raw_vec_and_offset().0,
+                w as _,
+                h as _,
+                tw as _,
+                th as _,
+                false,
+                filter,
+            )?;
+            let y_ = Array::from_shape_vec((th as usize, tw as usize), v)?;
+            ys.slice_mut(s![i, .., ..]).assign(&y_);
+        }
+
+        Ok(ys.into_dyn())
+    }
+
+    pub fn resize_lumaf32_u8(
         v: &[f32],
         w0: f32,
         h0: f32,
@@ -168,6 +202,20 @@ impl Ops<'_> {
         crop_src: bool,
         filter: &str,
     ) -> Result<Vec<u8>> {
+        let mask_f32 = Self::resize_lumaf32_f32(v, w0, h0, w1, h1, crop_src, filter)?;
+        let v: Vec<u8> = mask_f32.par_iter().map(|&x| (x * 255.0) as u8).collect();
+        Ok(v)
+    }
+
+    pub fn resize_lumaf32_f32(
+        v: &[f32],
+        w0: f32,
+        h0: f32,
+        w1: f32,
+        h1: f32,
+        crop_src: bool,
+        filter: &str,
+    ) -> Result<Vec<f32>> {
         let src = Image::from_vec_u8(
             w0 as _,
             h0 as _,
@@ -189,12 +237,10 @@ impl Ops<'_> {
             .map(|chunk| f32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]))
             .collect();
 
-        // f32 -> u8
-        let v: Vec<u8> = mask_f32.par_iter().map(|&x| (x * 255.0) as u8).collect();
-        Ok(v)
+        Ok(mask_f32)
     }
 
-    pub fn resize_luma8_vec(
+    pub fn resize_luma8_u8(
         v: &[u8],
         w0: f32,
         h0: f32,
