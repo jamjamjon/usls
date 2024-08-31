@@ -35,7 +35,7 @@
 //! Using provided [`models`] with [`Options`]
 //!
 //! ```rust, no_run
-//! use usls::{coco, models::YOLO, Annotator, DataLoader, Options, Vision};
+//! use usls::{ models::YOLO, Annotator, DataLoader, Options, Vision};
 //!
 //! let options = Options::default()
 //!     .with_yolo_version(YOLOVersion::V8)  // YOLOVersion: V5, V6, V7, V8, V9, V10, RTDETR
@@ -74,7 +74,7 @@
 //!
 //! ```rust, no_run
 //! let options = Options::default()
-//!     .with_names(&coco::NAMES_80);
+//!     .with_names(&COCO_CLASS_NAMES_80);
 //! ```
 //!
 //! More options can be found in the [`Options`] documentation.

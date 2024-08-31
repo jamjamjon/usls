@@ -191,7 +191,7 @@ impl YOLOPv2 {
         h1: f32,
     ) -> Result<Vec<imageproc::contours::Contour<i32>>> {
         let mask = mask.mapv(|x| if x < thresh { 0u8 } else { 255u8 });
-        let mask = Ops::resize_luma8_vec(
+        let mask = Ops::resize_luma8_u8(
             &mask.into_raw_vec_and_offset().0,
             w0,
             h0,

@@ -1,4 +1,4 @@
-use usls::{coco, models::RTMO, Annotator, DataLoader, Options};
+use usls::{models::RTMO, Annotator, DataLoader, Options, COCO_SKELETONS_16};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // build model
@@ -19,7 +19,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // annotate
     let annotator = Annotator::default()
         .with_saveout("RTMO")
-        .with_skeletons(&coco::SKELETONS_16);
+        .with_skeletons(&COCO_SKELETONS_16);
     annotator.annotate(&x, &y);
 
     Ok(())
