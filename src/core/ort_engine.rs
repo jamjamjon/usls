@@ -1,6 +1,5 @@
 use anyhow::Result;
 use half::f16;
-use human_bytes::human_bytes;
 use ndarray::{Array, IxDyn};
 use ort::{
     ExecutionProvider, Session, SessionBuilder, TensorElementType, TensorRTExecutionProvider,
@@ -8,7 +7,9 @@ use ort::{
 use prost::Message;
 use std::collections::HashSet;
 
-use crate::{home_dir, onnx, Device, MinOptMax, Ops, Options, Ts, Xs, CHECK_MARK, CROSS_MARK, X};
+use crate::{
+    home_dir, human_bytes, onnx, Device, MinOptMax, Ops, Options, Ts, Xs, CHECK_MARK, CROSS_MARK, X,
+};
 
 /// Ort Tensor Attrs: name, data_type, dims
 #[derive(Debug)]
@@ -169,10 +170,9 @@ impl OrtEngine {
 
         // summary
         println!(
-            "{CHECK_MARK} Backend: ONNXRuntime | OpSet: {} | EP: {:?} | DType: {:?} | Params: {}",
+            "{CHECK_MARK} Backend: ONNXRuntime | Opset: {} | Device: {:?} | Params: {}",
             model_proto.opset_import[0].version,
             device,
-            inputs_attrs.dtypes,
             human_bytes(params as f64),
         );
 

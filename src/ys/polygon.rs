@@ -214,4 +214,33 @@ impl Polygon {
         self.polygon = geo::Polygon::new(LineString::from(new_points), vec![]);
         self
     }
+
+    pub fn verify(mut self) -> Self {
+        // Remove duplicates and redundant points
+        let mut points = self.polygon.exterior().points().collect::<Vec<_>>();
+        Self::remove_duplicates(&mut points);
+        self.polygon = geo::Polygon::new(LineString::from(points), vec![]);
+        self
+    }
+
+    fn remove_duplicates(xs: &mut Vec<Point>) {
+        // Step 1: Remove elements from the end if they match the first element
+        if let Some(first) = xs.first() {
+            let p_1st_x = first.x() as i32;
+            let p_1st_y = first.y() as i32;
+            while xs.len() > 1 {
+                if let Some(last) = xs.last() {
+                    if last.x() as i32 == p_1st_x && last.y() as i32 == p_1st_y {
+                        xs.pop();
+                    } else {
+                        break;
+                    }
+                }
+            }
+        }
+
+        // Step 2: Remove duplicates
+        let mut seen = std::collections::HashSet::new();
+        xs.retain(|point| seen.insert((point.x() as i32, point.y() as i32)));
+    }
 }

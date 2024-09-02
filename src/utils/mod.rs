@@ -16,6 +16,20 @@ pub(crate) const CHECK_MARK: &str = "✅";
 pub(crate) const CROSS_MARK: &str = "❌";
 pub(crate) const SAFE_CROSS_MARK: &str = "❎";
 
+pub fn human_bytes(size: f64) -> String {
+    let units = ["B", "KB", "MB", "GB", "TB", "PB", "EB"];
+    let mut size = size;
+    let mut unit_index = 0;
+    let k = 1024.;
+
+    while size >= k && unit_index < units.len() - 1 {
+        size /= k;
+        unit_index += 1;
+    }
+
+    format!("{:.1} {}", size, units[unit_index])
+}
+
 pub(crate) fn auto_load<P: AsRef<Path>>(src: P, sub: Option<&str>) -> Result<String> {
     let src = src.as_ref();
     let p = if src.is_file() {

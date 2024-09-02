@@ -292,7 +292,7 @@ impl SAM {
                     let contours: Vec<imageproc::contours::Contour<i32>> =
                         imageproc::contours::find_contours_with_threshold(&luma, 0);
                     for c in contours.iter() {
-                        let polygon = Polygon::default().with_points_imageproc(&c.points);
+                        let polygon = Polygon::default().with_points_imageproc(&c.points).verify();
                         y_polygons.push(polygon.with_confidence(iou[0]).with_id(id));
                     }
                 }

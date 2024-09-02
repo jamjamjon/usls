@@ -127,6 +127,7 @@ impl YOLOPv2 {
                         .with_id(0)
                         .with_points_imageproc(&x.points)
                         .with_name("Drivable area")
+                        .verify()
                 })
                 .max_by(|x, y| x.area().total_cmp(&y.area()))
             {
@@ -152,6 +153,7 @@ impl YOLOPv2 {
                         .with_id(1)
                         .with_points_imageproc(&x.points)
                         .with_name("Lane line")
+                        .verify()
                 })
                 .max_by(|x, y| x.area().total_cmp(&y.area()))
             {

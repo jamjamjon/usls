@@ -119,7 +119,8 @@ impl Sapiens {
                     .map(|x| {
                         let mut polygon = Polygon::default()
                             .with_id(*i as _)
-                            .with_points_imageproc(&x.points);
+                            .with_points_imageproc(&x.points)
+                            .verify();
                         if let Some(names_body) = &self.names_body {
                             polygon = polygon.with_name(&names_body[*i]);
                         }
