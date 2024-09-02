@@ -463,7 +463,8 @@ impl Vision for YOLO {
                                         .map(|x| {
                                             let mut polygon = Polygon::default()
                                                 .with_id(bbox.id())
-                                                .with_points_imageproc(&x.points);
+                                                .with_points_imageproc(&x.points)
+                                                .verify();
                                             if let Some(name) = bbox.name() {
                                                 polygon = polygon.with_name(name);
                                             }

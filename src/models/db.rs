@@ -129,7 +129,8 @@ impl DB {
                     .unclip(delta, image_width as f64, image_height as f64)
                     .resample(50)
                     // .simplify(6e-4)
-                    .convex_hull();
+                    .convex_hull()
+                    .verify();
 
                 if let Some(bbox) = polygon.bbox() {
                     if bbox.height() < self.min_height || bbox.width() < self.min_width {
