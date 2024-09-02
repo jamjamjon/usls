@@ -75,16 +75,27 @@
 </details>
 
 
-## ⛳️ Linking
+## ⛳️ ONNXRuntime Linking 
 
-- #### For detailed setup instructions, refer to the [ORT documentation](https://ort.pyke.io/setup/linking).
+You have two options to link the ONNXRuntime library
 
-- #### For Linux or macOS users</summary>
-    1. Download the ONNXRuntime package from the [Releases page](https://github.com/microsoft/onnxruntime/releases).
-    2. Set up the library path by exporting the `ORT_DYLIB_PATH` environment variable:
-       ```shell
-       export ORT_DYLIB_PATH=/path/to/onnxruntime/lib/libonnxruntime.so.1.19.0
-       ```
+- ### Option 1: Manual Linking
+
+    - #### For detailed setup instructions, refer to the [ORT documentation](https://ort.pyke.io/setup/linking).
+
+    - #### For Linux or macOS Users:
+        - Download the ONNX Runtime package from the [Releases page](https://github.com/microsoft/onnxruntime/releases).
+        - Set up the library path by exporting the `ORT_DYLIB_PATH` environment variable:
+           ```shell
+           export ORT_DYLIB_PATH=/path/to/onnxruntime/lib/libonnxruntime.so.1.19.0
+           ```
+       
+- ### Option 2: Automatic Download
+  Just use `--features auto`
+  ```shell
+  cargo run -r --example yolo --features auto
+  ```
+
 
 
 ## 🎈 Quick Start
