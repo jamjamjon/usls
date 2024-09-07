@@ -1,9 +1,10 @@
-use crate::{CHECK_MARK, SAFE_CROSS_MARK};
-use anyhow::{anyhow, bail, Result};
+use anyhow::{anyhow, Result};
 use image::DynamicImage;
 use std::collections::VecDeque;
 use std::path::{Path, PathBuf};
 use walkdir::{DirEntry, WalkDir};
+
+use crate::{Hub, CHECK_MARK, SAFE_CROSS_MARK};
 
 /// Dataloader for load images
 #[derive(Debug, Clone)]
@@ -73,7 +74,12 @@ impl DataLoader {
                 })
                 .collect::<VecDeque<_>>(),
             // s if s.starts_with("rtsp://") || s.starts_with("rtmp://") || s.starts_with("http://")|| s.starts_with("https://") => todo!(),
-            s if !s.exists() => bail!("{s:?} Not Exists"),
+            s if !s.exists() => {
+                // try download
+                let p = Hub::new()?.fetch(s.to_str().unwrap())?.commit()?;
+                let p = PathBuf::from(&p);
+                VecDeque::from([p.to_path_buf()])
+            }
             _ => todo!(),
         };
         println!("{CHECK_MARK} Found file x{}", self.paths.len());
@@ -81,11 +87,18 @@ impl DataLoader {
     }
 
     pub fn try_read<P: AsRef<Path>>(path: P) -> Result<DynamicImage> {
+        let mut path = path.as_ref().to_path_buf();
+
+        // try to download
+        if !path.exists() {
+            let p = Hub::new()?.fetch(path.to_str().unwrap())?.commit()?;
+            path = PathBuf::from(&p);
+        }
         let img = image::ImageReader::open(&path)
             .map_err(|err| {
                 anyhow!(
                     "Failed to open image at {:?}. Error: {:?}",
-                    path.as_ref(),
+                    path.display(),
                     err
                 )
             })?
@@ -93,7 +106,7 @@ impl DataLoader {
             .map_err(|err| {
                 anyhow!(
                     "Failed to make a format guess based on the content: {:?}. Error: {:?}",
-                    path.as_ref(),
+                    path.display(),
                     err
                 )
             })?
@@ -101,7 +114,7 @@ impl DataLoader {
             .map_err(|err| {
                 anyhow!(
                     "Failed to decode image at {:?}. Error: {:?}",
-                    path.as_ref(),
+                    path.display(),
                     err
                 )
             })?

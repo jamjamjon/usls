@@ -14,7 +14,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut model = Sapiens::new(options)?;
 
     // load
-    let x = [DataLoader::try_read("./assets/paul-george.jpg")?];
+    let x = [DataLoader::try_read("images/paul-george.jpg")?];
 
     // run
     let y = model.run(&x)?;

@@ -11,7 +11,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut model = DepthAnything::new(options)?;
 
     // load
-    let x = [DataLoader::try_read("./assets/2.jpg")?];
+    let x = [DataLoader::try_read("images/2.jpg")?];
 
     // run
     let y = model.run(&x)?;

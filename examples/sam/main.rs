@@ -101,8 +101,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Load image
     let xs = [
-        DataLoader::try_read("./assets/truck.jpg")?,
-        // DataLoader::try_read("./assets/dog.jpg")?,
+        DataLoader::try_read("images/truck.jpg")?,
+        // DataLoader::try_read("images/dog.jpg")?,
     ];
 
     // Build annotator

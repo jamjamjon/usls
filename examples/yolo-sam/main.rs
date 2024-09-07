@@ -30,7 +30,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut yolo = YOLO::new(options_yolo)?;
 
     // load one image
-    let xs = [DataLoader::try_read("./assets/dog.jpg")?];
+    let xs = [DataLoader::try_read("images/dog.jpg")?];
 
     // build annotator
     let annotator = Annotator::default()

@@ -24,7 +24,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut model = GroundingDINO::new(opts)?;
 
     // Load images and set class names
-    let x = [DataLoader::try_read("./assets/bus.jpg")?];
+    let x = [DataLoader::try_read("images/bus.jpg")?];
     let texts = [
         "person", "hand", "shoes", "bus", "dog", "cat", "sign", "tie", "monitor", "window",
         "glasses", "tree", "head",

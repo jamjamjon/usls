@@ -8,7 +8,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_i02((224, 224, 224).into())
         .with_i03((224, 224, 224).into());
     let mut model = Dinov2::new(options)?;
-    let x = [DataLoader::try_read("./assets/bus.jpg")?];
+    let x = [DataLoader::try_read("images/bus.jpg")?];
     let y = model.run(&x)?;
     println!("{y:?}");
 

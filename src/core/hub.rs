@@ -198,7 +198,10 @@ impl Hub {
                             self.path = self.to.path(Some(tag))?.join(file_name);
                         }
                     }
-                    _ => anyhow::bail!("Invalid format. Format: Tag/file. e.g. YOLO/yolov8m.onnx"),
+                    _ => anyhow::bail!(
+                        "Download failed due to invalid format. Expected: <tag>/<file>, got: {}",
+                        s
+                    ),
                 }
             }
         }

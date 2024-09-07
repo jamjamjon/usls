@@ -16,8 +16,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // load image
     let x = [
-        DataLoader::try_read("./assets/db.png")?,
-        DataLoader::try_read("./assets/2.jpg")?,
+        DataLoader::try_read("images/db.png")?,
+        DataLoader::try_read("images/street.jpg")?,
     ];
 
     // run

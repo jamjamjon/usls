@@ -11,7 +11,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut model = RTMO::new(options)?;
 
     // load image
-    let x = [DataLoader::try_read("./assets/bus.jpg")?];
+    let x = [DataLoader::try_read("images/bus.jpg")?];
 
     // run
     let y = model.run(&x)?;

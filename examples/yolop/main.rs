@@ -9,7 +9,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut model = YOLOPv2::new(options)?;
 
     // load image
-    let x = [DataLoader::try_read("./assets/car.jpg")?];
+    let x = [DataLoader::try_read("images/car.jpg")?];
 
     // run
     let y = model.run(&x)?;

@@ -10,7 +10,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut model = MODNet::new(options)?;
 
     // load image
-    let x = [DataLoader::try_read("./assets/liuyifei.png")?];
+    let x = [DataLoader::try_read("images/liuyifei.png")?];
 
     // run
     let y = model.run(&x)?;
