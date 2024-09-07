@@ -624,10 +624,7 @@ impl OrtEngine {
     pub fn try_fetch(&self, key: &str) -> Option<String> {
         match self.session.metadata() {
             Err(_) => None,
-            Ok(metadata) => match metadata.custom(key) {
-                Err(_) => None,
-                Ok(value) => value,
-            },
+            Ok(metadata) => metadata.custom(key).unwrap_or_default(),
         }
     }
 
