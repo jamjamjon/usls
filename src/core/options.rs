@@ -3,9 +3,8 @@
 use anyhow::Result;
 
 use crate::{
-    auto_load,
     models::{SamKind, SapiensTask, YOLOPreds, YOLOTask, YOLOVersion},
-    Device, MinOptMax,
+    Device, Hub, MinOptMax,
 };
 
 /// Options for building models
@@ -183,7 +182,7 @@ impl Default for Options {
 
 impl Options {
     pub fn with_model(mut self, onnx_path: &str) -> Result<Self> {
-        self.onnx_path = auto_load(onnx_path, Some("models"))?;
+        self.onnx_path = Hub::new()?.fetch(onnx_path)?.commit()?;
         Ok(self)
     }
 
@@ -268,7 +267,7 @@ impl Options {
     }
 
     pub fn with_vocab(mut self, vocab: &str) -> Result<Self> {
-        self.vocab = Some(auto_load(vocab, Some("tokenizers"))?);
+        self.vocab = Some(Hub::new()?.fetch(vocab)?.commit()?);
         Ok(self)
     }
 
@@ -278,7 +277,7 @@ impl Options {
     }
 
     pub fn with_tokenizer(mut self, tokenizer: &str) -> Result<Self> {
-        self.tokenizer = Some(auto_load(tokenizer, Some("tokenizers"))?);
+        self.tokenizer = Some(Hub::new()?.fetch(tokenizer)?.commit()?);
         Ok(self)
     }
 

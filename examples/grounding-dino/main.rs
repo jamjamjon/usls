@@ -16,8 +16,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_i50((1, 1, 4).into())
         .with_i51((256, 256, 512).into())
         .with_i52((256, 256, 512).into())
-        .with_model("groundingdino-swint-ogc-dyn-u8.onnx")? // TODO: current onnx model does not support bs > 1
-        // .with_model("groundingdino-swint-ogc-dyn-f32.onnx")?
+        .with_model("grounding-dino/swint-ogc-dyn-u8.onnx")? // TODO: current onnx model does not support bs > 1
+        // .with_model("grounding-dino/swint-ogc-dyn-f32.onnx")?
+        .with_tokenizer("grounding-dino/tokenizer.json")?
         .with_confs(&[0.2])
         .with_profile(false);
     let mut model = GroundingDINO::new(opts)?;

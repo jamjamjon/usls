@@ -1,6 +1,6 @@
 use crate::{
-    auto_load, colormap256, string_now, Bbox, Keypoint, Mask, Mbr, Polygon, Prob, CHECK_MARK,
-    CROSS_MARK, Y,
+    colormap256, string_now, Bbox, Hub, Keypoint, Mask, Mbr, Polygon, Prob, CHECK_MARK, CROSS_MARK,
+    Y,
 };
 use ab_glyph::{FontVec, PxScale};
 use anyhow::Result;
@@ -723,7 +723,7 @@ impl Annotator {
     /// Load custom font
     fn load_font(path: Option<&str>) -> Result<FontVec> {
         let path_font = match path {
-            None => auto_load("Arial.ttf", Some("fonts"))?,
+            None => Hub::new()?.fetch("fonts/Arial.ttf")?.commit()?,
             Some(p) => p.into(),
         };
         let buffer = std::fs::read(path_font)?;

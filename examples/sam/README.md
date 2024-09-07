@@ -18,4 +18,4 @@ cargo run -r --example sam -- --kind sam-hq
 
 ## Results
 
-![](./demo.png)
+![](https://github.com/jamjamjon/assets/releases/download/sam/demo.png)

@@ -6,12 +6,6 @@ This demo showcases how to use [CLIP](https://github.com/openai/CLIP) to compute
 cargo run -r --example clip
 ```
 
-## CLIP ONNX Model
-
-- [clip-b32-visual](https://github.com/jamjamjon/assets/releases/download/v0.0.1/clip-b32-visual.onnx)  
-- [clip-b32-textual](https://github.com/jamjamjon/assets/releases/download/v0.0.1/clip-b32-textual.onnx)
-
-
 ## Results
 
 ```shell

@@ -3,7 +3,7 @@ use usls::{models::RTMO, Annotator, DataLoader, Options, COCO_SKELETONS_16};
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // build model
     let options = Options::default()
-        .with_model("rtmo-s-dyn.onnx")?
+        .with_model("rtmo/s-dyn.onnx")?
         .with_i00((1, 1, 8).into())
         .with_nk(17)
         .with_confs(&[0.3])
@@ -11,7 +11,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut model = RTMO::new(options)?;
 
     // load image
-    let x = vec![DataLoader::try_read("./assets/bus.jpg")?];
+    let x = [DataLoader::try_read("./assets/bus.jpg")?];
 
     // run
     let y = model.run(&x)?;

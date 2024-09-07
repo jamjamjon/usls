@@ -3,15 +3,16 @@ use usls::{models::Dinov2, DataLoader, Options};
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // build model
     let options = Options::default()
-        .with_model("dinov2-s14-dyn-f16.onnx")?
+        .with_model("dinov2/s-dyn.onnx")?
         .with_i00((1, 1, 1).into())
         .with_i02((224, 224, 224).into())
         .with_i03((224, 224, 224).into());
     let mut model = Dinov2::new(options)?;
-    let x = vec![DataLoader::try_read("./examples/dinov2/images/1.jpg")?];
+    let x = [DataLoader::try_read("./assets/bus.jpg")?];
     let y = model.run(&x)?;
     println!("{y:?}");
 
+    // TODO:
     // query from vector
     // let ys = model.query_from_vec(
     //     "./assets/bus.jpg",
