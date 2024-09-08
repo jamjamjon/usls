@@ -47,7 +47,7 @@ impl Dir {
             d.push(sub);
         }
         if !d.exists() {
-            std::fs::create_dir_all(&d).expect("Failed to create usls config directory.");
+            std::fs::create_dir_all(&d).expect("Failed to create usls directory.");
         }
         Ok(d)
     }

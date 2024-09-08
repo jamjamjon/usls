@@ -22,7 +22,7 @@ dirs = { version = "5.0.1" }
 ureq = { version = "2.9.1", default-features = true, features = [
     "socks-proxy",
 ] }
-walkdir = { version = "2.5.0" }
+walkdir = { version = "2.5.0" }  # TODO: remove
 tokenizers = { version = "0.15.2" }
 rayon = "1.10.0"
 indicatif = "0.17.8"
@@ -35,6 +35,7 @@ fast_image_resize = { version = "4.2.1", features = ["image"]}
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 tempfile = "3.12.0"
+video-rs = { version = "0.9.0", features = ["ndarray"] }
 
 
 [features]

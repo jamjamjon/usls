@@ -190,6 +190,7 @@ impl Hub {
                                         if f_.name.as_str() == file_name {
                                             self.url = Some(f_.browser_download_url.clone());
                                             self.file_size = Some(f_.size);
+
                                             break;
                                         }
                                     }

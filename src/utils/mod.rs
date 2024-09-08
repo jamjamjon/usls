@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use rand::{distributions::Alphanumeric, thread_rng, Rng};
 use std::path::PathBuf;
 
@@ -12,6 +14,20 @@ pub use names::*;
 pub(crate) const CHECK_MARK: &str = "✅";
 pub(crate) const CROSS_MARK: &str = "❌";
 pub(crate) const SAFE_CROSS_MARK: &str = "❎";
+
+pub(crate) const NETWORK_PREFIXES: &[&str] = &[
+    "http://", "https://", "ftp://", "ftps://", "sftp://", "rtsp://", "mms://", "mmsh://",
+    "rtmp://", "rtmps://", "file://",
+];
+pub(crate) const IMAGE_EXTENSIONS: &[&str] = &["jpg", "jpeg", "png", "gif", "bmp", "tiff", "webp"];
+pub(crate) const VIDEO_EXTENSIONS: &[&str] = &[
+    "mp4", "avi", "mkv", "mov", "wmv", "flv", "webm", "mpeg", "mpg", "m4v", "m4p",
+];
+pub(crate) const AUDIO_EXTENSIONS: &[&str] = &["mp3", "wav", "flac", "aac", "ogg", "wma"];
+pub(crate) const STREAM_PROTOCOLS: &[&str] = &[
+    ".m3u8", "rtsp://", "rtsps://", "rtspu://", "mms://", "mmsh://", "rtmp://", "rtmps://",
+    "hls://", "http://", "https://", "dash://", "mmsu://",
+];
 
 pub fn human_bytes(size: f64) -> String {
     let units = ["B", "KB", "MB", "GB", "TB", "PB", "EB"];
