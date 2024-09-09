@@ -2,128 +2,46 @@ use anyhow::{anyhow, Result};
 use image::DynamicImage;
 use std::collections::VecDeque;
 use std::path::{Path, PathBuf};
+use std::sync::{
+    atomic::{AtomicUsize, Ordering},
+    mpsc, Arc,
+};
 use video_rs::{Decoder, Url};
 use walkdir::{DirEntry, WalkDir}; // TODO: remove
 
-use crate::{Dir, Hub, ImageType, MediaType, VideoType, CHECK_MARK};
+use crate::{Dir, Hub, Location, MediaType, CHECK_MARK};
+
+type TempReturnType = (Vec<DynamicImage>, Vec<PathBuf>);
 
 /// Dataloader for loading images, videos and streams,
 // #[derive(Debug, Clone)]
 pub struct DataLoader {
+    // source
+    // - image(local & remote)
+    // - images(dir)
+    // - video(local & remote)
+    // - stream(local & remote)
     pub paths: VecDeque<PathBuf>,
-    pub media_types: VecDeque<MediaType>,
+    pub media_type: MediaType,
     pub recursive: bool, // TODO: remove
-    pub batch: usize,
+    pub batch_size: usize,
+    pub buffer_count: Arc<AtomicUsize>,
+    sender: Option<mpsc::Sender<TempReturnType>>,
+    receiver: mpsc::Receiver<TempReturnType>,
     pub decoder: Option<video_rs::decode::Decoder>,
 }
 
 impl Default for DataLoader {
     fn default() -> Self {
         Self {
-            batch: 1,
+            paths: VecDeque::new(),
+            media_type: MediaType::Unknown,
             recursive: false,
-            paths: Default::default(),
-            media_types: Default::default(),
+            batch_size: 1,
+            buffer_count: Arc::new(AtomicUsize::new(0)),
+            sender: None,
+            receiver: mpsc::channel().1,
             decoder: None,
-        }
-    }
-}
-
-// TODO: asycn or multi-threads
-impl Iterator for DataLoader {
-    type Item = (Vec<DynamicImage>, Vec<PathBuf>);
-
-    fn next(&mut self) -> Option<Self::Item> {
-        let mut yis: Vec<DynamicImage> = Vec::new();
-        let mut yps: Vec<PathBuf> = Vec::new();
-
-        while !self.paths.is_empty() {
-            match self.media_types.front().unwrap() {
-                MediaType::Image(ImageType::Local) => {
-                    let path = self.paths.pop_front().unwrap();
-                    let _media_type = self.media_types.pop_front().unwrap();
-                    match Self::try_read(&path) {
-                        Err(err) => {
-                            println!("Error reading image from path {:?}: {:?}", path, err);
-                        }
-                        Ok(x) => {
-                            yis.push(x);
-                            yps.push(path);
-                        }
-                    }
-                }
-                MediaType::Image(ImageType::Remote) => {
-                    let path = self.paths.pop_front().unwrap();
-                    let _media_type = self.media_types.pop_front().unwrap();
-                    let file_name = path.file_name().unwrap();
-                    let p_tmp = Dir::Cache.path(Some("tmp")).ok()?.join(file_name);
-                    Hub::download(path.to_str().unwrap(), &p_tmp, None, None, None).ok()?;
-                    match Self::try_read(&p_tmp) {
-                        Err(err) => {
-                            println!(
-                                "Error reading downloaded image from path {:?}: {:?}",
-                                p_tmp, err
-                            );
-                        }
-                        Ok(x) => {
-                            yis.push(x);
-                            yps.push(path);
-                        }
-                    }
-                }
-                MediaType::Video(ty) => {
-                    let path = self.paths.front().unwrap();
-                    if self.decoder.is_none() {
-                        let location: video_rs::location::Location = match ty {
-                            VideoType::Local => path.clone().into(),
-                            _ => path.to_str().unwrap().parse::<Url>().unwrap().into(),
-                        };
-                        self.decoder = Some(Decoder::new(location).unwrap());
-                    }
-
-                    let decoder = self.decoder.as_mut().unwrap();
-                    let (w, h) = decoder.size();
-                    let mut frames = decoder.decode_iter();
-
-                    // Decode up to batch size frames
-                    for _ in 0..self.batch {
-                        match frames.next() {
-                            Some(Ok((ts, frame))) => {
-                                let rgb8: image::ImageBuffer<image::Rgb<u8>, Vec<u8>> =
-                                    match image::ImageBuffer::from_raw(
-                                        w as _,
-                                        h as _,
-                                        frame.into_raw_vec_and_offset().0,
-                                    ) {
-                                        Some(x) => x,
-                                        None => continue,
-                                    };
-                                let x = image::DynamicImage::from(rgb8);
-                                yis.push(x);
-                                yps.push(ts.to_string().into());
-                            }
-                            Some(Err(_)) => {
-                                let _ = self.paths.pop_front().unwrap();
-                                let _ = self.media_types.pop_front().unwrap();
-                                break;
-                            }
-                            None => break,
-                        }
-                    }
-                }
-
-                _ => todo!(),
-            }
-
-            if yis.len() == self.batch || self.paths.is_empty() {
-                break;
-            }
-        }
-
-        if yis.is_empty() {
-            None
-        } else {
-            Some((yis, yps))
         }
     }
 }
@@ -131,42 +49,86 @@ impl Iterator for DataLoader {
 impl DataLoader {
     pub fn new(source: &str) -> Result<Self> {
         let mut paths = VecDeque::new();
-        let mut media_types = VecDeque::new();
 
         // local or remote
         let source_path = Path::new(source);
-        if source_path.exists() {
+        let media_type = if source_path.exists() {
+            // local
             if source_path.is_file() {
-                let file_type = MediaType::from_path(source_path);
                 paths.push_back(source_path.to_path_buf());
-                media_types.push_back(file_type);
+                MediaType::from_path(source_path)
             } else if source_path.is_dir() {
+                // dir => only can be images
                 for entry in (source_path.read_dir().map_err(|e| e.to_string()).unwrap()).flatten()
                 {
                     if entry.path().is_file() {
-                        let file_type = MediaType::from_path(&entry.path());
-
                         paths.push_back(entry.path());
-                        media_types.push_back(file_type);
                     }
                 }
+                MediaType::Image(Location::Local)
+            } else {
+                MediaType::Unknown
             }
         } else {
-            let media_type = MediaType::from_url(source);
+            // remote
             paths.push_back(PathBuf::from(source));
-            media_types.push_back(media_type);
-        }
+            MediaType::from_url(source)
+        };
 
-        println!(
-            "{CHECK_MARK} Media Type: {:?} x{}",
-            media_types[0],
-            paths.len()
-        );
+        let (sender, receiver) = mpsc::channel::<TempReturnType>();
+        let buffer_count = Arc::new(AtomicUsize::new(0));
+
+        // decoder
+        let decoder = match &media_type {
+            MediaType::Video(Location::Local) => {
+                let location: video_rs::location::Location = paths[0].clone().into();
+                Some(Decoder::new(location).unwrap())
+            }
+            MediaType::Video(Location::Remote) | MediaType::Stream => {
+                let location: video_rs::location::Location =
+                    paths[0].to_str().unwrap().parse::<Url>().unwrap().into();
+
+                Some(Decoder::new(location).unwrap())
+            }
+            _ => None,
+        };
+
+        println!("{CHECK_MARK} Media Type: {:?} x{}", media_type, paths.len());
         Ok(DataLoader {
             paths,
-            media_types,
-            ..Default::default()
+            media_type,
+            buffer_count,
+            sender: Some(sender),
+            receiver,
+            recursive: false,
+            batch_size: 1,
+            decoder,
         })
+    }
+
+    // Initialize the producer thread
+    pub fn commit(&mut self) {
+        let sender = self.sender.take().expect("Sender should be available");
+        let buffer_count = Arc::clone(&self.buffer_count);
+        let batch_size = self.batch_size;
+        let data = self.paths.clone();
+        let media_type = self.media_type.clone();
+        let decoder = self.decoder.take();
+
+        std::thread::spawn(move || {
+            DataLoader::producer_thread(
+                sender,
+                buffer_count,
+                data,
+                batch_size,
+                media_type,
+                decoder,
+            );
+        });
+    }
+
+    pub fn buffer_size(&self) -> usize {
+        self.buffer_count.load(Ordering::SeqCst)
     }
 
     pub fn load<P: AsRef<Path>>(mut self, source: P) -> Result<Self> {
@@ -238,7 +200,7 @@ impl DataLoader {
     }
 
     pub fn with_batch(mut self, x: usize) -> Self {
-        self.batch = x;
+        self.batch_size = x;
         self
     }
 
@@ -257,5 +219,135 @@ impl DataLoader {
             .to_str()
             .map(|s| s.starts_with('.'))
             .unwrap_or(false)
+    }
+
+    fn producer_thread(
+        sender: mpsc::Sender<TempReturnType>,
+        buffer_count: Arc<AtomicUsize>,
+        mut data: VecDeque<PathBuf>,
+        batch_size: usize,
+        media_type: MediaType,
+        mut decoder: Option<video_rs::decode::Decoder>,
+    ) {
+        let mut yis: Vec<DynamicImage> = Vec::new();
+        let mut yps: Vec<PathBuf> = Vec::new();
+
+        match media_type {
+            MediaType::Image(Location::Local) => {
+                while let Some(path) = data.pop_front() {
+                    match Self::try_read(&path) {
+                        Err(err) => {
+                            println!("Error reading image from path {:?}: {:?}", path, err);
+                            continue;
+                        }
+                        Ok(img) => {
+                            yis.push(img);
+                            yps.push(path.clone());
+                            buffer_count.fetch_add(1, Ordering::SeqCst);
+                        }
+                    }
+
+                    if yis.len() == batch_size
+                        && sender
+                            .send((std::mem::take(&mut yis), std::mem::take(&mut yps)))
+                            .is_err()
+                    {
+                        println!("Receiver dropped, stopping production");
+                        break;
+                    }
+                }
+            }
+            MediaType::Image(Location::Remote) => {
+                while let Some(path) = data.pop_front() {
+                    let file_name = path.file_name().unwrap();
+                    let p_tmp = Dir::Cache.path(Some("tmp")).unwrap().join(file_name);
+                    Hub::download(path.to_str().unwrap(), &p_tmp, None, None, None).unwrap();
+                    match Self::try_read(&p_tmp) {
+                        Err(err) => {
+                            println!(
+                                "Error reading downloaded image from path {:?}: {:?}",
+                                p_tmp, err
+                            );
+                            continue;
+                        }
+                        Ok(x) => {
+                            yis.push(x);
+                            yps.push(path.clone());
+                            buffer_count.fetch_add(1, Ordering::SeqCst);
+                        }
+                    }
+
+                    if yis.len() == batch_size
+                        && sender
+                            .send((std::mem::take(&mut yis), std::mem::take(&mut yps)))
+                            .is_err()
+                    {
+                        println!("Receiver dropped, stopping production");
+                        break;
+                    }
+                }
+            }
+            MediaType::Video(_) => {
+                if let Some(decoder) = decoder.as_mut() {
+                    let (w, h) = decoder.size();
+                    let frames = decoder.decode_iter();
+
+                    // while let Some(frame) = frames.next() {
+                    for frame in frames {
+                        match frame {
+                            Ok((ts, frame)) => {
+                                let rgb8: image::ImageBuffer<image::Rgb<u8>, Vec<u8>> =
+                                    match image::ImageBuffer::from_raw(
+                                        w as _,
+                                        h as _,
+                                        frame.into_raw_vec_and_offset().0,
+                                    ) {
+                                        Some(x) => x,
+                                        None => continue,
+                                    };
+                                let img = image::DynamicImage::from(rgb8);
+                                yis.push(img);
+                                yps.push(ts.to_string().into());
+                                buffer_count.fetch_add(1, Ordering::SeqCst);
+
+                                if yis.len() == batch_size
+                                    && sender
+                                        .send((std::mem::take(&mut yis), std::mem::take(&mut yps)))
+                                        .is_err()
+                                {
+                                    println!("Receiver dropped, stopping production");
+                                    break;
+                                }
+                            }
+                            Err(_) => break,
+                        }
+                    }
+                }
+            }
+            _ => todo!(),
+        }
+
+        // Send any remaining data
+        if !yis.is_empty() && sender.send((yis, yps)).is_err() {
+            println!("Receiver dropped, stopping production");
+        }
+    }
+}
+
+impl Iterator for DataLoader {
+    type Item = (Vec<DynamicImage>, Vec<PathBuf>);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self.receiver.recv() {
+            Ok(batch) => {
+                let t0 = std::time::Instant::now();
+                self.buffer_count
+                    .fetch_sub(self.batch_size, Ordering::SeqCst);
+                let t1 = std::time::Instant::now();
+                println!("==> {:?}", t1 - t0);
+                Some(batch)
+            }
+            Err(_) => None,
+        }
     }
 }
