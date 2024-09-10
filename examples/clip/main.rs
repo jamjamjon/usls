@@ -30,9 +30,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let feats_text = model.encode_texts(&texts)?; // [n, ndim]
 
     // load image
-    let dl = DataLoader::default()
-        .with_batch(model.batch_visual())
-        .load("./examples/clip/images")?;
+    let dl = DataLoader::new("./examples/clip/images")?.build()?;
 
     // loop
     for (images, paths) in dl {

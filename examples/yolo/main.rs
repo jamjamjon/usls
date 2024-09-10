@@ -184,9 +184,9 @@ fn main() -> Result<()> {
     let mut model = YOLO::new(options)?;
 
     // build dataloader
-    let dl = DataLoader::default()
+    let dl = DataLoader::new(&args.source)?
         .with_batch(model.batch() as _)
-        .load(args.source)?;
+        .build()?;
 
     // build annotator
     let annotator = Annotator::default()

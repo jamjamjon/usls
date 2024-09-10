@@ -11,9 +11,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut model = SVTR::new(options)?;
 
     // load images
-    let dl = DataLoader::default()
-        .with_batch(1)
-        .load("./examples/svtr/images")?;
+    let dl = DataLoader::new("./examples/svtr/images")?.build()?;
 
     // run
     for (xs, paths) in dl {

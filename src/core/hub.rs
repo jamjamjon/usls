@@ -96,7 +96,7 @@ impl Default for Hub {
             file_size: None,
             releases: None,
             cache: PathBuf::new(),
-            timeout: 2000,
+            timeout: 3000,
             max_attempts: 3,
             ttl: std::time::Duration::from_secs(10 * 60),
         }
@@ -147,62 +147,71 @@ impl Hub {
     }
 
     pub fn fetch(mut self, s: &str) -> Result<Self> {
+        // try to fetch from hub or local cache
+
         let p = PathBuf::from(s);
         match p.exists() {
             true => self.path = p,
             false => {
-                match s.split_once('/') {
-                    Some((tag, file_name)) => {
-                        // Extract tag and file from input string
-                        self.tag = Some(tag.to_string());
-                        self.file_name = Some(file_name.to_string());
+                // check local cache 1st
+                let p_cache = self.cache.with_file_name(s);
+                if p_cache.exists() {
+                    self.path = p_cache;
+                } else {
+                    // check remote list then
+                    match s.split_once('/') {
+                        Some((tag, file_name)) => {
+                            // Extract tag and file from input string
+                            self.tag = Some(tag.to_string());
+                            self.file_name = Some(file_name.to_string());
 
-                        // Check if releases are already loaded in memory
-                        if self.releases.is_none() {
-                            self.releases = Some(self.connect_remote()?);
-                        }
-
-                        if let Some(releases) = &self.releases {
-                            // Validate the tag
-                            let tags: Vec<&str> =
-                                releases.iter().map(|x| x.tag_name.as_str()).collect();
-                            if !tags.contains(&tag) {
-                                anyhow::bail!(
-                                    "Tag '{}' not found in releases. Available tags: {:?}",
-                                    tag,
-                                    tags
-                                );
+                            // Check if releases are already loaded in memory
+                            if self.releases.is_none() {
+                                self.releases = Some(self.connect_remote()?);
                             }
 
-                            // Validate the file
-                            if let Some(release) = releases.iter().find(|r| r.tag_name == tag) {
-                                let files: Vec<&str> =
-                                    release.assets.iter().map(|x| x.name.as_str()).collect();
-                                if !files.contains(&file_name) {
+                            if let Some(releases) = &self.releases {
+                                // Validate the tag
+                                let tags: Vec<&str> =
+                                    releases.iter().map(|x| x.tag_name.as_str()).collect();
+                                if !tags.contains(&tag) {
                                     anyhow::bail!(
+                                        "Tag '{}' not found in releases. Available tags: {:?}",
+                                        tag,
+                                        tags
+                                    );
+                                }
+
+                                // Validate the file
+                                if let Some(release) = releases.iter().find(|r| r.tag_name == tag) {
+                                    let files: Vec<&str> =
+                                        release.assets.iter().map(|x| x.name.as_str()).collect();
+                                    if !files.contains(&file_name) {
+                                        anyhow::bail!(
                                         "File '{}' not found in tag '{}'. Available files: {:?}",
                                         file_name,
                                         tag,
                                         files
                                     );
-                                } else {
-                                    for f_ in release.assets.iter() {
-                                        if f_.name.as_str() == file_name {
-                                            self.url = Some(f_.browser_download_url.clone());
-                                            self.file_size = Some(f_.size);
+                                    } else {
+                                        for f_ in release.assets.iter() {
+                                            if f_.name.as_str() == file_name {
+                                                self.url = Some(f_.browser_download_url.clone());
+                                                self.file_size = Some(f_.size);
 
-                                            break;
+                                                break;
+                                            }
                                         }
                                     }
                                 }
+                                self.path = self.to.path(Some(tag))?.join(file_name);
                             }
-                            self.path = self.to.path(Some(tag))?.join(file_name);
                         }
-                    }
-                    _ => anyhow::bail!(
+                        _ => anyhow::bail!(
                         "Download failed due to invalid format. Expected: <tag>/<file>, got: {}",
                         s
                     ),
+                    }
                 }
             }
         }
@@ -336,7 +345,7 @@ impl Hub {
             .with_context(|| format!("Failed to convert PathBuf: {:?} to String", self.path))
     }
 
-    /// Download a file from a given URL to a specified path with a progress bar
+    /// Download a file from a github release to a specified path with a progress bar
     pub fn download<P: AsRef<Path> + std::fmt::Debug>(
         src: &str,
         dst: P,
@@ -344,6 +353,8 @@ impl Hub {
         timeout: Option<u64>,
         max_attempts: Option<u32>,
     ) -> Result<()> {
+        // TODO: other url, not just github release page
+
         let max_attempts = max_attempts.unwrap_or(2);
         let timeout_duration = std::time::Duration::from_secs(timeout.unwrap_or(2000));
         let agent = ureq::AgentBuilder::new().try_proxy_from_env(true).build();
