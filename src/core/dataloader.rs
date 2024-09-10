@@ -9,15 +9,46 @@ use crate::{Hub, Location, MediaType, CHECK_MARK};
 
 type TempReturnType = (Vec<DynamicImage>, Vec<PathBuf>);
 
-/// Dataloader for loading image, video and stream,
+// impl Iterator for DataLoader {
+//     type Item = TempReturnType;
+
+//     fn next(&mut self) -> Option<Self::Item> {
+//         self.receiver.recv().ok()
+//     }
+// }
+
+// Use IntoIterator trait
+impl IntoIterator for DataLoader {
+    type Item = TempReturnType;
+    type IntoIter = DataLoaderIterator;
+
+    fn into_iter(self) -> Self::IntoIter {
+        DataLoaderIterator {
+            receiver: self.receiver,
+        }
+    }
+}
+
+pub struct DataLoaderIterator {
+    receiver: mpsc::Receiver<TempReturnType>,
+}
+
+impl Iterator for DataLoaderIterator {
+    type Item = TempReturnType;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.receiver.recv().ok()
+    }
+}
+
 pub struct DataLoader {
     // source could be:
-    // - image(local & remote(hub))
+    // - image(local & hub)
     // - images(dir)
     // - video(local & remote)
     // - stream(local & remote)
-    pub paths: VecDeque<PathBuf>,
-    pub media_type: MediaType,
+    pub paths: Option<VecDeque<PathBuf>>,
+    pub media_type: Option<MediaType>,
     pub batch_size: usize,
     sender: Option<mpsc::Sender<TempReturnType>>,
     receiver: mpsc::Receiver<TempReturnType>,
@@ -27,28 +58,12 @@ pub struct DataLoader {
 impl Default for DataLoader {
     fn default() -> Self {
         Self {
-            paths: VecDeque::new(),
-            media_type: MediaType::Unknown,
+            paths: None,
+            media_type: Some(MediaType::Unknown),
             batch_size: 1,
             sender: None,
             receiver: mpsc::channel().1,
             decoder: None,
-        }
-    }
-}
-
-impl Iterator for DataLoader {
-    type Item = TempReturnType;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        let t0 = std::time::Instant::now();
-        match self.receiver.recv() {
-            Ok(batch) => {
-                let t1 = std::time::Instant::now();
-                println!("==> {:?}", t1 - t0);
-                Some(batch)
-            }
-            Err(_) => None,
         }
     }
 }
@@ -61,16 +76,16 @@ impl DataLoader {
             false => {
                 // remote
                 (
-                    VecDeque::from([source_path.to_path_buf()]),
-                    MediaType::from_url(source),
+                    Some(VecDeque::from([source_path.to_path_buf()])),
+                    Some(MediaType::from_url(source)),
                 )
             }
             true => {
                 // local
                 if source_path.is_file() {
                     (
-                        VecDeque::from([source_path.to_path_buf()]),
-                        MediaType::from_path(source_path),
+                        Some(VecDeque::from([source_path.to_path_buf()])),
+                        Some(MediaType::from_path(source_path)),
                     )
                 } else if source_path.is_dir() {
                     let mut entries: Vec<PathBuf> = std::fs::read_dir(source_path)?
@@ -84,10 +99,15 @@ impl DataLoader {
                             }
                         })
                         .collect();
+
+                    // TODO: natural order
                     entries.sort_by(|a, b| a.file_name().cmp(&b.file_name()));
-                    (VecDeque::from(entries), MediaType::Image(Location::Local))
+                    (
+                        Some(VecDeque::from(entries)),
+                        Some(MediaType::Image(Location::Local)),
+                    )
                 } else {
-                    (VecDeque::new(), MediaType::Unknown)
+                    (None, Some(MediaType::Unknown))
                 }
             }
         };
@@ -97,17 +117,20 @@ impl DataLoader {
 
         // decoder
         let decoder = match &media_type {
-            MediaType::Video(Location::Local) => Some(Decoder::new(source_path)?),
-            MediaType::Video(Location::Remote) | MediaType::Stream => {
+            Some(MediaType::Video(Location::Local)) => Some(Decoder::new(source_path)?),
+            Some(MediaType::Video(Location::Remote)) | Some(MediaType::Stream) => {
                 let location: video_rs::location::Location = source.parse::<Url>()?.into();
-
                 Some(Decoder::new(location)?)
             }
             _ => None,
         };
 
         // summary
-        println!("{CHECK_MARK} Found {:?} x{}", media_type, paths.len());
+        println!(
+            "{CHECK_MARK} Found {:?} x{}",
+            media_type.as_ref().unwrap_or(&MediaType::Unknown),
+            paths.as_ref().map_or(0, |p| p.len())
+        );
 
         Ok(DataLoader {
             paths,
@@ -119,14 +142,14 @@ impl DataLoader {
         })
     }
 
-    // Build to initialize the producer thread
     pub fn build(mut self) -> Result<Self> {
         let sender = self.sender.take().expect("Sender should be available");
         let batch_size = self.batch_size;
-        let data = self.paths.clone();
-        let media_type = self.media_type.clone();
+        let data = self.paths.take().unwrap_or_default();
+        let media_type = self.media_type.take().unwrap_or(MediaType::Unknown);
         let decoder = self.decoder.take();
 
+        // Spawn the producer thread
         std::thread::spawn(move || {
             DataLoader::producer_thread(sender, data, batch_size, media_type, decoder);
         });
