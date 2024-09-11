@@ -14,7 +14,6 @@ jobs:
       matrix:
         os: [ubuntu-latest, macOS-latest, windows-latest]
         rust: [stable]
-        ffmpeg_version: ["4.3", "4.4", "5.0", "5.1", "6.0", "6.1", "7.0"]
     steps:
       - uses: actions/checkout@v2
       - uses: actions-rs/toolchain@v1
@@ -22,16 +21,10 @@ jobs:
           profile: minimal
           toolchain: ${{ matrix.rust }}
           override: true
-      - name: Install FFmpeg (Linux)
-        if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y ffmpeg=${{ matrix.ffmpeg_version }}
-      - name: Install FFmpeg (macOS)
-        if: runner.os == 'macOS'
-        run: brew install ffmpeg@${{ matrix.ffmpeg_version }}
       - uses: actions-rs/cargo@v1
         with:
           command: check
-          args: --workspace --examples
+          args: --workspace --examples --benches
 
   test:
     name: Test
@@ -40,7 +33,6 @@ jobs:
       matrix:
         os: [ubuntu-latest, macOS-latest, windows-latest]
         rust: [stable]
-        ffmpeg_version: ["4.3", "4.4", "5.0", "5.1", "6.0", "6.1", "7.0"]
     steps:
       - uses: actions/checkout@v2
       - uses: actions-rs/toolchain@v1
@@ -48,23 +40,14 @@ jobs:
           profile: minimal
           toolchain: ${{ matrix.rust }}
           override: true
-      - name: Install FFmpeg (Linux)
-        if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y ffmpeg=${{ matrix.ffmpeg_version }}
-      - name: Install FFmpeg (macOS)
-        if: runner.os == 'macOS'
-        run: brew install ffmpeg@${{ matrix.ffmpeg_version }}
       - uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --workspace --examples
+          args: --workspace --examples --benches
 
   fmt:
     name: Rustfmt
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        ffmpeg_version: ["4.3", "4.4", "5.0", "5.1", "6.0", "6.1", "7.0"]
     steps:
       - uses: actions/checkout@v2
       - uses: actions-rs/toolchain@v1
@@ -72,8 +55,6 @@ jobs:
           profile: minimal
           toolchain: stable
           override: true
-      - name: Install FFmpeg
-        run: sudo apt-get update && sudo apt-get install -y ffmpeg=${{ matrix.ffmpeg_version }}
       - run: rustup component add rustfmt
       - uses: actions-rs/cargo@v1
         with:
@@ -83,9 +64,6 @@ jobs:
   clippy:
     name: Clippy
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        ffmpeg_version: ["4.3", "4.4", "5.0", "5.1", "6.0", "6.1", "7.0"]
     steps:
       - uses: actions/checkout@v2
       - uses: actions-rs/toolchain@v1
@@ -93,10 +71,8 @@ jobs:
           profile: minimal
           toolchain: stable
           override: true
-      - name: Install FFmpeg
-        run: sudo apt-get update && sudo apt-get install -y ffmpeg=${{ matrix.ffmpeg_version }}
       - run: rustup component add clippy
       - uses: actions-rs/cargo@v1
         with:
           command: clippy
-          args: --workspace --tests --examples --all-targets --all-features -- -Dwarnings
+          args: --workspace --benches --tests --examples --all-targets --all-features -- -Dwarnings
