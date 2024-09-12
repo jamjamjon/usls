@@ -8,7 +8,7 @@ use prost::Message;
 use std::collections::HashSet;
 
 use crate::{
-    home_dir, human_bytes, onnx, Device, MinOptMax, Ops, Options, Ts, Xs, CHECK_MARK, CROSS_MARK, X,
+    human_bytes, onnx, Device, Dir, MinOptMax, Ops, Options, Ts, Xs, CHECK_MARK, CROSS_MARK, X,
 };
 
 /// Ort Tensor Attrs: name, data_type, dims
@@ -228,16 +228,13 @@ impl OrtEngine {
             spec_opt += &s_opt;
             spec_max += &s_max;
         }
+        let p = Dir::Cache.path_with_subs(&["trt-cache"])?;
         let trt = TensorRTExecutionProvider::default()
             .with_device_id(device_id as i32)
             .with_int8(int8_enable)
             .with_fp16(fp16_enable)
             .with_engine_cache(engine_cache_enable)
-            .with_engine_cache_path(format!(
-                "{}/{}",
-                home_dir(None).to_str().unwrap(),
-                "trt-cache"
-            ))
+            .with_engine_cache_path(p.to_str().unwrap())
             .with_timing_cache(false)
             .with_profile_min_shapes(spec_min)
             .with_profile_opt_shapes(spec_opt)

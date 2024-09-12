@@ -1,6 +1,6 @@
 use crate::{
-    colormap256, string_now, Bbox, Hub, Keypoint, Mask, Mbr, Polygon, Prob, CHECK_MARK, CROSS_MARK,
-    Y,
+    colormap256, string_now, Bbox, Dir, Hub, Keypoint, Mask, Mbr, Polygon, Prob, CHECK_MARK,
+    CROSS_MARK, Y,
 };
 use ab_glyph::{FontVec, PxScale};
 use anyhow::Result;
@@ -8,11 +8,13 @@ use image::{DynamicImage, GenericImage, Rgba, RgbaImage};
 use imageproc::map::map_colors;
 
 /// Annotator for struct `Y`
-#[derive(Debug)]
+// #[derive(Debug)]
 pub struct Annotator {
+    verbose: bool,
     font: FontVec,
     _scale: f32, // Cope with ab_glyph & imageproc=0.24.0
     scale_dy: f32,
+    saveout_base: String,
     saveout: Option<String>,
     decimal_places: usize,
 
@@ -63,11 +65,13 @@ pub struct Annotator {
 impl Default for Annotator {
     fn default() -> Self {
         Self {
+            verbose: true,
             font: Self::load_font(None).unwrap(),
             _scale: 6.666667,
             scale_dy: 28.,
             polygons_alpha: 179,
             saveout: None,
+            saveout_base: String::from("runs"),
             decimal_places: 4,
             without_bboxes: false,
             without_bboxes_conf: false,
@@ -304,8 +308,13 @@ impl Annotator {
         self
     }
 
-    pub fn with_saveout(mut self, saveout: &str) -> Self {
-        self.saveout = Some(saveout.to_string());
+    pub fn with_saveout_base(mut self, x: &str) -> Self {
+        self.saveout_base = x.to_string();
+        self
+    }
+
+    pub fn with_saveout(mut self, x: &str) -> Self {
+        self.saveout = Some(x.to_string());
         self
     }
 
@@ -314,22 +323,26 @@ impl Annotator {
         self
     }
 
-    /// Save annotated images to `runs` folder
-    pub fn save(&self, image: &RgbaImage, saveout: &str) {
-        let mut saveout = std::path::PathBuf::from("runs").join(saveout);
-        if !saveout.exists() {
-            std::fs::create_dir_all(&saveout).unwrap();
-        }
-        saveout.push(string_now("-"));
-        let saveout = format!("{}.png", saveout.to_str().unwrap());
-        match image.save(&saveout) {
-            Err(err) => println!("{} Saving failed: {:?}", CROSS_MARK, err),
-            Ok(_) => println!("{} Annotated image saved to: {}", CHECK_MARK, saveout),
-        }
+    /// Create folders for saving annotated results. e.g., `./runs/xxx`
+    pub fn saveout(&self) -> Result<std::path::PathBuf> {
+        let subs = match &self.saveout {
+            Some(x) => vec![self.saveout_base.as_str(), x.as_str()],
+            None => vec![self.saveout_base.as_str()],
+        };
+
+        Dir::Currnet.raw_path_with_subs(&subs)
     }
 
-    /// Annotate images
+    /// Annotate images, and no return
     pub fn annotate(&self, imgs: &[DynamicImage], ys: &[Y]) {
+        let _ = self.plot(imgs, ys);
+    }
+
+    /// Plot images and return plotted images(RGBA8)
+    pub fn plot(&self, imgs: &[DynamicImage], ys: &[Y]) -> Result<Vec<RgbaImage>> {
+        let mut vs: Vec<RgbaImage> = Vec::new();
+
+        // annotate
         for (img, y) in imgs.iter().zip(ys.iter()) {
             let mut img_rgba = img.to_rgba8();
 
@@ -373,11 +386,20 @@ impl Annotator {
                 self.plot_probs(&mut img_rgba, xs);
             }
 
-            // save
-            if let Some(saveout) = &self.saveout {
-                self.save(&img_rgba, saveout);
+            // TODO: logger
+            let saveout = self.saveout()?.join(format!("{}.png", string_now("-")));
+            match img_rgba.save(&saveout) {
+                Err(err) => println!("{} Saving failed: {:?}", CROSS_MARK, err),
+                Ok(_) => {
+                    if self.verbose {
+                        println!("{} Annotated image saved to: {:?}", CHECK_MARK, saveout);
+                    }
+                }
             }
+
+            vs.push(img_rgba);
         }
+        Ok(vs)
     }
 
     /// Plot bounding bboxes and labels

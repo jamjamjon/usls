@@ -1,7 +1,7 @@
 use anyhow::Result;
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 
-use usls::{models::YOLO, DataLoader, Options, Vision, YOLOTask, YOLOVersion, COCO_KEYPOINTS_17};
+use usls::{models::YOLO, DataLoader, Options, Vision, YOLOTask, YOLOVersion};
 
 enum Stage {
     Pre,

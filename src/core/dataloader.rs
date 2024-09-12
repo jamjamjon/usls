@@ -3,19 +3,15 @@ use image::DynamicImage;
 use std::collections::VecDeque;
 use std::path::{Path, PathBuf};
 use std::sync::mpsc;
-use video_rs::{Decoder, Url};
+use video_rs::{
+    encode::{Encoder, Settings},
+    time::Time,
+    Decoder, Url,
+};
 
-use crate::{Hub, Location, MediaType, CHECK_MARK};
+use crate::{string_now, Dir, Hub, Location, MediaType, CHECK_MARK, CROSS_MARK};
 
 type TempReturnType = (Vec<DynamicImage>, Vec<PathBuf>);
-
-// impl Iterator for DataLoader {
-//     type Item = TempReturnType;
-
-//     fn next(&mut self) -> Option<Self::Item> {
-//         self.receiver.recv().ok()
-//     }
-// }
 
 // Use IntoIterator trait
 impl IntoIterator for DataLoader {
@@ -41,12 +37,8 @@ impl Iterator for DataLoaderIterator {
     }
 }
 
+/// Dataloader: load images, video, stream
 pub struct DataLoader {
-    // source could be:
-    // - image(local & hub)
-    // - images(dir)
-    // - video(local & remote)
-    // - stream(local & remote)
     pub paths: Option<VecDeque<PathBuf>>,
     pub media_type: Option<MediaType>,
     pub batch_size: usize,
@@ -100,8 +92,15 @@ impl DataLoader {
                         })
                         .collect();
 
-                    // TODO: natural order
-                    entries.sort_by(|a, b| a.file_name().cmp(&b.file_name()));
+                    entries.sort_by(|a, b| {
+                        let a_name = a.file_name().and_then(|s| s.to_str());
+                        let b_name = b.file_name().and_then(|s| s.to_str());
+
+                        match (a_name, b_name) {
+                            (Some(a_str), Some(b_str)) => natord::compare(a_str, b_str),
+                            _ => std::cmp::Ordering::Equal,
+                        }
+                    });
                     (
                         Some(VecDeque::from(entries)),
                         Some(MediaType::Image(Location::Local)),
@@ -171,7 +170,8 @@ impl DataLoader {
             MediaType::Image(_) => {
                 while let Some(path) = data.pop_front() {
                     match Self::try_read(&path) {
-                        Err(_) => {
+                        Err(err) => {
+                            println!("{} {:?} | {:?}", CROSS_MARK, path, err);
                             continue;
                         }
                         Ok(img) => {
@@ -225,7 +225,7 @@ impl DataLoader {
             _ => todo!(),
         }
 
-        // Send any remaining data
+        // Deal with remaining data
         if !yis.is_empty() && sender.send((yis, yps)).is_err() {
             println!("Receiver dropped, stopping production");
         }
@@ -244,7 +244,13 @@ impl DataLoader {
             let p = Hub::new()?.fetch(path.to_str().unwrap())?.commit()?;
             path = PathBuf::from(&p);
         }
-        let img = image::ImageReader::open(&path)
+        let img = Self::load_into_rgb8(path)?;
+        Ok(DynamicImage::from(img))
+    }
+
+    fn load_into_rgb8<P: AsRef<Path>>(path: P) -> Result<image::RgbImage> {
+        let path = path.as_ref();
+        let img = image::ImageReader::open(path)
             .map_err(|err| {
                 anyhow!(
                     "Failed to open image at {:?}. Error: {:?}",
@@ -269,6 +275,55 @@ impl DataLoader {
                 )
             })?
             .into_rgb8();
-        Ok(DynamicImage::from(img))
+        Ok(img)
+    }
+
+    pub fn to_video(&self, fps: usize) -> Result<()> {
+        let mut encoder = None;
+        let mut position = Time::zero();
+
+        match &self.paths {
+            None => anyhow::bail!("No images found"),
+            Some(paths) => {
+                for path in paths {
+                    let img = Self::load_into_rgb8(path)?;
+                    let (w, h) = img.dimensions();
+
+                    // build it at the 1st time
+                    if encoder.is_none() {
+                        // setting
+                        let settings = Settings::preset_h264_yuv420p(w as _, h as _, false);
+
+                        // saveout
+                        let saveout = Dir::Currnet
+                            .raw_path_with_subs(&["runs", "is2v"])?
+                            .join(&format!("{}.mp4", string_now("-")));
+
+                        // build encoder
+                        encoder = Some(Encoder::new(saveout, settings)?);
+                    }
+
+                    // write video
+                    if let Some(encoder) = encoder.as_mut() {
+                        let raw_data = img.into_raw();
+                        let frame =
+                            ndarray::Array3::from_shape_vec((h as usize, w as usize, 3), raw_data)
+                                .expect("Failed to create ndarray from raw image data");
+
+                        encoder.encode(&frame, position)?;
+
+                        // update position
+                        position = position.aligned_with(Time::from_nth_of_a_second(fps)).add();
+                    }
+                }
+            }
+        }
+
+        match &mut encoder {
+            Some(vencoder) => vencoder.finish()?,
+            None => anyhow::bail!("Found no video encoder."),
+        }
+
+        Ok(())
     }
 }

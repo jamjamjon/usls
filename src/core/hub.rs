@@ -107,10 +107,10 @@ impl Hub {
     pub fn new() -> Result<Self> {
         let mut to = Dir::Cache;
         let cache = to
-            .path(None)
+            .path()
             .or_else(|_| {
                 to = Dir::Home;
-                to.path(None)
+                to.path()
             })?
             .join("cache_releases");
 
@@ -148,7 +148,6 @@ impl Hub {
 
     pub fn fetch(mut self, s: &str) -> Result<Self> {
         // try to fetch from hub or local cache
-
         let p = PathBuf::from(s);
         match p.exists() {
             true => self.path = p,
@@ -188,11 +187,11 @@ impl Hub {
                                         release.assets.iter().map(|x| x.name.as_str()).collect();
                                     if !files.contains(&file_name) {
                                         anyhow::bail!(
-                                        "File '{}' not found in tag '{}'. Available files: {:?}",
-                                        file_name,
-                                        tag,
-                                        files
-                                    );
+                                            "File '{}' not found in tag '{}'. Available files: {:?}",
+                                            file_name,
+                                            tag,
+                                            files
+                                        );
                                     } else {
                                         for f_ in release.assets.iter() {
                                             if f_.name.as_str() == file_name {
@@ -204,7 +203,7 @@ impl Hub {
                                         }
                                     }
                                 }
-                                self.path = self.to.path(Some(tag))?.join(file_name);
+                                self.path = self.to.path_with_subs(&[tag])?.join(file_name);
                             }
                         }
                         _ => anyhow::bail!(

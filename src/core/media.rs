@@ -46,7 +46,7 @@ impl MediaType {
             .iter()
             .any(|&ext| url.ends_with(&format!(".{}", ext)))
         {
-            MediaType::Image(Location::Remote) // TODO: pre-download to local???
+            MediaType::Image(Location::Remote)
         } else if VIDEO_EXTENSIONS
             .iter()
             .any(|&ext| url.ends_with(&format!(".{}", ext)))
@@ -54,7 +54,7 @@ impl MediaType {
             MediaType::Video(Location::Remote)
         } else if STREAM_PROTOCOLS
             .iter()
-            .any(|&protocol| url.contains(protocol))
+            .any(|&protocol| url.starts_with(protocol))
         {
             MediaType::Stream
         } else {
