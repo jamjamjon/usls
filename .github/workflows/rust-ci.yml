@@ -1,116 +1,141 @@
-name: Rust
+name: ci
 
 on:
   push:
-    branches: [ "main", "dev" ]
+    branches: [ main ]
   pull_request:
-    branches: [ "main" ]
+    branches: [ main ]
+
+env:
+  CARGO_TERM_COLOR: always
 
 jobs:
-  check:
-    name: Check
-    runs-on: ${{ matrix.os }}
+
+  build-linux:
+    name: build / linux / ffmpeg ${{ matrix.ffmpeg_version }}
+    runs-on: ubuntu-latest
+    container: jrottenberg/ffmpeg:${{ matrix.ffmpeg_version }}-ubuntu
+
     strategy:
       matrix:
-        os: [ubuntu-latest, macOS-latest, windows-latest]
-        rust: [stable]
+        ffmpeg_version: ["4.3", "4.4", "5.0", "5.1", "6.0", "6.1", "7.0"]
+      fail-fast: false
+
     steps:
-      - uses: actions/checkout@v2
-      - name: Install FFmpeg (Ubuntu)
-        if: runner.os == 'Linux'
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Install dependencies
         run: |
-          sudo apt update
-          sudo apt install -y --no-install-recommends ffmpeg clang libavcodec-dev libavformat-dev libavutil-dev pkg-config
-      - name: Install FFmpeg (macOS)
-        if: runner.os == 'macOS'
-        run: brew install pkg-config ffmpeg
-      - name: Install FFmpeg (Windows)
-        if: runner.os == 'Windows'
-        run: |
-          $FFMPEG_URL = "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-full-shared.7z"
-          Invoke-WebRequest -Uri $FFMPEG_URL -OutFile ffmpeg.7z
-          7z x ffmpeg.7z -o./ffmpeg
-          $env:Path += ";$(pwd)/ffmpeg/bin"
-      - uses: actions-rs/toolchain@v1
+          apt update
+          apt install -y --no-install-recommends clang curl pkg-config
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@v1
         with:
-          profile: minimal
-          toolchain: ${{ matrix.rust }}
+          toolchain: stable
+    
+      - name: Set up Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
           override: true
-      - uses: actions-rs/cargo@v1
+
+      - name: Build
+        run: cargo build
+
+  build-macos:
+    name: build / macos / latest ffmpeg
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Install dependencies
+        run: |
+          brew install ffmpeg pkg-config
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@v1
         with:
-          command: check
-          args: --workspace --examples --benches
+          toolchain: stable
+    
+      - name: Build
+        run: cargo build
+
+  build-windows:
+    name: build / windows / latest ffmpeg
+    runs-on: windows-latest
+
+    env:
+      FFMPEG_DOWNLOAD_URL: https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-full-shared.7z
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Install dependencies
+        run: |
+          $VCINSTALLDIR = $(& "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath)
+          Add-Content $env:GITHUB_ENV "LIBCLANG_PATH=${VCINSTALLDIR}\VC\Tools\LLVM\x64\bin`n"
+          Invoke-WebRequest "${env:FFMPEG_DOWNLOAD_URL}" -OutFile ffmpeg-release-full-shared.7z
+          7z x ffmpeg-release-full-shared.7z
+          mkdir ffmpeg
+          mv ffmpeg-*/* ffmpeg/
+          Add-Content $env:GITHUB_ENV "FFMPEG_DIR=${pwd}\ffmpeg`n"
+          Add-Content $env:GITHUB_PATH "${pwd}\ffmpeg\bin`n"
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@v1
+        with:
+          toolchain: stable
+    
+      - name: Build
+        run: cargo build
 
   test:
-    name: Test
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macOS-latest, windows-latest]
-        rust: [stable]
-    steps:
-      - uses: actions/checkout@v2
-      - name: Install FFmpeg (Ubuntu)
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt update
-          sudo apt install -y --no-install-recommends ffmpeg clang libavcodec-dev libavformat-dev libavutil-dev pkg-config
-      - name: Install FFmpeg (macOS)
-        if: runner.os == 'macOS'
-        run: brew install pkg-config ffmpeg
-      - name: Install FFmpeg (Windows)
-        if: runner.os == 'Windows'
-        run: |
-          $FFMPEG_URL = "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-full-shared.7z"
-          Invoke-WebRequest -Uri $FFMPEG_URL -OutFile ffmpeg.7z
-          7z x ffmpeg.7z -o./ffmpeg
-          $env:Path += ";$(pwd)/ffmpeg/bin"
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: ${{ matrix.rust }}
-          override: true
-      - uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --workspace --examples --benches
-
-  fmt:
-    name: Rustfmt
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - name: Install FFmpeg
-        run: |
-          sudo apt update
-          sudo apt install -y --no-install-recommends ffmpeg clang libavcodec-dev libavformat-dev libavutil-dev pkg-config
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
-      - run: rustup component add rustfmt
-      - uses: actions-rs/cargo@v1
-        with:
-          command: fmt
-          args: --all -- --check
+    container: jrottenberg/ffmpeg:6-ubuntu
 
-  clippy:
-    name: Clippy
-    runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - name: Install FFmpeg
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Install dependencies
         run: |
-          sudo apt update
-          sudo apt install -y --no-install-recommends ffmpeg clang libavcodec-dev libavformat-dev libavutil-dev pkg-config
-      - uses: actions-rs/toolchain@v1
+          apt update
+          apt install -y --no-install-recommends clang curl pkg-config
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@v1
         with:
-          profile: minimal
           toolchain: stable
-          override: true
-      - run: rustup component add clippy
-      - uses: actions-rs/cargo@v1
+    
+      - name: Test
+        run: cargo test --all-features
+
+  lints:
+    runs-on: ubuntu-latest
+    container: jrottenberg/ffmpeg:6-ubuntu
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Install dependencies
+        run: |
+          apt update
+          apt install -y --no-install-recommends clang curl pkg-config
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@v1
         with:
-          command: clippy
-          args: --workspace --benches --tests --examples --all-targets --all-features -- -Dwarnings
+          toolchain: stable
+          components: rustfmt, clippy
+    
+      - name: Rustfmt
+        run: cargo fmt --all -- --check
+
+      - name: Clippy
+        run: cargo clippy --all --all-features -- -D warnings
