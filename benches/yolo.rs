@@ -24,7 +24,6 @@ fn yolo_stage_bench(
         let t0 = std::time::Instant::now();
         let xs = model.preprocess(x).unwrap();
         t_pre += t0.elapsed();
-        let a = 1;
 
         let t = std::time::Instant::now();
         let xs = model.inference(xs).unwrap();

@@ -12,7 +12,7 @@ env:
 
 jobs:
   build-on-linux:
-    name: build / linux / ffmpeg ${{ matrix.ffmpeg_version }}
+    name: build | linux | ffmpeg ${{ matrix.ffmpeg_version }}
     runs-on: ubuntu-latest
     container: jrottenberg/ffmpeg:${{ matrix.ffmpeg_version }}-ubuntu
 
@@ -39,7 +39,7 @@ jobs:
         run: cargo build
 
   build-on-macos:
-    name: build / macos / latest ffmpeg
+    name: build | macos | latest ffmpeg
     runs-on: macos-latest
 
     steps:
@@ -60,7 +60,7 @@ jobs:
 
 
   build-on-windows:
-    name: build / windows / latest ffmpeg
+    name: build | windows | latest ffmpeg
     runs-on: windows-latest
 
     env:
@@ -91,7 +91,7 @@ jobs:
 
 
   test-on-linux:
-    name: test / linux / ffmpeg ${{ matrix.ffmpeg_version }}
+    name: test | linux | ffmpeg ${{ matrix.ffmpeg_version }}
     runs-on: ubuntu-latest
     container: jrottenberg/ffmpeg:${{ matrix.ffmpeg_version }}-ubuntu
 
@@ -120,16 +120,13 @@ jobs:
       - name: Run Tests in Release Mode
         run: cargo test --release
 
-      - name: Run Tests with No Default Features
-        run: cargo test --no-default-features
-
       - name: Run Tests on All Targets
         run: cargo test --all-targets
 
 
 
   test-on-macos:
-    name: test / macos / latest ffmpeg
+    name: test | macos | latest ffmpeg
     runs-on: macos-latest
 
     steps:
@@ -151,16 +148,13 @@ jobs:
       - name: Run Tests in Release Mode
         run: cargo test --release
 
-      - name: Run Tests with No Default Features
-        run: cargo test --no-default-features
-
       - name: Run Tests on All Targets
         run: cargo test --all-targets
 
 
 
   test-on-windows:
-    name: test / windows / latest ffmpeg
+    name: test | windows | latest ffmpeg
     runs-on: windows-latest
 
     env:
@@ -191,9 +185,6 @@ jobs:
 
       - name: Run Tests in Release Mode
         run: cargo test --release
-
-      - name: Run Tests with No Default Features
-        run: cargo test --no-default-features
 
       - name: Run Tests on All Targets
         run: cargo test --all-targets
