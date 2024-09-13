@@ -37,7 +37,7 @@ impl Iterator for DataLoaderIterator {
     }
 }
 
-/// Dataloader: load images, video, stream
+/// Load images, video, stream
 pub struct DataLoader {
     pub paths: Option<VecDeque<PathBuf>>,
     pub media_type: Option<MediaType>,

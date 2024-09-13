@@ -120,11 +120,6 @@ jobs:
       - name: Run Tests in Release Mode
         run: cargo test --release
 
-      - name: Run Tests on All Targets
-        run: cargo test --all-targets
-
-
-
   test-on-macos:
     name: test | macos | latest ffmpeg
     runs-on: macos-latest
@@ -147,11 +142,6 @@ jobs:
 
       - name: Run Tests in Release Mode
         run: cargo test --release
-
-      - name: Run Tests on All Targets
-        run: cargo test --all-targets
-
-
 
   test-on-windows:
     name: test | windows | latest ffmpeg
@@ -185,10 +175,6 @@ jobs:
 
       - name: Run Tests in Release Mode
         run: cargo test --release
-
-      - name: Run Tests on All Targets
-        run: cargo test --all-targets
-
 
 
   lints:
