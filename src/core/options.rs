@@ -14,14 +14,14 @@ pub struct Options {
     pub device: Device,
     pub profile: bool,
     pub num_dry_run: usize,
-    pub i00: Option<MinOptMax>, // 1st input, axis 0, batch usually
-    pub i01: Option<MinOptMax>, // 1st input, axis 1
+    pub i00: Option<MinOptMax>, // the 1st input, axis 0, batch usually
+    pub i01: Option<MinOptMax>, // the 1st input, axis 1
     pub i02: Option<MinOptMax>,
     pub i03: Option<MinOptMax>,
     pub i04: Option<MinOptMax>,
     pub i05: Option<MinOptMax>,
-    pub i10: Option<MinOptMax>, // 2nd input, axis 0
-    pub i11: Option<MinOptMax>, // 2nd input, axis 1
+    pub i10: Option<MinOptMax>, // the 2nd input, axis 0
+    pub i11: Option<MinOptMax>, // the 2nd input, axis 1
     pub i12: Option<MinOptMax>,
     pub i13: Option<MinOptMax>,
     pub i14: Option<MinOptMax>,
@@ -181,6 +181,10 @@ impl Default for Options {
 }
 
 impl Options {
+    pub fn new() -> Self {
+        Default::default()
+    }
+
     pub fn with_model(mut self, onnx_path: &str) -> Result<Self> {
         self.onnx_path = Hub::new()?.fetch(onnx_path)?.commit()?;
         Ok(self)

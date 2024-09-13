@@ -66,7 +66,10 @@ impl Default for Annotator {
     fn default() -> Self {
         Self {
             verbose: true,
-            font: Self::load_font(None).unwrap(),
+            font: match Self::load_font(None) {
+                Ok(x) => x,
+                Err(err) => panic!("Failed to load font: {}", err),
+            },
             _scale: 6.666667,
             scale_dy: 28.,
             polygons_alpha: 179,
@@ -108,6 +111,10 @@ impl Default for Annotator {
 }
 
 impl Annotator {
+    pub fn new() -> Self {
+        Default::default()
+    }
+
     pub fn with_decimal_places(mut self, x: usize) -> Self {
         self.decimal_places = x;
         self
@@ -318,9 +325,9 @@ impl Annotator {
         self
     }
 
-    pub fn with_font(mut self, path: &str) -> Self {
-        self.font = Self::load_font(Some(path)).unwrap();
-        self
+    pub fn with_font(mut self, path: &str) -> Result<Self> {
+        self.font = Self::load_font(Some(path))?;
+        Ok(self)
     }
 
     /// Create folders for saving annotated results. e.g., `./runs/xxx`
@@ -386,7 +393,7 @@ impl Annotator {
                 self.plot_probs(&mut img_rgba, xs);
             }
 
-            // TODO: logger
+            // save
             let saveout = self.saveout()?.join(format!("{}.png", string_now("-")));
             match img_rgba.save(&saveout) {
                 Err(err) => println!("{} Saving failed: {:?}", CROSS_MARK, err),
@@ -404,8 +411,8 @@ impl Annotator {
 
     /// Plot bounding bboxes and labels
     pub fn plot_bboxes(&self, img: &mut RgbaImage, bboxes: &[Bbox]) {
-        // bbox
         for bbox in bboxes.iter() {
+            // bbox
             let short_side_threshold =
                 bbox.width().min(bbox.height()) * self.bboxes_thickness_threshold;
             let thickness = self.bboxes_thickness.min(short_side_threshold as usize);
@@ -749,7 +756,7 @@ impl Annotator {
             Some(p) => p.into(),
         };
         let buffer = std::fs::read(path_font)?;
-        Ok(FontVec::try_from_vec(buffer.to_owned()).unwrap())
+        Ok(FontVec::try_from_vec(buffer.to_owned())?)
     }
 
     /// Pick color from pallette

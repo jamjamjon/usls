@@ -12,7 +12,7 @@ pub struct Args {
     #[arg(long)]
     pub model: Option<String>,
 
-    #[arg(long, default_value_t = String::from("images/bus.jpg"))]
+    #[arg(long, default_value_t = String::from("./assets/bus.jpg"))]
     pub source: String,
 
     #[arg(long, value_enum, default_value_t = YOLOTask::Detect)]

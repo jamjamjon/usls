@@ -175,7 +175,7 @@ impl Hub {
                                     releases.iter().map(|x| x.tag_name.as_str()).collect();
                                 if !tags.contains(&tag) {
                                     anyhow::bail!(
-                                        "Tag '{}' not found in releases. Available tags: {:?}",
+                                        "Hub tag '{}' not found in releases. Available tags: {:?}",
                                         tag,
                                         tags
                                     );
@@ -187,7 +187,7 @@ impl Hub {
                                         release.assets.iter().map(|x| x.name.as_str()).collect();
                                     if !files.contains(&file_name) {
                                         anyhow::bail!(
-                                            "File '{}' not found in tag '{}'. Available files: {:?}",
+                                            "Hub file '{}' not found in tag '{}'. Available files: {:?}",
                                             file_name,
                                             tag,
                                             files
@@ -376,11 +376,11 @@ impl Hub {
 
             let pb = ProgressBar::new(ntotal);
             pb.set_style(
-            ProgressStyle::with_template(
-                "{prefix:.cyan.bold} {msg} |{bar}| ({percent_precise}%, {binary_bytes}/{binary_total_bytes}, {binary_bytes_per_sec})",
-            )?
-            .progress_chars("██ "),
-        );
+                ProgressStyle::with_template(
+                    "{prefix:.cyan.bold} {msg} |{bar}| ({percent_precise}%, {binary_bytes}/{binary_total_bytes}, {binary_bytes_per_sec})",
+                )?
+                .progress_chars("██ "),
+            );
             pb.set_prefix(if i_try == 0 {
                 "    Fetching"
             } else {

@@ -1,5 +1,6 @@
 use anyhow::{anyhow, Result};
 use image::DynamicImage;
+use indicatif::{ProgressBar, ProgressStyle};
 use std::collections::VecDeque;
 use std::path::{Path, PathBuf};
 use std::sync::mpsc;
@@ -13,7 +14,6 @@ use crate::{string_now, Dir, Hub, Location, MediaType, CHECK_MARK, CROSS_MARK};
 
 type TempReturnType = (Vec<DynamicImage>, Vec<PathBuf>);
 
-// Use IntoIterator trait
 impl IntoIterator for DataLoader {
     type Item = TempReturnType;
     type IntoIter = DataLoaderIterator;
@@ -80,29 +80,9 @@ impl DataLoader {
                         Some(MediaType::from_path(source_path)),
                     )
                 } else if source_path.is_dir() {
-                    let mut entries: Vec<PathBuf> = std::fs::read_dir(source_path)?
-                        .filter_map(|entry| entry.ok())
-                        .filter_map(|entry| {
-                            let path = entry.path();
-                            if path.is_file() {
-                                Some(path)
-                            } else {
-                                None
-                            }
-                        })
-                        .collect();
-
-                    entries.sort_by(|a, b| {
-                        let a_name = a.file_name().and_then(|s| s.to_str());
-                        let b_name = b.file_name().and_then(|s| s.to_str());
-
-                        match (a_name, b_name) {
-                            (Some(a_str), Some(b_str)) => natord::compare(a_str, b_str),
-                            _ => std::cmp::Ordering::Equal,
-                        }
-                    });
+                    let paths_sorted = Self::load_from_folder(source_path)?;
                     (
-                        Some(VecDeque::from(entries)),
+                        Some(VecDeque::from(paths_sorted)),
                         Some(MediaType::Image(Location::Local)),
                     )
                 } else {
@@ -110,6 +90,10 @@ impl DataLoader {
                 }
             }
         };
+
+        if let Some(MediaType::Unknown) = media_type {
+            anyhow::bail!("Could not locate the source path: {:?}", source_path);
+        }
 
         // mpsc
         let (sender, receiver) = mpsc::channel::<TempReturnType>();
@@ -236,6 +220,32 @@ impl DataLoader {
         self
     }
 
+    pub fn load_from_folder<P: AsRef<std::path::Path>>(path: P) -> Result<Vec<std::path::PathBuf>> {
+        let mut paths: Vec<PathBuf> = std::fs::read_dir(path)?
+            .filter_map(|entry| entry.ok())
+            .filter_map(|entry| {
+                let path = entry.path();
+                if path.is_file() {
+                    Some(path)
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        paths.sort_by(|a, b| {
+            let a_name = a.file_name().and_then(|s| s.to_str());
+            let b_name = b.file_name().and_then(|s| s.to_str());
+
+            match (a_name, b_name) {
+                (Some(a_str), Some(b_str)) => natord::compare(a_str, b_str),
+                _ => std::cmp::Ordering::Equal,
+            }
+        });
+
+        Ok(paths)
+    }
+
     pub fn try_read<P: AsRef<Path>>(path: P) -> Result<DynamicImage> {
         let mut path = path.as_ref().to_path_buf();
 
@@ -244,11 +254,11 @@ impl DataLoader {
             let p = Hub::new()?.fetch(path.to_str().unwrap())?.commit()?;
             path = PathBuf::from(&p);
         }
-        let img = Self::load_into_rgb8(path)?;
+        let img = Self::read_into_rgb8(path)?;
         Ok(DynamicImage::from(img))
     }
 
-    fn load_into_rgb8<P: AsRef<Path>>(path: P) -> Result<image::RgbImage> {
+    fn read_into_rgb8<P: AsRef<Path>>(path: P) -> Result<image::RgbImage> {
         let path = path.as_ref();
         let img = image::ImageReader::open(path)
             .map_err(|err| {
@@ -278,44 +288,50 @@ impl DataLoader {
         Ok(img)
     }
 
-    pub fn to_video(&self, fps: usize) -> Result<()> {
+    /// Convert images into a video
+    pub fn is2v<P: AsRef<Path>>(source: P, subs: &[&str], fps: usize) -> Result<()> {
+        let paths = Self::load_from_folder(source.as_ref())?;
+        if paths.is_empty() {
+            anyhow::bail!("No images found.");
+        }
         let mut encoder = None;
         let mut position = Time::zero();
+        let saveout = Dir::Currnet
+            .raw_path_with_subs(subs)?
+            .join(format!("{}.mp4", string_now("-")));
 
-        match &self.paths {
-            None => anyhow::bail!("No images found"),
-            Some(paths) => {
-                for path in paths {
-                    let img = Self::load_into_rgb8(path)?;
-                    let (w, h) = img.dimensions();
+        // pb
+        let pb = ProgressBar::new(paths.len() as u64);
+        pb.set_style(
+            ProgressStyle::with_template(
+                "{prefix:.cyan.bold} {msg} |{bar}| ({percent_precise}%, {human_pos}/{human_len}, {per_sec})",
+            )?
+            .progress_chars("██ "),
+        );
+        pb.set_prefix("  Converting");
+        pb.set_message(saveout.to_str().unwrap_or_default().to_string());
 
-                    // build it at the 1st time
-                    if encoder.is_none() {
-                        // setting
-                        let settings = Settings::preset_h264_yuv420p(w as _, h as _, false);
+        // loop
+        for path in paths {
+            pb.inc(1);
+            let img = Self::read_into_rgb8(path)?;
+            let (w, h) = img.dimensions();
 
-                        // saveout
-                        let saveout = Dir::Currnet
-                            .raw_path_with_subs(&["runs", "is2v"])?
-                            .join(&format!("{}.mp4", string_now("-")));
+            // build encoder at the 1st time
+            if encoder.is_none() {
+                let settings = Settings::preset_h264_yuv420p(w as _, h as _, false);
+                encoder = Some(Encoder::new(saveout.clone(), settings)?);
+            }
 
-                        // build encoder
-                        encoder = Some(Encoder::new(saveout, settings)?);
-                    }
+            // write video
+            if let Some(encoder) = encoder.as_mut() {
+                let raw_data = img.into_raw();
+                let frame = ndarray::Array3::from_shape_vec((h as usize, w as usize, 3), raw_data)
+                    .expect("Failed to create ndarray from raw image data");
 
-                    // write video
-                    if let Some(encoder) = encoder.as_mut() {
-                        let raw_data = img.into_raw();
-                        let frame =
-                            ndarray::Array3::from_shape_vec((h as usize, w as usize, 3), raw_data)
-                                .expect("Failed to create ndarray from raw image data");
-
-                        encoder.encode(&frame, position)?;
-
-                        // update position
-                        position = position.aligned_with(Time::from_nth_of_a_second(fps)).add();
-                    }
-                }
+                // encode and update
+                encoder.encode(&frame, position)?;
+                position = position.aligned_with(Time::from_nth_of_a_second(fps)).add();
             }
         }
 
@@ -323,6 +339,14 @@ impl DataLoader {
             Some(vencoder) => vencoder.finish()?,
             None => anyhow::bail!("Found no video encoder."),
         }
+
+        // update
+        pb.set_prefix("  Downloaded");
+        pb.set_prefix("   Converted");
+        pb.set_style(ProgressStyle::with_template(
+            "{prefix:.green.bold} {msg} in {elapsed}",
+        )?);
+        pb.finish();
 
         Ok(())
     }
