@@ -95,13 +95,6 @@ impl Y {
     /// # Returns
     ///
     /// * `Self` - The updated struct instance with the new probabilities set.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// let probs = Prob::default();
-    /// let y = Y::default().with_probs(&probs);
-    /// ```
     pub fn with_probs(mut self, probs: &Prob) -> Self {
         self.probs = Some(probs.clone());
         self

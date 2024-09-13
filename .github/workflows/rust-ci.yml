@@ -1,17 +1,17 @@
-name: ci
+name: Rust-CI
 
 on:
   push:
-    branches: [ main, dev ]
+    branches: [ "main", "dev", "x", "xy" , "xyz" ]
   pull_request:
-    branches: [ main ]
+    branches: [ "main" ]
 
 env:
   CARGO_TERM_COLOR: always
 
-jobs:
 
-  build-linux:
+jobs:
+  build-on-linux:
     name: build / linux / ffmpeg ${{ matrix.ffmpeg_version }}
     runs-on: ubuntu-latest
     container: jrottenberg/ffmpeg:${{ matrix.ffmpeg_version }}-ubuntu
@@ -35,16 +35,10 @@ jobs:
         with:
           toolchain: stable
     
-      - name: Set up Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          override: true
-
       - name: Build
         run: cargo build
 
-  build-macos:
+  build-on-macos:
     name: build / macos / latest ffmpeg
     runs-on: macos-latest
 
@@ -64,7 +58,8 @@ jobs:
       - name: Build
         run: cargo build
 
-  build-windows:
+
+  build-on-windows:
     name: build / windows / latest ffmpeg
     runs-on: windows-latest
 
@@ -94,9 +89,16 @@ jobs:
       - name: Build
         run: cargo build
 
-  test:
+
+  test-on-linux:
+    name: test / linux / ffmpeg ${{ matrix.ffmpeg_version }}
     runs-on: ubuntu-latest
-    container: jrottenberg/ffmpeg:6-ubuntu
+    container: jrottenberg/ffmpeg:${{ matrix.ffmpeg_version }}-ubuntu
+
+    strategy:
+      matrix:
+        ffmpeg_version: ["4.3", "4.4", "5.0", "5.1", "6.0", "6.1", "7.0"]
+      fail-fast: false
 
     steps:
       - name: Checkout
@@ -111,9 +113,92 @@ jobs:
         uses: dtolnay/rust-toolchain@v1
         with:
           toolchain: stable
-    
-      - name: Test
+
+      - name: Run Tests with All Features
         run: cargo test --all-features
+
+      - name: Run Tests in Release Mode
+        run: cargo test --release
+
+      - name: Run Tests with No Default Features
+        run: cargo test --no-default-features
+
+      - name: Run Tests on All Targets
+        run: cargo test --all-targets
+
+
+
+  test-on-macos:
+    name: test / macos / latest ffmpeg
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Install dependencies
+        run: |
+          brew install ffmpeg pkg-config
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@v1
+        with:
+          toolchain: stable
+    
+      - name: Run Tests with All Features
+        run: cargo test --all-features
+
+      - name: Run Tests in Release Mode
+        run: cargo test --release
+
+      - name: Run Tests with No Default Features
+        run: cargo test --no-default-features
+
+      - name: Run Tests on All Targets
+        run: cargo test --all-targets
+
+
+
+  test-on-windows:
+    name: test / windows / latest ffmpeg
+    runs-on: windows-latest
+
+    env:
+      FFMPEG_DOWNLOAD_URL: https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-full-shared.7z
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Install dependencies
+        run: |
+          $VCINSTALLDIR = $(& "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath)
+          Add-Content $env:GITHUB_ENV "LIBCLANG_PATH=${VCINSTALLDIR}\VC\Tools\LLVM\x64\bin`n"
+          Invoke-WebRequest "${env:FFMPEG_DOWNLOAD_URL}" -OutFile ffmpeg-release-full-shared.7z
+          7z x ffmpeg-release-full-shared.7z
+          mkdir ffmpeg
+          mv ffmpeg-*/* ffmpeg/
+          Add-Content $env:GITHUB_ENV "FFMPEG_DIR=${pwd}\ffmpeg`n"
+          Add-Content $env:GITHUB_PATH "${pwd}\ffmpeg\bin`n"
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@v1
+        with:
+          toolchain: stable
+    
+      - name: Run Tests with All Features
+        run: cargo test --all-features
+
+      - name: Run Tests in Release Mode
+        run: cargo test --release
+
+      - name: Run Tests with No Default Features
+        run: cargo test --no-default-features
+
+      - name: Run Tests on All Targets
+        run: cargo test --all-targets
+
+
 
   lints:
     runs-on: ubuntu-latest
@@ -138,4 +223,4 @@ jobs:
         run: cargo fmt --all -- --check
 
       - name: Clippy
-        run: cargo clippy --all --all-features -- -D warnings
+        run: cargo clippy --all --all-targets --all-features -- -D warnings
