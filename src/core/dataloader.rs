@@ -30,10 +30,7 @@ impl Iterator for DataLoaderIterator {
             Some(progress_bar) => {
                 progress_bar.inc(1);
                 match self.receiver.recv().ok() {
-                    Some(item) => {
-                        // progress_bar.inc(1);
-                        Some(item)
-                    }
+                    Some(item) => Some(item),
                     None => {
                         progress_bar.set_prefix("    Iterated");
                         progress_bar.finish();
@@ -55,7 +52,7 @@ impl IntoIterator for DataLoader {
                 self.nf / self.batch_size as u64,
                 "   Iterating",
                 Some(&format!("{:?}", self.media_type)),
-                "{prefix:.green.bold} {msg} {human_pos}/{human_len} |{bar}| {elapsed_precise}",
+                "{prefix:.green.bold} {human_pos}/{human_len} |{bar}| {elapsed_precise} | {msg} ",
             )
             .ok()
         } else {

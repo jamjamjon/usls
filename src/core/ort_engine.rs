@@ -288,7 +288,7 @@ impl OrtEngine {
                 self.num_dry_run as u64,
                 "      DryRun",
                 None,
-                "{prefix:.cyan.bold} {msg:.dim} {human_pos}/{human_len} |{bar}| {elapsed_precise}",
+                "{prefix:.green.bold} {human_pos}/{human_len} |{bar}| {elapsed_precise} | {msg}",
             )?;
 
             // dummy inputs
@@ -310,6 +310,8 @@ impl OrtEngine {
             }
             self.ts.clear();
 
+            // update
+            pb.set_message(format!("{:?}", self.device));
             pb.finish();
         }
         Ok(())

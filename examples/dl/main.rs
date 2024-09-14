@@ -2,7 +2,7 @@ use usls::{models::YOLO, Annotator, DataLoader, Options, Vision, YOLOTask, YOLOV
 
 fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt()
-        .with_max_level(tracing::Level::INFO)
+        .with_max_level(tracing::Level::ERROR)
         .init();
 
     let options = Options::new()
@@ -21,11 +21,11 @@ fn main() -> anyhow::Result<()> {
         // "rtsp://admin:zfsoft888@192.168.2.217:554/h265/ch1/",
         // "rtsp://admin:KCNULU@192.168.2.193:554/h264/ch1/",
         // "../hall.mp4",
-        // "./assets/bus.jpg",
+        "./assets/bus.jpg",
         // "images/car.jpg",
         // "../set-negs",
         // "/home/qweasd/Desktop/coco/val2017/images/test",
-        "/home/qweasd/Desktop/SourceVideos/3.mp4",
+        // "/home/qweasd/Desktop/SourceVideos/3.mp4",
         // "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
     )?
     .with_batch(1)
