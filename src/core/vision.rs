@@ -25,6 +25,9 @@ pub trait Vision: Sized {
 
     /// Executes the full pipeline.
     fn forward(&mut self, xs: &[Self::Input], profile: bool) -> anyhow::Result<Vec<Y>> {
+        let span = tracing::span!(tracing::Level::INFO, "DataLoader-new");
+        let _guard = span.enter();
+
         let t_pre = std::time::Instant::now();
         let ys = self.preprocess(xs)?;
         let t_pre = t_pre.elapsed();
@@ -38,7 +41,9 @@ pub trait Vision: Sized {
         let t_post = t_post.elapsed();
 
         if profile {
-            println!("> Preprocess: {t_pre:?} | Execution: {t_exe:?} | Postprocess: {t_post:?}");
+            tracing::info!(
+                "> Preprocess: {t_pre:?} | Execution: {t_exe:?} | Postprocess: {t_post:?}"
+            );
         }
 
         Ok(ys)

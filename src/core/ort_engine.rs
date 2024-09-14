@@ -8,7 +8,8 @@ use prost::Message;
 use std::collections::HashSet;
 
 use crate::{
-    human_bytes, onnx, Device, Dir, MinOptMax, Ops, Options, Ts, Xs, CHECK_MARK, CROSS_MARK, X,
+    build_progress_bar, human_bytes, onnx, Device, Dir, MinOptMax, Ops, Options, Ts, Xs,
+    CHECK_MARK, CROSS_MARK, X,
 };
 
 /// Ort Tensor Attrs: name, data_type, dims
@@ -37,6 +38,9 @@ pub struct OrtEngine {
 
 impl OrtEngine {
     pub fn new(config: &Options) -> Result<Self> {
+        let span = tracing::span!(tracing::Level::INFO, "OrtEngine-new");
+        let _guard = span.enter();
+
         // onnx graph
         let model_proto = Self::load_onnx(&config.onnx_path)?;
         let graph = match &model_proto.graph {
@@ -150,13 +154,13 @@ impl OrtEngine {
             }
             Device::Cuda(device_id) => {
                 Self::build_cuda(&builder, device_id).unwrap_or_else(|err| {
+                    tracing::warn!("{err}, Using cpu");
                     device = Device::Cpu(0);
-                    println!("{err}");
                 })
             }
             Device::CoreML(_) => Self::build_coreml(&builder).unwrap_or_else(|err| {
+                tracing::warn!("{err}, Using cpu");
                 device = Device::Cpu(0);
-                println!("{err}");
             }),
             Device::Cpu(_) => {
                 Self::build_cpu(&builder)?;
@@ -169,7 +173,7 @@ impl OrtEngine {
             .commit_from_file(&config.onnx_path)?;
 
         // summary
-        println!(
+        tracing::info!(
             "{CHECK_MARK} Backend: ONNXRuntime | Opset: {} | Device: {:?} | Params: {}",
             model_proto.opset_import[0].version,
             device,
@@ -200,6 +204,9 @@ impl OrtEngine {
         fp16_enable: bool,
         engine_cache_enable: bool,
     ) -> Result<()> {
+        let span = tracing::span!(tracing::Level::INFO, "OrtEngine-new");
+        let _guard = span.enter();
+
         // auto generate shapes
         let mut spec_min = String::new();
         let mut spec_opt = String::new();
@@ -240,7 +247,7 @@ impl OrtEngine {
             .with_profile_opt_shapes(spec_opt)
             .with_profile_max_shapes(spec_max);
         if trt.is_available()? && trt.register(builder).is_ok() {
-            println!("\n🐢 Initial model serialization with TensorRT may require a wait...\n");
+            tracing::info!("🐢 Initial model serialization with TensorRT may require a wait...\n");
             Ok(())
         } else {
             anyhow::bail!("{CROSS_MARK} TensorRT initialization failed")
@@ -276,6 +283,15 @@ impl OrtEngine {
 
     pub fn dry_run(&mut self) -> Result<()> {
         if self.num_dry_run > 0 {
+            // pb
+            let pb = build_progress_bar(
+                self.num_dry_run as u64,
+                "      DryRun",
+                None,
+                "{prefix:.cyan.bold} {msg:.dim} {human_pos}/{human_len} |{bar}| {elapsed_precise}",
+            )?;
+
+            // dummy inputs
             let mut xs = Vec::new();
             for i in self.inputs_minoptmax.iter() {
                 let mut x: Vec<usize> = Vec::new();
@@ -286,16 +302,23 @@ impl OrtEngine {
                 xs.push(X::from(x));
             }
             let xs = Xs::from(xs);
+
+            // run
             for _ in 0..self.num_dry_run {
+                pb.inc(1);
                 self.run(xs.clone())?;
             }
             self.ts.clear();
-            println!("{CHECK_MARK} Dryrun x{}", self.num_dry_run);
+
+            pb.finish();
         }
         Ok(())
     }
 
     pub fn run(&mut self, xs: Xs) -> Result<Xs> {
+        let span = tracing::span!(tracing::Level::INFO, "OrtEngine-run");
+        let _guard = span.enter();
+
         // inputs dtype alignment
         let mut xs_ = Vec::new();
         let t_pre = std::time::Instant::now();
@@ -366,7 +389,7 @@ impl OrtEngine {
         if self.profile {
             let len = 10usize;
             let n = 4usize;
-            println!(
+            tracing::info!(
                 "[Profile] {:>len$.n$?} ({:>len$.n$?} avg) [alignment: {:>len$.n$?} ({:>len$.n$?} avg) | inference: {:>len$.n$?} ({:>len$.n$?} avg) | to_f32: {:>len$.n$?} ({:>len$.n$?} avg)]",
                 t_pre + t_run + t_post,
                 self.ts.avg(),

@@ -10,88 +10,133 @@ use video_rs::{
     Decoder, Url,
 };
 
-use crate::{string_now, Dir, Hub, Location, MediaType, CHECK_MARK, CROSS_MARK};
+use crate::{
+    build_progress_bar, string_now, Dir, Hub, Location, MediaType, CHECK_MARK, CROSS_MARK,
+};
 
 type TempReturnType = (Vec<DynamicImage>, Vec<PathBuf>);
 
-impl IntoIterator for DataLoader {
-    type Item = TempReturnType;
-    type IntoIter = DataLoaderIterator;
-
-    fn into_iter(self) -> Self::IntoIter {
-        DataLoaderIterator {
-            receiver: self.receiver,
-        }
-    }
-}
-
 pub struct DataLoaderIterator {
     receiver: mpsc::Receiver<TempReturnType>,
+    progress_bar: Option<ProgressBar>,
 }
 
 impl Iterator for DataLoaderIterator {
     type Item = TempReturnType;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.receiver.recv().ok()
+        match &self.progress_bar {
+            None => self.receiver.recv().ok(),
+            Some(progress_bar) => {
+                progress_bar.inc(1);
+                match self.receiver.recv().ok() {
+                    Some(item) => {
+                        // progress_bar.inc(1);
+                        Some(item)
+                    }
+                    None => {
+                        progress_bar.set_prefix("    Iterated");
+                        progress_bar.finish();
+                        None
+                    }
+                }
+            }
+        }
+    }
+}
+
+impl IntoIterator for DataLoader {
+    type Item = TempReturnType;
+    type IntoIter = DataLoaderIterator;
+
+    fn into_iter(self) -> Self::IntoIter {
+        let progress_bar = if self.with_pb {
+            build_progress_bar(
+                self.nf / self.batch_size as u64,
+                "   Iterating",
+                Some(&format!("{:?}", self.media_type)),
+                "{prefix:.green.bold} {msg} {human_pos}/{human_len} |{bar}| {elapsed_precise}",
+            )
+            .ok()
+        } else {
+            None
+        };
+
+        DataLoaderIterator {
+            receiver: self.receiver,
+            progress_bar,
+        }
     }
 }
 
 /// Load images, video, stream
 pub struct DataLoader {
     pub paths: Option<VecDeque<PathBuf>>,
-    pub media_type: Option<MediaType>,
+    pub media_type: MediaType,
     pub batch_size: usize,
     sender: Option<mpsc::Sender<TempReturnType>>,
     receiver: mpsc::Receiver<TempReturnType>,
     pub decoder: Option<video_rs::decode::Decoder>,
+    nf: u64, // MAX means live stream
+    with_pb: bool,
 }
 
 impl Default for DataLoader {
     fn default() -> Self {
         Self {
             paths: None,
-            media_type: Some(MediaType::Unknown),
+            media_type: MediaType::Unknown,
             batch_size: 1,
             sender: None,
             receiver: mpsc::channel().1,
             decoder: None,
+            nf: 0,
+            with_pb: true,
         }
     }
 }
 
 impl DataLoader {
     pub fn new(source: &str) -> Result<Self> {
+        let span = tracing::span!(tracing::Level::INFO, "DataLoader-new");
+        let _guard = span.enter();
+
+        // Number of frames or stream
+        let mut nf = 0;
+
         // paths & media_type
         let source_path = Path::new(source);
         let (paths, media_type) = match source_path.exists() {
             false => {
                 // remote
+                nf = 1;
                 (
                     Some(VecDeque::from([source_path.to_path_buf()])),
-                    Some(MediaType::from_url(source)),
+                    MediaType::from_url(source),
                 )
             }
             true => {
                 // local
                 if source_path.is_file() {
+                    nf = 1;
                     (
                         Some(VecDeque::from([source_path.to_path_buf()])),
-                        Some(MediaType::from_path(source_path)),
+                        MediaType::from_path(source_path),
                     )
                 } else if source_path.is_dir() {
                     let paths_sorted = Self::load_from_folder(source_path)?;
+                    nf = paths_sorted.len() as _;
                     (
                         Some(VecDeque::from(paths_sorted)),
-                        Some(MediaType::Image(Location::Local)),
+                        MediaType::Image(Location::Local),
                     )
                 } else {
-                    (None, Some(MediaType::Unknown))
+                    (None, MediaType::Unknown)
                 }
             }
         };
 
-        if let Some(MediaType::Unknown) = media_type {
+        if let MediaType::Unknown = media_type {
             anyhow::bail!("Could not locate the source path: {:?}", source_path);
         }
 
@@ -100,20 +145,21 @@ impl DataLoader {
 
         // decoder
         let decoder = match &media_type {
-            Some(MediaType::Video(Location::Local)) => Some(Decoder::new(source_path)?),
-            Some(MediaType::Video(Location::Remote)) | Some(MediaType::Stream) => {
+            MediaType::Video(Location::Local) => Some(Decoder::new(source_path)?),
+            MediaType::Video(Location::Remote) | MediaType::Stream => {
                 let location: video_rs::location::Location = source.parse::<Url>()?.into();
                 Some(Decoder::new(location)?)
             }
             _ => None,
         };
 
+        // get frames
+        if let Some(decoder) = &decoder {
+            nf = decoder.frames().unwrap_or(u64::MAX);
+        }
+
         // summary
-        println!(
-            "{CHECK_MARK} Found {:?} x{}",
-            media_type.as_ref().unwrap_or(&MediaType::Unknown),
-            paths.as_ref().map_or(0, |p| p.len())
-        );
+        tracing::info!("{} Found {:?} x{}", CHECK_MARK, media_type, nf,);
 
         Ok(DataLoader {
             paths,
@@ -122,6 +168,8 @@ impl DataLoader {
             receiver,
             batch_size: 1,
             decoder,
+            nf,
+            with_pb: true,
         })
     }
 
@@ -129,7 +177,8 @@ impl DataLoader {
         let sender = self.sender.take().expect("Sender should be available");
         let batch_size = self.batch_size;
         let data = self.paths.take().unwrap_or_default();
-        let media_type = self.media_type.take().unwrap_or(MediaType::Unknown);
+        // let media_type = self.media_type.take().unwrap_or(MediaType::Unknown);
+        let media_type = self.media_type.clone();
         let decoder = self.decoder.take();
 
         // Spawn the producer thread
@@ -147,6 +196,8 @@ impl DataLoader {
         media_type: MediaType,
         mut decoder: Option<video_rs::decode::Decoder>,
     ) {
+        let span = tracing::span!(tracing::Level::INFO, "DataLoader-producer-thread");
+        let _guard = span.enter();
         let mut yis: Vec<DynamicImage> = Vec::with_capacity(batch_size);
         let mut yps: Vec<PathBuf> = Vec::with_capacity(batch_size);
 
@@ -155,7 +206,7 @@ impl DataLoader {
                 while let Some(path) = data.pop_front() {
                     match Self::try_read(&path) {
                         Err(err) => {
-                            println!("{} {:?} | {:?}", CROSS_MARK, path, err);
+                            tracing::warn!("{} {:?} | {:?}", CROSS_MARK, path, err);
                             continue;
                         }
                         Ok(img) => {
@@ -211,12 +262,17 @@ impl DataLoader {
 
         // Deal with remaining data
         if !yis.is_empty() && sender.send((yis, yps)).is_err() {
-            println!("Receiver dropped, stopping production");
+            tracing::info!("Receiver dropped, stopping production");
         }
     }
 
     pub fn with_batch(mut self, x: usize) -> Self {
         self.batch_size = x;
+        self
+    }
+
+    pub fn with_progress_bar(mut self, x: bool) -> Self {
+        self.with_pb = x;
         self
     }
 
@@ -299,17 +355,7 @@ impl DataLoader {
         let saveout = Dir::Currnet
             .raw_path_with_subs(subs)?
             .join(format!("{}.mp4", string_now("-")));
-
-        // pb
-        let pb = ProgressBar::new(paths.len() as u64);
-        pb.set_style(
-            ProgressStyle::with_template(
-                "{prefix:.cyan.bold} {msg} |{bar}| ({percent_precise}%, {human_pos}/{human_len}, {per_sec})",
-            )?
-            .progress_chars("██ "),
-        );
-        pb.set_prefix("  Converting");
-        pb.set_message(saveout.to_str().unwrap_or_default().to_string());
+        let pb = build_progress_bar(paths.len() as u64, "  Converting", saveout.to_str(),"{prefix:.cyan.bold} {msg} |{bar}| ({percent_precise}%, {human_pos}/{human_len}, {per_sec})")?;
 
         // loop
         for path in paths {

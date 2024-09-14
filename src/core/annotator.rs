@@ -10,7 +10,6 @@ use imageproc::map::map_colors;
 /// Annotator for struct `Y`
 // #[derive(Debug)]
 pub struct Annotator {
-    verbose: bool,
     font: FontVec,
     _scale: f32, // Cope with ab_glyph & imageproc=0.24.0
     scale_dy: f32,
@@ -65,7 +64,6 @@ pub struct Annotator {
 impl Default for Annotator {
     fn default() -> Self {
         Self {
-            verbose: true,
             font: match Self::load_font(None) {
                 Ok(x) => x,
                 Err(err) => panic!("Failed to load font: {}", err),
@@ -347,6 +345,9 @@ impl Annotator {
 
     /// Plot images and return plotted images(RGBA8)
     pub fn plot(&self, imgs: &[DynamicImage], ys: &[Y]) -> Result<Vec<RgbaImage>> {
+        let span = tracing::span!(tracing::Level::INFO, "YOLO-new");
+        let _guard = span.enter();
+
         let mut vs: Vec<RgbaImage> = Vec::new();
 
         // annotate
@@ -396,11 +397,9 @@ impl Annotator {
             // save
             let saveout = self.saveout()?.join(format!("{}.png", string_now("-")));
             match img_rgba.save(&saveout) {
-                Err(err) => println!("{} Saving failed: {:?}", CROSS_MARK, err),
+                Err(err) => tracing::error!("{} Saving failed: {:?}", CROSS_MARK, err),
                 Ok(_) => {
-                    if self.verbose {
-                        println!("{} Annotated image saved to: {:?}", CHECK_MARK, saveout);
-                    }
+                    tracing::info!("{} Annotated image saved to: {:?}", CHECK_MARK, saveout);
                 }
             }
 

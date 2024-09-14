@@ -286,21 +286,24 @@ impl Hub {
     }
 
     pub fn connect_remote(&mut self) -> Result<Vec<Release>> {
+        let span = tracing::span!(tracing::Level::INFO, "OrtEngine-run");
+        let _guard = span.enter();
+
         let should_download = if !self.cache.exists() {
-            // println!("No cache found, fetching data from GitHub");
+            tracing::info!("No cache found, fetching data from GitHub");
             true
         } else {
             match std::fs::metadata(&self.cache)?.modified() {
                 Err(_) => {
-                    // println!("Cannot get file modified time, fetching new data from GitHub");
+                    tracing::info!("Cannot get file modified time, fetching new data from GitHub");
                     true
                 }
                 Ok(modified_time) => {
                     if std::time::SystemTime::now().duration_since(modified_time)? < self.ttl {
-                        // println!("Using cached data");
+                        tracing::info!("Using cached data");
                         false
                     } else {
-                        // println!("Cache expired, fetching new data from GitHub");
+                        tracing::info!("Cache expired, fetching new data from GitHub");
                         true
                     }
                 }

@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 
+use indicatif::{ProgressBar, ProgressStyle};
 use rand::{distributions::Alphanumeric, thread_rng, Rng};
 
 pub mod colormap256;
@@ -54,4 +55,18 @@ pub(crate) fn string_now(delimiter: &str) -> String {
         delimiter, delimiter, delimiter, delimiter, delimiter, delimiter
     );
     t_now.format(&fmt).to_string()
+}
+
+pub fn build_progress_bar(
+    n: u64,
+    prefix: &str,
+    msg: Option<&str>,
+    style_temp: &str,
+) -> anyhow::Result<ProgressBar> {
+    let pb = ProgressBar::new(n);
+    pb.set_style(ProgressStyle::with_template(style_temp)?.progress_chars("██ "));
+    pb.set_prefix(prefix.to_string());
+    pb.set_message(msg.unwrap_or_default().to_string());
+
+    Ok(pb)
 }
