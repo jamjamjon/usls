@@ -27,17 +27,21 @@ impl Iterator for DataLoaderIterator {
     fn next(&mut self) -> Option<Self::Item> {
         match &self.progress_bar {
             None => self.receiver.recv().ok(),
-            Some(progress_bar) => {
-                progress_bar.inc(1);
-                match self.receiver.recv().ok() {
-                    Some(item) => Some(item),
-                    None => {
-                        progress_bar.set_prefix("    Iterated");
-                        progress_bar.finish();
-                        None
-                    }
+            Some(progress_bar) => match self.receiver.recv().ok() {
+                Some(item) => {
+                    progress_bar.inc(1);
+                    Some(item)
                 }
-            }
+                None => {
+                    progress_bar.set_prefix("    Iterated");
+                    progress_bar.set_style(
+                        indicatif::ProgressStyle::with_template(crate::PROGRESS_BAR_STYLE_GREEN)
+                            .unwrap(),
+                    );
+                    progress_bar.finish();
+                    None
+                }
+            },
         }
     }
 }
@@ -52,7 +56,7 @@ impl IntoIterator for DataLoader {
                 self.nf / self.batch_size as u64,
                 "   Iterating",
                 Some(&format!("{:?}", self.media_type)),
-                "{prefix:.green.bold} {human_pos}/{human_len} |{bar}| {elapsed_precise} | {msg} ",
+                crate::PROGRESS_BAR_STYLE_CYAN,
             )
             .ok()
         } else {
@@ -66,31 +70,34 @@ impl IntoIterator for DataLoader {
     }
 }
 
-/// Load images, video, stream
+/// A structure designed to load and manage image, video, or stream data.
+/// It handles local file paths, remote URLs, and live streams, supporting both batch processing
+/// and optional progress bar display. The structure also supports video decoding through
+/// `video_rs` for video and stream data.
 pub struct DataLoader {
-    pub paths: Option<VecDeque<PathBuf>>,
-    pub media_type: MediaType,
-    pub batch_size: usize,
-    sender: Option<mpsc::Sender<TempReturnType>>,
-    receiver: mpsc::Receiver<TempReturnType>,
-    pub decoder: Option<video_rs::decode::Decoder>,
-    nf: u64, // MAX means live stream
-    with_pb: bool,
-}
+    /// Queue of paths for images.
+    paths: Option<VecDeque<PathBuf>>,
 
-impl Default for DataLoader {
-    fn default() -> Self {
-        Self {
-            paths: None,
-            media_type: MediaType::Unknown,
-            batch_size: 1,
-            sender: None,
-            receiver: mpsc::channel().1,
-            decoder: None,
-            nf: 0,
-            with_pb: true,
-        }
-    }
+    /// Media type of the source (image, video, stream, etc.).
+    media_type: MediaType,
+
+    /// Batch size for iteration, determining how many files are processed at once.
+    batch_size: usize,
+
+    /// Buffer size for the channel, used to manage the buffer between producer and consumer.
+    bound: usize,
+
+    /// Receiver for processed data.
+    receiver: mpsc::Receiver<TempReturnType>,
+
+    /// Video decoder for handling video or stream data.
+    decoder: Option<video_rs::decode::Decoder>,
+
+    /// Number of images or frames; `u64::MAX` is used for live streams (indicating no limit).
+    nf: u64,
+
+    /// Flag indicating whether to display a progress bar.
+    with_pb: bool,
 }
 
 impl DataLoader {
@@ -137,10 +144,7 @@ impl DataLoader {
             anyhow::bail!("Could not locate the source path: {:?}", source_path);
         }
 
-        // mpsc
-        let (sender, receiver) = mpsc::channel::<TempReturnType>();
-
-        // decoder
+        // video decoder
         let decoder = match &media_type {
             MediaType::Video(Location::Local) => Some(Decoder::new(source_path)?),
             MediaType::Video(Location::Remote) | MediaType::Stream => {
@@ -150,9 +154,13 @@ impl DataLoader {
             _ => None,
         };
 
-        // get frames
+        // video & stream frames
         if let Some(decoder) = &decoder {
-            nf = decoder.frames().unwrap_or(u64::MAX);
+            nf = match decoder.frames() {
+                Err(_) => u64::MAX,
+                Ok(0) => u64::MAX,
+                Ok(x) => x,
+            }
         }
 
         // summary
@@ -161,8 +169,8 @@ impl DataLoader {
         Ok(DataLoader {
             paths,
             media_type,
-            sender: Some(sender),
-            receiver,
+            bound: 50,
+            receiver: mpsc::sync_channel(1).1,
             batch_size: 1,
             decoder,
             nf,
@@ -170,11 +178,26 @@ impl DataLoader {
         })
     }
 
+    pub fn with_bound(mut self, x: usize) -> Self {
+        self.bound = x;
+        self
+    }
+
+    pub fn with_batch(mut self, x: usize) -> Self {
+        self.batch_size = x;
+        self
+    }
+
+    pub fn with_progress_bar(mut self, x: bool) -> Self {
+        self.with_pb = x;
+        self
+    }
+
     pub fn build(mut self) -> Result<Self> {
-        let sender = self.sender.take().expect("Sender should be available");
+        let (sender, receiver) = mpsc::sync_channel::<TempReturnType>(self.bound);
+        self.receiver = receiver;
         let batch_size = self.batch_size;
         let data = self.paths.take().unwrap_or_default();
-        // let media_type = self.media_type.take().unwrap_or(MediaType::Unknown);
         let media_type = self.media_type.clone();
         let decoder = self.decoder.take();
 
@@ -187,7 +210,7 @@ impl DataLoader {
     }
 
     fn producer_thread(
-        sender: mpsc::Sender<TempReturnType>,
+        sender: mpsc::SyncSender<TempReturnType>,
         mut data: VecDeque<PathBuf>,
         batch_size: usize,
         media_type: MediaType,
@@ -208,7 +231,7 @@ impl DataLoader {
                         }
                         Ok(img) => {
                             yis.push(img);
-                            yps.push(path.clone());
+                            yps.push(path);
                         }
                     }
                     if yis.len() == batch_size
@@ -261,16 +284,6 @@ impl DataLoader {
         if !yis.is_empty() && sender.send((yis, yps)).is_err() {
             tracing::info!("Receiver dropped, stopping production");
         }
-    }
-
-    pub fn with_batch(mut self, x: usize) -> Self {
-        self.batch_size = x;
-        self
-    }
-
-    pub fn with_progress_bar(mut self, x: bool) -> Self {
-        self.with_pb = x;
-        self
     }
 
     pub fn load_from_folder<P: AsRef<std::path::Path>>(path: P) -> Result<Vec<std::path::PathBuf>> {

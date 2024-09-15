@@ -12,7 +12,6 @@ pub use names::*;
 pub(crate) const CHECK_MARK: &str = "✅";
 pub(crate) const CROSS_MARK: &str = "❌";
 pub(crate) const SAFE_CROSS_MARK: &str = "❎";
-
 pub(crate) const NETWORK_PREFIXES: &[&str] = &[
     "http://", "https://", "ftp://", "ftps://", "sftp://", "rtsp://", "mms://", "mmsh://",
     "rtmp://", "rtmps://", "file://",
@@ -25,6 +24,10 @@ pub(crate) const AUDIO_EXTENSIONS: &[&str] = &["mp3", "wav", "flac", "aac", "ogg
 pub(crate) const STREAM_PROTOCOLS: &[&str] = &[
     "rtsp://", "rtsps://", "rtspu://", "rtmp://", "rtmps://", "hls://", "http://", "https://",
 ];
+pub(crate) const PROGRESS_BAR_STYLE_CYAN: &str =
+    "{prefix:.cyan.bold} {msg} {human_pos}/{human_len} |{bar}| {elapsed_precise}";
+pub(crate) const PROGRESS_BAR_STYLE_GREEN: &str =
+    "{prefix:.green.bold} {msg} {human_pos}/{human_len} |{bar}| {elapsed_precise}";
 
 pub fn human_bytes(size: f64) -> String {
     let units = ["B", "KB", "MB", "GB", "TB", "PB", "EB"];

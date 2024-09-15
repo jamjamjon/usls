@@ -287,8 +287,8 @@ impl OrtEngine {
             let pb = build_progress_bar(
                 self.num_dry_run as u64,
                 "      DryRun",
-                None,
-                "{prefix:.green.bold} {human_pos}/{human_len} |{bar}| {elapsed_precise} | {msg}",
+                Some(&format!("{:?}", self.device)),
+                crate::PROGRESS_BAR_STYLE_CYAN,
             )?;
 
             // dummy inputs
@@ -311,7 +311,9 @@ impl OrtEngine {
             self.ts.clear();
 
             // update
-            pb.set_message(format!("{:?}", self.device));
+            pb.set_style(indicatif::ProgressStyle::with_template(
+                crate::PROGRESS_BAR_STYLE_GREEN,
+            )?);
             pb.finish();
         }
         Ok(())

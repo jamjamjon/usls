@@ -18,18 +18,16 @@ fn main() -> anyhow::Result<()> {
 
     // build dataloader
     let dl = DataLoader::new(
-        // "rtsp://admin:zfsoft888@192.168.2.217:554/h265/ch1/",
-        // "rtsp://admin:KCNULU@192.168.2.193:554/h264/ch1/",
-        // "../hall.mp4",
-        "./assets/bus.jpg",
-        // "images/car.jpg",
-        // "../set-negs",
-        // "/home/qweasd/Desktop/coco/val2017/images/test",
-        // "/home/qweasd/Desktop/SourceVideos/3.mp4",
-        // "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+        "./assets/bus.jpg", // local image
+                            // "images/bus.jpg",  // remote image
+                            // "../images", // image folder
+                            // "../demo.mp4",   // local video
+                            // "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",  // remote video
+                            // "rtsp://admin:xyz@192.168.2.217:554/h265/ch1/",  // rtsp h264 stream
     )?
     .with_batch(1)
     .with_progress_bar(true)
+    .with_bound(100)
     .build()?;
 
     // // build annotator
@@ -39,7 +37,7 @@ fn main() -> anyhow::Result<()> {
 
     // run
     for (xs, _) in dl {
-        // std::thread::sleep(std::time::Duration::from_millis(10000));
+        // std::thread::sleep(std::time::Duration::from_millis(1000));
         let ys = model.forward(&xs, false)?;
         annotator.annotate(&xs, &ys);
     }
