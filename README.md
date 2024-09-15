@@ -119,12 +119,13 @@ cargo run -r --example yolo   # blip, clip, yolop, svtr, db, ...
     
 - #### Follow the pipeline
     - Build model with the provided `models` and `Options`
-    - Load Images, Video and Stream with `DataLoader`
+    - Load images, video and stream with `DataLoader`
     - Do inference
-    - Annotate Inference Results with `Annotator`  
+    - Annotate inference results with `Annotator`
+    - Retrieve inference results from `Vec<Y>`
            
       ```rust
-        use usls::{models::YOLO, Annotator, DataLoader, Options, Vision, YOLOTask, YOLOVersion};
+        use usls::{models::YOLO, Annotator, DataLoader, Nms, Options, Vision, YOLOTask, YOLOVersion};
     
         fn main() -> anyhow::Result<()> {
             // Build model with Options
@@ -160,6 +161,24 @@ cargo run -r --example yolo   # blip, clip, yolop, svtr, db, ...
             for (xs, _) in dl {
                 let ys = model.forward(&xs, false)?;
                 annotator.annotate(&xs, &ys);
+      
+                // Retrieve inference results
+                for y in ys {
+                    // bboxes
+                    if let Some(bboxes) = y.bboxes() {
+                        for bbox in bboxes {
+                            println!(
+                                "Bbox: {}, {}, {}, {}, {}, {}",
+                                bbox.xmin(),
+                                bbox.ymin(),
+                                bbox.xmax(),
+                                bbox.ymax(),
+                                bbox.confidence(),
+                                bbox.id(),
+                            );
+                        }
+                    }
+                }
             }
         
             Ok(())
