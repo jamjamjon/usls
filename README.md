@@ -98,7 +98,7 @@ You have two options to link the ONNXRuntime library
 
 
 
-## 🎈 Quick Start
+## 🎈 Demo
 
 ```Shell
 cargo run -r --example yolo   # blip, clip, yolop, svtr, db, ...
@@ -106,16 +106,66 @@ cargo run -r --example yolo   # blip, clip, yolop, svtr, db, ...
 
 ## 🥂 Integrate Into Your Own Project
 
-Add `usls` as a dependency to your project's `Cargo.toml`
-```Shell
-cargo add usls
-```
+- #### Add `usls` as a dependency to your project's `Cargo.toml`
+    ```Shell
+    cargo add usls
+    ```
+    
+    Or use a specific commit:
+    ```Toml
+    [dependencies]
+    usls = { git = "https://github.com/jamjamjon/usls", rev = "commit-sha" }
+    ```
+    
+- #### Follow the pipeline
+    - Build model with the provided `models` and `Options`
+    - Load Images, Video and Stream with `DataLoader`
+    - Do inference
+    - Annotate Inference Results with `Annotator`  
+           
+      ```rust
+        use usls::{models::YOLO, Annotator, DataLoader, Options, Vision, YOLOTask, YOLOVersion};
+    
+        fn main() -> anyhow::Result<()> {
+            // Build model with Options
+            let options = Options::new()
+                .with_trt(0)
+                .with_model("yolo/v8-m-dyn.onnx")?
+                .with_yolo_version(YOLOVersion::V8) // YOLOVersion: V5, V6, V7, V8, V9, V10, RTDETR
+                .with_yolo_task(YOLOTask::Detect) // YOLOTask: Classify, Detect, Pose, Segment, Obb
+                .with_i00((1, 2, 4).into())
+                .with_i02((0, 640, 640).into())
+                .with_i03((0, 640, 640).into())
+                .with_confs(&[0.2]);
+            let mut model = YOLO::new(options)?;
+        
+            // Build DataLoader to load image(s), video, stream
+            let dl = DataLoader::new(
+                // "./assets/bus.jpg", // local image
+                // "images/bus.jpg",  // remote image
+                // "../images-folder",  // local images (from folder)
+                // "../demo.mp4",  // local video
+                // "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",  // remote video
+                "rtsp://admin:kkasd1234@192.168.2.217:554/h264/ch1/",  // stream
+            )?
+            .with_batch(2)  // iterate with batch_size = 2
+            .build()?;
+        
+            // Build annotator
+            let annotator = Annotator::new()
+                .with_bboxes_thickness(4)
+                .with_saveout("YOLO-DataLoader");
+        
+            // Run and annotate results
+            for (xs, _) in dl {
+                let ys = model.forward(&xs, false)?;
+                annotator.annotate(&xs, &ys);
+            }
+        
+            Ok(())
+        }
+      ```
 
-Or use a specific commit:
-```Toml
-[dependencies]
-usls = { git = "https://github.com/jamjamjon/usls", rev = "commit-sha" }
-```
 
 ## 📌 License
 This project is licensed under [LICENSE](LICENSE).
