@@ -4,13 +4,6 @@
 cargo run -r --example svtr
 ```
 
-## ONNX Model
-
-- [ppocr-v4-server-svtr-ch-dyn](https://github.com/jamjamjon/assets/releases/download/v0.0.1/ppocr-v4-server-svtr-ch-dyn.onnx)  
-- [ppocr-v4-svtr-ch-dyn](https://github.com/jamjamjon/assets/releases/download/v0.0.1/ppocr-v4-svtr-ch-dyn.onnx)  
-- [ppocr-v3-svtr-ch-dyn](https://github.com/jamjamjon/assets/releases/download/v0.0.1/ppocr-v3-svtr-ch-dyn.onnx)  
-
-
 ### Speed test
 
 | Model                       | Width | TensorRT<br />f16<br />batch=1<br />(ms) | TensorRT<br />f32<br />batch=1<br />(ms) | CUDA<br />f32<br />batch=1<br />(ms) |

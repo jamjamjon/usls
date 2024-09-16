@@ -1,42 +1,71 @@
-//! A Rust library integrated with ONNXRuntime, providing a collection of **Computer Vision** and **Vision-Language** models.
+//! **usls** is a Rust library integrated with **ONNXRuntime** that provides a collection of state-of-the-art models for **Computer Vision** and **Vision-Language** tasks, including:
 //!
-//! # Supported Models
-//!
-//! - [YOLOv5](https://github.com/ultralytics/yolov5): Object Detection, Instance Segmentation, Classification
-//! - [YOLOv6](https://github.com/meituan/YOLOv6): Object Detection
-//! - [YOLOv7](https://github.com/WongKinYiu/yolov7): Object Detection
-//! - [YOLOv8](https://github.com/ultralytics/ultralytics): Object Detection, Instance Segmentation, Classification, Oriented Object Detection, Keypoint Detection
-//! - [YOLOv9](https://github.com/WongKinYiu/yolov9): Object Detection
-//! - [YOLOv10](https://github.com/THU-MIG/yolov10): Object Detection
-//! - [RT-DETR](https://arxiv.org/abs/2304.08069): Object Detection
-//! - [FastSAM](https://github.com/CASIA-IVA-Lab/FastSAM): Instance Segmentation
-//! - [SAM](https://github.com/facebookresearch/segment-anything): Segmentation Anything
-//! - [MobileSAM](https://github.com/ChaoningZhang/MobileSAM): Segmentation Anything
-//! - [EdgeSAM](https://github.com/chongzhou96/EdgeSAM): Segmentation Anything
-//! - [SAM-HQ](https://github.com/SysCV/sam-hq): Segmentation Anything
-//! - [YOLO-World](https://github.com/AILab-CVC/YOLO-World): Object Detection
-//! - [DINOv2](https://github.com/facebookresearch/dinov2): Vision-Self-Supervised
-//! - [CLIP](https://github.com/openai/CLIP): Vision-Language
-//! - [BLIP](https://github.com/salesforce/BLIP): Vision-Language
-//! - [DB](https://arxiv.org/abs/1911.08947): Text Detection
-//! - [SVTR](https://arxiv.org/abs/2205.00159): Text Recognition
-//! - [RTMO](https://github.com/open-mmlab/mmpose/tree/main/projects/rtmo): Keypoint Detection
-//! - [YOLOPv2](https://arxiv.org/abs/2208.11434): Panoptic Driving Perception
-//! - [Depth-Anything (v1, v2)](https://github.com/LiheYoung/Depth-Anything): Monocular Depth Estimation
-//! - [MODNet](https://github.com/ZHKKKe/MODNet): Image Matting
-//! - [Sapiens](https://arxiv.org/abs/2408.12569): Human-centric Vision Tasks
+//! - **YOLO Models**: [YOLOv5](https://github.com/ultralytics/yolov5), [YOLOv6](https://github.com/meituan/YOLOv6), [YOLOv7](https://github.com/WongKinYiu/yolov7), [YOLOv8](https://github.com/ultralytics/ultralytics), [YOLOv9](https://github.com/WongKinYiu/yolov9), [YOLOv10](https://github.com/THU-MIG/yolov10)
+//! - **SAM Models**: [SAM](https://github.com/facebookresearch/segment-anything), [SAM2](https://github.com/facebookresearch/segment-anything-2), [MobileSAM](https://github.com/ChaoningZhang/MobileSAM), [EdgeSAM](https://github.com/chongzhou96/EdgeSAM), [SAM-HQ](https://github.com/SysCV/sam-hq), [FastSAM](https://github.com/CASIA-IVA-Lab/FastSAM)
+//! - **Vision Models**: [RTDETR](https://arxiv.org/abs/2304.08069), [RTMO](https://github.com/open-mmlab/mmpose/tree/main/projects/rtmo), [DB](https://arxiv.org/abs/1911.08947), [SVTR](https://arxiv.org/abs/2205.00159), [Depth-Anything-v1-v2](https://github.com/LiheYoung/Depth-Anything), [DINOv2](https://github.com/facebookresearch/dinov2), [MODNet](https://github.com/ZHKKKe/MODNet), [Sapiens](https://arxiv.org/abs/2408.12569)
+//! - **Vision-Language Models**: [CLIP](https://github.com/openai/CLIP), [BLIP](https://arxiv.org/abs/2201.12086), [GroundingDINO](https://github.com/IDEA-Research/GroundingDINO), [YOLO-World](https://github.com/AILab-CVC/YOLO-World)
 //!
 //! # Examples
 //!
-//! [All Demos Here](https://github.com/jamjamjon/usls/tree/main/examples)
+//! Refer to [All Runnable Demos](https://github.com/jamjamjon/usls/tree/main/examples)
 //!
-//! # Using Provided Models for Inference
+//! # Quick Start
 //!
-//! #### 1. Build Model
-//! Using provided [`models`] with [`Options`]
+//! The following demo shows how to build a `YOLO` with [`Options`], load `image(s)`, `video` and `stream` with [`DataLoader`], and annotate the model's inference results with [`Annotator`].
 //!
-//! ```rust, no_run
-//! use usls::{ models::YOLO, Annotator, DataLoader, Options, Vision, COCO_CLASS_NAMES_80};
+//! ```ignore
+//! use usls::{models::YOLO, Annotator, DataLoader, Options, Vision, YOLOTask, YOLOVersion};
+//!
+//! fn main() -> anyhow::Result<()> {
+//!     // Build model with Options
+//!     let options = Options::new()
+//!         .with_trt(0)
+//!         .with_model("yolo/v8-m-dyn.onnx")?
+//!         .with_yolo_version(YOLOVersion::V8) // YOLOVersion: V5, V6, V7, V8, V9, V10, RTDETR
+//!         .with_yolo_task(YOLOTask::Detect) // YOLOTask: Classify, Detect, Pose, Segment, Obb
+//!         .with_i00((1, 1, 4).into())
+//!         .with_i02((0, 640, 640).into())
+//!         .with_i03((0, 640, 640).into())
+//!         .with_confs(&[0.2]);
+//!     let mut model = YOLO::new(options)?;
+//!
+//!     // Build DataLoader to load image(s), video, stream
+//!     let dl = DataLoader::new(
+//!         "./assets/bus.jpg", // local image
+//!         // "images/bus.jpg",  // remote image
+//!         // "../set-negs",  // local images (from folder)
+//!         // "../hall.mp4",  // local video
+//!         // "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",  // remote video
+//!         // "rtsp://admin:kkasd1234@192.168.2.217:554/h264/ch1/",  // stream
+//!     )?
+//!     .with_batch(3)  // iterate with batch_size = 3
+//!     .build()?;
+//!
+//!     // Build annotator
+//!     let annotator = Annotator::new().with_saveout("YOLO-Demo");
+//!
+//!     // Run and Annotate images
+//!     for (xs, _) in dl {
+//!         let ys = model.forward(&xs, false)?;
+//!         annotator.annotate(&xs, &ys);
+//!     }
+//!
+//!     Ok(())
+//! }
+//! ```
+//!
+
+//! # What's More
+//!
+//! This guide covers the process of using provided models for inference, including how to build a model, load data, annotate results, and retrieve the outputs. Click the sections below to expand for detailed instructions.
+//!
+//! <details>
+//! <summary>Build the Model</summary>
+//!
+//! To build a model, you can use the provided [models] with [Options]:
+//!
+//! ```ignore
+//! use usls::{models::YOLO, Annotator, DataLoader, Options, Vision};
 //!
 //! let options = Options::default()
 //!     .with_yolo_version(YOLOVersion::V8)  // YOLOVersion: V5, V6, V7, V8, V9, V10, RTDETR
@@ -45,107 +74,149 @@
 //! let mut model = YOLO::new(options)?;
 //! ```
 //!
-//! - Use `CUDA`, `TensorRT`, or `CoreML`
+//! **And there're many options provided by [Options]**
 //!
-//! ```rust, no_run
+//! - **Choose Execution Provider:**  
+//!   Select `CUDA` (default), `TensorRT`, or `CoreML`:
+//!
+//! ```ignore
 //! let options = Options::default()
-//!     .with_cuda(0) // using CUDA by default
+//!     .with_cuda(0)
 //!     // .with_trt(0)
 //!     // .with_coreml(0)
 //!     // .with_cpu();
 //! ```
 //!
-//! - Dynamic Input Shapes
+//! - **Dynamic Input Shapes:**  
+//!   Specify dynamic shapes with [MinOptMax]:
 //!
-//! ```rust, no_run
+//! ```ignore
 //! let options = Options::default()
-//!     .with_i00((1, 2, 4).into()) // dynamic batch
-//!     .with_i02((416, 640, 800).into()) // dynamic height
-//!     .with_i03((416, 640, 800).into()); // dynamic width
+//!     .with_i00((1, 2, 4).into()) // batch(min=1, opt=2, max=4)
+//!     .with_i02((416, 640, 800).into()) // height(min=416, opt=640, max=800)
+//!     .with_i03((416, 640, 800).into()); // width(min=416, opt=640, max=800)
 //! ```
 //!
-//! - Set Confidence Thresholds for Each Category
+//! - **Set Confidence Thresholds:**  
+//!   Adjust thresholds for each category:
 //!
-//! ```rust, no_run
+//! ```ignore
 //! let options = Options::default()
 //!     .with_confs(&[0.4, 0.15]); // class_0: 0.4, others: 0.15
 //! ```
 //!
-//! - Set Class Names
+//! - **Set Class Names:**  
+//!   Provide class names if needed:
 //!
-//! ```rust, no_run
+//! ```ignore
 //! let options = Options::default()
 //!     .with_names(&COCO_CLASS_NAMES_80);
 //! ```
 //!
-//! More options can be found in the [`Options`] documentation.
+//! **More options are detailed in the [Options] documentation.**  
+//!   
 //!
-//! #### 2. Load Images
+//! </details>
 //!
-//! Ensure that the input image is RGB type.
+//! <details>
+//! <summary>Load Images, Video and Stream</summary>
 //!
-//! - Using [`image::ImageReader`] or [`DataLoader`] to Load One Image
+//! - **Load a Single Image**  
+//! Use [DataLoader::try_read] to load an image from a local file or remote source:
 //!
-//! ```rust, no_run
-//! let x = vec![DataLoader::try_read("./assets/bus.jpg")?];
-//! // or
+//! ```ignore
+//! let x = DataLoader::try_read("./assets/bus.jpg")?; // from local
+//! let x = DataLoader::try_read("images/bus.jpg")?; // from remote
+//! ```
+//!
+//! Alternatively, use [image::ImageReader] directly:
+//!
+//! ```ignore
 //! let x = image::ImageReader::open("myimage.png")?.decode()?;
 //! ```
 //!
-//! - Using [`DataLoader`] to Load a Batch of Images
+//! - **Load Multiple Images, Videos, or Streams**  
+//! Create a [DataLoader] instance for batch processing:
 //!
-//! ```rust, no_run
-//! let dl = DataLoader::default()
-//!     .with_batch(4)
-//!     .load("./assets")?;
+//! ```ignore
+//! let dl = DataLoader::new(
+//!     "./assets/bus.jpg", // local image
+//!     // "images/bus.jpg",  // remote image
+//!     // "../set-negs",  // local images (from folder)
+//!     // "../hall.mp4",  // local video
+//!     // "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",  // remote video
+//!     // "rtsp://admin:kkasd1234@192.168.2.217:554/h264/ch1/",  // stream
+//! )?
+//! .with_batch(3)  // iterate with batch_size = 3
+//! .build()?;
+//!
+//! // Iterate through the data
+//! for (xs, _) in dl {}
 //! ```
 //!
-//! #### 3. (Optional) Annotate Results with [`Annotator`]
+//! - **Convert Images to Video**  
+//! Use [DataLoader::is2v] to create a video from a sequence of images:
 //!
-//! ```rust, no_run
+//! ```ignore
+//! let fps = 24;
+//! let image_folder = "runs/YOLO-DataLoader";
+//! let saveout = ["runs", "is2v"];
+//! DataLoader::is2v(image_folder, &saveout, fps)?;
+//! ```
+//!
+//! </details>
+//!
+//! <details>
+//! <summary>Annotate Inference Results</summary>
+//!
+//! - **Create an Annotator Instance**
+//!
+//! ```ignore
 //! let annotator = Annotator::default();
 //! ```
 //!
-//! - Set Saveout Name
+//! - **Set Saveout Name:**
 //!
-//! ```rust, no_run
+//! ```ignore
 //! let annotator = Annotator::default()
 //!     .with_saveout("YOLOs");
 //! ```
-//!     
-//! - Set Bboxes Line Width
 //!
-//! ```rust, no_run
+//! - **Set Bounding Box Line Width:**
+//!
+//! ```ignore
 //! let annotator = Annotator::default()
 //!     .with_bboxes_thickness(4);
 //! ```
-//!  
-//! - Disable Mask Plotting
-//!  
-//! ```rust, no_run
+//!
+//! - **Disable Mask Plotting**
+//!
+//! ```ignore
 //! let annotator = Annotator::default()
 //!     .without_masks(true);
 //! ```
-//!   
-//! More options can be found in the [`Annotator`] documentation.
 //!
-//!     
-//! #### 4. Run and Annotate
+//! - **Perform Inference and nnotate the results**  
 //!
-//! ```rust, no_run
+//! ```ignore
 //! for (xs, _paths) in dl {
 //!     let ys = model.run(&xs)?;
 //!     annotator.annotate(&xs, &ys);
 //! }
 //! ```
 //!
-//! #### 5. Get Results
+//! More options are detailed in the [Annotator] documentation.
 //!
-//! The inference outputs of provided models will be saved to a [`Vec<Y>`].
+//! </details>
 //!
-//! - For Example, Get Detection Bboxes with `y.bboxes()`
+//! <details>
+//! <summary>Retrieve Model's Inference Results</summary>
 //!
-//! ```rust, no_run
+//! Retrieve the inference outputs, which are saved in a [`Vec<Y>`]:
+//!
+//! - **Get Detection Bounding Boxes**
+//!
+//! ```ignore
 //! let ys = model.run(&xs)?;
 //! for y in ys {
 //!     // bboxes
@@ -165,11 +236,16 @@
 //! }
 //! ```
 //!
-//! # Also, You Can Implement Your Own Model with [`OrtEngine`] and [`Options`]
+//! </details>
 //!
-//! [`OrtEngine`] provides ONNX model loading, metadata parsing, dry_run, inference, and other functions, supporting EPs such as CUDA, TensorRT, CoreML, etc. You can use it as the ONNXRuntime engine for building models.
+//! <details>
+//! <summary>Custom Model Implementation</summary>
 //!
-//! Refer to [Demo: Depth-Anything](https://github.com/jamjamjon/usls/blob/main/src/models/depth_anything.rs) for more details.
+//! You can also implement your own model using [OrtEngine] and [Options]. [OrtEngine] supports ONNX model loading, metadata parsing, dry_run, inference, and other functions, with execution providers such as CUDA, TensorRT, CoreML, etc.
+//!
+//! For more details, refer to the [Demo: Depth-Anything](https://github.com/jamjamjon/usls/blob/main/src/models/depth_anything.rs).
+//!
+//! </details>
 
 mod core;
 pub mod models;

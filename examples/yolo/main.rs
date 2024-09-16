@@ -77,15 +77,15 @@ fn main() -> Result<()> {
     let (options, saveout) = match args.ver {
         YOLOVersion::V5 => match args.task {
             YOLOTask::Classify => (
-                options.with_model(&args.model.unwrap_or("yolov5n-cls-dyn.onnx".to_string()))?,
+                options.with_model(&args.model.unwrap_or("yolo/v5-n-cls-dyn.onnx".to_string()))?,
                 "YOLOv5-Classify",
             ),
             YOLOTask::Detect => (
-                options.with_model(&args.model.unwrap_or("yolov5n-dyn.onnx".to_string()))?,
+                options.with_model(&args.model.unwrap_or("yolo/v5-n-dyn.onnx".to_string()))?,
                 "YOLOv5-Detect",
             ),
             YOLOTask::Segment => (
-                options.with_model(&args.model.unwrap_or("yolov5n-seg-dyn.onnx".to_string()))?,
+                options.with_model(&args.model.unwrap_or("yolo/v5-n-seg-dyn.onnx".to_string()))?,
                 "YOLOv5-Segment",
             ),
             t => anyhow::bail!("Task: {t:?} is unsupported for {:?}", args.ver),
@@ -93,7 +93,7 @@ fn main() -> Result<()> {
         YOLOVersion::V6 => match args.task {
             YOLOTask::Detect => (
                 options
-                    .with_model(&args.model.unwrap_or("yolov6n-dyn.onnx".to_string()))?
+                    .with_model(&args.model.unwrap_or("yolo/v6-n-dyn.onnx".to_string()))?
                     .with_nc(args.nc),
                 "YOLOv6-Detect",
             ),
@@ -102,7 +102,7 @@ fn main() -> Result<()> {
         YOLOVersion::V7 => match args.task {
             YOLOTask::Detect => (
                 options
-                    .with_model(&args.model.unwrap_or("yolov7-tiny-dyn.onnx".to_string()))?
+                    .with_model(&args.model.unwrap_or("yolo/v7-tiny-dyn.onnx".to_string()))?
                     .with_nc(args.nc),
                 "YOLOv7-Detect",
             ),
@@ -110,43 +110,43 @@ fn main() -> Result<()> {
         },
         YOLOVersion::V8 => match args.task {
             YOLOTask::Classify => (
-                options.with_model(&args.model.unwrap_or("yolov8m-cls-dyn.onnx".to_string()))?,
+                options.with_model(&args.model.unwrap_or("yolo/v8-m-cls-dyn.onnx".to_string()))?,
                 "YOLOv8-Classify",
             ),
             YOLOTask::Detect => (
-                options.with_model(&args.model.unwrap_or("yolov8m-dyn.onnx".to_string()))?,
+                options.with_model(&args.model.unwrap_or("yolo/v8-m-dyn.onnx".to_string()))?,
                 "YOLOv8-Detect",
             ),
             YOLOTask::Segment => (
-                options.with_model(&args.model.unwrap_or("yolov8m-seg-dyn.onnx".to_string()))?,
+                options.with_model(&args.model.unwrap_or("yolo/v8-m-seg-dyn.onnx".to_string()))?,
                 "YOLOv8-Segment",
             ),
             YOLOTask::Pose => (
-                options.with_model(&args.model.unwrap_or("yolov8m-pose-dyn.onnx".to_string()))?,
+                options.with_model(&args.model.unwrap_or("yolo/v8-m-pose-dyn.onnx".to_string()))?,
                 "YOLOv8-Pose",
             ),
             YOLOTask::Obb => (
-                options.with_model(&args.model.unwrap_or("yolov8m-obb-dyn.onnx".to_string()))?,
+                options.with_model(&args.model.unwrap_or("yolo/v8-m-obb-dyn.onnx".to_string()))?,
                 "YOLOv8-Obb",
             ),
         },
         YOLOVersion::V9 => match args.task {
             YOLOTask::Detect => (
-                options.with_model(&args.model.unwrap_or("yolov9-c-dyn-f16.onnx".to_string()))?,
+                options.with_model(&args.model.unwrap_or("yolo/v9-c-dyn-f16.onnx".to_string()))?,
                 "YOLOv9-Detect",
             ),
             t => anyhow::bail!("Task: {t:?} is unsupported for {:?}", args.ver),
         },
         YOLOVersion::V10 => match args.task {
             YOLOTask::Detect => (
-                options.with_model(&args.model.unwrap_or("yolov10n.onnx".to_string()))?,
+                options.with_model(&args.model.unwrap_or("yolo/v10-n.onnx".to_string()))?,
                 "YOLOv10-Detect",
             ),
             t => anyhow::bail!("Task: {t:?} is unsupported for {:?}", args.ver),
         },
         YOLOVersion::RTDETR => match args.task {
             YOLOTask::Detect => (
-                options.with_model(&args.model.unwrap_or("rtdetr-l-f16.onnx".to_string()))?,
+                options.with_model(&args.model.unwrap_or("yolo/rtdetr-l-f16.onnx".to_string()))?,
                 "RTDETR",
             ),
             t => anyhow::bail!("Task: {t:?} is unsupported for {:?}", args.ver),
@@ -184,9 +184,9 @@ fn main() -> Result<()> {
     let mut model = YOLO::new(options)?;
 
     // build dataloader
-    let dl = DataLoader::default()
+    let dl = DataLoader::new(&args.source)?
         .with_batch(model.batch() as _)
-        .load(args.source)?;
+        .build()?;
 
     // build annotator
     let annotator = Annotator::default()

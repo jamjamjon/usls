@@ -1,7 +1,7 @@
 use anyhow::Result;
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 
-use usls::{models::YOLO, DataLoader, Options, Vision, YOLOTask, YOLOVersion, COCO_KEYPOINTS_17};
+use usls::{models::YOLO, DataLoader, Options, Vision, YOLOTask, YOLOVersion};
 
 enum Stage {
     Pre,
@@ -52,18 +52,17 @@ pub fn benchmark_cuda(c: &mut Criterion, h: isize, w: isize) -> Result<()> {
     let options = Options::default()
         .with_yolo_version(YOLOVersion::V8) // YOLOVersion: V5, V6, V7, V8, V9, V10, RTDETR
         .with_yolo_task(YOLOTask::Detect) // YOLOTask: Classify, Detect, Pose, Segment, Obb
-        .with_model("yolov8m-dyn.onnx")?
+        .with_model("yolo/v8-m-dyn.onnx")?
         .with_cuda(0)
         // .with_cpu()
         .with_dry_run(0)
         .with_i00((1, 1, 4).into())
         .with_i02((320, h, 1280).into())
         .with_i03((320, w, 1280).into())
-        .with_confs(&[0.2, 0.15]) // class_0: 0.4, others: 0.15
-        .with_names2(&COCO_KEYPOINTS_17);
+        .with_confs(&[0.2, 0.15]);
     let mut model = YOLO::new(options)?;
 
-    let xs = vec![DataLoader::try_read("./assets/bus.jpg")?];
+    let xs = [DataLoader::try_read("./assets/bus.jpg")?];
 
     group.bench_function("pre-process", |b| {
         b.iter_custom(|n| yolo_stage_bench(&mut model, &xs, Stage::Pre, n))

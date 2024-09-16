@@ -3,7 +3,7 @@ use image::DynamicImage;
 use ndarray::Array2;
 use tokenizers::{PaddingDirection, PaddingParams, PaddingStrategy, Tokenizer};
 
-use crate::{auto_load, Embedding, MinOptMax, Ops, Options, OrtEngine, Xs, X, Y};
+use crate::{Embedding, MinOptMax, Ops, Options, OrtEngine, Xs, X, Y};
 
 #[derive(Debug)]
 pub struct Clip {
@@ -29,13 +29,10 @@ impl Clip {
             visual.inputs_minoptmax()[0][3].to_owned(),
         );
 
-        let tokenizer = match options_textual.tokenizer {
-            Some(x) => x,
-            None => match auto_load("tokenizer-clip.json", Some("tokenizers")) {
-                Err(err) => anyhow::bail!("No tokenizer's file found: {:?}", err),
-                Ok(x) => x,
-            },
-        };
+        let tokenizer = options_textual
+            .tokenizer
+            .ok_or(anyhow::anyhow!("No tokenizer file found"))?;
+
         let mut tokenizer = match Tokenizer::from_file(tokenizer) {
             Err(err) => anyhow::bail!("Failed to build tokenizer: {:?}", err),
             Ok(x) => x,

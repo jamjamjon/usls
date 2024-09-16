@@ -5,8 +5,7 @@ use std::io::Write;
 use tokenizers::Tokenizer;
 
 use crate::{
-    auto_load, Embedding, LogitsSampler, MinOptMax, Ops, Options, OrtEngine, TokenizerStream, Xs,
-    X, Y,
+    Embedding, LogitsSampler, MinOptMax, Ops, Options, OrtEngine, TokenizerStream, Xs, X, Y,
 };
 
 #[derive(Debug)]
@@ -31,13 +30,9 @@ impl Blip {
             visual.width().to_owned(),
         );
 
-        let tokenizer = match options_textual.tokenizer {
-            Some(x) => x,
-            None => match auto_load("tokenizer-blip.json", Some("tokenizers")) {
-                Err(err) => anyhow::bail!("No tokenizer's file found: {:?}", err),
-                Ok(x) => x,
-            },
-        };
+        let tokenizer = options_textual
+            .tokenizer
+            .ok_or(anyhow::anyhow!("No tokenizer file found"))?;
         let tokenizer = match Tokenizer::from_file(tokenizer) {
             Err(err) => anyhow::bail!("Failed to build tokenizer: {:?}", err),
             Ok(x) => x,

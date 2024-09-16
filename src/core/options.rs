@@ -3,9 +3,8 @@
 use anyhow::Result;
 
 use crate::{
-    auto_load,
     models::{SamKind, SapiensTask, YOLOPreds, YOLOTask, YOLOVersion},
-    Device, MinOptMax,
+    Device, Hub, MinOptMax,
 };
 
 /// Options for building models
@@ -15,14 +14,14 @@ pub struct Options {
     pub device: Device,
     pub profile: bool,
     pub num_dry_run: usize,
-    pub i00: Option<MinOptMax>, // 1st input, axis 0, batch usually
-    pub i01: Option<MinOptMax>, // 1st input, axis 1
+    pub i00: Option<MinOptMax>, // the 1st input, axis 0, batch usually
+    pub i01: Option<MinOptMax>, // the 1st input, axis 1
     pub i02: Option<MinOptMax>,
     pub i03: Option<MinOptMax>,
     pub i04: Option<MinOptMax>,
     pub i05: Option<MinOptMax>,
-    pub i10: Option<MinOptMax>, // 2nd input, axis 0
-    pub i11: Option<MinOptMax>, // 2nd input, axis 1
+    pub i10: Option<MinOptMax>, // the 2nd input, axis 0
+    pub i11: Option<MinOptMax>, // the 2nd input, axis 1
     pub i12: Option<MinOptMax>,
     pub i13: Option<MinOptMax>,
     pub i14: Option<MinOptMax>,
@@ -101,7 +100,7 @@ impl Default for Options {
             onnx_path: String::new(),
             device: Device::Cuda(0),
             profile: false,
-            num_dry_run: 5,
+            num_dry_run: 3,
             i00: None,
             i01: None,
             i02: None,
@@ -182,8 +181,12 @@ impl Default for Options {
 }
 
 impl Options {
+    pub fn new() -> Self {
+        Default::default()
+    }
+
     pub fn with_model(mut self, onnx_path: &str) -> Result<Self> {
-        self.onnx_path = auto_load(onnx_path, Some("models"))?;
+        self.onnx_path = Hub::new()?.fetch(onnx_path)?.commit()?;
         Ok(self)
     }
 
@@ -268,7 +271,7 @@ impl Options {
     }
 
     pub fn with_vocab(mut self, vocab: &str) -> Result<Self> {
-        self.vocab = Some(auto_load(vocab, Some("tokenizers"))?);
+        self.vocab = Some(Hub::new()?.fetch(vocab)?.commit()?);
         Ok(self)
     }
 
@@ -278,7 +281,7 @@ impl Options {
     }
 
     pub fn with_tokenizer(mut self, tokenizer: &str) -> Result<Self> {
-        self.tokenizer = Some(auto_load(tokenizer, Some("tokenizers"))?);
+        self.tokenizer = Some(Hub::new()?.fetch(tokenizer)?.commit()?);
         Ok(self)
     }
 

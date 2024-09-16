@@ -28,8 +28,8 @@ impl Dinov2 {
             engine.inputs_minoptmax()[0][3].to_owned(),
         );
         let which = match options.onnx_path {
-            s if s.contains("b14") => Model::B,
-            s if s.contains("s14") => Model::S,
+            s if s.contains('b') => Model::B,
+            s if s.contains('s') => Model::S,
             _ => todo!(),
         };
         let hidden_size = match which {

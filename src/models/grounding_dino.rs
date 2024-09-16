@@ -1,4 +1,4 @@
-use crate::{auto_load, Bbox, DynConf, MinOptMax, Ops, Options, OrtEngine, Xs, X, Y};
+use crate::{Bbox, DynConf, MinOptMax, Ops, Options, OrtEngine, Xs, X, Y};
 use anyhow::Result;
 use image::DynamicImage;
 use ndarray::{s, Array, Axis};
@@ -27,13 +27,9 @@ impl GroundingDINO {
         );
         let context_length = options.context_length.unwrap_or(256);
         // let special_tokens = ["[CLS]", "[SEP]", ".", "?"];
-        let tokenizer = match options.tokenizer {
-            Some(x) => x,
-            None => match auto_load("tokenizer-groundingdino.json", Some("tokenizers")) {
-                Err(err) => anyhow::bail!("No tokenizer's file found: {:?}", err),
-                Ok(x) => x,
-            },
-        };
+        let tokenizer = options
+            .tokenizer
+            .ok_or(anyhow::anyhow!("No tokenizer file found"))?;
         let tokenizer = match Tokenizer::from_file(tokenizer) {
             Err(err) => anyhow::bail!("Failed to build tokenizer: {:?}", err),
             Ok(x) => x,

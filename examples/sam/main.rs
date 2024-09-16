@@ -25,63 +25,64 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let (options_encoder, options_decoder, saveout) = match args.kind {
         SamKind::Sam => {
             let options_encoder = Options::default()
-                // .with_model("sam-vit-b-encoder.onnx")?;
-                .with_model("sam-vit-b-encoder-u8.onnx")?;
+                // .with_model("sam/sam-vit-b-encoder.onnx")?;
+                .with_model("sam/sam-vit-b-encoder-u8.onnx")?;
 
             let options_decoder = Options::default()
                 .with_i00((1, 1, 1).into())
                 .with_i11((1, 1, 1).into())
                 .with_i21((1, 1, 1).into())
                 .with_sam_kind(SamKind::Sam)
-                // .with_model("sam-vit-b-decoder.onnx")?;
-                // .with_model("sam-vit-b-decoder-singlemask.onnx")?;
-                .with_model("sam-vit-b-decoder-u8.onnx")?;
+                // .with_model("sam/sam-vit-b-decoder.onnx")?;
+                // .with_model("sam/sam-vit-b-decoder-singlemask.onnx")?;
+                .with_model("sam/sam-vit-b-decoder-u8.onnx")?;
             (options_encoder, options_decoder, "SAM")
         }
         SamKind::Sam2 => {
             let options_encoder = Options::default()
-                // .with_model("sam2-hiera-tiny-encoder.onnx")?;
-                // .with_model("sam2-hiera-small-encoder.onnx")?;
-                .with_model("sam2-hiera-base-plus-encoder.onnx")?;
+                // .with_model("sam/sam2-hiera-tiny-encoder.onnx")?;
+                // .with_model("sam/sam2-hiera-small-encoder.onnx")?;
+                .with_model("sam/sam2-hiera-base-plus-encoder.onnx")?;
             let options_decoder = Options::default()
                 .with_i31((1, 1, 1).into())
                 .with_i41((1, 1, 1).into())
                 .with_sam_kind(SamKind::Sam2)
-                // .with_model("sam2-hiera-tiny-decoder.onnx")?;
-                // .with_model("sam2-hiera-small-decoder.onnx")?;
-                .with_model("sam2-hiera-base-plus-decoder.onnx")?;
+                // .with_model("sam/sam2-hiera-tiny-decoder.onnx")?;
+                // .with_model("sam/sam2-hiera-small-decoder.onnx")?;
+                .with_model("sam/sam2-hiera-base-plus-decoder.onnx")?;
             (options_encoder, options_decoder, "SAM2")
         }
         SamKind::MobileSam => {
-            let options_encoder = Options::default().with_model("mobile-sam-vit-t-encoder.onnx")?;
+            let options_encoder =
+                Options::default().with_model("sam/mobile-sam-vit-t-encoder.onnx")?;
 
             let options_decoder = Options::default()
                 .with_i00((1, 1, 1).into())
                 .with_i11((1, 1, 1).into())
                 .with_i21((1, 1, 1).into())
                 .with_sam_kind(SamKind::MobileSam)
-                .with_model("mobile-sam-vit-t-decoder.onnx")?;
+                .with_model("sam/mobile-sam-vit-t-decoder.onnx")?;
             (options_encoder, options_decoder, "Mobile-SAM")
         }
         SamKind::SamHq => {
-            let options_encoder = Options::default().with_model("sam-hq-vit-t-encoder.onnx")?;
+            let options_encoder = Options::default().with_model("sam/sam-hq-vit-t-encoder.onnx")?;
 
             let options_decoder = Options::default()
                 .with_i00((1, 1, 1).into())
                 .with_i21((1, 1, 1).into())
                 .with_i31((1, 1, 1).into())
                 .with_sam_kind(SamKind::SamHq)
-                .with_model("sam-hq-vit-t-decoder.onnx")?;
+                .with_model("sam/sam-hq-vit-t-decoder.onnx")?;
             (options_encoder, options_decoder, "SAM-HQ")
         }
         SamKind::EdgeSam => {
-            let options_encoder = Options::default().with_model("edge-sam-3x-encoder.onnx")?;
+            let options_encoder = Options::default().with_model("sam/edge-sam-3x-encoder.onnx")?;
             let options_decoder = Options::default()
                 .with_i00((1, 1, 1).into())
                 .with_i11((1, 1, 1).into())
                 .with_i21((1, 1, 1).into())
                 .with_sam_kind(SamKind::EdgeSam)
-                .with_model("edge-sam-3x-decoder.onnx")?;
+                .with_model("sam/edge-sam-3x-decoder.onnx")?;
             (options_encoder, options_decoder, "Edge-SAM")
         }
     };
@@ -100,8 +101,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Load image
     let xs = [
-        DataLoader::try_read("./assets/truck.jpg")?,
-        // DataLoader::try_read("./assets/dog.jpg")?,
+        DataLoader::try_read("images/truck.jpg")?,
+        // DataLoader::try_read("images/dog.jpg")?,
     ];
 
     // Build annotator

@@ -1,5 +1,5 @@
 use crate::{
-    auto_load, colormap256, string_now, Bbox, Keypoint, Mask, Mbr, Polygon, Prob, CHECK_MARK,
+    colormap256, string_now, Bbox, Dir, Hub, Keypoint, Mask, Mbr, Polygon, Prob, CHECK_MARK,
     CROSS_MARK, Y,
 };
 use ab_glyph::{FontVec, PxScale};
@@ -8,11 +8,12 @@ use image::{DynamicImage, GenericImage, Rgba, RgbaImage};
 use imageproc::map::map_colors;
 
 /// Annotator for struct `Y`
-#[derive(Debug)]
+// #[derive(Debug)]
 pub struct Annotator {
     font: FontVec,
     _scale: f32, // Cope with ab_glyph & imageproc=0.24.0
     scale_dy: f32,
+    saveout_base: String,
     saveout: Option<String>,
     decimal_places: usize,
 
@@ -63,11 +64,15 @@ pub struct Annotator {
 impl Default for Annotator {
     fn default() -> Self {
         Self {
-            font: Self::load_font(None).unwrap(),
+            font: match Self::load_font(None) {
+                Ok(x) => x,
+                Err(err) => panic!("Failed to load font: {}", err),
+            },
             _scale: 6.666667,
             scale_dy: 28.,
             polygons_alpha: 179,
             saveout: None,
+            saveout_base: String::from("runs"),
             decimal_places: 4,
             without_bboxes: false,
             without_bboxes_conf: false,
@@ -104,6 +109,10 @@ impl Default for Annotator {
 }
 
 impl Annotator {
+    pub fn new() -> Self {
+        Default::default()
+    }
+
     pub fn with_decimal_places(mut self, x: usize) -> Self {
         self.decimal_places = x;
         self
@@ -304,32 +313,44 @@ impl Annotator {
         self
     }
 
-    pub fn with_saveout(mut self, saveout: &str) -> Self {
-        self.saveout = Some(saveout.to_string());
+    pub fn with_saveout_base(mut self, x: &str) -> Self {
+        self.saveout_base = x.to_string();
         self
     }
 
-    pub fn with_font(mut self, path: &str) -> Self {
-        self.font = Self::load_font(Some(path)).unwrap();
+    pub fn with_saveout(mut self, x: &str) -> Self {
+        self.saveout = Some(x.to_string());
         self
     }
 
-    /// Save annotated images to `runs` folder
-    pub fn save(&self, image: &RgbaImage, saveout: &str) {
-        let mut saveout = std::path::PathBuf::from("runs").join(saveout);
-        if !saveout.exists() {
-            std::fs::create_dir_all(&saveout).unwrap();
-        }
-        saveout.push(string_now("-"));
-        let saveout = format!("{}.png", saveout.to_str().unwrap());
-        match image.save(&saveout) {
-            Err(err) => println!("{} Saving failed: {:?}", CROSS_MARK, err),
-            Ok(_) => println!("{} Annotated image saved to: {}", CHECK_MARK, saveout),
-        }
+    pub fn with_font(mut self, path: &str) -> Result<Self> {
+        self.font = Self::load_font(Some(path))?;
+        Ok(self)
     }
 
-    /// Annotate images
+    /// Create folders for saving annotated results. e.g., `./runs/xxx`
+    pub fn saveout(&self) -> Result<std::path::PathBuf> {
+        let subs = match &self.saveout {
+            Some(x) => vec![self.saveout_base.as_str(), x.as_str()],
+            None => vec![self.saveout_base.as_str()],
+        };
+
+        Dir::Currnet.raw_path_with_subs(&subs)
+    }
+
+    /// Annotate images, and no return
     pub fn annotate(&self, imgs: &[DynamicImage], ys: &[Y]) {
+        let _ = self.plot(imgs, ys);
+    }
+
+    /// Plot images and return plotted images(RGBA8)
+    pub fn plot(&self, imgs: &[DynamicImage], ys: &[Y]) -> Result<Vec<RgbaImage>> {
+        let span = tracing::span!(tracing::Level::INFO, "YOLO-new");
+        let _guard = span.enter();
+
+        let mut vs: Vec<RgbaImage> = Vec::new();
+
+        // annotate
         for (img, y) in imgs.iter().zip(ys.iter()) {
             let mut img_rgba = img.to_rgba8();
 
@@ -374,16 +395,23 @@ impl Annotator {
             }
 
             // save
-            if let Some(saveout) = &self.saveout {
-                self.save(&img_rgba, saveout);
+            let saveout = self.saveout()?.join(format!("{}.png", string_now("-")));
+            match img_rgba.save(&saveout) {
+                Err(err) => tracing::error!("{} Saving failed: {:?}", CROSS_MARK, err),
+                Ok(_) => {
+                    tracing::info!("{} Annotated image saved to: {:?}", CHECK_MARK, saveout);
+                }
             }
+
+            vs.push(img_rgba);
         }
+        Ok(vs)
     }
 
     /// Plot bounding bboxes and labels
     pub fn plot_bboxes(&self, img: &mut RgbaImage, bboxes: &[Bbox]) {
-        // bbox
         for bbox in bboxes.iter() {
+            // bbox
             let short_side_threshold =
                 bbox.width().min(bbox.height()) * self.bboxes_thickness_threshold;
             let thickness = self.bboxes_thickness.min(short_side_threshold as usize);
@@ -723,11 +751,11 @@ impl Annotator {
     /// Load custom font
     fn load_font(path: Option<&str>) -> Result<FontVec> {
         let path_font = match path {
-            None => auto_load("Arial.ttf", Some("fonts"))?,
+            None => Hub::new()?.fetch("fonts/Arial.ttf")?.commit()?,
             Some(p) => p.into(),
         };
         let buffer = std::fs::read(path_font)?;
-        Ok(FontVec::try_from_vec(buffer.to_owned()).unwrap())
+        Ok(FontVec::try_from_vec(buffer.to_owned())?)
     }
 
     /// Pick color from pallette

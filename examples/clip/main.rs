@@ -3,14 +3,14 @@ use usls::{models::Clip, DataLoader, Options};
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // visual
     let options_visual = Options::default()
-        .with_model("clip-b32-visual-dyn.onnx")?
+        .with_model("clip/visual-base-dyn.onnx")?
         .with_i00((1, 1, 4).into())
         .with_profile(false);
 
     // textual
     let options_textual = Options::default()
-        .with_model("clip-b32-textual-dyn.onnx")?
-        // .with_tokenizer("tokenizer-clip.json")?
+        .with_model("clip/textual-base-dyn.onnx")?
+        .with_tokenizer("clip/tokenizer.json")?
         .with_i00((1, 1, 4).into())
         .with_profile(false);
 
@@ -30,9 +30,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let feats_text = model.encode_texts(&texts)?; // [n, ndim]
 
     // load image
-    let dl = DataLoader::default()
-        .with_batch(model.batch_visual())
-        .load("./examples/clip/images")?;
+    let dl = DataLoader::new("./examples/clip/images")?.build()?;
 
     // loop
     for (images, paths) in dl {

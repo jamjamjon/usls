@@ -3,19 +3,19 @@
 
 |      Detection     |    Instance Segmentation   |   Pose     | 
 | :---------------: | :------------------------: |:---------------: |
-| <img src='./demos/det.png'  width="300px">  | <img src='./demos/seg.png'  width="300px"> |<img src='./demos/pose.png'  width="300px">  | 
+| <img src='https://github.com/jamjamjon/assets/releases/download/yolo/demo-det.png'  width="300px">  | <img src='https://github.com/jamjamjon/assets/releases/download/yolo/demo-seg.png'  width="300px"> |<img src='https://github.com/jamjamjon/assets/releases/download/yolo/demo-pose.png'  width="300px">  | 
 
 |    Classification   |    Obb   |
 | :------------------------: |:------------------------: |
-|<img src='./demos/cls.png'  width="300px"> |<img src='./demos/obb-2.png'  width="628px">
+|<img src='https://github.com/jamjamjon/assets/releases/download/yolo/demo-cls.png'  width="300px"> |<img src='https://github.com/jamjamjon/assets/releases/download/yolo/demo-obb-2.png'  width="628px">
 
 |    Head Detection   |    Fall Detection   | Trash Detection   |
 | :------------------------: |:------------------------: |:------------------------: |
-|<img src='./demos/head.png'  width="300px"> |<img src='./demos/falldown.png'  width="300px">|<img src='./demos/trash.png'  width="300px">
+|<img src='https://github.com/jamjamjon/assets/releases/download/yolo/demo-head.png'  width="300px"> |<img src='https://github.com/jamjamjon/assets/releases/download/yolo/demo-falldown.png'  width="300px">|<img src='https://github.com/jamjamjon/assets/releases/download/yolo/demo-trash.png'  width="300px">
 
 |    YOLO-World   |    Face Parsing   | FastSAM   |
 | :------------------------: |:------------------------: |:------------------------: |
-|<img src='./demos/yolov8-world.png'  width="300px"> |<img src='./demos/face-parsing.png'  width="300px">|<img src='./demos/fastsam.png'  width="300px">
+|<img src='https://github.com/jamjamjon/assets/releases/download/yolo/demo-yolov8-world.png'  width="300px"> |<img src='https://github.com/jamjamjon/assets/releases/download/yolo/demo-face-parsing.png'  width="300px">|<img src='https://github.com/jamjamjon/assets/releases/download/yolo/demo-fastsam.png'  width="300px">
 
 
 
@@ -104,11 +104,11 @@ let options = Options::default()
 
 |          Model          |    Weights   | Datasets|
 |:---------------------: | :--------------------------: | :-------------------------------: |
-| Face-Landmark Detection |   [yolov8-face-dyn-f16](https://github.com/jamjamjon/assets/releases/download/v0.0.1/yolov8-face-dyn-f16.onnx)         | |
-| Head Detection |   [yolov8-head-f16](https://github.com/jamjamjon/assets/releases/download/v0.0.1/yolov8-head-f16.onnx)         | |
-| Fall Detection |   [yolov8-falldown-f16](https://github.com/jamjamjon/assets/releases/download/v0.0.1/yolov8-falldown-f16.onnx)          | |
-| Trash Detection |   [yolov8-plastic-bag-f16](https://github.com/jamjamjon/assets/releases/download/v0.0.1/yolov8-plastic-bag-f16.onnx)         | |
-| FaceParsing |  [face-parsing-dyn](https://github.com/jamjamjon/assets/releases/download/v0.0.1/face-parsing-dyn.onnx)  | [CelebAMask-HQ](https://github.com/switchablenorms/CelebAMask-HQ/tree/master/face_parsing)<br />[[Processed YOLO labels]](https://github.com/jamjamjon/assets/releases/download/v0.0.1/CelebAMask-HQ-YOLO-Labels.zip)[[Python Script]](https://github.com/jamjamjon/assets/releases/download/v0.0.1/CelebAMask-HQ-YOLO-Labels.zip) |
+| Face-Landmark Detection |   [yolov8-face-dyn-f16](https://github.com/jamjamjon/assets/releases/download/yolo/v8-n-face-dyn-f16.onnx)         | |
+| Head Detection |   [yolov8-head-f16](https://github.com/jamjamjon/assets/releases/download/yolo/v8-head-f16.onnx)         | |
+| Fall Detection |   [yolov8-falldown-f16](https://github.com/jamjamjon/assets/releases/download/yolo/v8-falldown-f16.onnx)          | |
+| Trash Detection |   [yolov8-plastic-bag-f16](https://github.com/jamjamjon/assets/releases/download/yolo/v8-plastic-bag-f16.onnx)         | |
+| FaceParsing |  [yolov8-face-parsing-dyn](https://github.com/jamjamjon/assets/releases/download/yolo/v8-face-parsing-dyn.onnx)  | [CelebAMask-HQ](https://github.com/switchablenorms/CelebAMask-HQ/tree/master/face_parsing)<br />[[Processed YOLO labels]](https://github.com/jamjamjon/assets/releases/download/yolo/CelebAMask-HQ-YOLO-Labels.zip)[[Python Script]](../../scripts/CelebAMask-HQ-To-YOLO-Labels.py) |
 
 
 

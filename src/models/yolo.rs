@@ -32,6 +32,9 @@ impl Vision for YOLO {
     type Input = DynamicImage;
 
     fn new(options: Options) -> Result<Self> {
+        let span = tracing::span!(tracing::Level::INFO, "YOLO-new");
+        let _guard = span.enter();
+
         let mut engine = OrtEngine::new(&options)?;
         let (batch, height, width) = (
             engine.batch().to_owned(),
@@ -49,7 +52,7 @@ impl Vision for YOLO {
                 "segment" => Some(YOLOTask::Segment),
                 "obb" => Some(YOLOTask::Obb),
                 s => {
-                    println!("YOLO Task: {s:?} is unsupported");
+                    tracing::error!("YOLO Task: {s:?} is unsupported");
                     None
                 }
             }));
@@ -135,7 +138,7 @@ impl Vision for YOLO {
         let iou = options.iou.unwrap_or(0.45);
 
         // Summary
-        println!("YOLO Task: {:?}, Version: {:?}", task, version);
+        tracing::info!("YOLO Task: {:?}, Version: {:?}", task, version);
 
         engine.dry_run()?;
 

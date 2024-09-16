@@ -10,14 +10,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_confs(&[0.4])
         .with_min_width(5.0)
         .with_min_height(12.0)
-        .with_model("ppocr-v4-db-dyn.onnx")?;
+        .with_model("db/ppocr-v4-db-dyn.onnx")?;
 
     let mut model = DB::new(options)?;
 
     // load image
-    let x = vec![
-        DataLoader::try_read("./assets/db.png")?,
-        DataLoader::try_read("./assets/2.jpg")?,
+    let x = [
+        DataLoader::try_read("images/db.png")?,
+        DataLoader::try_read("images/street.jpg")?,
     ];
 
     // run
