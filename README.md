@@ -97,7 +97,6 @@ You have two options to link the ONNXRuntime library
   ```
 
 
-
 ## 🎈 Demo
 
 ```Shell
@@ -146,7 +145,7 @@ cargo run -r --example yolo   # blip, clip, yolop, svtr, db, ...
                 // "images/bus.jpg",  // remote image
                 // "../images-folder",  // local images (from folder)
                 // "../demo.mp4",  // local video
-                // "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",  // remote video
+                // "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",  // online video
                 "rtsp://admin:kkasd1234@192.168.2.217:554/h264/ch1/",  // stream
             )?
             .with_batch(2)  // iterate with batch_size = 2
