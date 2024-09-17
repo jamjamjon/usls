@@ -23,6 +23,7 @@ pub struct OrtTensorAttr {
 /// ONNXRuntime Backend
 #[derive(Debug)]
 pub struct OrtEngine {
+    name: String,
     session: Session,
     device: Device,
     inputs_minoptmax: Vec<Vec<MinOptMax>>,
@@ -129,6 +130,126 @@ impl OrtEngine {
                     (7, 3) => Self::_set_ixx(x, &config.i73, i, ii).unwrap_or(x_default),
                     (7, 4) => Self::_set_ixx(x, &config.i74, i, ii).unwrap_or(x_default),
                     (7, 5) => Self::_set_ixx(x, &config.i75, i, ii).unwrap_or(x_default),
+                    (8, 0) => Self::_set_ixx(x, &config.i80, i, ii).unwrap_or(x_default),
+                    (8, 1) => Self::_set_ixx(x, &config.i81, i, ii).unwrap_or(x_default),
+                    (8, 2) => Self::_set_ixx(x, &config.i82, i, ii).unwrap_or(x_default),
+                    (8, 3) => Self::_set_ixx(x, &config.i83, i, ii).unwrap_or(x_default),
+                    (8, 4) => Self::_set_ixx(x, &config.i84, i, ii).unwrap_or(x_default),
+                    (8, 5) => Self::_set_ixx(x, &config.i85, i, ii).unwrap_or(x_default),
+                    (9, 0) => Self::_set_ixx(x, &config.i90, i, ii).unwrap_or(x_default),
+                    (9, 1) => Self::_set_ixx(x, &config.i91, i, ii).unwrap_or(x_default),
+                    (9, 2) => Self::_set_ixx(x, &config.i92, i, ii).unwrap_or(x_default),
+                    (9, 3) => Self::_set_ixx(x, &config.i93, i, ii).unwrap_or(x_default),
+                    (9, 4) => Self::_set_ixx(x, &config.i94, i, ii).unwrap_or(x_default),
+                    (9, 5) => Self::_set_ixx(x, &config.i95, i, ii).unwrap_or(x_default),
+                    (10, 0) => Self::_set_ixx(x, &config.i100, i, ii).unwrap_or(x_default),
+                    (10, 1) => Self::_set_ixx(x, &config.i101, i, ii).unwrap_or(x_default),
+                    (10, 2) => Self::_set_ixx(x, &config.i102, i, ii).unwrap_or(x_default),
+                    (10, 3) => Self::_set_ixx(x, &config.i103, i, ii).unwrap_or(x_default),
+                    (10, 4) => Self::_set_ixx(x, &config.i104, i, ii).unwrap_or(x_default),
+                    (10, 5) => Self::_set_ixx(x, &config.i105, i, ii).unwrap_or(x_default),
+                    (11, 0) => Self::_set_ixx(x, &config.i110, i, ii).unwrap_or(x_default),
+                    (11, 1) => Self::_set_ixx(x, &config.i111, i, ii).unwrap_or(x_default),
+                    (11, 2) => Self::_set_ixx(x, &config.i112, i, ii).unwrap_or(x_default),
+                    (11, 3) => Self::_set_ixx(x, &config.i113, i, ii).unwrap_or(x_default),
+                    (11, 4) => Self::_set_ixx(x, &config.i114, i, ii).unwrap_or(x_default),
+                    (11, 5) => Self::_set_ixx(x, &config.i115, i, ii).unwrap_or(x_default),
+                    (12, 0) => Self::_set_ixx(x, &config.i120, i, ii).unwrap_or(x_default),
+                    (12, 1) => Self::_set_ixx(x, &config.i121, i, ii).unwrap_or(x_default),
+                    (12, 2) => Self::_set_ixx(x, &config.i122, i, ii).unwrap_or(x_default),
+                    (12, 3) => Self::_set_ixx(x, &config.i123, i, ii).unwrap_or(x_default),
+                    (12, 4) => Self::_set_ixx(x, &config.i124, i, ii).unwrap_or(x_default),
+                    (12, 5) => Self::_set_ixx(x, &config.i125, i, ii).unwrap_or(x_default),
+                    (13, 0) => Self::_set_ixx(x, &config.i130, i, ii).unwrap_or(x_default),
+                    (13, 1) => Self::_set_ixx(x, &config.i131, i, ii).unwrap_or(x_default),
+                    (13, 2) => Self::_set_ixx(x, &config.i132, i, ii).unwrap_or(x_default),
+                    (13, 3) => Self::_set_ixx(x, &config.i133, i, ii).unwrap_or(x_default),
+                    (13, 4) => Self::_set_ixx(x, &config.i134, i, ii).unwrap_or(x_default),
+                    (13, 5) => Self::_set_ixx(x, &config.i135, i, ii).unwrap_or(x_default),
+                    (14, 0) => Self::_set_ixx(x, &config.i140, i, ii).unwrap_or(x_default),
+                    (14, 1) => Self::_set_ixx(x, &config.i141, i, ii).unwrap_or(x_default),
+                    (14, 2) => Self::_set_ixx(x, &config.i142, i, ii).unwrap_or(x_default),
+                    (14, 3) => Self::_set_ixx(x, &config.i143, i, ii).unwrap_or(x_default),
+                    (14, 4) => Self::_set_ixx(x, &config.i144, i, ii).unwrap_or(x_default),
+                    (14, 5) => Self::_set_ixx(x, &config.i145, i, ii).unwrap_or(x_default),
+                    (15, 0) => Self::_set_ixx(x, &config.i150, i, ii).unwrap_or(x_default),
+                    (15, 1) => Self::_set_ixx(x, &config.i151, i, ii).unwrap_or(x_default),
+                    (15, 2) => Self::_set_ixx(x, &config.i152, i, ii).unwrap_or(x_default),
+                    (15, 3) => Self::_set_ixx(x, &config.i153, i, ii).unwrap_or(x_default),
+                    (15, 4) => Self::_set_ixx(x, &config.i154, i, ii).unwrap_or(x_default),
+                    (15, 5) => Self::_set_ixx(x, &config.i155, i, ii).unwrap_or(x_default),
+                    (16, 0) => Self::_set_ixx(x, &config.i160, i, ii).unwrap_or(x_default),
+                    (16, 1) => Self::_set_ixx(x, &config.i161, i, ii).unwrap_or(x_default),
+                    (16, 2) => Self::_set_ixx(x, &config.i162, i, ii).unwrap_or(x_default),
+                    (16, 3) => Self::_set_ixx(x, &config.i163, i, ii).unwrap_or(x_default),
+                    (16, 4) => Self::_set_ixx(x, &config.i164, i, ii).unwrap_or(x_default),
+                    (16, 5) => Self::_set_ixx(x, &config.i165, i, ii).unwrap_or(x_default),
+                    (17, 0) => Self::_set_ixx(x, &config.i170, i, ii).unwrap_or(x_default),
+                    (17, 1) => Self::_set_ixx(x, &config.i171, i, ii).unwrap_or(x_default),
+                    (17, 2) => Self::_set_ixx(x, &config.i172, i, ii).unwrap_or(x_default),
+                    (17, 3) => Self::_set_ixx(x, &config.i173, i, ii).unwrap_or(x_default),
+                    (17, 4) => Self::_set_ixx(x, &config.i174, i, ii).unwrap_or(x_default),
+                    (17, 5) => Self::_set_ixx(x, &config.i175, i, ii).unwrap_or(x_default),
+                    (18, 0) => Self::_set_ixx(x, &config.i180, i, ii).unwrap_or(x_default),
+                    (18, 1) => Self::_set_ixx(x, &config.i181, i, ii).unwrap_or(x_default),
+                    (18, 2) => Self::_set_ixx(x, &config.i182, i, ii).unwrap_or(x_default),
+                    (18, 3) => Self::_set_ixx(x, &config.i183, i, ii).unwrap_or(x_default),
+                    (18, 4) => Self::_set_ixx(x, &config.i184, i, ii).unwrap_or(x_default),
+                    (18, 5) => Self::_set_ixx(x, &config.i185, i, ii).unwrap_or(x_default),
+                    (19, 0) => Self::_set_ixx(x, &config.i190, i, ii).unwrap_or(x_default),
+                    (19, 1) => Self::_set_ixx(x, &config.i191, i, ii).unwrap_or(x_default),
+                    (19, 2) => Self::_set_ixx(x, &config.i192, i, ii).unwrap_or(x_default),
+                    (19, 3) => Self::_set_ixx(x, &config.i193, i, ii).unwrap_or(x_default),
+                    (19, 4) => Self::_set_ixx(x, &config.i194, i, ii).unwrap_or(x_default),
+                    (19, 5) => Self::_set_ixx(x, &config.i195, i, ii).unwrap_or(x_default),
+                    (20, 0) => Self::_set_ixx(x, &config.i200, i, ii).unwrap_or(x_default),
+                    (20, 1) => Self::_set_ixx(x, &config.i201, i, ii).unwrap_or(x_default),
+                    (20, 2) => Self::_set_ixx(x, &config.i202, i, ii).unwrap_or(x_default),
+                    (20, 3) => Self::_set_ixx(x, &config.i203, i, ii).unwrap_or(x_default),
+                    (20, 4) => Self::_set_ixx(x, &config.i204, i, ii).unwrap_or(x_default),
+                    (20, 5) => Self::_set_ixx(x, &config.i205, i, ii).unwrap_or(x_default),
+                    (21, 0) => Self::_set_ixx(x, &config.i210, i, ii).unwrap_or(x_default),
+                    (21, 1) => Self::_set_ixx(x, &config.i211, i, ii).unwrap_or(x_default),
+                    (21, 2) => Self::_set_ixx(x, &config.i212, i, ii).unwrap_or(x_default),
+                    (21, 3) => Self::_set_ixx(x, &config.i213, i, ii).unwrap_or(x_default),
+                    (21, 4) => Self::_set_ixx(x, &config.i214, i, ii).unwrap_or(x_default),
+                    (21, 5) => Self::_set_ixx(x, &config.i215, i, ii).unwrap_or(x_default),
+                    (22, 0) => Self::_set_ixx(x, &config.i220, i, ii).unwrap_or(x_default),
+                    (22, 1) => Self::_set_ixx(x, &config.i221, i, ii).unwrap_or(x_default),
+                    (22, 2) => Self::_set_ixx(x, &config.i222, i, ii).unwrap_or(x_default),
+                    (22, 3) => Self::_set_ixx(x, &config.i223, i, ii).unwrap_or(x_default),
+                    (22, 4) => Self::_set_ixx(x, &config.i224, i, ii).unwrap_or(x_default),
+                    (22, 5) => Self::_set_ixx(x, &config.i225, i, ii).unwrap_or(x_default),
+                    (23, 0) => Self::_set_ixx(x, &config.i230, i, ii).unwrap_or(x_default),
+                    (23, 1) => Self::_set_ixx(x, &config.i231, i, ii).unwrap_or(x_default),
+                    (23, 2) => Self::_set_ixx(x, &config.i232, i, ii).unwrap_or(x_default),
+                    (23, 3) => Self::_set_ixx(x, &config.i233, i, ii).unwrap_or(x_default),
+                    (23, 4) => Self::_set_ixx(x, &config.i234, i, ii).unwrap_or(x_default),
+                    (23, 5) => Self::_set_ixx(x, &config.i235, i, ii).unwrap_or(x_default),
+                    (24, 0) => Self::_set_ixx(x, &config.i240, i, ii).unwrap_or(x_default),
+                    (24, 1) => Self::_set_ixx(x, &config.i241, i, ii).unwrap_or(x_default),
+                    (24, 2) => Self::_set_ixx(x, &config.i242, i, ii).unwrap_or(x_default),
+                    (24, 3) => Self::_set_ixx(x, &config.i243, i, ii).unwrap_or(x_default),
+                    (24, 4) => Self::_set_ixx(x, &config.i244, i, ii).unwrap_or(x_default),
+                    (24, 5) => Self::_set_ixx(x, &config.i245, i, ii).unwrap_or(x_default),
+                    (25, 0) => Self::_set_ixx(x, &config.i250, i, ii).unwrap_or(x_default),
+                    (25, 1) => Self::_set_ixx(x, &config.i251, i, ii).unwrap_or(x_default),
+                    (25, 2) => Self::_set_ixx(x, &config.i252, i, ii).unwrap_or(x_default),
+                    (25, 3) => Self::_set_ixx(x, &config.i253, i, ii).unwrap_or(x_default),
+                    (25, 4) => Self::_set_ixx(x, &config.i254, i, ii).unwrap_or(x_default),
+                    (25, 5) => Self::_set_ixx(x, &config.i255, i, ii).unwrap_or(x_default),
+                    (26, 0) => Self::_set_ixx(x, &config.i260, i, ii).unwrap_or(x_default),
+                    (26, 1) => Self::_set_ixx(x, &config.i261, i, ii).unwrap_or(x_default),
+                    (26, 2) => Self::_set_ixx(x, &config.i262, i, ii).unwrap_or(x_default),
+                    (26, 3) => Self::_set_ixx(x, &config.i263, i, ii).unwrap_or(x_default),
+                    (26, 4) => Self::_set_ixx(x, &config.i264, i, ii).unwrap_or(x_default),
+                    (26, 5) => Self::_set_ixx(x, &config.i265, i, ii).unwrap_or(x_default),
+                    (27, 0) => Self::_set_ixx(x, &config.i270, i, ii).unwrap_or(x_default),
+                    (27, 1) => Self::_set_ixx(x, &config.i271, i, ii).unwrap_or(x_default),
+                    (27, 2) => Self::_set_ixx(x, &config.i272, i, ii).unwrap_or(x_default),
+                    (27, 3) => Self::_set_ixx(x, &config.i273, i, ii).unwrap_or(x_default),
+                    (27, 4) => Self::_set_ixx(x, &config.i274, i, ii).unwrap_or(x_default),
+                    (27, 5) => Self::_set_ixx(x, &config.i275, i, ii).unwrap_or(x_default),
                     _ => todo!(),
                 };
                 v_.push(x);
@@ -181,6 +302,7 @@ impl OrtEngine {
         );
 
         Ok(Self {
+            name: config.onnx_path.to_owned(),
             session,
             device,
             inputs_minoptmax,
@@ -284,10 +406,17 @@ impl OrtEngine {
     pub fn dry_run(&mut self) -> Result<()> {
         if self.num_dry_run > 0 {
             // pb
+            let name = std::path::Path::new(&self.name);
             let pb = build_progress_bar(
                 self.num_dry_run as u64,
                 "      DryRun",
-                Some(&format!("{:?}", self.device)),
+                Some(&format!(
+                    "{:?} | {}",
+                    self.device,
+                    name.file_name()
+                        .and_then(|x| x.to_str())
+                        .unwrap_or_default()
+                )),
                 crate::PROGRESS_BAR_STYLE_CYAN,
             )?;
 
@@ -357,6 +486,7 @@ impl OrtEngine {
         // inference
         let t_run = std::time::Instant::now();
         let outputs = self.session.run(&xs_[..])?;
+
         let t_run = t_run.elapsed();
         self.ts.add_or_push(1, t_run);
 
@@ -370,21 +500,32 @@ impl OrtEngine {
             .zip(self.outputs_attrs.names.iter())
         {
             let y = &outputs[name.as_str()];
+
             let y_ = match &dtype {
-                TensorElementType::Float32 => y.try_extract_tensor::<f32>()?.view().into_owned(),
-                TensorElementType::Float16 => y
-                    .try_extract_tensor::<f16>()?
-                    .view()
-                    .mapv(f16::to_f32)
-                    .into_owned(),
-                TensorElementType::Int64 => y
-                    .try_extract_tensor::<i64>()?
-                    .view()
-                    .to_owned()
-                    .mapv(|x| x as f32)
-                    .into_owned(),
+                TensorElementType::Float32 => match y.try_extract_tensor::<f32>() {
+                    Err(err) => {
+                        tracing::error!("Error: {:?}. Output name: {:?}", err, name);
+                        Array::zeros(0).into_dyn()
+                    }
+                    Ok(x) => x.view().into_owned(),
+                },
+                TensorElementType::Float16 => match y.try_extract_tensor::<f16>() {
+                    Err(err) => {
+                        tracing::error!("Error: {:?}. Output name: {:?}", err, name);
+                        Array::zeros(0).into_dyn()
+                    }
+                    Ok(x) => x.view().mapv(f16::to_f32).into_owned(),
+                },
+                TensorElementType::Int64 => match y.try_extract_tensor::<i64>() {
+                    Err(err) => {
+                        tracing::error!("Error: {:?}. Output name: {:?}", err, name);
+                        Array::zeros(0).into_dyn()
+                    }
+                    Ok(x) => x.view().to_owned().mapv(|x| x as f32).into_owned(),
+                },
                 _ => todo!(),
             };
+
             ys.push_kv(name.as_str(), X::from(y_))?;
         }
         let t_post = t_post.elapsed();
