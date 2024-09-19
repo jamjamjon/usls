@@ -1,10 +1,10 @@
 use anyhow::Result;
 use image::DynamicImage;
-use ndarray::s;
-use std::io::Write;
+use ndarray::{s, Axis};
+use std::collections::BTreeMap;
 use tokenizers::Tokenizer;
 
-use crate::{LogitsSampler, MinOptMax, Ops, Options, OrtEngine, Task, TokenizerStream, Xs, X, Y};
+use crate::{Bbox, LogitsSampler, MinOptMax, Ops, Options, OrtEngine, Quantizer, Task, Xs, X, Y};
 
 #[derive(Debug)]
 pub struct Florence2 {
@@ -16,8 +16,9 @@ pub struct Florence2 {
     pub height: MinOptMax,
     pub width: MinOptMax,
     pub batch: MinOptMax,
-    tokenizer: TokenizerStream,
-    task: Task,
+    tokenizer: Tokenizer,
+    max_length: usize,
+    quantizer: Quantizer,
 }
 
 impl Florence2 {
@@ -38,7 +39,6 @@ impl Florence2 {
             vision_encoder.height().to_owned(),
             vision_encoder.width().to_owned(),
         );
-        let task = options_text_embed.task;
         let tokenizer = options_text_embed
             .tokenizer
             .ok_or(anyhow::anyhow!("No tokenizer file found"))?;
@@ -47,7 +47,8 @@ impl Florence2 {
             Ok(x) => x,
         };
 
-        let tokenizer = TokenizerStream::new(tokenizer);
+        let quantizer = Quantizer::default();
+        let max_length = 1024;
 
         // dry run
         vision_encoder.dry_run()?;
@@ -66,7 +67,8 @@ impl Florence2 {
             width,
             batch,
             tokenizer,
-            task,
+            max_length,
+            quantizer,
         })
     }
 
@@ -86,21 +88,165 @@ impl Florence2 {
         Ok(ys)
     }
 
-    pub fn caption(&mut self, image_embeddings: &X, display: bool) -> Result<Vec<Y>> {
-        let mut ys: Vec<Y> = Vec::new();
+    pub fn run(&mut self, xs: &[DynamicImage], tasks: &[Task]) -> Result<BTreeMap<Task, Vec<Y>>> {
+        let mut ys: BTreeMap<Task, Vec<Y>> = BTreeMap::new();
 
-        // encode prompt
-        let input_ids = self
-            .construct_prompt(None)?
-            .insert_axis(0)?
-            .repeat(0, self.batch())?;
-        let text_embedings = self.text_embed.run(Xs::from(input_ids))?[0]
-            .clone()
-            .repeat(0, self.batch())?;
+        // encode batch images
+        let image_embeddings = self.encode_images(xs)?;
 
+        // note: the length of xs is not always equal to batch size
+        self.batch.update(xs.len() as isize);
+
+        // tasks loop
+        for task in tasks.iter() {
+            let mut ys_task: Vec<Y> = Vec::new();
+
+            // construct prompt and encode
+            let input_ids = self
+                .encode_prompt(task)?
+                .insert_axis(0)?
+                .repeat(0, self.batch())?;
+            let text_embeddings = self.text_embed.run(Xs::from(input_ids))?[0].clone();
+
+            // run
+            let texts = self.run_batch(&image_embeddings, &text_embeddings)?;
+
+            // postprocess
+            for batch in 0..self.batch() {
+                // image size
+                let image_width = xs[batch].width() as usize;
+                let image_height = xs[batch].height() as usize;
+
+                // texts clean up
+                let text = texts[batch]
+                    .as_str()
+                    .replace("<s>", "")
+                    .replace("</s>", "")
+                    .replace("<pad>", "");
+
+                // parse texts for each task
+                match task {
+                    Task::Caption(_) | Task::Ocr => {
+                        // pure text
+                        ys_task.push(Y::default().with_texts(&[text]));
+                    }
+                    Task::ObjectDetection => {
+                        let mut y_bboxes = Vec::new();
+
+                        // parse
+                        let elems = Self::loc_parse(&text)?;
+
+                        // de-quantize and save in one loop
+                        for (i, elem) in elems.iter().enumerate() {
+                            let name = &elem[0];
+                            elem[1..].chunks(4).for_each(|chunk| {
+                                let coord: Vec<i32> =
+                                    chunk.iter().map(|s| s.parse::<i32>().unwrap()).collect();
+
+                                // dequantize
+                                let dequantized_bbox = self
+                                    .quantizer
+                                    .dequantize(&coord, (image_width, image_height));
+
+                                // save
+                                y_bboxes.push(
+                                    Bbox::default()
+                                        .with_name(name)
+                                        .with_xyxy(
+                                            dequantized_bbox[0].max(0.0f32).min(image_width as f32),
+                                            dequantized_bbox[1]
+                                                .max(0.0f32)
+                                                .min(image_height as f32),
+                                            dequantized_bbox[2],
+                                            dequantized_bbox[3],
+                                        )
+                                        .with_id(i as _),
+                                );
+                            });
+                        }
+
+                        ys_task.push(Y::default().with_bboxes(&y_bboxes));
+                    }
+                    Task::RegionProposal => {
+                        let mut y_bboxes = Vec::new();
+
+                        // parse
+                        let elems = Self::loc_parse(&text)?;
+
+                        // de-quantize and save in one loop
+                        elems[0].chunks(4).enumerate().for_each(|(i, chunk)| {
+                            let coord: Vec<i32> =
+                                chunk.iter().map(|s| s.parse::<i32>().unwrap()).collect();
+
+                            // dequantize
+                            let dequantized_bbox = self
+                                .quantizer
+                                .dequantize(&coord, (image_width, image_height));
+
+                            // save
+                            y_bboxes.push(
+                                Bbox::default()
+                                    .with_xyxy(
+                                        dequantized_bbox[0].max(0.0f32).min(image_width as f32),
+                                        dequantized_bbox[1].max(0.0f32).min(image_height as f32),
+                                        dequantized_bbox[2],
+                                        dequantized_bbox[3],
+                                    )
+                                    .with_id(i as _),
+                            );
+                        });
+
+                        ys_task.push(Y::default().with_bboxes(&y_bboxes));
+                    }
+                    Task::DenseRegionCaption => {
+                        let mut y_bboxes = Vec::new();
+
+                        // parse
+                        let elems = Self::loc_parse(&text)?;
+
+                        // de-quantize and save in one loop
+                        for (i, elem) in elems.iter().enumerate() {
+                            let name = &elem[0];
+                            elem[1..].chunks(4).for_each(|chunk| {
+                                let coord: Vec<i32> =
+                                    chunk.iter().map(|s| s.parse::<i32>().unwrap()).collect();
+
+                                // dequantize
+                                let dequantized_bbox = self
+                                    .quantizer
+                                    .dequantize(&coord, (image_width, image_height));
+
+                                // save
+                                y_bboxes.push(
+                                    Bbox::default()
+                                        .with_name(name)
+                                        .with_xyxy(
+                                            dequantized_bbox[0].max(0.0f32).min(image_width as f32),
+                                            dequantized_bbox[1]
+                                                .max(0.0f32)
+                                                .min(image_height as f32),
+                                            dequantized_bbox[2],
+                                            dequantized_bbox[3],
+                                        )
+                                        .with_id(i as _),
+                                );
+                            });
+                        }
+
+                        ys_task.push(Y::default().with_bboxes(&y_bboxes));
+                    }
+                    _ => todo!(),
+                };
+            }
+
+            ys.insert(task.clone(), ys_task);
+        }
+        Ok(ys)
+    }
+
+    fn run_batch(&mut self, image_embeddings: &X, text_embeddings: &X) -> Result<Vec<String>> {
         // concate image_embeddings and prompt embeddings
-        let inputs_embeds = image_embeddings.clone().concatenate(&text_embedings, 1)?;
-
+        let inputs_embeds = image_embeddings.clone().concatenate(text_embeddings, 1)?;
         let attention_mask = X::ones(&[self.batch(), inputs_embeds.dims()[1]]);
 
         // encoder
@@ -137,12 +283,14 @@ impl Florence2 {
         let encoder_k5 = decoder_outputs[23].clone();
         let encoder_v5 = decoder_outputs[24].clone();
 
-        let mut y_text = String::new();
-        let mut generated_tokens = Vec::new();
+        let mut generated_tokens: Vec<Vec<u32>> = vec![vec![]; self.batch()];
+        let mut finished = vec![false; self.batch()];
 
-        // TODO: batch iter
+        // save last batch tokens
+        let mut last_tokens: Vec<f32> = vec![0.; self.batch()];
+
         let mut logits_sampler = LogitsSampler::new();
-        loop {
+        for _ in 0..self.max_length {
             let logits = &decoder_outputs["logits"];
             let decoder_k0 = &decoder_outputs[1];
             let decoder_v0 = &decoder_outputs[2];
@@ -157,37 +305,37 @@ impl Florence2 {
             let decoder_k5 = &decoder_outputs[21];
             let decoder_v5 = &decoder_outputs[22];
 
-            let next_token_logits = logits
-                .slice(s![.., -1.., ..])
-                .to_owned()
-                .into_raw_vec_and_offset()
-                .0;
+            // Decode each token for each batch
+            for (i, logit) in logits.axis_iter(Axis(0)).enumerate() {
+                if !finished[i] {
+                    let token_id = logits_sampler.decode(
+                        &logit
+                            .slice(s![-1, ..])
+                            .into_owned()
+                            .into_raw_vec_and_offset()
+                            .0,
+                    )?; //
+                    generated_tokens[i].push(token_id);
 
-            let token_id = logits_sampler.decode(&next_token_logits)?;
-            generated_tokens.push(token_id as f32);
+                    // update last_tokens
+                    last_tokens[i] = token_id as f32;
 
-            // </s>
-            if token_id == 2 {
+                    if token_id == 2 {
+                        finished[i] = true;
+                    }
+                }
+            }
+
+            // all finished?
+            if finished.iter().all(|&x| x) {
                 break;
             }
 
-            // streaming generation
-            if let Some(t) = self.tokenizer.next_token(token_id)? {
-                y_text.push_str(&t);
-                if display {
-                    print!("{t}");
-                    std::thread::sleep(std::time::Duration::from_millis(2));
-                }
-                std::io::stdout().flush()?;
-            }
-
             // next input text embedding
-            let next_token = X::from(vec![token_id as f32])
-                .insert_axis(0)?
-                .repeat(0, self.batch())?;
+            let next_tokens = X::from(last_tokens.clone()).insert_axis(1)?;
 
             // decode
-            let inputs_embeds = &self.text_embed.run(Xs::from(next_token))?[0].clone();
+            let inputs_embeds = &self.text_embed.run(Xs::from(next_tokens))?[0].clone();
             let use_cache = X::ones(&[1]);
             decoder_outputs = self.decoder_merged.run(Xs::from(vec![
                 attention_mask.clone(),
@@ -220,76 +368,56 @@ impl Florence2 {
                 use_cache,
             ]))?;
         }
-        if display {
-            println!();
-        }
-        self.tokenizer.clear();
 
-        ys.push(Y::default().with_texts(&[y_text]));
-
-        Ok(ys)
-    }
-
-    pub fn construct_prompt(&self, text: Option<&str>) -> Result<X> {
-        let prompt = match self.task {
-            Task::Untitled => anyhow::bail!("No task specified."),
-            Task::Caption(0) => "What does the image describe?".to_string(),
-            Task::Caption(1) => "Describe in detail what is shown in the image.".to_string(),
-            Task::Caption(2) => "Describe with a paragraph what is shown in the image.".to_string(),
-            Task::Ocr => "What is the text in the image?".to_string(),
-            Task::OcrWithRegion => "What is the text in the image, with regions?".to_string(),
-            Task::ObjectDetection => {
-                "Locate the objects with category name in the image.".to_string()
-            }
-            Task::DenseRegionCaption => {
-                "Locate the objects in the image, with their descriptions.".to_string()
-            }
-            Task::RegionProposal => "Locate the region proposals in the image.".to_string(),
-            Task::PhraseGrounding => format!(
-                "Locate the phrases in the caption: {}",
-                text.unwrap_or_default()
-            ),
-            Task::ReferringExpressionSegmentation => {
-                format!("Locate {} in the image with mask", text.unwrap_or_default())
-            }
-            Task::RegionToSegmentation => {
-                format!(
-                    "What is the polygon mask of region {}",
-                    text.unwrap_or_default()
-                )
-            }
-            Task::OpenSetDetection => {
-                format!("Locate {} in the image.", text.unwrap_or_default())
-            }
-            Task::RegionToCategory => {
-                format!("What is the region {}?", text.unwrap_or_default())
-            }
-            Task::RegionToDescription => {
-                format!(
-                    "What does the region {} describe?",
-                    text.unwrap_or_default()
-                )
-            }
-            Task::RegionToOcr => {
-                format!("What text is in the region {}?", text.unwrap_or_default())
-            }
-
-            _ => todo!(),
+        // batch decode
+        let texts = match self.tokenizer.decode_batch(
+            &generated_tokens
+                .iter()
+                .map(|tokens| tokens.as_slice())
+                .collect::<Vec<_>>(),
+            false,
+        ) {
+            Err(err) => anyhow::bail!("{:?}", err),
+            Ok(xs) => xs,
         };
 
-        let encodings = match self.tokenizer.tokenizer().encode(prompt, true) {
+        Ok(texts)
+    }
+
+    pub fn encode_prompt(&self, task: &Task) -> Result<X> {
+        let prompt = task.prompt_for_florence2()?;
+        let encodings = match self.tokenizer.encode(prompt, true) {
             Err(err) => anyhow::bail!("{}", err),
             Ok(x) => x,
         };
         let ids: Vec<f32> = encodings.get_ids().iter().map(|x| *x as f32).collect();
 
-        let ids = X::from(ids);
-        Ok(ids)
+        Ok(X::from(ids))
     }
 
-    pub fn with_task(mut self, task: Task) -> Self {
-        self.task = task;
-        self
+    fn loc_parse(hay: &str) -> Result<Vec<Vec<String>>> {
+        let pattern = r"(?i)(<loc_(?<coord>\d+)>)|(?<name>[^<]+)";
+        let re = regex::Regex::new(pattern)?;
+        let mut ys: Vec<Vec<String>> = Vec::new();
+        let mut y = Vec::new();
+
+        for cap in re.captures_iter(hay) {
+            if let Some(loc) = cap.name("coord") {
+                y.push(loc.as_str().to_string());
+            } else if let Some(text) = cap.name("name") {
+                if !text.as_str().is_empty() {
+                    if !y.is_empty() {
+                        ys.push(y);
+                        y = Vec::new();
+                    }
+                    y.push(text.as_str().to_string());
+                }
+            }
+        }
+        if !y.is_empty() {
+            ys.push(y);
+        }
+        Ok(ys)
     }
 
     pub fn batch(&self) -> usize {

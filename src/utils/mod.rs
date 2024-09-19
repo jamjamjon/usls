@@ -5,9 +5,11 @@ use rand::{distributions::Alphanumeric, thread_rng, Rng};
 
 pub mod colormap256;
 pub mod names;
+mod quantizer;
 
 pub use colormap256::*;
 pub use names::*;
+pub use quantizer::Quantizer;
 
 pub(crate) const CHECK_MARK: &str = "✅";
 pub(crate) const CROSS_MARK: &str = "❌";
