@@ -326,7 +326,7 @@ impl OrtEngine {
         fp16_enable: bool,
         engine_cache_enable: bool,
     ) -> Result<()> {
-        let span = tracing::span!(tracing::Level::INFO, "OrtEngine-new");
+        let span = tracing::span!(tracing::Level::INFO, "OrtEngine-build_trt");
         let _guard = span.enter();
 
         // auto generate shapes
@@ -410,14 +410,12 @@ impl OrtEngine {
             let pb = build_progress_bar(
                 self.num_dry_run as u64,
                 "      DryRun",
-                Some(&format!(
-                    "{:?} | {}",
-                    self.device,
+                Some(
                     name.file_name()
                         .and_then(|x| x.to_str())
-                        .unwrap_or_default()
-                )),
-                crate::PROGRESS_BAR_STYLE_CYAN,
+                        .unwrap_or_default(),
+                ),
+                crate::PROGRESS_BAR_STYLE_CYAN_2,
             )?;
 
             // dummy inputs
@@ -440,8 +438,16 @@ impl OrtEngine {
             self.ts.clear();
 
             // update
+            let name = std::path::Path::new(&self.name);
+            pb.set_message(format!(
+                "{} on {:?}",
+                name.file_name()
+                    .and_then(|x| x.to_str())
+                    .unwrap_or_default(),
+                self.device,
+            ));
             pb.set_style(indicatif::ProgressStyle::with_template(
-                crate::PROGRESS_BAR_STYLE_GREEN,
+                crate::PROGRESS_BAR_STYLE_FINISH,
             )?);
             pb.finish();
         }

@@ -105,19 +105,19 @@ pub enum Task {
     /// Input: image and region proposals
     /// Output: segmentation masks for the regions
     /// Region, bbox: top-left, bottom-right
-    RegionToSegmentation(u32, u32, u32, u32),
+    RegionToSegmentation(usize, usize, usize, usize),
 
     /// Region-to-category classification task, classifying the object in a given region of the image.
     /// Input: image and region
     /// Output: class label for the region
     /// Region, bbox: top-left, bottom-right
-    RegionToCategory(u32, u32, u32, u32),
+    RegionToCategory(usize, usize, usize, usize),
 
     /// Region-to-description task, generating a detailed description for a given region in the image.
     /// Input: image and region
     /// Output: a detailed textual description for the region
     /// Region, bbox: top-left, bottom-right
-    RegionToDescription(u32, u32, u32, u32),
+    RegionToDescription(usize, usize, usize, usize),
 
     /// Visual question answering (VQA) task, answering questions related to an image.
     /// Input: image and question text
@@ -133,9 +133,6 @@ pub enum Task {
     /// Input: image
     /// Output: recognized text and its bounding box in the image
     OcrWithRegion,
-
-    /// Region, bbox: top-left, bottom-right
-    RegionToOcr(u32, u32, u32, u32),
 }
 
 impl Task {
@@ -178,12 +175,6 @@ impl Task {
             Self::RegionToDescription(x0, y0, x1, y1) => {
                 format!(
                     "What does the region <loc_{}><loc_{}><loc_{}><loc_{}> describe?",
-                    x0, y0, x1, y1
-                )
-            }
-            Self::RegionToOcr(x0, y0, x1, y1) => {
-                format!(
-                    "What text is in the region <loc_{}><loc_{}><loc_{}><loc_{}>?",
                     x0, y0, x1, y1
                 )
             }

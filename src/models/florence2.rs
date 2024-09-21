@@ -1,10 +1,14 @@
 use anyhow::Result;
 use image::DynamicImage;
 use ndarray::{s, Axis};
+use rayon::prelude::*;
 use std::collections::BTreeMap;
 use tokenizers::Tokenizer;
 
-use crate::{Bbox, LogitsSampler, MinOptMax, Ops, Options, OrtEngine, Quantizer, Task, Xs, X, Y};
+use crate::{
+    build_progress_bar, Bbox, LogitsSampler, MinOptMax, Ops, Options, OrtEngine, Polygon,
+    Quantizer, Task, Xs, X, Y,
+};
 
 #[derive(Debug)]
 pub struct Florence2 {
@@ -88,9 +92,11 @@ impl Florence2 {
         Ok(ys)
     }
 
-    pub fn run(&mut self, xs: &[DynamicImage], tasks: &[Task]) -> Result<BTreeMap<Task, Vec<Y>>> {
-        let mut ys: BTreeMap<Task, Vec<Y>> = BTreeMap::new();
-
+    pub fn run_with_tasks(
+        &mut self,
+        xs: &[DynamicImage],
+        tasks: &[Task],
+    ) -> Result<BTreeMap<Task, Vec<Y>>> {
         // encode batch images
         let image_embeddings = self.encode_images(xs)?;
 
@@ -98,7 +104,19 @@ impl Florence2 {
         self.batch.update(xs.len() as isize);
 
         // tasks loop
+        let pb = build_progress_bar(
+            tasks.len() as u64,
+            "  Working On",
+            None,
+            crate::PROGRESS_BAR_STYLE_CYAN_2,
+        )?;
+
+        let mut ys: BTreeMap<Task, Vec<Y>> = BTreeMap::new();
         for task in tasks.iter() {
+            // update pb
+            pb.inc(1);
+            pb.set_message(format!("{:?}", task));
+
             let mut ys_task: Vec<Y> = Vec::new();
 
             // construct prompt and encode
@@ -117,130 +135,109 @@ impl Florence2 {
                 let image_width = xs[batch].width() as usize;
                 let image_height = xs[batch].height() as usize;
 
-                // texts clean up
+                // texts cleanup
                 let text = texts[batch]
                     .as_str()
                     .replace("<s>", "")
                     .replace("</s>", "")
                     .replace("<pad>", "");
 
-                // parse texts for each task
-                match task {
-                    Task::Caption(_) | Task::Ocr => {
-                        // pure text
-                        ys_task.push(Y::default().with_texts(&[text]));
-                    }
-                    Task::ObjectDetection => {
-                        let mut y_bboxes = Vec::new();
-
-                        // parse
-                        let elems = Self::loc_parse(&text)?;
-
-                        // de-quantize and save in one loop
-                        for (i, elem) in elems.iter().enumerate() {
-                            let name = &elem[0];
-                            elem[1..].chunks(4).for_each(|chunk| {
-                                let coord: Vec<i32> =
-                                    chunk.iter().map(|s| s.parse::<i32>().unwrap()).collect();
-
-                                // dequantize
-                                let dequantized_bbox = self
-                                    .quantizer
-                                    .dequantize(&coord, (image_width, image_height));
-
-                                // save
-                                y_bboxes.push(
-                                    Bbox::default()
-                                        .with_name(name)
-                                        .with_xyxy(
-                                            dequantized_bbox[0].max(0.0f32).min(image_width as f32),
-                                            dequantized_bbox[1]
-                                                .max(0.0f32)
-                                                .min(image_height as f32),
-                                            dequantized_bbox[2],
-                                            dequantized_bbox[3],
-                                        )
-                                        .with_id(i as _),
-                                );
-                            });
+                // cope with each task
+                if let Task::Caption(_) | Task::Ocr = task {
+                    ys_task.push(Y::default().with_texts(&[text]));
+                } else {
+                    let elems = Self::loc_parse(&text)?;
+                    match task {
+                        Task::RegionToCategory(..) | Task::RegionToDescription(..) => {
+                            let text = elems[0][0].clone(); // extract text only
+                            ys_task.push(Y::default().with_texts(&[text]));
                         }
+                        Task::ObjectDetection
+                        | Task::OpenSetDetection(_)
+                        | Task::DenseRegionCaption
+                        | Task::CaptionToPhraseGrounding(_) => {
+                            let y_bboxes: Vec<Bbox> = elems
+                                .par_iter()
+                                .enumerate()
+                                .flat_map(|(i, elem)| {
+                                    let name = &elem[0];
+                                    let y_bboxes: Vec<Bbox> = Self::process_bboxes(
+                                        &elem[1..],
+                                        &self.quantizer,
+                                        image_width,
+                                        image_height,
+                                        Some((name, i)),
+                                    );
+                                    y_bboxes
+                                })
+                                .collect();
 
-                        ys_task.push(Y::default().with_bboxes(&y_bboxes));
-                    }
-                    Task::RegionProposal => {
-                        let mut y_bboxes = Vec::new();
-
-                        // parse
-                        let elems = Self::loc_parse(&text)?;
-
-                        // de-quantize and save in one loop
-                        elems[0].chunks(4).enumerate().for_each(|(i, chunk)| {
-                            let coord: Vec<i32> =
-                                chunk.iter().map(|s| s.parse::<i32>().unwrap()).collect();
-
-                            // dequantize
-                            let dequantized_bbox = self
-                                .quantizer
-                                .dequantize(&coord, (image_width, image_height));
-
-                            // save
-                            y_bboxes.push(
-                                Bbox::default()
-                                    .with_xyxy(
-                                        dequantized_bbox[0].max(0.0f32).min(image_width as f32),
-                                        dequantized_bbox[1].max(0.0f32).min(image_height as f32),
-                                        dequantized_bbox[2],
-                                        dequantized_bbox[3],
-                                    )
-                                    .with_id(i as _),
+                            ys_task.push(Y::default().with_bboxes(&y_bboxes));
+                        }
+                        Task::RegionProposal => {
+                            let y_bboxes: Vec<Bbox> = Self::process_bboxes(
+                                &elems[0],
+                                &self.quantizer,
+                                image_width,
+                                image_height,
+                                None,
                             );
-                        });
 
-                        ys_task.push(Y::default().with_bboxes(&y_bboxes));
-                    }
-                    Task::DenseRegionCaption => {
-                        let mut y_bboxes = Vec::new();
-
-                        // parse
-                        let elems = Self::loc_parse(&text)?;
-
-                        // de-quantize and save in one loop
-                        for (i, elem) in elems.iter().enumerate() {
-                            let name = &elem[0];
-                            elem[1..].chunks(4).for_each(|chunk| {
-                                let coord: Vec<i32> =
-                                    chunk.iter().map(|s| s.parse::<i32>().unwrap()).collect();
-
-                                // dequantize
-                                let dequantized_bbox = self
-                                    .quantizer
-                                    .dequantize(&coord, (image_width, image_height));
-
-                                // save
-                                y_bboxes.push(
-                                    Bbox::default()
-                                        .with_name(name)
-                                        .with_xyxy(
-                                            dequantized_bbox[0].max(0.0f32).min(image_width as f32),
-                                            dequantized_bbox[1]
-                                                .max(0.0f32)
-                                                .min(image_height as f32),
-                                            dequantized_bbox[2],
-                                            dequantized_bbox[3],
-                                        )
-                                        .with_id(i as _),
-                                );
-                            });
+                            ys_task.push(Y::default().with_bboxes(&y_bboxes));
                         }
 
-                        ys_task.push(Y::default().with_bboxes(&y_bboxes));
-                    }
-                    _ => todo!(),
-                };
+                        Task::ReferringExpressionSegmentation(_)
+                        | Task::RegionToSegmentation(..) => {
+                            let points = Self::process_polygons(
+                                &elems[0],
+                                &self.quantizer,
+                                image_width,
+                                image_height,
+                            );
+
+                            ys_task.push(Y::default().with_polygons(&[
+                                Polygon::default().with_points(&points).with_id(0),
+                            ]));
+                        }
+                        Task::OcrWithRegion => {
+                            let y_polygons: Vec<Polygon> = elems
+                                .par_iter()
+                                .enumerate()
+                                .map(|(i, elem)| {
+                                    let text = &elem[0];
+                                    let points = Self::process_polygons(
+                                        &elem[1..],
+                                        &self.quantizer,
+                                        image_width,
+                                        image_height,
+                                    );
+
+                                    Polygon::default()
+                                        .with_name(text)
+                                        .with_points(&points)
+                                        .with_id(i as _)
+                                })
+                                .collect();
+
+                            ys_task.push(Y::default().with_polygons(&y_polygons));
+                        }
+
+                        _ => anyhow::bail!("Unsupported Florence2 task."),
+                    };
+                }
             }
 
             ys.insert(task.clone(), ys_task);
         }
+
+        // update pb
+        pb.set_prefix("   Completed");
+        pb.set_message("Florence2 tasks");
+        pb.set_style(indicatif::ProgressStyle::with_template(
+            crate::PROGRESS_BAR_STYLE_FINISH_2,
+        )?);
+        pb.finish();
+
         Ok(ys)
     }
 
@@ -393,6 +390,52 @@ impl Florence2 {
         let ids: Vec<f32> = encodings.get_ids().iter().map(|x| *x as f32).collect();
 
         Ok(X::from(ids))
+    }
+
+    fn process_polygons(
+        elems: &[String],
+        quantizer: &Quantizer,
+        image_width: usize,
+        image_height: usize,
+    ) -> Vec<Vec<f32>> {
+        elems
+            .par_chunks(2)
+            .map(|chunk| {
+                let coord: Vec<_> = chunk.iter().map(|s| s.parse::<usize>().unwrap()).collect();
+                quantizer.dequantize(&coord, (image_width, image_height))
+            })
+            .collect()
+    }
+
+    fn process_bboxes(
+        elems: &[String],
+        quantizer: &Quantizer,
+        image_width: usize,
+        image_height: usize,
+        class_name: Option<(&str, usize)>,
+    ) -> Vec<Bbox> {
+        elems
+            .par_chunks(4)
+            .enumerate()
+            .map(|(i, chunk)| {
+                let bbox: Vec<_> = chunk.iter().map(|s| s.parse::<usize>().unwrap()).collect();
+                let dequantized_bbox = quantizer.dequantize(&bbox, (image_width, image_height));
+
+                let mut bbox = Bbox::default().with_xyxy(
+                    dequantized_bbox[0].max(0.0f32).min(image_width as f32),
+                    dequantized_bbox[1].max(0.0f32).min(image_height as f32),
+                    dequantized_bbox[2],
+                    dequantized_bbox[3],
+                );
+                if let Some((class_name, i)) = class_name {
+                    bbox = bbox.with_name(class_name).with_id(i as _);
+                } else {
+                    bbox = bbox.with_id(i as _);
+                }
+
+                bbox
+            })
+            .collect()
     }
 
     fn loc_parse(hay: &str) -> Result<Vec<Vec<String>>> {

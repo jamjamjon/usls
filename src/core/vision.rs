@@ -25,7 +25,7 @@ pub trait Vision: Sized {
 
     /// Executes the full pipeline.
     fn forward(&mut self, xs: &[Self::Input], profile: bool) -> anyhow::Result<Vec<Y>> {
-        let span = tracing::span!(tracing::Level::INFO, "DataLoader-new");
+        let span = tracing::span!(tracing::Level::INFO, "Vision-forward");
         let _guard = span.enter();
 
         let t_pre = std::time::Instant::now();

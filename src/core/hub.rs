@@ -152,65 +152,59 @@ impl Hub {
         match p.exists() {
             true => self.path = p,
             false => {
-                // check local cache 1st
-                let p_cache = self.cache.with_file_name(s);
-                if p_cache.exists() {
-                    self.path = p_cache;
-                } else {
-                    // check remote list then
-                    match s.split_once('/') {
-                        Some((tag, file_name)) => {
-                            // Extract tag and file from input string
-                            self.tag = Some(tag.to_string());
-                            self.file_name = Some(file_name.to_string());
+                // check remote
+                match s.split_once('/') {
+                    Some((tag, file_name)) => {
+                        // Extract tag and file from input string
+                        self.tag = Some(tag.to_string());
+                        self.file_name = Some(file_name.to_string());
 
-                            // Check if releases are already loaded in memory
-                            if self.releases.is_none() {
-                                self.releases = Some(self.connect_remote()?);
+                        // Check if releases are already loaded in memory
+                        if self.releases.is_none() {
+                            self.releases = Some(self.connect_remote()?);
+                        }
+
+                        if let Some(releases) = &self.releases {
+                            // Validate the tag
+                            let tags: Vec<&str> =
+                                releases.iter().map(|x| x.tag_name.as_str()).collect();
+                            if !tags.contains(&tag) {
+                                anyhow::bail!(
+                                    "Hub tag '{}' not found in releases. Available tags: {:?}",
+                                    tag,
+                                    tags
+                                );
                             }
 
-                            if let Some(releases) = &self.releases {
-                                // Validate the tag
-                                let tags: Vec<&str> =
-                                    releases.iter().map(|x| x.tag_name.as_str()).collect();
-                                if !tags.contains(&tag) {
+                            // Validate the file
+                            if let Some(release) = releases.iter().find(|r| r.tag_name == tag) {
+                                let files: Vec<&str> =
+                                    release.assets.iter().map(|x| x.name.as_str()).collect();
+                                if !files.contains(&file_name) {
                                     anyhow::bail!(
-                                        "Hub tag '{}' not found in releases. Available tags: {:?}",
-                                        tag,
-                                        tags
-                                    );
-                                }
-
-                                // Validate the file
-                                if let Some(release) = releases.iter().find(|r| r.tag_name == tag) {
-                                    let files: Vec<&str> =
-                                        release.assets.iter().map(|x| x.name.as_str()).collect();
-                                    if !files.contains(&file_name) {
-                                        anyhow::bail!(
                                             "Hub file '{}' not found in tag '{}'. Available files: {:?}",
                                             file_name,
                                             tag,
                                             files
                                         );
-                                    } else {
-                                        for f_ in release.assets.iter() {
-                                            if f_.name.as_str() == file_name {
-                                                self.url = Some(f_.browser_download_url.clone());
-                                                self.file_size = Some(f_.size);
+                                } else {
+                                    for f_ in release.assets.iter() {
+                                        if f_.name.as_str() == file_name {
+                                            self.url = Some(f_.browser_download_url.clone());
+                                            self.file_size = Some(f_.size);
 
-                                                break;
-                                            }
+                                            break;
                                         }
                                     }
                                 }
-                                self.path = self.to.path_with_subs(&[tag])?.join(file_name);
                             }
+                            self.path = self.to.path_with_subs(&[tag])?.join(file_name);
                         }
-                        _ => anyhow::bail!(
+                    }
+                    _ => anyhow::bail!(
                         "Download failed due to invalid format. Expected: <tag>/<file>, got: {}",
                         s
                     ),
-                    }
                 }
             }
         }
@@ -286,7 +280,7 @@ impl Hub {
     }
 
     pub fn connect_remote(&mut self) -> Result<Vec<Release>> {
-        let span = tracing::span!(tracing::Level::INFO, "OrtEngine-run");
+        let span = tracing::span!(tracing::Level::INFO, "Hub-connect_remote");
         let _guard = span.enter();
 
         let should_download = if !self.cache.exists() {
@@ -416,7 +410,7 @@ impl Hub {
             // update
             pb.set_prefix("  Downloaded");
             pb.set_style(ProgressStyle::with_template(
-                "{prefix:.green.bold} {msg} ({binary_total_bytes}) in {elapsed}",
+                crate::PROGRESS_BAR_STYLE_FINISH_3,
             )?);
             pb.finish();
 

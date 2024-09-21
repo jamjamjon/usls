@@ -49,6 +49,16 @@ impl Polygon {
         self
     }
 
+    pub fn with_points(mut self, points: &[Vec<f32>]) -> Self {
+        // exterior
+        let v = points
+            .iter()
+            .map(|p| coord! { x: p[0] as f64, y: p[1] as f64})
+            .collect::<Vec<_>>();
+        self.polygon = geo::Polygon::new(LineString::from(v), vec![]);
+        self
+    }
+
     pub fn with_polygon(mut self, x: geo::Polygon) -> Self {
         self.polygon = x;
         self

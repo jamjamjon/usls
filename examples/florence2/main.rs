@@ -134,16 +134,24 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         options_decoder,
         options_decoder_merged,
     )?;
-    // .with_task(Task::Caption(2));
 
     // load images
     let xs = [
+        // DataLoader::try_read("florence2/car.jpg")?, // for testing region-related tasks
         DataLoader::try_read("florence2/car.jpg")?,
+        // DataLoader::try_read("images/db.png")?,
         DataLoader::try_read("assets/bus.jpg")?,
     ];
 
-    // run with a batch of tasks
-    let ys = model.run(
+    // region-related tasks
+    let quantizer = usls::Quantizer::default();
+    // let coords = [449., 270., 556., 372.];  // wheel
+    let coords = [31., 156., 581., 373.]; // car
+    let (width_car, height_car) = (xs[0].width(), xs[0].height());
+    let quantized_coords = quantizer.quantize(&coords, (width_car as _, height_car as _));
+
+    // run with tasks
+    let ys = model.run_with_tasks(
         &xs,
         &[
             // w/ inputs
@@ -151,45 +159,92 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             Task::Caption(1),
             Task::Caption(2),
             Task::Ocr,
+            Task::OcrWithRegion,
             Task::RegionProposal,
             Task::ObjectDetection,
             Task::DenseRegionCaption,
-            // // Task::OcrWithRegion, // TODO
             // w/o inputs
-            // Task::OpenSetDetection("A green car".into()),
-            // Task::CaptionToPhraseGrounding("A green car".into()),
-            // Task::ReferringExpressionSegmentation("A green car".into()),
-            // Task::RegionToSegmentation(702, 575, 866, 772),
-            // Task::RegionToCategory(52, 332, 932, 774),
-            // Task::RegionToDescription(52, 332, 932, 774),
-            // Task::RegionToOcr(100, 100, 300, 300),
+            Task::OpenSetDetection("a vehicle".into()),
+            Task::CaptionToPhraseGrounding(
+                "A vehicle with two wheels parked in front of a building.".into(),
+            ),
+            Task::ReferringExpressionSegmentation("a vehicle".into()),
+            Task::RegionToSegmentation(
+                quantized_coords[0],
+                quantized_coords[1],
+                quantized_coords[2],
+                quantized_coords[3],
+            ),
+            Task::RegionToCategory(
+                quantized_coords[0],
+                quantized_coords[1],
+                quantized_coords[2],
+                quantized_coords[3],
+            ),
+            Task::RegionToDescription(
+                quantized_coords[0],
+                quantized_coords[1],
+                quantized_coords[2],
+                quantized_coords[3],
+            ),
         ],
     )?;
 
     // annotator
+    let annotator = Annotator::new()
+        .without_bboxes_conf(true)
+        .with_bboxes_thickness(3)
+        .with_saveout_subs(&["Florence2"]);
     for (task, ys_) in ys.iter() {
         match task {
-            Task::Caption(_) | Task::Ocr => println!("Task: {:?}\n{:?}\n", task, ys_),
+            Task::Caption(_)
+            | Task::Ocr
+            | Task::RegionToCategory(..)
+            | Task::RegionToDescription(..) => {
+                println!("Task: {:?}\n{:?}\n", task, ys_)
+            }
             Task::DenseRegionCaption => {
-                let annotator = Annotator::default()
-                    .without_bboxes_conf(true)
-                    .with_bboxes_thickness(4)
-                    .with_saveout("Florence2-DenseRegionCaption");
+                let annotator = annotator.clone().with_saveout("Dense-Region-Caption");
                 annotator.annotate(&xs, ys_);
             }
             Task::RegionProposal => {
-                let annotator = Annotator::default()
-                    .without_bboxes_conf(true)
-                    .without_bboxes_name(true)
-                    .with_bboxes_thickness(4)
-                    .with_saveout("Florence2-RegionProposal");
+                let annotator = annotator
+                    .clone()
+                    .without_bboxes_name(false)
+                    .with_saveout("Region-Proposal");
+
                 annotator.annotate(&xs, ys_);
             }
             Task::ObjectDetection => {
-                let annotator = Annotator::default()
-                    .without_bboxes_conf(true)
-                    .with_bboxes_thickness(4)
-                    .with_saveout("Florence2-ObjectDetection");
+                let annotator = annotator.clone().with_saveout("Object-Detection");
+                annotator.annotate(&xs, ys_);
+            }
+            Task::OpenSetDetection(_) => {
+                let annotator = annotator.clone().with_saveout("Open-Set-Detection");
+                annotator.annotate(&xs, ys_);
+            }
+            Task::CaptionToPhraseGrounding(_) => {
+                let annotator = annotator
+                    .clone()
+                    .with_saveout("Caption-To-Phrase-Grounding");
+                annotator.annotate(&xs, ys_);
+            }
+            Task::ReferringExpressionSegmentation(_) => {
+                let annotator = annotator
+                    .clone()
+                    .with_polygons_alpha(200)
+                    .with_saveout("Referring-Expression-Segmentation");
+                annotator.annotate(&xs, ys_);
+            }
+            Task::RegionToSegmentation(..) => {
+                let annotator = annotator
+                    .clone()
+                    .with_polygons_alpha(200)
+                    .with_saveout("Region-To-Segmentation");
+                annotator.annotate(&xs, ys_);
+            }
+            Task::OcrWithRegion => {
+                let annotator = annotator.clone().with_saveout("Ocr-With-Region");
                 annotator.annotate(&xs, ys_);
             }
 
