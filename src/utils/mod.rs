@@ -5,9 +5,11 @@ use rand::{distributions::Alphanumeric, thread_rng, Rng};
 
 pub mod colormap256;
 pub mod names;
+mod quantizer;
 
 pub use colormap256::*;
 pub use names::*;
+pub use quantizer::Quantizer;
 
 pub(crate) const CHECK_MARK: &str = "✅";
 pub(crate) const CROSS_MARK: &str = "❌";
@@ -28,6 +30,19 @@ pub(crate) const PROGRESS_BAR_STYLE_CYAN: &str =
     "{prefix:.cyan.bold} {msg} {human_pos}/{human_len} |{bar}| {elapsed_precise}";
 pub(crate) const PROGRESS_BAR_STYLE_GREEN: &str =
     "{prefix:.green.bold} {msg} {human_pos}/{human_len} |{bar}| {elapsed_precise}";
+pub(crate) const PROGRESS_BAR_STYLE_CYAN_2: &str =
+    "{prefix:.cyan.bold} {human_pos}/{human_len} |{bar}| {msg}";
+pub(crate) const PROGRESS_BAR_STYLE_CYAN_3: &str =
+    "{prefix:.cyan.bold} |{bar}| {human_pos}/{human_len} {msg}";
+pub(crate) const PROGRESS_BAR_STYLE_GREEN_2: &str =
+    "{prefix:.green.bold} {human_pos}/{human_len} |{bar}| {elapsed_precise}";
+pub(crate) const PROGRESS_BAR_STYLE_FINISH: &str =
+    "{prefix:.green.bold} {msg} for {human_len} iterations in {elapsed}";
+pub(crate) const PROGRESS_BAR_STYLE_FINISH_2: &str =
+    "{prefix:.green.bold} {msg} x{human_len} in {elapsed}";
+pub(crate) const PROGRESS_BAR_STYLE_FINISH_3: &str =
+    "{prefix:.green.bold} {msg} ({binary_total_bytes}) in {elapsed}";
+pub(crate) const PROGRESS_BAR_STYLE_FINISH_4: &str = "{prefix:.green.bold} {msg} in {elapsed}";
 
 pub fn human_bytes(size: f64) -> String {
     let units = ["B", "KB", "MB", "GB", "TB", "PB", "EB"];

@@ -18,26 +18,24 @@ fn main() -> anyhow::Result<()> {
 
     // build dataloader
     let dl = DataLoader::new(
+        // "images/bus.jpg",  // remote image
+        // "../images", // image folder
+        // "../demo.mp4",   // local video
+        // "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4", // remote video
+        // "rtsp://admin:xyz@192.168.2.217:554/h265/ch1/",  // rtsp h264 stream
         "./assets/bus.jpg", // local image
-                            // "images/bus.jpg",  // remote image
-                            // "../images", // image folder
-                            // "../demo.mp4",   // local video
-                            // "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",  // remote video
-                            // "rtsp://admin:xyz@192.168.2.217:554/h265/ch1/",  // rtsp h264 stream
     )?
     .with_batch(1)
-    .with_progress_bar(true)
-    .with_bound(100)
     .build()?;
 
-    // // build annotator
+    // build annotator
     let annotator = Annotator::new()
         .with_bboxes_thickness(4)
         .with_saveout("YOLO-DataLoader");
 
     // run
     for (xs, _) in dl {
-        // std::thread::sleep(std::time::Duration::from_millis(1000));
+        // std::thread::sleep(std::time::Duration::from_millis(100));
         let ys = model.forward(&xs, false)?;
         annotator.annotate(&xs, &ys);
     }

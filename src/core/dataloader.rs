@@ -35,7 +35,7 @@ impl Iterator for DataLoaderIterator {
                 None => {
                     progress_bar.set_prefix("    Iterated");
                     progress_bar.set_style(
-                        indicatif::ProgressStyle::with_template(crate::PROGRESS_BAR_STYLE_GREEN)
+                        indicatif::ProgressStyle::with_template(crate::PROGRESS_BAR_STYLE_FINISH_2)
                             .unwrap(),
                     );
                     progress_bar.finish();
@@ -56,7 +56,7 @@ impl IntoIterator for DataLoader {
                 self.nf / self.batch_size as u64,
                 "   Iterating",
                 Some(&format!("{:?}", self.media_type)),
-                crate::PROGRESS_BAR_STYLE_CYAN,
+                crate::PROGRESS_BAR_STYLE_CYAN_2,
             )
             .ok()
         } else {
@@ -365,7 +365,12 @@ impl DataLoader {
         let saveout = Dir::Currnet
             .raw_path_with_subs(subs)?
             .join(format!("{}.mp4", string_now("-")));
-        let pb = build_progress_bar(paths.len() as u64, "  Converting", saveout.to_str(),"{prefix:.cyan.bold} {msg} |{bar}| ({percent_precise}%, {human_pos}/{human_len}, {per_sec})")?;
+        let pb = build_progress_bar(
+            paths.len() as u64,
+            "  Converting",
+            Some(&format!("{:?}", MediaType::Video(Location::Local))),
+            crate::PROGRESS_BAR_STYLE_CYAN_2,
+        )?;
 
         // loop
         for path in paths {
@@ -397,10 +402,10 @@ impl DataLoader {
         }
 
         // update
-        pb.set_prefix("  Downloaded");
         pb.set_prefix("   Converted");
+        pb.set_message(saveout.to_str().unwrap_or_default().to_string());
         pb.set_style(ProgressStyle::with_template(
-            "{prefix:.green.bold} {msg} in {elapsed}",
+            crate::PROGRESS_BAR_STYLE_FINISH_4,
         )?);
         pb.finish();
 

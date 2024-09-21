@@ -2,19 +2,21 @@ use crate::{
     colormap256, string_now, Bbox, Dir, Hub, Keypoint, Mask, Mbr, Polygon, Prob, CHECK_MARK,
     CROSS_MARK, Y,
 };
-use ab_glyph::{FontVec, PxScale};
+use ab_glyph::{FontArc, PxScale};
 use anyhow::Result;
 use image::{DynamicImage, GenericImage, Rgba, RgbaImage};
 use imageproc::map::map_colors;
 
 /// Annotator for struct `Y`
-// #[derive(Debug)]
+#[derive(Clone)]
 pub struct Annotator {
-    font: FontVec,
+    // TODO: Add lifetime
+    font: FontArc,
     _scale: f32, // Cope with ab_glyph & imageproc=0.24.0
     scale_dy: f32,
     saveout_base: String,
     saveout: Option<String>,
+    saveout_subs: Vec<String>,
     decimal_places: usize,
 
     // About mbrs
@@ -72,6 +74,7 @@ impl Default for Annotator {
             scale_dy: 28.,
             polygons_alpha: 179,
             saveout: None,
+            saveout_subs: vec![],
             saveout_base: String::from("runs"),
             decimal_places: 4,
             without_bboxes: false,
@@ -323,6 +326,11 @@ impl Annotator {
         self
     }
 
+    pub fn with_saveout_subs(mut self, xs: &[&str]) -> Self {
+        self.saveout_subs = xs.iter().map(|x| x.to_string()).collect::<Vec<String>>();
+        self
+    }
+
     pub fn with_font(mut self, path: &str) -> Result<Self> {
         self.font = Self::load_font(Some(path))?;
         Ok(self)
@@ -330,11 +338,23 @@ impl Annotator {
 
     /// Create folders for saving annotated results. e.g., `./runs/xxx`
     pub fn saveout(&self) -> Result<std::path::PathBuf> {
-        let subs = match &self.saveout {
-            Some(x) => vec![self.saveout_base.as_str(), x.as_str()],
-            None => vec![self.saveout_base.as_str()],
-        };
+        let mut subs = vec![self.saveout_base.as_str()];
+        if let Some(saveout) = &self.saveout {
+            // add subs
+            if !self.saveout_subs.is_empty() {
+                let xs = self
+                    .saveout_subs
+                    .iter()
+                    .map(|x| x.as_str())
+                    .collect::<Vec<&str>>();
+                subs.extend(xs);
+            }
 
+            // add filename
+            subs.push(saveout);
+        }
+
+        // mkdir even no filename specified
         Dir::Currnet.raw_path_with_subs(&subs)
     }
 
@@ -345,7 +365,7 @@ impl Annotator {
 
     /// Plot images and return plotted images(RGBA8)
     pub fn plot(&self, imgs: &[DynamicImage], ys: &[Y]) -> Result<Vec<RgbaImage>> {
-        let span = tracing::span!(tracing::Level::INFO, "YOLO-new");
+        let span = tracing::span!(tracing::Level::INFO, "Annotator-plot");
         let _guard = span.enter();
 
         let mut vs: Vec<RgbaImage> = Vec::new();
@@ -719,7 +739,7 @@ impl Annotator {
             let top = if y > text_h as f32 {
                 (y.round() as u32 - text_h) as i32
             } else {
-                (text_h - y.round() as u32) as i32
+                0
             };
             let mut left = x as i32;
             if left + text_w as i32 > img.width() as i32 {
@@ -749,13 +769,13 @@ impl Annotator {
     }
 
     /// Load custom font
-    fn load_font(path: Option<&str>) -> Result<FontVec> {
+    fn load_font(path: Option<&str>) -> Result<FontArc> {
         let path_font = match path {
             None => Hub::new()?.fetch("fonts/Arial.ttf")?.commit()?,
             Some(p) => p.into(),
         };
         let buffer = std::fs::read(path_font)?;
-        Ok(FontVec::try_from_vec(buffer.to_owned())?)
+        Ok(FontArc::try_from_vec(buffer.to_owned())?)
     }
 
     /// Pick color from pallette
@@ -765,6 +785,7 @@ impl Annotator {
 
     /// Color pallette
     fn color_palette() -> [(u8, u8, u8, u8); 20] {
+        // TODO: more colors
         [
             (0, 255, 127, 255),   // spring green
             (255, 105, 180, 255), // hot pink

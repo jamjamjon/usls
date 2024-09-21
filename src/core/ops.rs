@@ -7,7 +7,7 @@ use fast_image_resize::{
     FilterType, ResizeAlg, ResizeOptions, Resizer,
 };
 use image::{DynamicImage, GenericImageView};
-use ndarray::{s, Array, Array3, Axis, IntoDimension, IxDyn};
+use ndarray::{concatenate, s, Array, Array3, Axis, IntoDimension, IxDyn};
 use rayon::prelude::*;
 
 pub enum Ops<'a> {
@@ -112,6 +112,14 @@ impl Ops<'_> {
 
     pub fn nchw2nhwc(x: Array<f32, IxDyn>) -> Result<Array<f32, IxDyn>> {
         Self::permute(x, &[0, 2, 3, 1])
+    }
+
+    pub fn concatenate(
+        x: &Array<f32, IxDyn>,
+        y: &Array<f32, IxDyn>,
+        d: usize,
+    ) -> Result<Array<f32, IxDyn>> {
+        Ok(concatenate(Axis(d), &[x.view(), y.view()])?)
     }
 
     pub fn insert_axis(x: Array<f32, IxDyn>, d: usize) -> Result<Array<f32, IxDyn>> {

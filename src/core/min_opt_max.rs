@@ -50,4 +50,14 @@ impl MinOptMax {
             max: opt,
         }
     }
+
+    pub fn update(&mut self, opt: isize) {
+        self.opt = opt;
+        if self.min > opt {
+            self.min = opt;
+        }
+        if self.max < opt {
+            self.max = opt;
+        }
+    }
 }

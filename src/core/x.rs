@@ -98,6 +98,11 @@ impl X {
         Ok(self)
     }
 
+    pub fn concatenate(mut self, other: &Self, d: usize) -> Result<Self> {
+        self.0 = Ops::concatenate(&self.0, other, d)?;
+        Ok(self)
+    }
+
     pub fn dims(&self) -> &[usize] {
         self.0.shape()
     }
