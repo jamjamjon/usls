@@ -17,9 +17,9 @@ pub struct Florence2 {
     pub encoder: OrtEngine,
     pub decoder: OrtEngine,
     pub decoder_merged: OrtEngine,
-    pub height: MinOptMax,
-    pub width: MinOptMax,
-    pub batch: MinOptMax,
+    height: MinOptMax,
+    width: MinOptMax,
+    batch: MinOptMax,
     tokenizer: Tokenizer,
     max_length: usize,
     quantizer: Quantizer,
@@ -97,13 +97,15 @@ impl Florence2 {
         xs: &[DynamicImage],
         tasks: &[Task],
     ) -> Result<BTreeMap<Task, Vec<Y>>> {
-        // encode batch images
+        let mut ys: BTreeMap<Task, Vec<Y>> = BTreeMap::new();
+
+        // encode images
         let image_embeddings = self.encode_images(xs)?;
 
         // note: the length of xs is not always equal to batch size
         self.batch.update(xs.len() as isize);
 
-        // tasks loop
+        // build pb
         let pb = build_progress_bar(
             tasks.len() as u64,
             "  Working On",
@@ -111,13 +113,10 @@ impl Florence2 {
             crate::PROGRESS_BAR_STYLE_CYAN_2,
         )?;
 
-        let mut ys: BTreeMap<Task, Vec<Y>> = BTreeMap::new();
+        // tasks
         for task in tasks.iter() {
-            // update pb
             pb.inc(1);
             pb.set_message(format!("{:?}", task));
-
-            let mut ys_task: Vec<Y> = Vec::new();
 
             // construct prompt and encode
             let input_ids = self
@@ -129,103 +128,98 @@ impl Florence2 {
             // run
             let texts = self.run_batch(&image_embeddings, &text_embeddings)?;
 
-            // postprocess
-            for batch in 0..self.batch() {
-                // image size
-                let image_width = xs[batch].width() as usize;
-                let image_height = xs[batch].height() as usize;
+            // tasks iteration
+            let ys_task = (0..self.batch())
+                .into_par_iter()
+                .map(|batch| {
+                    // image size
+                    let image_width = xs[batch].width() as usize;
+                    let image_height = xs[batch].height() as usize;
 
-                // texts cleanup
-                let text = texts[batch]
-                    .as_str()
-                    .replace("<s>", "")
-                    .replace("</s>", "")
-                    .replace("<pad>", "");
+                    // texts cleanup
+                    let text = texts[batch]
+                        .as_str()
+                        .replace("<s>", "")
+                        .replace("</s>", "")
+                        .replace("<pad>", "");
 
-                // cope with each task
-                if let Task::Caption(_) | Task::Ocr = task {
-                    ys_task.push(Y::default().with_texts(&[text]));
-                } else {
-                    let elems = Self::loc_parse(&text)?;
-                    match task {
-                        Task::RegionToCategory(..) | Task::RegionToDescription(..) => {
-                            let text = elems[0][0].clone(); // extract text only
-                            ys_task.push(Y::default().with_texts(&[text]));
-                        }
-                        Task::ObjectDetection
-                        | Task::OpenSetDetection(_)
-                        | Task::DenseRegionCaption
-                        | Task::CaptionToPhraseGrounding(_) => {
-                            let y_bboxes: Vec<Bbox> = elems
-                                .par_iter()
-                                .enumerate()
-                                .flat_map(|(i, elem)| {
-                                    let name = &elem[0];
-                                    let y_bboxes: Vec<Bbox> = Self::process_bboxes(
-                                        &elem[1..],
-                                        &self.quantizer,
-                                        image_width,
-                                        image_height,
-                                        Some((name, i)),
-                                    );
-                                    y_bboxes
-                                })
-                                .collect();
-
-                            ys_task.push(Y::default().with_bboxes(&y_bboxes));
-                        }
-                        Task::RegionProposal => {
-                            let y_bboxes: Vec<Bbox> = Self::process_bboxes(
-                                &elems[0],
-                                &self.quantizer,
-                                image_width,
-                                image_height,
-                                None,
-                            );
-
-                            ys_task.push(Y::default().with_bboxes(&y_bboxes));
-                        }
-
-                        Task::ReferringExpressionSegmentation(_)
-                        | Task::RegionToSegmentation(..) => {
-                            let points = Self::process_polygons(
-                                &elems[0],
-                                &self.quantizer,
-                                image_width,
-                                image_height,
-                            );
-
-                            ys_task.push(Y::default().with_polygons(&[
-                                Polygon::default().with_points(&points).with_id(0),
-                            ]));
-                        }
-                        Task::OcrWithRegion => {
-                            let y_polygons: Vec<Polygon> = elems
-                                .par_iter()
-                                .enumerate()
-                                .map(|(i, elem)| {
-                                    let text = &elem[0];
-                                    let points = Self::process_polygons(
-                                        &elem[1..],
-                                        &self.quantizer,
-                                        image_width,
-                                        image_height,
-                                    );
-
-                                    Polygon::default()
-                                        .with_name(text)
-                                        .with_points(&points)
-                                        .with_id(i as _)
-                                })
-                                .collect();
-
-                            ys_task.push(Y::default().with_polygons(&y_polygons));
-                        }
-
-                        _ => anyhow::bail!("Unsupported Florence2 task."),
-                    };
-                }
-            }
+                    // postprocess
+                    let mut y = Y::default();
+                    if let Task::Caption(_) | Task::Ocr = task {
+                        y = y.with_texts(&[text]);
+                    } else {
+                        let elems = Self::loc_parse(&text)?;
+                        match task {
+                            Task::RegionToCategory(..) | Task::RegionToDescription(..) => {
+                                let text = elems[0][0].clone();
+                                y = y.with_texts(&[text]);
+                            }
+                            Task::ObjectDetection
+                            | Task::OpenSetDetection(_)
+                            | Task::DenseRegionCaption
+                            | Task::CaptionToPhraseGrounding(_) => {
+                                let y_bboxes: Vec<Bbox> = elems
+                                    .par_iter()
+                                    .enumerate()
+                                    .flat_map(|(i, elem)| {
+                                        Self::process_bboxes(
+                                            &elem[1..],
+                                            &self.quantizer,
+                                            image_width,
+                                            image_height,
+                                            Some((&elem[0], i)),
+                                        )
+                                    })
+                                    .collect();
+                                y = y.with_bboxes(&y_bboxes);
+                            }
+                            Task::RegionProposal => {
+                                let y_bboxes: Vec<Bbox> = Self::process_bboxes(
+                                    &elems[0],
+                                    &self.quantizer,
+                                    image_width,
+                                    image_height,
+                                    None,
+                                );
+                                y = y.with_bboxes(&y_bboxes);
+                            }
+                            Task::ReferringExpressionSegmentation(_)
+                            | Task::RegionToSegmentation(..) => {
+                                let points = Self::process_polygons(
+                                    &elems[0],
+                                    &self.quantizer,
+                                    image_width,
+                                    image_height,
+                                );
+                                y = y.with_polygons(&[Polygon::default()
+                                    .with_points(&points)
+                                    .with_id(0)]);
+                            }
+                            Task::OcrWithRegion => {
+                                let y_polygons: Vec<Polygon> = elems
+                                    .par_iter()
+                                    .enumerate()
+                                    .map(|(i, elem)| {
+                                        let points = Self::process_polygons(
+                                            &elem[1..],
+                                            &self.quantizer,
+                                            image_width,
+                                            image_height,
+                                        );
+                                        Polygon::default()
+                                            .with_name(&elem[0])
+                                            .with_points(&points)
+                                            .with_id(i as _)
+                                    })
+                                    .collect();
+                                y = y.with_polygons(&y_polygons);
+                            }
+                            _ => anyhow::bail!("Unsupported Florence2 task."),
+                        };
+                    }
+                    Ok(y)
+                })
+                .collect::<Result<Vec<Y>>>()?;
 
             ys.insert(task.clone(), ys_task);
         }
@@ -264,19 +258,14 @@ impl Florence2 {
 
         let encoder_k0 = decoder_outputs[3].clone();
         let encoder_v0 = decoder_outputs[4].clone();
-
         let encoder_k1 = decoder_outputs[7].clone();
         let encoder_v1 = decoder_outputs[8].clone();
-
         let encoder_k2 = decoder_outputs[11].clone();
         let encoder_v2 = decoder_outputs[12].clone();
-
         let encoder_k3 = decoder_outputs[15].clone();
         let encoder_v3 = decoder_outputs[16].clone();
-
         let encoder_k4 = decoder_outputs[19].clone();
         let encoder_v4 = decoder_outputs[20].clone();
-
         let encoder_k5 = decoder_outputs[23].clone();
         let encoder_v5 = decoder_outputs[24].clone();
 
@@ -285,8 +274,9 @@ impl Florence2 {
 
         // save last batch tokens
         let mut last_tokens: Vec<f32> = vec![0.; self.batch()];
-
         let mut logits_sampler = LogitsSampler::new();
+
+        // generate
         for _ in 0..self.max_length {
             let logits = &decoder_outputs["logits"];
             let decoder_k0 = &decoder_outputs[1];
@@ -302,7 +292,7 @@ impl Florence2 {
             let decoder_k5 = &decoder_outputs[21];
             let decoder_v5 = &decoder_outputs[22];
 
-            // Decode each token for each batch
+            // decode each token for each batch
             for (i, logit) in logits.axis_iter(Axis(0)).enumerate() {
                 if !finished[i] {
                     let token_id = logits_sampler.decode(

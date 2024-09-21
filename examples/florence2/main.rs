@@ -232,15 +232,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             Task::ReferringExpressionSegmentation(_) => {
                 let annotator = annotator
                     .clone()
-                    .with_polygons_alpha(200)
                     .with_saveout("Referring-Expression-Segmentation");
                 annotator.annotate(&xs, ys_);
             }
             Task::RegionToSegmentation(..) => {
-                let annotator = annotator
-                    .clone()
-                    .with_polygons_alpha(200)
-                    .with_saveout("Region-To-Segmentation");
+                let annotator = annotator.clone().with_saveout("Region-To-Segmentation");
                 annotator.annotate(&xs, ys_);
             }
             Task::OcrWithRegion => {
