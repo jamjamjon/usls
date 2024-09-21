@@ -739,7 +739,7 @@ impl Annotator {
             let top = if y > text_h as f32 {
                 (y.round() as u32 - text_h) as i32
             } else {
-                (text_h - y.round() as u32) as i32
+                0
             };
             let mut left = x as i32;
             if left + text_w as i32 > img.width() as i32 {
