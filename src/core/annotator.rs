@@ -358,17 +358,17 @@ impl Annotator {
         Dir::Currnet.raw_path_with_subs(&subs)
     }
 
-    /// Annotate images, and no return
+    /// Annotate images, save, and no return
     pub fn annotate(&self, imgs: &[DynamicImage], ys: &[Y]) {
-        let _ = self.plot(imgs, ys);
+        let _ = self.plot(imgs, ys, true);
     }
 
-    /// Plot images and return plotted images(RGBA8)
-    pub fn plot(&self, imgs: &[DynamicImage], ys: &[Y]) -> Result<Vec<RgbaImage>> {
+    /// Plot images and return plotted images
+    pub fn plot(&self, imgs: &[DynamicImage], ys: &[Y], save: bool) -> Result<Vec<DynamicImage>> {
         let span = tracing::span!(tracing::Level::INFO, "Annotator-plot");
         let _guard = span.enter();
 
-        let mut vs: Vec<RgbaImage> = Vec::new();
+        let mut vs: Vec<DynamicImage> = Vec::new();
 
         // annotate
         for (img, y) in imgs.iter().zip(ys.iter()) {
@@ -414,16 +414,19 @@ impl Annotator {
                 self.plot_probs(&mut img_rgba, xs);
             }
 
-            // save
-            let saveout = self.saveout()?.join(format!("{}.png", string_now("-")));
-            match img_rgba.save(&saveout) {
-                Err(err) => tracing::error!("{} Saving failed: {:?}", CROSS_MARK, err),
-                Ok(_) => {
-                    tracing::info!("{} Annotated image saved to: {:?}", CHECK_MARK, saveout);
+            // save or not
+            if save {
+                let saveout = self.saveout()?.join(format!("{}.png", string_now("-")));
+                match img_rgba.save(&saveout) {
+                    Err(err) => tracing::error!("{} Saving failed: {:?}", CROSS_MARK, err),
+                    Ok(_) => {
+                        tracing::info!("{} Annotated image saved to: {:?}", CHECK_MARK, saveout);
+                    }
                 }
             }
 
-            vs.push(img_rgba);
+            // RgbaImage -> DynamicImage
+            vs.push(image::DynamicImage::from(img_rgba));
         }
         Ok(vs)
     }
