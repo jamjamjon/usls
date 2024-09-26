@@ -5,13 +5,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let options = Options::default()
         // .with_model("depth-anything/v1-s-dyn.onnx")?
         .with_model("depth-anything/v2-s.onnx")?
-        .with_i00((1, 1, 8).into())
-        .with_i02((384, 512, 1024).into())
-        .with_i03((384, 512, 1024).into());
+        .with_ixx(0, 2, (384, 512, 1024).into())
+        .with_ixx(0, 3, (384, 512, 1024).into());
     let mut model = DepthAnything::new(options)?;
 
     // load
-    let x = [DataLoader::try_read("images/2.jpg")?];
+    let x = [DataLoader::try_read("images/street.jpg")?];
 
     // run
     let y = model.run(&x)?;

@@ -42,6 +42,12 @@ impl From<[isize; 3]> for MinOptMax {
     }
 }
 
+impl From<isize> for MinOptMax {
+    fn from(opt: isize) -> Self {
+        Self::new(opt)
+    }
+}
+
 impl MinOptMax {
     pub fn new(opt: isize) -> Self {
         Self {
@@ -59,5 +65,9 @@ impl MinOptMax {
         if self.max < opt {
             self.max = opt;
         }
+    }
+
+    pub fn is_dyn(&self) -> bool {
+        self.opt == -1 && self.max == -1 && self.min == -1
     }
 }

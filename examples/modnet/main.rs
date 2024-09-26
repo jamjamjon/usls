@@ -4,9 +4,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // build model
     let options = Options::default()
         .with_model("modnet/dyn-f32.onnx")?
-        .with_i00((1, 1, 4).into())
-        .with_i02((416, 512, 800).into())
-        .with_i03((416, 512, 800).into());
+        .with_ixx(0, 2, (416, 512, 800).into())
+        .with_ixx(0, 3, (416, 512, 800).into());
     let mut model = MODNet::new(options)?;
 
     // load image

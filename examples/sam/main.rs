@@ -29,9 +29,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .with_model("sam/sam-vit-b-encoder-u8.onnx")?;
 
             let options_decoder = Options::default()
-                .with_i00((1, 1, 1).into())
-                .with_i11((1, 1, 1).into())
-                .with_i21((1, 1, 1).into())
                 .with_sam_kind(SamKind::Sam)
                 // .with_model("sam/sam-vit-b-decoder.onnx")?;
                 // .with_model("sam/sam-vit-b-decoder-singlemask.onnx")?;
@@ -44,8 +41,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 // .with_model("sam/sam2-hiera-small-encoder.onnx")?;
                 .with_model("sam/sam2-hiera-base-plus-encoder.onnx")?;
             let options_decoder = Options::default()
-                .with_i31((1, 1, 1).into())
-                .with_i41((1, 1, 1).into())
                 .with_sam_kind(SamKind::Sam2)
                 // .with_model("sam/sam2-hiera-tiny-decoder.onnx")?;
                 // .with_model("sam/sam2-hiera-small-decoder.onnx")?;
@@ -57,9 +52,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 Options::default().with_model("sam/mobile-sam-vit-t-encoder.onnx")?;
 
             let options_decoder = Options::default()
-                .with_i00((1, 1, 1).into())
-                .with_i11((1, 1, 1).into())
-                .with_i21((1, 1, 1).into())
                 .with_sam_kind(SamKind::MobileSam)
                 .with_model("sam/mobile-sam-vit-t-decoder.onnx")?;
             (options_encoder, options_decoder, "Mobile-SAM")
@@ -68,9 +60,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let options_encoder = Options::default().with_model("sam/sam-hq-vit-t-encoder.onnx")?;
 
             let options_decoder = Options::default()
-                .with_i00((1, 1, 1).into())
-                .with_i21((1, 1, 1).into())
-                .with_i31((1, 1, 1).into())
                 .with_sam_kind(SamKind::SamHq)
                 .with_model("sam/sam-hq-vit-t-decoder.onnx")?;
             (options_encoder, options_decoder, "SAM-HQ")
@@ -78,9 +67,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         SamKind::EdgeSam => {
             let options_encoder = Options::default().with_model("sam/edge-sam-3x-encoder.onnx")?;
             let options_decoder = Options::default()
-                .with_i00((1, 1, 1).into())
-                .with_i11((1, 1, 1).into())
-                .with_i21((1, 1, 1).into())
                 .with_sam_kind(SamKind::EdgeSam)
                 .with_model("sam/edge-sam-3x-decoder.onnx")?;
             (options_encoder, options_decoder, "Edge-SAM")
@@ -88,9 +74,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
     let options_encoder = options_encoder
         .with_cuda(args.device_id)
-        .with_i00((1, 1, 1).into())
-        .with_i02((800, 1024, 1024).into())
-        .with_i03((800, 1024, 1024).into());
+        .with_ixx(0, 2, (800, 1024, 1024).into())
+        .with_ixx(0, 3, (800, 1024, 1024).into());
     let options_decoder = options_decoder
         .with_cuda(args.device_id)
         .use_low_res_mask(args.use_low_res_mask)

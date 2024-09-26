@@ -32,7 +32,7 @@ pub use metric::Metric;
 pub use min_opt_max::MinOptMax;
 pub use ops::Ops;
 pub use options::Options;
-pub use ort_engine::OrtEngine;
+pub use ort_engine::*;
 pub use task::Task;
 pub use tokenizer_stream::TokenizerStream;
 pub use ts::Ts;

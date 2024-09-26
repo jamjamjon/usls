@@ -12,11 +12,25 @@ use crate::{
     CHECK_MARK, CROSS_MARK, X,
 };
 
+/// A struct for input: i-th input, ii-th dimension, value
+#[derive(Clone, Debug, Default)]
+pub struct Iiix {
+    pub i: usize,
+    pub ii: usize,
+    pub x: MinOptMax,
+}
+
+impl From<(usize, usize, MinOptMax)> for Iiix {
+    fn from((i, ii, x): (usize, usize, MinOptMax)) -> Self {
+        Self { i, ii, x }
+    }
+}
+
 /// Ort Tensor Attrs: name, data_type, dims
 #[derive(Debug)]
 pub struct OrtTensorAttr {
     pub names: Vec<String>,
-    pub dtypes: Vec<ort::TensorElementType>,
+    pub dtypes: Vec<TensorElementType>,
     pub dimss: Vec<Vec<isize>>,
 }
 
@@ -69,193 +83,8 @@ impl OrtEngine {
         // inputs & outputs
         let inputs_attrs = Self::io_from_onnx_value_info(&initializer_names, &graph.input)?;
         let outputs_attrs = Self::io_from_onnx_value_info(&initializer_names, &graph.output)?;
-
-        // inputs minoptmax
-        let mut inputs_minoptmax: Vec<Vec<MinOptMax>> = Vec::new();
-        for (i, dims) in inputs_attrs.dimss.iter().enumerate() {
-            let mut v_: Vec<MinOptMax> = Vec::new();
-            for (ii, &x) in dims.iter().enumerate() {
-                let x_default: MinOptMax = (
-                    inputs_attrs.dimss[i][ii],
-                    inputs_attrs.dimss[i][ii],
-                    inputs_attrs.dimss[i][ii],
-                )
-                    .into();
-                let x: MinOptMax = match (i, ii) {
-                    (0, 0) => Self::_set_ixx(x, &config.i00, i, ii).unwrap_or(x_default),
-                    (0, 1) => Self::_set_ixx(x, &config.i01, i, ii).unwrap_or(x_default),
-                    (0, 2) => Self::_set_ixx(x, &config.i02, i, ii).unwrap_or(x_default),
-                    (0, 3) => Self::_set_ixx(x, &config.i03, i, ii).unwrap_or(x_default),
-                    (0, 4) => Self::_set_ixx(x, &config.i04, i, ii).unwrap_or(x_default),
-                    (0, 5) => Self::_set_ixx(x, &config.i05, i, ii).unwrap_or(x_default),
-                    (1, 0) => Self::_set_ixx(x, &config.i10, i, ii).unwrap_or(x_default),
-                    (1, 1) => Self::_set_ixx(x, &config.i11, i, ii).unwrap_or(x_default),
-                    (1, 2) => Self::_set_ixx(x, &config.i12, i, ii).unwrap_or(x_default),
-                    (1, 3) => Self::_set_ixx(x, &config.i13, i, ii).unwrap_or(x_default),
-                    (1, 4) => Self::_set_ixx(x, &config.i14, i, ii).unwrap_or(x_default),
-                    (1, 5) => Self::_set_ixx(x, &config.i15, i, ii).unwrap_or(x_default),
-                    (2, 0) => Self::_set_ixx(x, &config.i20, i, ii).unwrap_or(x_default),
-                    (2, 1) => Self::_set_ixx(x, &config.i21, i, ii).unwrap_or(x_default),
-                    (2, 2) => Self::_set_ixx(x, &config.i22, i, ii).unwrap_or(x_default),
-                    (2, 3) => Self::_set_ixx(x, &config.i23, i, ii).unwrap_or(x_default),
-                    (2, 4) => Self::_set_ixx(x, &config.i24, i, ii).unwrap_or(x_default),
-                    (2, 5) => Self::_set_ixx(x, &config.i25, i, ii).unwrap_or(x_default),
-                    (3, 0) => Self::_set_ixx(x, &config.i30, i, ii).unwrap_or(x_default),
-                    (3, 1) => Self::_set_ixx(x, &config.i31, i, ii).unwrap_or(x_default),
-                    (3, 2) => Self::_set_ixx(x, &config.i32_, i, ii).unwrap_or(x_default),
-                    (3, 3) => Self::_set_ixx(x, &config.i33, i, ii).unwrap_or(x_default),
-                    (3, 4) => Self::_set_ixx(x, &config.i34, i, ii).unwrap_or(x_default),
-                    (3, 5) => Self::_set_ixx(x, &config.i35, i, ii).unwrap_or(x_default),
-                    (4, 0) => Self::_set_ixx(x, &config.i40, i, ii).unwrap_or(x_default),
-                    (4, 1) => Self::_set_ixx(x, &config.i41, i, ii).unwrap_or(x_default),
-                    (4, 2) => Self::_set_ixx(x, &config.i42, i, ii).unwrap_or(x_default),
-                    (4, 3) => Self::_set_ixx(x, &config.i43, i, ii).unwrap_or(x_default),
-                    (4, 4) => Self::_set_ixx(x, &config.i44, i, ii).unwrap_or(x_default),
-                    (4, 5) => Self::_set_ixx(x, &config.i45, i, ii).unwrap_or(x_default),
-                    (5, 0) => Self::_set_ixx(x, &config.i50, i, ii).unwrap_or(x_default),
-                    (5, 1) => Self::_set_ixx(x, &config.i51, i, ii).unwrap_or(x_default),
-                    (5, 2) => Self::_set_ixx(x, &config.i52, i, ii).unwrap_or(x_default),
-                    (5, 3) => Self::_set_ixx(x, &config.i53, i, ii).unwrap_or(x_default),
-                    (5, 4) => Self::_set_ixx(x, &config.i54, i, ii).unwrap_or(x_default),
-                    (5, 5) => Self::_set_ixx(x, &config.i55, i, ii).unwrap_or(x_default),
-                    (6, 0) => Self::_set_ixx(x, &config.i60, i, ii).unwrap_or(x_default),
-                    (6, 1) => Self::_set_ixx(x, &config.i61, i, ii).unwrap_or(x_default),
-                    (6, 2) => Self::_set_ixx(x, &config.i62, i, ii).unwrap_or(x_default),
-                    (6, 3) => Self::_set_ixx(x, &config.i63, i, ii).unwrap_or(x_default),
-                    (6, 4) => Self::_set_ixx(x, &config.i64_, i, ii).unwrap_or(x_default),
-                    (6, 5) => Self::_set_ixx(x, &config.i65, i, ii).unwrap_or(x_default),
-                    (7, 0) => Self::_set_ixx(x, &config.i70, i, ii).unwrap_or(x_default),
-                    (7, 1) => Self::_set_ixx(x, &config.i71, i, ii).unwrap_or(x_default),
-                    (7, 2) => Self::_set_ixx(x, &config.i72, i, ii).unwrap_or(x_default),
-                    (7, 3) => Self::_set_ixx(x, &config.i73, i, ii).unwrap_or(x_default),
-                    (7, 4) => Self::_set_ixx(x, &config.i74, i, ii).unwrap_or(x_default),
-                    (7, 5) => Self::_set_ixx(x, &config.i75, i, ii).unwrap_or(x_default),
-                    (8, 0) => Self::_set_ixx(x, &config.i80, i, ii).unwrap_or(x_default),
-                    (8, 1) => Self::_set_ixx(x, &config.i81, i, ii).unwrap_or(x_default),
-                    (8, 2) => Self::_set_ixx(x, &config.i82, i, ii).unwrap_or(x_default),
-                    (8, 3) => Self::_set_ixx(x, &config.i83, i, ii).unwrap_or(x_default),
-                    (8, 4) => Self::_set_ixx(x, &config.i84, i, ii).unwrap_or(x_default),
-                    (8, 5) => Self::_set_ixx(x, &config.i85, i, ii).unwrap_or(x_default),
-                    (9, 0) => Self::_set_ixx(x, &config.i90, i, ii).unwrap_or(x_default),
-                    (9, 1) => Self::_set_ixx(x, &config.i91, i, ii).unwrap_or(x_default),
-                    (9, 2) => Self::_set_ixx(x, &config.i92, i, ii).unwrap_or(x_default),
-                    (9, 3) => Self::_set_ixx(x, &config.i93, i, ii).unwrap_or(x_default),
-                    (9, 4) => Self::_set_ixx(x, &config.i94, i, ii).unwrap_or(x_default),
-                    (9, 5) => Self::_set_ixx(x, &config.i95, i, ii).unwrap_or(x_default),
-                    (10, 0) => Self::_set_ixx(x, &config.i100, i, ii).unwrap_or(x_default),
-                    (10, 1) => Self::_set_ixx(x, &config.i101, i, ii).unwrap_or(x_default),
-                    (10, 2) => Self::_set_ixx(x, &config.i102, i, ii).unwrap_or(x_default),
-                    (10, 3) => Self::_set_ixx(x, &config.i103, i, ii).unwrap_or(x_default),
-                    (10, 4) => Self::_set_ixx(x, &config.i104, i, ii).unwrap_or(x_default),
-                    (10, 5) => Self::_set_ixx(x, &config.i105, i, ii).unwrap_or(x_default),
-                    (11, 0) => Self::_set_ixx(x, &config.i110, i, ii).unwrap_or(x_default),
-                    (11, 1) => Self::_set_ixx(x, &config.i111, i, ii).unwrap_or(x_default),
-                    (11, 2) => Self::_set_ixx(x, &config.i112, i, ii).unwrap_or(x_default),
-                    (11, 3) => Self::_set_ixx(x, &config.i113, i, ii).unwrap_or(x_default),
-                    (11, 4) => Self::_set_ixx(x, &config.i114, i, ii).unwrap_or(x_default),
-                    (11, 5) => Self::_set_ixx(x, &config.i115, i, ii).unwrap_or(x_default),
-                    (12, 0) => Self::_set_ixx(x, &config.i120, i, ii).unwrap_or(x_default),
-                    (12, 1) => Self::_set_ixx(x, &config.i121, i, ii).unwrap_or(x_default),
-                    (12, 2) => Self::_set_ixx(x, &config.i122, i, ii).unwrap_or(x_default),
-                    (12, 3) => Self::_set_ixx(x, &config.i123, i, ii).unwrap_or(x_default),
-                    (12, 4) => Self::_set_ixx(x, &config.i124, i, ii).unwrap_or(x_default),
-                    (12, 5) => Self::_set_ixx(x, &config.i125, i, ii).unwrap_or(x_default),
-                    (13, 0) => Self::_set_ixx(x, &config.i130, i, ii).unwrap_or(x_default),
-                    (13, 1) => Self::_set_ixx(x, &config.i131, i, ii).unwrap_or(x_default),
-                    (13, 2) => Self::_set_ixx(x, &config.i132, i, ii).unwrap_or(x_default),
-                    (13, 3) => Self::_set_ixx(x, &config.i133, i, ii).unwrap_or(x_default),
-                    (13, 4) => Self::_set_ixx(x, &config.i134, i, ii).unwrap_or(x_default),
-                    (13, 5) => Self::_set_ixx(x, &config.i135, i, ii).unwrap_or(x_default),
-                    (14, 0) => Self::_set_ixx(x, &config.i140, i, ii).unwrap_or(x_default),
-                    (14, 1) => Self::_set_ixx(x, &config.i141, i, ii).unwrap_or(x_default),
-                    (14, 2) => Self::_set_ixx(x, &config.i142, i, ii).unwrap_or(x_default),
-                    (14, 3) => Self::_set_ixx(x, &config.i143, i, ii).unwrap_or(x_default),
-                    (14, 4) => Self::_set_ixx(x, &config.i144, i, ii).unwrap_or(x_default),
-                    (14, 5) => Self::_set_ixx(x, &config.i145, i, ii).unwrap_or(x_default),
-                    (15, 0) => Self::_set_ixx(x, &config.i150, i, ii).unwrap_or(x_default),
-                    (15, 1) => Self::_set_ixx(x, &config.i151, i, ii).unwrap_or(x_default),
-                    (15, 2) => Self::_set_ixx(x, &config.i152, i, ii).unwrap_or(x_default),
-                    (15, 3) => Self::_set_ixx(x, &config.i153, i, ii).unwrap_or(x_default),
-                    (15, 4) => Self::_set_ixx(x, &config.i154, i, ii).unwrap_or(x_default),
-                    (15, 5) => Self::_set_ixx(x, &config.i155, i, ii).unwrap_or(x_default),
-                    (16, 0) => Self::_set_ixx(x, &config.i160, i, ii).unwrap_or(x_default),
-                    (16, 1) => Self::_set_ixx(x, &config.i161, i, ii).unwrap_or(x_default),
-                    (16, 2) => Self::_set_ixx(x, &config.i162, i, ii).unwrap_or(x_default),
-                    (16, 3) => Self::_set_ixx(x, &config.i163, i, ii).unwrap_or(x_default),
-                    (16, 4) => Self::_set_ixx(x, &config.i164, i, ii).unwrap_or(x_default),
-                    (16, 5) => Self::_set_ixx(x, &config.i165, i, ii).unwrap_or(x_default),
-                    (17, 0) => Self::_set_ixx(x, &config.i170, i, ii).unwrap_or(x_default),
-                    (17, 1) => Self::_set_ixx(x, &config.i171, i, ii).unwrap_or(x_default),
-                    (17, 2) => Self::_set_ixx(x, &config.i172, i, ii).unwrap_or(x_default),
-                    (17, 3) => Self::_set_ixx(x, &config.i173, i, ii).unwrap_or(x_default),
-                    (17, 4) => Self::_set_ixx(x, &config.i174, i, ii).unwrap_or(x_default),
-                    (17, 5) => Self::_set_ixx(x, &config.i175, i, ii).unwrap_or(x_default),
-                    (18, 0) => Self::_set_ixx(x, &config.i180, i, ii).unwrap_or(x_default),
-                    (18, 1) => Self::_set_ixx(x, &config.i181, i, ii).unwrap_or(x_default),
-                    (18, 2) => Self::_set_ixx(x, &config.i182, i, ii).unwrap_or(x_default),
-                    (18, 3) => Self::_set_ixx(x, &config.i183, i, ii).unwrap_or(x_default),
-                    (18, 4) => Self::_set_ixx(x, &config.i184, i, ii).unwrap_or(x_default),
-                    (18, 5) => Self::_set_ixx(x, &config.i185, i, ii).unwrap_or(x_default),
-                    (19, 0) => Self::_set_ixx(x, &config.i190, i, ii).unwrap_or(x_default),
-                    (19, 1) => Self::_set_ixx(x, &config.i191, i, ii).unwrap_or(x_default),
-                    (19, 2) => Self::_set_ixx(x, &config.i192, i, ii).unwrap_or(x_default),
-                    (19, 3) => Self::_set_ixx(x, &config.i193, i, ii).unwrap_or(x_default),
-                    (19, 4) => Self::_set_ixx(x, &config.i194, i, ii).unwrap_or(x_default),
-                    (19, 5) => Self::_set_ixx(x, &config.i195, i, ii).unwrap_or(x_default),
-                    (20, 0) => Self::_set_ixx(x, &config.i200, i, ii).unwrap_or(x_default),
-                    (20, 1) => Self::_set_ixx(x, &config.i201, i, ii).unwrap_or(x_default),
-                    (20, 2) => Self::_set_ixx(x, &config.i202, i, ii).unwrap_or(x_default),
-                    (20, 3) => Self::_set_ixx(x, &config.i203, i, ii).unwrap_or(x_default),
-                    (20, 4) => Self::_set_ixx(x, &config.i204, i, ii).unwrap_or(x_default),
-                    (20, 5) => Self::_set_ixx(x, &config.i205, i, ii).unwrap_or(x_default),
-                    (21, 0) => Self::_set_ixx(x, &config.i210, i, ii).unwrap_or(x_default),
-                    (21, 1) => Self::_set_ixx(x, &config.i211, i, ii).unwrap_or(x_default),
-                    (21, 2) => Self::_set_ixx(x, &config.i212, i, ii).unwrap_or(x_default),
-                    (21, 3) => Self::_set_ixx(x, &config.i213, i, ii).unwrap_or(x_default),
-                    (21, 4) => Self::_set_ixx(x, &config.i214, i, ii).unwrap_or(x_default),
-                    (21, 5) => Self::_set_ixx(x, &config.i215, i, ii).unwrap_or(x_default),
-                    (22, 0) => Self::_set_ixx(x, &config.i220, i, ii).unwrap_or(x_default),
-                    (22, 1) => Self::_set_ixx(x, &config.i221, i, ii).unwrap_or(x_default),
-                    (22, 2) => Self::_set_ixx(x, &config.i222, i, ii).unwrap_or(x_default),
-                    (22, 3) => Self::_set_ixx(x, &config.i223, i, ii).unwrap_or(x_default),
-                    (22, 4) => Self::_set_ixx(x, &config.i224, i, ii).unwrap_or(x_default),
-                    (22, 5) => Self::_set_ixx(x, &config.i225, i, ii).unwrap_or(x_default),
-                    (23, 0) => Self::_set_ixx(x, &config.i230, i, ii).unwrap_or(x_default),
-                    (23, 1) => Self::_set_ixx(x, &config.i231, i, ii).unwrap_or(x_default),
-                    (23, 2) => Self::_set_ixx(x, &config.i232, i, ii).unwrap_or(x_default),
-                    (23, 3) => Self::_set_ixx(x, &config.i233, i, ii).unwrap_or(x_default),
-                    (23, 4) => Self::_set_ixx(x, &config.i234, i, ii).unwrap_or(x_default),
-                    (23, 5) => Self::_set_ixx(x, &config.i235, i, ii).unwrap_or(x_default),
-                    (24, 0) => Self::_set_ixx(x, &config.i240, i, ii).unwrap_or(x_default),
-                    (24, 1) => Self::_set_ixx(x, &config.i241, i, ii).unwrap_or(x_default),
-                    (24, 2) => Self::_set_ixx(x, &config.i242, i, ii).unwrap_or(x_default),
-                    (24, 3) => Self::_set_ixx(x, &config.i243, i, ii).unwrap_or(x_default),
-                    (24, 4) => Self::_set_ixx(x, &config.i244, i, ii).unwrap_or(x_default),
-                    (24, 5) => Self::_set_ixx(x, &config.i245, i, ii).unwrap_or(x_default),
-                    (25, 0) => Self::_set_ixx(x, &config.i250, i, ii).unwrap_or(x_default),
-                    (25, 1) => Self::_set_ixx(x, &config.i251, i, ii).unwrap_or(x_default),
-                    (25, 2) => Self::_set_ixx(x, &config.i252, i, ii).unwrap_or(x_default),
-                    (25, 3) => Self::_set_ixx(x, &config.i253, i, ii).unwrap_or(x_default),
-                    (25, 4) => Self::_set_ixx(x, &config.i254, i, ii).unwrap_or(x_default),
-                    (25, 5) => Self::_set_ixx(x, &config.i255, i, ii).unwrap_or(x_default),
-                    (26, 0) => Self::_set_ixx(x, &config.i260, i, ii).unwrap_or(x_default),
-                    (26, 1) => Self::_set_ixx(x, &config.i261, i, ii).unwrap_or(x_default),
-                    (26, 2) => Self::_set_ixx(x, &config.i262, i, ii).unwrap_or(x_default),
-                    (26, 3) => Self::_set_ixx(x, &config.i263, i, ii).unwrap_or(x_default),
-                    (26, 4) => Self::_set_ixx(x, &config.i264, i, ii).unwrap_or(x_default),
-                    (26, 5) => Self::_set_ixx(x, &config.i265, i, ii).unwrap_or(x_default),
-                    (27, 0) => Self::_set_ixx(x, &config.i270, i, ii).unwrap_or(x_default),
-                    (27, 1) => Self::_set_ixx(x, &config.i271, i, ii).unwrap_or(x_default),
-                    (27, 2) => Self::_set_ixx(x, &config.i272, i, ii).unwrap_or(x_default),
-                    (27, 3) => Self::_set_ixx(x, &config.i273, i, ii).unwrap_or(x_default),
-                    (27, 4) => Self::_set_ixx(x, &config.i274, i, ii).unwrap_or(x_default),
-                    (27, 5) => Self::_set_ixx(x, &config.i275, i, ii).unwrap_or(x_default),
-                    _ => todo!(),
-                };
-                v_.push(x);
-            }
-            inputs_minoptmax.push(v_);
-        }
+        let inputs_minoptmax =
+            Self::build_inputs_minoptmax(&inputs_attrs, &config.iiixs, config.batch_size)?;
 
         // build
         ort::init().commit()?;
@@ -555,20 +384,64 @@ impl OrtEngine {
         Ok(ys)
     }
 
-    fn _set_ixx(x: isize, ixx: &Option<MinOptMax>, i: usize, ii: usize) -> Option<MinOptMax> {
-        match x {
-            -1 => {
-                match ixx {
-                    None => panic!(
-                        "{CROSS_MARK} Using dynamic shapes in inputs without specifying it: the {}-th input, the {}-th dimension.",
-                        i + 1,
-                        ii + 1
-                    ),
-                    Some(ixx) => Some(ixx.to_owned()), // customized
+    fn build_inputs_minoptmax(
+        inputs_attrs: &OrtTensorAttr,
+        iiixs: &[Iiix],
+        batch_size: usize,
+    ) -> Result<Vec<Vec<MinOptMax>>> {
+        // Vec<Iiix>
+        // inputs_attrs: OrtTensorAttr { names: ["encoder_attention_mask", "encoder_hidden_states", "inputs_embeds"], dtypes: [Int64, Float32, Float32], dimss: [[-1, -1], [-1, -1, 768], [-1, -1, 768]] }
+        // output => inputs_minoptmax [[ { Min: 1, Opt: 1, Max: 1 },  { Min: 3, Opt: 3, Max: 3 },  { Min: 416, Opt: 640, Max: 800 },  { Min: 416, Opt: 640, Max: 800 }]]
+
+        // init
+        let mut inputs_minoptmax: Vec<Vec<MinOptMax>> = Vec::new();
+        for dims in inputs_attrs.dimss.iter() {
+            let mut v_: Vec<MinOptMax> = Vec::new();
+            for &x in dims.iter() {
+                v_.push(MinOptMax::from((x, x, x)));
+            }
+            inputs_minoptmax.push(v_);
+        }
+
+        // update from customized
+        for iiix in iiixs.iter() {
+            let x = match inputs_attrs.dimss.get(iiix.i).map(|x| x[iiix.ii]) {
+                Some(x) => x,
+                None => anyhow::bail!(
+                    "Can not get the {}-th input, the {}-th dimension.",
+                    iiix.i,
+                    iiix.ii
+                ),
+            };
+
+            match x {
+                -1 => {
+                    inputs_minoptmax[iiix.i][iiix.ii] = iiix.x.clone();
+                }
+                _ => continue, // customized, but not dynamic
+            }
+        }
+
+        // deal with the dynamic axis
+        for (i, xs) in inputs_minoptmax.iter_mut().enumerate() {
+            for (ii, x) in xs.iter_mut().enumerate() {
+                if x.is_dyn() {
+                    // replace `-1` will `1` and `batch_size` at the 1st dimension of each input.
+                    let n = if ii == 0 { batch_size } else { 1 };
+                    let y = MinOptMax::new(n as _);
+                    tracing::warn!(
+                            "Using dynamic shapes in inputs without specifying it: the {}-th input, the {}-th dimension. \
+                            Using {:?} by default. You should make it clear when using TensorRT. \
+                            ",
+                            i + 1, ii + 1, y
+                        );
+
+                    *x = y;
                 }
             }
-            _ => Some((x, x, x).into()), // customized, but not dynamic
         }
+
+        Ok(inputs_minoptmax)
     }
 
     #[allow(dead_code)]

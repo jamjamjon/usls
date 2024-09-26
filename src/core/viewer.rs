@@ -87,7 +87,7 @@ impl Viewer<'_> {
                 let r = pixel[0];
                 let g = pixel[1];
                 let b = pixel[2];
-                let p = Self::from_u8_rgb(r, g, b);
+                let p = Self::rgb8_to_u32(r, g, b);
                 buffer.push(p);
             }
 
@@ -180,7 +180,7 @@ impl Viewer<'_> {
     }
 
     pub fn with_delay(mut self, x: usize) -> Self {
-        self.fps_poll = 1000 / x; // 1000 / 60 = 16.7
+        self.fps_poll = 1000 / x;
         self
     }
 
@@ -188,7 +188,7 @@ impl Viewer<'_> {
         self.window.as_ref().map(|x| x.get_size())
     }
 
-    fn from_u8_rgb(r: u8, g: u8, b: u8) -> u32 {
+    fn rgb8_to_u32(r: u8, g: u8, b: u8) -> u32 {
         let (r, g, b) = (r as u32, g as u32, b as u32);
         (r << 16) | (g << 8) | b
     }

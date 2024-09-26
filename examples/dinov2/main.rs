@@ -4,9 +4,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // build model
     let options = Options::default()
         .with_model("dinov2/s-dyn.onnx")?
-        .with_i00((1, 1, 1).into())
-        .with_i02((224, 224, 224).into())
-        .with_i03((224, 224, 224).into());
+        .with_ixx(0, 2, 224.into())
+        .with_ixx(0, 3, 224.into());
     let mut model = Dinov2::new(options)?;
     let x = [DataLoader::try_read("images/bus.jpg")?];
     let y = model.run(&x)?;

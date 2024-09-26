@@ -56,9 +56,8 @@ pub fn benchmark_cuda(c: &mut Criterion, h: isize, w: isize) -> Result<()> {
         .with_cuda(0)
         // .with_cpu()
         .with_dry_run(0)
-        .with_i00((1, 1, 4).into())
-        .with_i02((320, h, 1280).into())
-        .with_i03((320, w, 1280).into())
+        .with_ixx(0, 2, (320, h, 1280).into())
+        .with_ixx(0, 3, (320, w, 1280).into())
         .with_confs(&[0.2, 0.15]);
     let mut model = YOLO::new(options)?;
 

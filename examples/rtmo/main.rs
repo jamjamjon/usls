@@ -4,7 +4,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // build model
     let options = Options::default()
         .with_model("rtmo/s-dyn.onnx")?
-        .with_i00((1, 1, 8).into())
         .with_nk(17)
         .with_confs(&[0.3])
         .with_kconfs(&[0.5]);

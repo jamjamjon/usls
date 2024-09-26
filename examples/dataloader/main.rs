@@ -12,9 +12,10 @@ fn main() -> anyhow::Result<()> {
         .with_model("yolo/v8-m-dyn.onnx")?
         .with_yolo_version(YOLOVersion::V8)
         .with_yolo_task(YOLOTask::Detect)
-        .with_i00((1, 1, 4).into())
-        .with_i02((0, 640, 640).into())
-        .with_i03((0, 640, 640).into())
+        .with_batch(2)
+        // .with_ixx(0, 0, (1, 2, 8).into())
+        .with_ixx(0, 2, (416, 640, 800).into())
+        .with_ixx(0, 3, (416, 640, 800).into())
         .with_confs(&[0.2]);
     let mut model = YOLO::new(options)?;
 
@@ -25,18 +26,18 @@ fn main() -> anyhow::Result<()> {
 
     // build dataloader
     let dl = DataLoader::new(
-        // "images/bus.jpg",  // remote image
+        // "images/bus.jpg", // remote image
         // "../images", // image folder
         // "../demo.mp4",   // local video
         // "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4", // remote video
         // "rtsp://admin:xyz@192.168.2.217:554/h265/ch1/",  // rtsp h264 stream
-        // "./assets/bus.jpg", // local image
-        "../SourceVideos/3.mp4",
+        "./assets/bus.jpg", // local image
+                            // "../7.mp4",
     )?
     .with_batch(1)
     .build()?;
 
-    let mut viewer = Viewer::new().with_delay(100).with_scale(1.).resizable(true);
+    let mut viewer = Viewer::new().with_delay(20).with_scale(1.).resizable(true);
 
     // iteration
     for (xs, _) in dl {
