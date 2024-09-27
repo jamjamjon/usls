@@ -33,8 +33,8 @@ impl DepthAnything {
         let xs_ = X::apply(&[
             Ops::Resize(
                 xs,
-                self.height.opt as u32,
-                self.width.opt as u32,
+                self.height.opt() as u32,
+                self.width.opt() as u32,
                 "Lanczos3",
             ),
             Ops::Normalize(0., 255.),
@@ -77,14 +77,14 @@ impl DepthAnything {
     }
 
     pub fn batch(&self) -> isize {
-        self.batch.opt
+        self.batch.opt() as _
     }
 
     pub fn width(&self) -> isize {
-        self.width.opt
+        self.width.opt() as _
     }
 
     pub fn height(&self) -> isize {
-        self.height.opt
+        self.height.opt() as _
     }
 }

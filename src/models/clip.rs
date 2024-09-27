@@ -66,8 +66,8 @@ impl Clip {
         let xs_ = X::apply(&[
             Ops::Resize(
                 xs,
-                self.height.opt as u32,
-                self.width.opt as u32,
+                self.height.opt() as u32,
+                self.width.opt() as u32,
                 "Bilinear",
             ),
             Ops::Normalize(0., 255.),
@@ -98,10 +98,10 @@ impl Clip {
     }
 
     pub fn batch_visual(&self) -> usize {
-        self.batch_visual.opt as usize
+        self.batch_visual.opt()
     }
 
     pub fn batch_textual(&self) -> usize {
-        self.batch_textual.opt as usize
+        self.batch_textual.opt()
     }
 }

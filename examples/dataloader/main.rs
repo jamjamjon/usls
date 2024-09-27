@@ -1,5 +1,5 @@
 use usls::{
-    models::YOLO, Annotator, DataLoader, Key, Options, Viewer, Vision, YOLOTask, YOLOVersion,
+    models::YOLO, Annotator, DataLoader, Device, Options, Viewer, Vision, YOLOTask, YOLOVersion,
 };
 
 fn main() -> anyhow::Result<()> {
@@ -8,12 +8,11 @@ fn main() -> anyhow::Result<()> {
         .init();
 
     let options = Options::new()
-        .with_cuda(0)
+        .with_device(Device::Cuda(0))
         .with_model("yolo/v8-m-dyn.onnx")?
         .with_yolo_version(YOLOVersion::V8)
         .with_yolo_task(YOLOTask::Detect)
         .with_batch(2)
-        // .with_ixx(0, 0, (1, 2, 8).into())
         .with_ixx(0, 2, (416, 640, 800).into())
         .with_ixx(0, 3, (416, 640, 800).into())
         .with_confs(&[0.2]);
@@ -31,13 +30,13 @@ fn main() -> anyhow::Result<()> {
         // "../demo.mp4",   // local video
         // "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4", // remote video
         // "rtsp://admin:xyz@192.168.2.217:554/h265/ch1/",  // rtsp h264 stream
-        "./assets/bus.jpg", // local image
-                            // "../7.mp4",
+        // "./assets/bus.jpg", // local image
+        "../7.mp4",
     )?
     .with_batch(1)
     .build()?;
 
-    let mut viewer = Viewer::new().with_delay(20).with_scale(1.).resizable(true);
+    let mut viewer = Viewer::new().with_delay(10).with_scale(1.).resizable(true);
 
     // iteration
     for (xs, _) in dl {
@@ -48,13 +47,13 @@ fn main() -> anyhow::Result<()> {
         // show image
         viewer.imshow(&images_plotted)?;
 
-        // write video
-        viewer.write_batch(&images_plotted)?;
-
         // check out window and key event
-        if !viewer.is_open() || viewer.is_key_pressed(Key::Escape) {
+        if !viewer.is_open() || viewer.is_key_pressed(usls::Key::Escape) {
             break;
         }
+
+        // write video
+        viewer.write_batch(&images_plotted)?;
     }
 
     // finish video write

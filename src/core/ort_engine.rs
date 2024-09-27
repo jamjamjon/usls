@@ -12,7 +12,7 @@ use crate::{
     CHECK_MARK, CROSS_MARK, X,
 };
 
-/// A struct for input: i-th input, ii-th dimension, value
+/// A struct for input composed of the i-th input, the ii-th dimension, and the value.
 #[derive(Clone, Debug, Default)]
 pub struct Iiix {
     pub i: usize,
@@ -26,12 +26,12 @@ impl From<(usize, usize, MinOptMax)> for Iiix {
     }
 }
 
-/// Ort Tensor Attrs: name, data_type, dims
+/// A struct for tensor attrs composed of the names, the dtypes, and the dimensions.
 #[derive(Debug)]
 pub struct OrtTensorAttr {
     pub names: Vec<String>,
     pub dtypes: Vec<TensorElementType>,
-    pub dimss: Vec<Vec<isize>>,
+    pub dimss: Vec<Vec<usize>>,
 }
 
 /// ONNXRuntime Backend
@@ -172,9 +172,9 @@ impl OrtEngine {
             let mut s_opt = format!("{}:", name);
             let mut s_max = format!("{}:", name);
             for d in inputs_minoptmax[i].iter() {
-                let min_ = &format!("{}x", d.min);
-                let opt_ = &format!("{}x", d.opt);
-                let max_ = &format!("{}x", d.max);
+                let min_ = &format!("{}x", d.min());
+                let opt_ = &format!("{}x", d.opt());
+                let max_ = &format!("{}x", d.max());
                 s_min += min_;
                 s_opt += opt_;
                 s_max += max_;
@@ -252,7 +252,7 @@ impl OrtEngine {
             for i in self.inputs_minoptmax.iter() {
                 let mut x: Vec<usize> = Vec::new();
                 for i_ in i.iter() {
-                    x.push(i_.opt as usize);
+                    x.push(i_.opt());
                 }
                 let x: Array<f32, IxDyn> = Array::ones(x).into_dyn();
                 xs.push(X::from(x));
@@ -389,59 +389,53 @@ impl OrtEngine {
         iiixs: &[Iiix],
         batch_size: usize,
     ) -> Result<Vec<Vec<MinOptMax>>> {
-        // Vec<Iiix>
-        // inputs_attrs: OrtTensorAttr { names: ["encoder_attention_mask", "encoder_hidden_states", "inputs_embeds"], dtypes: [Int64, Float32, Float32], dimss: [[-1, -1], [-1, -1, 768], [-1, -1, 768]] }
-        // output => inputs_minoptmax [[ { Min: 1, Opt: 1, Max: 1 },  { Min: 3, Opt: 3, Max: 3 },  { Min: 416, Opt: 640, Max: 800 },  { Min: 416, Opt: 640, Max: 800 }]]
+        let span = tracing::span!(tracing::Level::INFO, "OrtEngine-build_inputs_minoptmax");
+        let _guard = span.enter();
 
         // init
-        let mut inputs_minoptmax: Vec<Vec<MinOptMax>> = Vec::new();
-        for dims in inputs_attrs.dimss.iter() {
-            let mut v_: Vec<MinOptMax> = Vec::new();
-            for &x in dims.iter() {
-                v_.push(MinOptMax::from((x, x, x)));
-            }
-            inputs_minoptmax.push(v_);
-        }
+        let mut ys: Vec<Vec<MinOptMax>> = inputs_attrs
+            .dimss
+            .iter()
+            .map(|dims| dims.iter().map(|&x| MinOptMax::from(x)).collect())
+            .collect();
 
         // update from customized
         for iiix in iiixs.iter() {
-            let x = match inputs_attrs.dimss.get(iiix.i).map(|x| x[iiix.ii]) {
-                Some(x) => x,
-                None => anyhow::bail!(
-                    "Can not get the {}-th input, the {}-th dimension.",
-                    iiix.i,
-                    iiix.ii
-                ),
-            };
-
-            match x {
-                -1 => {
-                    inputs_minoptmax[iiix.i][iiix.ii] = iiix.x.clone();
+            if let Some(x) = inputs_attrs
+                .dimss
+                .get(iiix.i)
+                .and_then(|dims| dims.get(iiix.ii))
+            {
+                // dynamic
+                if *x == 0 {
+                    ys[iiix.i][iiix.ii] = iiix.x.clone();
                 }
-                _ => continue, // customized, but not dynamic
+            } else {
+                anyhow::bail!(
+                    "Cannot retrieve the {}-th dimension of the {}-th input.",
+                    iiix.ii,
+                    iiix.i,
+                );
             }
         }
 
         // deal with the dynamic axis
-        for (i, xs) in inputs_minoptmax.iter_mut().enumerate() {
-            for (ii, x) in xs.iter_mut().enumerate() {
+        ys.iter_mut().enumerate().for_each(|(i, xs)| {
+            xs.iter_mut().enumerate().for_each(|(ii, x)| {
                 if x.is_dyn() {
-                    // replace `-1` will `1` and `batch_size` at the 1st dimension of each input.
                     let n = if ii == 0 { batch_size } else { 1 };
-                    let y = MinOptMax::new(n as _);
+                    let y = MinOptMax::from(n);
                     tracing::warn!(
-                            "Using dynamic shapes in inputs without specifying it: the {}-th input, the {}-th dimension. \
-                            Using {:?} by default. You should make it clear when using TensorRT. \
-                            ",
-                            i + 1, ii + 1, y
-                        );
-
+                        "Using dynamic shapes in inputs without specifying it: the {}-th input, the {}-th dimension. \
+                        Using {:?} by default. You should make it clear when using TensorRT.",
+                        i + 1, ii + 1, y
+                    );
                     *x = y;
                 }
-            }
-        }
+            });
+        });
 
-        Ok(inputs_minoptmax)
+        Ok(ys)
     }
 
     #[allow(dead_code)]
@@ -500,57 +494,11 @@ impl OrtEngine {
         }
     }
 
-    #[allow(dead_code)]
-    fn i_from_session(session: &ort::Session) -> Result<OrtTensorAttr> {
-        let mut dimss = Vec::new();
-        let mut dtypes = Vec::new();
-        let mut names = Vec::new();
-        for x in session.inputs.iter() {
-            names.push(x.name.to_owned());
-            if let ort::ValueType::Tensor { ty, dimensions } = &x.input_type {
-                dimss.push(dimensions.iter().map(|x| *x as isize).collect::<Vec<_>>());
-                dtypes.push(*ty);
-            } else {
-                dimss.push(vec![-1_isize]);
-                dtypes.push(ort::TensorElementType::Float32);
-            }
-        }
-
-        Ok(OrtTensorAttr {
-            names,
-            dimss,
-            dtypes,
-        })
-    }
-
-    #[allow(dead_code)]
-    fn o_from_session(session: &ort::Session) -> Result<OrtTensorAttr> {
-        let mut dimss = Vec::new();
-        let mut dtypes = Vec::new();
-        let mut names = Vec::new();
-        for x in session.outputs.iter() {
-            names.push(x.name.to_owned());
-            if let ort::ValueType::Tensor { ty, dimensions } = &x.output_type {
-                dimss.push(dimensions.iter().map(|x| *x as isize).collect::<Vec<_>>());
-                dtypes.push(*ty);
-            } else {
-                dimss.push(vec![-1_isize]);
-                dtypes.push(ort::TensorElementType::Float32);
-            }
-        }
-
-        Ok(OrtTensorAttr {
-            names,
-            dimss,
-            dtypes,
-        })
-    }
-
     fn io_from_onnx_value_info(
         initializer_names: &HashSet<&str>,
         value_info: &[onnx::ValueInfoProto],
     ) -> Result<OrtTensorAttr> {
-        let mut dimss: Vec<Vec<isize>> = Vec::new();
+        let mut dimss: Vec<Vec<usize>> = Vec::new();
         let mut dtypes: Vec<ort::TensorElementType> = Vec::new();
         let mut names: Vec<String> = Vec::new();
         for v in value_info.iter() {
@@ -581,16 +529,16 @@ impl OrtEngine {
                 Some(shapes) => shapes,
                 None => continue,
             };
-            let mut shape_: Vec<isize> = Vec::new();
+            let mut shape_: Vec<usize> = Vec::new();
             for shape in shapes.dim.iter() {
                 match &shape.value {
                     None => continue,
                     Some(value) => match value {
                         onnx::tensor_shape_proto::dimension::Value::DimValue(x) => {
-                            shape_.push(*x as isize);
+                            shape_.push(*x as _);
                         }
                         onnx::tensor_shape_proto::dimension::Value::DimParam(_) => {
-                            shape_.push(-1isize);
+                            shape_.push(0);
                         }
                     },
                 }
@@ -609,11 +557,11 @@ impl OrtEngine {
         Ok(onnx::ModelProto::decode(f.as_slice())?)
     }
 
-    pub fn oshapes(&self) -> &Vec<Vec<isize>> {
+    pub fn oshapes(&self) -> &Vec<Vec<usize>> {
         &self.outputs_attrs.dimss
     }
 
-    pub fn odimss(&self) -> &Vec<Vec<isize>> {
+    pub fn odimss(&self) -> &Vec<Vec<usize>> {
         &self.outputs_attrs.dimss
     }
 
@@ -625,11 +573,11 @@ impl OrtEngine {
         &self.outputs_attrs.dtypes
     }
 
-    pub fn ishapes(&self) -> &Vec<Vec<isize>> {
+    pub fn ishapes(&self) -> &Vec<Vec<usize>> {
         &self.inputs_attrs.dimss
     }
 
-    pub fn idimss(&self) -> &Vec<Vec<isize>> {
+    pub fn idimss(&self) -> &Vec<Vec<usize>> {
         &self.inputs_attrs.dimss
     }
 
@@ -653,6 +601,14 @@ impl OrtEngine {
         &self.inputs_minoptmax[0][0]
     }
 
+    pub fn try_height(&self) -> Option<&MinOptMax> {
+        self.inputs_minoptmax.first().and_then(|x| x.get(2))
+    }
+
+    pub fn try_width(&self) -> Option<&MinOptMax> {
+        self.inputs_minoptmax.first().and_then(|x| x.get(3))
+    }
+
     pub fn height(&self) -> &MinOptMax {
         &self.inputs_minoptmax[0][2]
     }
@@ -662,7 +618,7 @@ impl OrtEngine {
     }
 
     pub fn is_batch_dyn(&self) -> bool {
-        self.ishapes()[0][0] == -1
+        self.ishapes()[0][0] == 0
     }
 
     pub fn try_fetch(&self, key: &str) -> Option<String> {

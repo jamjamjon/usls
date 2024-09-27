@@ -146,14 +146,14 @@ impl Sapiens {
     }
 
     pub fn batch(&self) -> isize {
-        self.batch.opt
+        self.batch.opt() as _
     }
 
     pub fn width(&self) -> isize {
-        self.width.opt
+        self.width.opt() as _
     }
 
     pub fn height(&self) -> isize {
-        self.height.opt
+        self.height.opt() as _
     }
 }

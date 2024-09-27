@@ -122,6 +122,11 @@ impl Options {
         self
     }
 
+    pub fn with_device(mut self, device: Device) -> Self {
+        self.device = device;
+        self
+    }
+
     pub fn with_cuda(mut self, id: usize) -> Self {
         self.device = Device::Cuda(id);
         self
@@ -142,7 +147,7 @@ impl Options {
         self
     }
 
-    pub fn with_fp16(mut self, x: bool) -> Self {
+    pub fn with_trt_fp16(mut self, x: bool) -> Self {
         self.trt_fp16_enable = x;
         self
     }

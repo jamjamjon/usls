@@ -166,7 +166,7 @@ fn main() -> Result<()> {
     } else if args.trt {
         let options = options.with_trt(args.device_id);
         if args.half {
-            options.with_fp16(true)
+            options.with_trt_fp16(true)
         } else {
             options
         }

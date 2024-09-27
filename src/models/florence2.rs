@@ -80,8 +80,8 @@ impl Florence2 {
         let xs_ = X::apply(&[
             Ops::Resize(
                 xs,
-                self.height.opt as u32,
-                self.width.opt as u32,
+                self.height.opt() as u32,
+                self.width.opt() as u32,
                 "Bilinear",
             ),
             Ops::Normalize(0., 255.),
@@ -103,7 +103,7 @@ impl Florence2 {
         let image_embeddings = self.encode_images(xs)?;
 
         // note: the length of xs is not always equal to batch size
-        self.batch.update(xs.len() as isize);
+        self.batch.update_opt(xs.len() as _);
 
         // build pb
         let pb = build_progress_bar(
@@ -454,6 +454,6 @@ impl Florence2 {
     }
 
     pub fn batch(&self) -> usize {
-        self.batch.opt as usize
+        self.batch.opt()
     }
 }
