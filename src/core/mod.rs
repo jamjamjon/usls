@@ -15,6 +15,7 @@ mod ort_engine;
 mod task;
 mod tokenizer_stream;
 mod ts;
+mod viewer;
 mod vision;
 mod x;
 mod xs;
@@ -31,10 +32,14 @@ pub use metric::Metric;
 pub use min_opt_max::MinOptMax;
 pub use ops::Ops;
 pub use options::Options;
-pub use ort_engine::OrtEngine;
+pub use ort_engine::*;
 pub use task::Task;
 pub use tokenizer_stream::TokenizerStream;
 pub use ts::Ts;
+pub use viewer::Viewer;
 pub use vision::Vision;
 pub use x::X;
 pub use xs::Xs;
+
+// re-export
+pub use minifb::Key;

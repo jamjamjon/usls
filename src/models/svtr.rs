@@ -46,8 +46,8 @@ impl SVTR {
         let xs_ = X::apply(&[
             Ops::Letterbox(
                 xs,
-                self.height.opt as u32,
-                self.width.opt as u32,
+                self.height.opt() as u32,
+                self.width.opt() as u32,
                 "Bilinear",
                 0,
                 "auto",

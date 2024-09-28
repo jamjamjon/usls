@@ -2,17 +2,12 @@ use usls::{models::Clip, DataLoader, Options};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // visual
-    let options_visual = Options::default()
-        .with_model("clip/visual-base-dyn.onnx")?
-        .with_i00((1, 1, 4).into())
-        .with_profile(false);
+    let options_visual = Options::default().with_model("clip/visual-base-dyn.onnx")?;
 
     // textual
     let options_textual = Options::default()
         .with_model("clip/textual-base-dyn.onnx")?
-        .with_tokenizer("clip/tokenizer.json")?
-        .with_i00((1, 1, 4).into())
-        .with_profile(false);
+        .with_tokenizer("clip/tokenizer.json")?;
 
     // build model
     let mut model = Clip::new(options_visual, options_textual)?;

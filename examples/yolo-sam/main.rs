@@ -5,12 +5,8 @@ use usls::{
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // build SAM
-    let options_encoder = Options::default()
-        .with_i00((1, 1, 1).into())
-        .with_model("sam/mobile-sam-vit-t-encoder.onnx")?;
+    let options_encoder = Options::default().with_model("sam/mobile-sam-vit-t-encoder.onnx")?;
     let options_decoder = Options::default()
-        .with_i11((1, 1, 1).into())
-        .with_i21((1, 1, 1).into())
         .with_find_contours(true)
         .with_sam_kind(SamKind::Sam)
         .with_model("sam/mobile-sam-vit-t-decoder.onnx")?;
@@ -22,9 +18,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_yolo_task(YOLOTask::Detect)
         .with_model("yolo/v8-m-dyn.onnx")?
         .with_cuda(0)
-        .with_i00((1, 1, 4).into())
-        .with_i02((416, 640, 800).into())
-        .with_i03((416, 640, 800).into())
+        .with_ixx(0, 2, (416, 640, 800).into())
+        .with_ixx(0, 3, (416, 640, 800).into())
         .with_find_contours(false)
         .with_confs(&[0.45]);
     let mut yolo = YOLO::new(options_yolo)?;

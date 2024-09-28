@@ -51,8 +51,8 @@ impl Dinov2 {
         let xs_ = X::apply(&[
             Ops::Resize(
                 xs,
-                self.height.opt as u32,
-                self.width.opt as u32,
+                self.height.opt() as u32,
+                self.width.opt() as u32,
                 "Lanczos3",
             ),
             Ops::Normalize(0., 255.),

@@ -15,6 +15,7 @@ pub struct Bbox {
     name: Option<String>,
     id_born: isize,
 }
+
 impl Nms for Bbox {
     /// Returns the confidence score of the bounding box.
     fn confidence(&self) -> f32 {

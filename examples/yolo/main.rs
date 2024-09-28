@@ -21,6 +21,9 @@ pub struct Args {
     #[arg(long, value_enum, default_value_t = YOLOVersion::V8)]
     pub ver: YOLOVersion,
 
+    #[arg(long, default_value_t = 1)]
+    pub batch_size: usize,
+
     #[arg(long, default_value_t = 224)]
     pub width_min: isize,
 
@@ -163,7 +166,7 @@ fn main() -> Result<()> {
     } else if args.trt {
         let options = options.with_trt(args.device_id);
         if args.half {
-            options.with_fp16(true)
+            options.with_trt_fp16(true)
         } else {
             options
         }
@@ -173,9 +176,9 @@ fn main() -> Result<()> {
         options.with_cpu()
     };
     let options = options
-        .with_i00((1, 1, 4).into())
-        .with_i02((args.height_min, args.height, args.height_max).into())
-        .with_i03((args.width_min, args.width, args.width_max).into())
+        .with_ixx(0, 0, (1, args.batch_size as _, 4).into())
+        .with_ixx(0, 2, (args.height_min, args.height, args.height_max).into())
+        .with_ixx(0, 3, (args.width_min, args.width, args.width_max).into())
         .with_confs(&[0.2, 0.15]) // class_0: 0.4, others: 0.15
         // .with_names(&COCO_CLASS_NAMES_80)
         .with_names2(&COCO_KEYPOINTS_17)

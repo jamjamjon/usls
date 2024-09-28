@@ -19,6 +19,7 @@ type TempReturnType = (Vec<DynamicImage>, Vec<PathBuf>);
 pub struct DataLoaderIterator {
     receiver: mpsc::Receiver<TempReturnType>,
     progress_bar: Option<ProgressBar>,
+    batch_size: u64,
 }
 
 impl Iterator for DataLoaderIterator {
@@ -29,7 +30,7 @@ impl Iterator for DataLoaderIterator {
             None => self.receiver.recv().ok(),
             Some(progress_bar) => match self.receiver.recv().ok() {
                 Some(item) => {
-                    progress_bar.inc(1);
+                    progress_bar.inc(self.batch_size);
                     Some(item)
                 }
                 None => {
@@ -53,7 +54,7 @@ impl IntoIterator for DataLoader {
     fn into_iter(self) -> Self::IntoIter {
         let progress_bar = if self.with_pb {
             build_progress_bar(
-                self.nf / self.batch_size as u64,
+                self.nf,
                 "   Iterating",
                 Some(&format!("{:?}", self.media_type)),
                 crate::PROGRESS_BAR_STYLE_CYAN_2,
@@ -66,6 +67,7 @@ impl IntoIterator for DataLoader {
         DataLoaderIterator {
             receiver: self.receiver,
             progress_bar,
+            batch_size: self.batch_size as _,
         }
     }
 }
@@ -164,7 +166,7 @@ impl DataLoader {
         }
 
         // summary
-        tracing::info!("{} Found {:?} x{}", CHECK_MARK, media_type, nf,);
+        tracing::info!("{} Found {:?} x{}", CHECK_MARK, media_type, nf);
 
         Ok(DataLoader {
             paths,

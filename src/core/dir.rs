@@ -14,6 +14,10 @@ pub enum Dir {
 }
 
 impl Dir {
+    pub fn saveout(subs: &[&str]) -> anyhow::Result<std::path::PathBuf> {
+        Self::Currnet.raw_path_with_subs(subs)
+    }
+
     /// Retrieves the base path for the specified directory type, optionally appending the `usls` subdirectory.
     ///
     /// # Arguments
