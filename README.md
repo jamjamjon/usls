@@ -80,7 +80,8 @@
 
 ## ⛳️ ONNXRuntime Linking 
 
-You have two options to link the ONNXRuntime library
+<details>
+<summary>You have two options to link the ONNXRuntime library</summary>
 
 - ### Option 1: Manual Linking
 
@@ -99,6 +100,7 @@ You have two options to link the ONNXRuntime library
   cargo run -r --example yolo --features auto
   ```
 
+</details>
 
 ## 🎈 Demo
 
@@ -212,8 +214,6 @@ cargo run -r --example yolo   # blip, clip, yolop, svtr, db, ...
     
     </details>
     </br>
-
-
 
 ## 📌 License
 This project is licensed under [LICENSE](LICENSE).
