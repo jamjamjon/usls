@@ -3,7 +3,7 @@ use clap::Parser;
 
 use usls::{
     models::YOLO, Annotator, DataLoader, Device, Options, Viewer, Vision, YOLOScale, YOLOTask,
-    YOLOVersion, COCO_KEYPOINTS_17, COCO_SKELETONS_16,
+    YOLOVersion, COCO_SKELETONS_16,
 };
 
 #[derive(Parser, Clone)]
@@ -42,7 +42,7 @@ pub struct Args {
     pub width: isize,
 
     /// Maximum input width
-    #[arg(long, default_value_t = 800)]
+    #[arg(long, default_value_t = 1024)]
     pub width_max: isize,
 
     /// Minimum input height
@@ -54,7 +54,7 @@ pub struct Args {
     pub height: isize,
 
     /// Maximum input height
-    #[arg(long, default_value_t = 800)]
+    #[arg(long, default_value_t = 1024)]
     pub height_max: isize,
 
     /// Number of classes
@@ -151,7 +151,7 @@ fn main() -> Result<()> {
         })
         .with_nc(args.nc)
         // .with_names(&COCO_CLASS_NAMES_80)
-        .with_names2(&COCO_KEYPOINTS_17)
+        // .with_names2(&COCO_KEYPOINTS_17)
         .with_find_contours(!args.no_contours) // find contours or not
         .with_profile(args.profile);
 
@@ -168,6 +168,7 @@ fn main() -> Result<()> {
         .with_skeletons(&COCO_SKELETONS_16)
         .without_masks(true) // No masks plotting when doing segment task.
         .with_bboxes_thickness(3)
+        .with_keypoints_name(false) // Enable keypoints names
         .with_saveout_subs(&["YOLO"])
         .with_saveout(&saveout);
 

@@ -20,8 +20,8 @@ pub struct YOLO {
     confs: DynConf,
     kconfs: DynConf,
     iou: f32,
-    names: Option<Vec<String>>,
-    names_kpt: Option<Vec<String>>,
+    names: Vec<String>,
+    names_kpt: Vec<String>,
     task: YOLOTask,
     layout: YOLOPreds,
     find_contours: bool,
@@ -96,42 +96,63 @@ impl Vision for YOLO {
 
         let task = task.unwrap_or(layout.task());
 
-        // The number of classes & Class names
-        let mut names = options.names.or(Self::fetch_names(&engine));
-        let nc = match options.nc {
-            Some(nc) => {
-                match &names {
-                    None => names = Some((0..nc).map(|x| x.to_string()).collect::<Vec<String>>()),
-                    Some(names) => {
-                        assert_eq!(
-                            nc,
+        // Class names: user-defined.or(parsed)
+        let names_parsed = Self::fetch_names(&engine);
+        let names = match names_parsed {
+            Some(names_parsed) => match options.names {
+                Some(names) => {
+                    if names.len() == names_parsed.len() {
+                        Some(names)
+                    } else {
+                        anyhow::bail!(
+                            "The lengths of parsed class names: {} and user-defined class names: {} do not match.",
+                            names_parsed.len(),
                             names.len(),
-                            "The length of `nc` and `class names` is not equal."
                         );
                     }
                 }
-                nc
-            }
-            None => match &names {
-                Some(names) => names.len(),
-                None => panic!(
-                    "Can not parse model without `nc` and `class names`. Try to make it explicit with `options.with_nc(80)`"
+                None => Some(names_parsed),
+            },
+            None => options.names,
+        };
+
+        // nc: names.len().or(options.nc)
+        let nc = match &names {
+            Some(names) => names.len(),
+            None => match options.nc {
+                Some(nc) => nc,
+                None => anyhow::bail!(
+                    "Unable to obtain the number of classes. Please specify them explicitly using `options.with_nc(usize)` or `options.with_names(&[&str])`."
                 ),
+            }
+        };
+
+        // Class names
+        let names = match names {
+            None => Self::n2s(nc),
+            Some(names) => names,
+        };
+
+        // Keypoint names & nk
+        let (nk, names_kpt) = match Self::fetch_kpts(&engine) {
+            None => (0, vec![]),
+            Some(nk) => match options.names2 {
+                Some(names) => {
+                    if names.len() == nk {
+                        (nk, names)
+                    } else {
+                        anyhow::bail!(
+                            "The lengths of user-defined keypoint names: {} and nk: {} do not match.",
+                            names.len(),
+                            nk,
+                        );
+                    }
+                }
+                None => (nk, Self::n2s(nk)),
             },
         };
 
-        // Keypoints names
-        let names_kpt = options.names2;
-
-        // The number of keypoints
-        let nk = engine
-            .try_fetch("kpt_shape")
-            .map(|kpt_string| {
-                let re = Regex::new(r"([0-9]+), ([0-9]+)").unwrap();
-                let caps = re.captures(&kpt_string).unwrap();
-                caps.get(1).unwrap().as_str().parse::<usize>().unwrap()
-            })
-            .unwrap_or(0_usize);
+        // Confs & Iou
         let confs = DynConf::new(&options.confs, nc);
         let kconfs = DynConf::new(&options.kconfs, nk);
         let iou = options.iou.unwrap_or(0.45);
@@ -139,6 +160,7 @@ impl Vision for YOLO {
         // Summary
         tracing::info!("YOLO Task: {:?}, Version: {:?}", task, version);
 
+        // dry run
         engine.dry_run()?;
 
         Ok(Self {
@@ -218,10 +240,8 @@ impl Vision for YOLO {
                         slice_clss.into_owned()
                     };
                     let mut probs = Prob::default().with_probs(&x.into_raw_vec_and_offset().0);
-                    if let Some(names) = &self.names {
-                        probs =
-                            probs.with_names(&names.iter().map(|x| x.as_str()).collect::<Vec<_>>());
-                    }
+                    probs = probs
+                        .with_names(&self.names.iter().map(|x| x.as_str()).collect::<Vec<_>>());
 
                     return Some(y.with_probs(&probs));
                 }
@@ -324,9 +344,7 @@ impl Vision for YOLO {
                                 )
                                 .with_confidence(confidence)
                                 .with_id(class_id as isize);
-                                if let Some(names) = &self.names {
-                                    mbr = mbr.with_name(&names[class_id]);
-                                }
+                                mbr = mbr.with_name(&self.names[class_id]);
 
                                 (None, Some(mbr))
                             }
@@ -336,9 +354,7 @@ impl Vision for YOLO {
                                     .with_confidence(confidence)
                                     .with_id(class_id as isize)
                                     .with_id_born(i as isize);
-                                if let Some(names) = &self.names {
-                                    bbox = bbox.with_name(&names[class_id]);
-                                }
+                                bbox = bbox.with_name(&self.names[class_id]);
 
                                 (Some(bbox), None)
                             }
@@ -393,9 +409,7 @@ impl Vision for YOLO {
                                                     ky.max(0.0f32).min(image_height),
                                                 );
 
-                                            if let Some(names) = &self.names_kpt {
-                                                kpt = kpt.with_name(&names[i]);
-                                            }
+                                            kpt = kpt.with_name(&self.names_kpt[i]);
                                             kpt
                                         }
                                     })
@@ -504,16 +518,16 @@ impl Vision for YOLO {
 }
 
 impl YOLO {
-    pub fn batch(&self) -> isize {
-        self.batch.opt() as _
+    pub fn batch(&self) -> usize {
+        self.batch.opt()
     }
 
-    pub fn width(&self) -> isize {
-        self.width.opt() as _
+    pub fn width(&self) -> usize {
+        self.width.opt()
     }
 
-    pub fn height(&self) -> isize {
-        self.height.opt() as _
+    pub fn height(&self) -> usize {
+        self.height.opt()
     }
 
     pub fn version(&self) -> Option<&YOLOVersion> {
@@ -539,5 +553,17 @@ impl YOLO {
             }
             names_
         })
+    }
+
+    fn fetch_kpts(engine: &OrtEngine) -> Option<usize> {
+        engine.try_fetch("kpt_shape").map(|s| {
+            let re = Regex::new(r"([0-9]+), ([0-9]+)").unwrap();
+            let caps = re.captures(&s).unwrap();
+            caps.get(1).unwrap().as_str().parse::<usize>().unwrap()
+        })
+    }
+
+    fn n2s(n: usize) -> Vec<String> {
+        (0..n).map(|x| format!("# {}", x)).collect::<Vec<String>>()
     }
 }
