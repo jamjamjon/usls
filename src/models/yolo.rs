@@ -64,27 +64,26 @@ impl Vision for YOLO {
                 Some(task) => match task {
                     YOLOTask::Classify => match ver {
                         YOLOVersion::V5 => (Some(ver), YOLOPreds::n_clss().apply_softmax(true)),
-                        YOLOVersion::V8 => (Some(ver), YOLOPreds::n_clss()),
+                        YOLOVersion::V8 | YOLOVersion::V11 => (Some(ver), YOLOPreds::n_clss()),
                         x => anyhow::bail!("YOLOTask::Classify is unsupported for {x:?}. Try using `.with_yolo_preds()` for customization.")
                     }
                     YOLOTask::Detect => match ver {
-                        YOLOVersion::V5 | YOLOVersion::V6 | YOLOVersion::V7 => (Some(ver),YOLOPreds::n_a_cxcywh_confclss()),
-                        YOLOVersion::V8 => (Some(ver),YOLOPreds::n_cxcywh_clss_a()),
-                        YOLOVersion::V9 => (Some(ver),YOLOPreds::n_cxcywh_clss_a()),
-                        YOLOVersion::V10 => (Some(ver),YOLOPreds::n_a_xyxy_confcls().apply_nms(false)),
-                        YOLOVersion::RTDETR => (Some(ver),YOLOPreds::n_a_cxcywh_clss_n().apply_nms(false)),
+                        YOLOVersion::V5 | YOLOVersion::V6 | YOLOVersion::V7 => (Some(ver), YOLOPreds::n_a_cxcywh_confclss()),
+                        YOLOVersion::V8 | YOLOVersion::V9 | YOLOVersion::V11 => (Some(ver), YOLOPreds::n_cxcywh_clss_a()),
+                        YOLOVersion::V10 => (Some(ver), YOLOPreds::n_a_xyxy_confcls().apply_nms(false)),
+                        YOLOVersion::RTDETR => (Some(ver), YOLOPreds::n_a_cxcywh_clss_n().apply_nms(false)),
                     }
                     YOLOTask::Pose => match ver {
-                        YOLOVersion::V8 => (Some(ver),YOLOPreds::n_cxcywh_clss_xycs_a()),
+                        YOLOVersion::V8 | YOLOVersion::V11 => (Some(ver), YOLOPreds::n_cxcywh_clss_xycs_a()),
                         x => anyhow::bail!("YOLOTask::Pose is unsupported for {x:?}. Try using `.with_yolo_preds()` for customization.")
                     }
                     YOLOTask::Segment => match ver {
                         YOLOVersion::V5 => (Some(ver), YOLOPreds::n_a_cxcywh_confclss_coefs()),
-                        YOLOVersion::V8 => (Some(ver), YOLOPreds::n_cxcywh_clss_coefs_a()),
+                        YOLOVersion::V8 | YOLOVersion::V11 => (Some(ver), YOLOPreds::n_cxcywh_clss_coefs_a()),
                         x => anyhow::bail!("YOLOTask::Segment is unsupported for {x:?}. Try using `.with_yolo_preds()` for customization.")
                     }
                     YOLOTask::Obb => match ver {
-                        YOLOVersion::V8 => (Some(ver), YOLOPreds::n_cxcywh_clss_r_a()),
+                        YOLOVersion::V8 | YOLOVersion::V11 => (Some(ver), YOLOPreds::n_cxcywh_clss_r_a()),
                         x => anyhow::bail!("YOLOTask::Segment is unsupported for {x:?}. Try using `.with_yolo_preds()` for customization.")
                     }
                 }
