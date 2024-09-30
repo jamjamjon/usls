@@ -38,11 +38,13 @@ cargo run -r --example yolo -- --task detect --ver v7 --scale t --nc 80  # YOLOv
 cargo run -r --example yolo -- --task detect --ver v8 --scale n --nc 80  # YOLOv8
 cargo run -r --example yolo -- --task detect --ver v9 --scale t --nc 80  # YOLOv9
 cargo run -r --example yolo -- --task detect --ver v10 --scale n --nc 80  # YOLOv10
-cargo run -r --example yolo -- --task detect --ver rtdetr --scale l --nc 80  # YOLOv8-RTDETR
-cargo run -r --example yolo -- --task detect --ver v8 --model yolov8s-world-v2-shoes.onnx  # YOLOv8-world
+cargo run -r --example yolo -- --task detect --ver v11 --scale n --nc 80  # YOLOv11
+cargo run -r --example yolo -- --task detect --ver rtdetr --scale l --nc 80  # RTDETR
+cargo run -r --example yolo -- --task detect --ver v8 --nc 1 --model yolov8s-world-v2-shoes.onnx  # YOLOv8-world
 
 # Pose
-cargo run -r --example yolo -- --task pose --ver v8 --scale s # YOLOv8-Pose
+cargo run -r --example yolo -- --task pose --ver v8 --scale n --nc 1  # YOLOv8-Pose
+cargo run -r --example yolo -- --task pose --ver v11 --scale n --nc 1  # YOLOv11-Pose
 
 # Segment
 cargo run -r --example yolo -- --task segment --ver v5 --scale n --nc 80  # YOLOv5-Segment
