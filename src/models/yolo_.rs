@@ -9,6 +9,28 @@ pub enum YOLOTask {
     Obb,
 }
 
+impl YOLOTask {
+    pub fn name(&self) -> String {
+        match self {
+            Self::Classify => "cls".to_string(),
+            Self::Detect => "det".to_string(),
+            Self::Pose => "pose".to_string(),
+            Self::Segment => "seg".to_string(),
+            Self::Obb => "obb".to_string(),
+        }
+    }
+
+    pub fn name_detailed(&self) -> String {
+        match self {
+            Self::Classify => "image-classification".to_string(),
+            Self::Detect => "object-detection".to_string(),
+            Self::Pose => "pose-estimation".to_string(),
+            Self::Segment => "instance-segment".to_string(),
+            Self::Obb => "oriented-object-detection".to_string(),
+        }
+    }
+}
+
 #[derive(Debug, Copy, Clone, clap::ValueEnum)]
 pub enum YOLOVersion {
     V5,
@@ -17,7 +39,52 @@ pub enum YOLOVersion {
     V8,
     V9,
     V10,
+    V11,
     RTDETR,
+}
+
+impl YOLOVersion {
+    pub fn name(&self) -> String {
+        match self {
+            Self::V5 => "v5".to_string(),
+            Self::V6 => "v6".to_string(),
+            Self::V7 => "v7".to_string(),
+            Self::V8 => "v8".to_string(),
+            Self::V9 => "v9".to_string(),
+            Self::V10 => "v10".to_string(),
+            Self::V11 => "v11".to_string(),
+            Self::RTDETR => "rtdetr".to_string(),
+        }
+    }
+}
+
+#[derive(Debug, Copy, Clone, clap::ValueEnum)]
+pub enum YOLOScale {
+    N,
+    T,
+    B,
+    S,
+    M,
+    L,
+    C,
+    E,
+    X,
+}
+
+impl YOLOScale {
+    pub fn name(&self) -> String {
+        match self {
+            Self::N => "n".to_string(),
+            Self::T => "t".to_string(),
+            Self::S => "s".to_string(),
+            Self::B => "b".to_string(),
+            Self::M => "m".to_string(),
+            Self::L => "l".to_string(),
+            Self::C => "c".to_string(),
+            Self::E => "e".to_string(),
+            Self::X => "x".to_string(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
