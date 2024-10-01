@@ -105,23 +105,30 @@ pub struct Args {
 fn main() -> Result<()> {
     let args = Args::parse();
 
-    // path
-    let path = args.model.unwrap_or({
-        format!(
+    // model path
+    let path = match &args.model {
+        None => format!(
             "yolo/{}-{}-{}.onnx",
             args.ver.name(),
             args.scale.name(),
             args.task.name()
-        )
-    });
+        ),
+        Some(x) => x.to_string(),
+    };
 
     // saveout
-    let saveout = format!(
-        "{}-{}-{}",
-        args.ver.name(),
-        args.scale.name(),
-        args.task.name()
-    );
+    let saveout = match &args.model {
+        None => format!(
+            "{}-{}-{}",
+            args.ver.name(),
+            args.scale.name(),
+            args.task.name()
+        ),
+        Some(x) => {
+            let p = std::path::PathBuf::from(&x);
+            p.file_stem().unwrap().to_str().unwrap().to_string()
+        }
+    };
 
     // device
     let device = if args.cuda {
