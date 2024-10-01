@@ -41,7 +41,7 @@ cargo run -r --example yolo -- --task detect --ver v9 --scale t  # YOLOv9
 cargo run -r --example yolo -- --task detect --ver v10 --scale n  # YOLOv10
 cargo run -r --example yolo -- --task detect --ver v11 --scale n  # YOLOv11
 cargo run -r --example yolo -- --task detect --ver rtdetr --scale l  # RTDETR
-cargo run -r --example yolo -- --task detect --ver v8 --nc 1 --model yolov8s-world-v2-shoes.onnx  # YOLOv8-world <local file>
+cargo run -r --example yolo -- --task detect --ver v8 --model yolo/v8-s-world-v2-shoes.onnx  # YOLOv8-world
 
 # Pose
 cargo run -r --example yolo -- --task pose --ver v8 --scale n   # YOLOv8-Pose
@@ -51,7 +51,7 @@ cargo run -r --example yolo -- --task pose --ver v11 --scale n  # YOLOv11-Pose
 cargo run -r --example yolo -- --task segment --ver v5 --scale n  # YOLOv5-Segment
 cargo run -r --example yolo -- --task segment --ver v8 --scale n  # YOLOv8-Segment
 cargo run -r --example yolo -- --task segment --ver v11 --scale n  # YOLOv8-Segment
-cargo run -r --example yolo -- --task segment --ver v8 --model FastSAM-s-dyn-f16.onnx  # FastSAM <local file>
+cargo run -r --example yolo -- --task segment --ver v8 --model yolo/FastSAM-s-dyn-f16.onnx  # FastSAM
 
 # Obb
 cargo run -r --example yolo -- --ver v8 --task obb --scale n --width 1024 --height 1024 --source images/dota.png  # YOLOv8-Obb
@@ -70,8 +70,6 @@ cargo run -r --example yolo -- --ver v11 --task obb --scale n --width 1024 --hei
 let options = Options::default()
     .with_yolo_version(YOLOVersion::V5)  // YOLOVersion: V5, V6, V7, V8, V9, V10, RTDETR
     .with_yolo_task(YOLOTask::Classify)  // YOLOTask: Classify, Detect, Pose, Segment, Obb
-    // .with_nc(80)
-    // .with_names(&COCO_CLASS_NAMES_80)
     .with_model("xxxx.onnx")?;
 
 ```
@@ -94,6 +92,8 @@ let options = Options::default()
             ..Default::default()
         }
     )
+    // .with_nc(80)
+    // .with_names(&COCO_CLASS_NAMES_80)
     .with_model("xxxx.onnx")?;
 ```
 </details>
