@@ -26,6 +26,8 @@ pub struct YOLO {
     layout: YOLOPreds,
     find_contours: bool,
     version: Option<YOLOVersion>,
+    classes_excluded: Vec<isize>,
+    classes_retained: Vec<isize>,
 }
 
 impl Vision for YOLO {
@@ -157,6 +159,10 @@ impl Vision for YOLO {
         let kconfs = DynConf::new(&options.kconfs, nk);
         let iou = options.iou.unwrap_or(0.45);
 
+        // Classes excluded and retained
+        let classes_excluded = options.classes_excluded;
+        let classes_retained = options.classes_retained;
+
         // Summary
         tracing::info!("YOLO Task: {:?}, Version: {:?}", task, version);
 
@@ -179,6 +185,8 @@ impl Vision for YOLO {
             layout,
             version,
             find_contours: options.find_contours,
+            classes_excluded,
+            classes_retained,
         })
     }
 
@@ -276,7 +284,19 @@ impl Vision for YOLO {
                             }
                         };
 
-                        // filtering
+                        // filtering by class id
+                        if !self.classes_excluded.is_empty()
+                            && self.classes_excluded.contains(&(class_id as isize))
+                        {
+                            return None;
+                        }
+                        if !self.classes_retained.is_empty()
+                            && !self.classes_retained.contains(&(class_id as isize))
+                        {
+                            return None;
+                        }
+
+                        // filtering by conf
                         if confidence < self.confs[class_id] {
                             return None;
                         }
