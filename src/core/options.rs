@@ -48,6 +48,8 @@ pub struct Options {
     pub sam_kind: Option<SamKind>,
     pub use_low_res_mask: Option<bool>,
     pub sapiens_task: Option<SapiensTask>,
+    pub classes_excluded: Vec<isize>,
+    pub classes_retained: Vec<isize>,
 }
 
 impl Default for Options {
@@ -88,6 +90,8 @@ impl Default for Options {
             use_low_res_mask: None,
             sapiens_task: None,
             task: Task::Untitled,
+            classes_excluded: vec![],
+            classes_retained: vec![],
         }
     }
 }
@@ -274,6 +278,18 @@ impl Options {
 
     pub fn with_ixx(mut self, i: usize, ii: usize, x: MinOptMax) -> Self {
         self.iiixs.push(Iiix::from((i, ii, x)));
+        self
+    }
+
+    pub fn exclude_classes(mut self, xs: &[isize]) -> Self {
+        self.classes_retained.clear();
+        self.classes_excluded.extend_from_slice(xs);
+        self
+    }
+
+    pub fn retain_classes(mut self, xs: &[isize]) -> Self {
+        self.classes_excluded.clear();
+        self.classes_retained.extend_from_slice(xs);
         self
     }
 }
