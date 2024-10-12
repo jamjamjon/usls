@@ -238,7 +238,7 @@ impl OrtEngine {
             let name = std::path::Path::new(&self.name);
             let pb = build_progress_bar(
                 self.num_dry_run as u64,
-                "      DryRun",
+                "DryRun",
                 Some(
                     name.file_name()
                         .and_then(|x| x.to_str())

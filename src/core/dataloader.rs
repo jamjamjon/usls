@@ -28,21 +28,27 @@ impl Iterator for DataLoaderIterator {
     fn next(&mut self) -> Option<Self::Item> {
         match &self.progress_bar {
             None => self.receiver.recv().ok(),
-            Some(progress_bar) => match self.receiver.recv().ok() {
-                Some(item) => {
-                    progress_bar.inc(self.batch_size);
-                    Some(item)
-                }
-                None => {
-                    progress_bar.set_prefix("    Iterated");
-                    progress_bar.set_style(
-                        indicatif::ProgressStyle::with_template(crate::PROGRESS_BAR_STYLE_FINISH_2)
-                            .unwrap(),
+            Some(progress_bar) => {
+                match self.receiver.recv().ok() {
+                    Some(item) => {
+                        progress_bar.inc(self.batch_size);
+                        Some(item)
+                    }
+                    None => {
+                        progress_bar.set_prefix("Iterated");
+                        progress_bar.set_style(
+                        match indicatif::ProgressStyle::with_template(
+                            crate::PROGRESS_BAR_STYLE_FINISH_2,
+                        ) {
+                            Ok(x) => x,
+                            Err(err) => panic!("Failed to set style for progressbar in `DataLoaderIterator`: {}", err),
+                        },
                     );
-                    progress_bar.finish();
-                    None
+                        progress_bar.finish();
+                        None
+                    }
                 }
-            },
+            }
         }
     }
 }
@@ -55,7 +61,7 @@ impl IntoIterator for DataLoader {
         let progress_bar = if self.with_pb {
             build_progress_bar(
                 self.nf,
-                "   Iterating",
+                "Iterating",
                 Some(&format!("{:?}", self.media_type)),
                 crate::PROGRESS_BAR_STYLE_CYAN_2,
             )
@@ -369,7 +375,7 @@ impl DataLoader {
             .join(format!("{}.mp4", string_now("-")));
         let pb = build_progress_bar(
             paths.len() as u64,
-            "  Converting",
+            "Converting",
             Some(&format!("{:?}", MediaType::Video(Location::Local))),
             crate::PROGRESS_BAR_STYLE_CYAN_2,
         )?;
@@ -404,7 +410,7 @@ impl DataLoader {
         }
 
         // update
-        pb.set_prefix("   Converted");
+        pb.set_prefix("Converted");
         pb.set_message(saveout.to_str().unwrap_or_default().to_string());
         pb.set_style(ProgressStyle::with_template(
             crate::PROGRESS_BAR_STYLE_FINISH_4,

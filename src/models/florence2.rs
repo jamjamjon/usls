@@ -108,7 +108,7 @@ impl Florence2 {
         // build pb
         let pb = build_progress_bar(
             tasks.len() as u64,
-            "  Working On",
+            "Working On",
             None,
             crate::PROGRESS_BAR_STYLE_CYAN_2,
         )?;
@@ -225,7 +225,7 @@ impl Florence2 {
         }
 
         // update pb
-        pb.set_prefix("   Completed");
+        pb.set_prefix("Completed");
         pb.set_message("Florence2 tasks");
         pb.set_style(indicatif::ProgressStyle::with_template(
             crate::PROGRESS_BAR_STYLE_FINISH_2,

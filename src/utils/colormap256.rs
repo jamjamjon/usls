@@ -1,4 +1,52 @@
-//! Some colormap: [`TURBO`], [`INFERNO`], [`PLASMA`], [`VIRIDIS`], [`MAGMA`], [`BENTCOOLWARM`], [`BLACKBODY`], [`EXTENDEDKINDLMANN`], [`KINDLMANN`], [`SMOOTHCOOLWARM`].
+pub enum ColorMap256 {
+    Turbo,
+    Inferno,
+    Plasma,
+    Viridis,
+    Magma,
+    BentCoolWarm,
+    BlackBody,
+    ExtendedKindLmann,
+    KindLmann,
+    SmoothCoolWarm,
+}
+
+impl From<&str> for ColorMap256 {
+    fn from(s: &str) -> Self {
+        match s {
+            "turbo" | "Turbo" | "TURBO" => Self::Turbo,
+            "inferno" | "Inferno" | "INFERNO" => Self::Inferno,
+            "plasma" | "Plasma" | "PLASMA" => Self::Plasma,
+            "viridis" | "Viridis" | "VIRIDIS" => Self::Viridis,
+            "magma" | "Magma" | "MAGMA" => Self::Magma,
+            "bentcoolwarm" | "BentCoolWarm" | "BENTCOOLWARM" => Self::BentCoolWarm,
+            "blackbody" | "BlackBody" | "BLACKBODY" => Self::BlackBody,
+            "extendedkindLmann" | "ExtendedKindLmann" | "EXTENDEDKINDLMANN" => {
+                Self::ExtendedKindLmann
+            }
+            "kindlmann" | "KindLmann" | "KINDLMANN" => Self::KindLmann,
+            "smoothcoolwarm" | "SmoothCoolWarm" | "SMOOTHCOOLWARM" => Self::SmoothCoolWarm,
+            _ => todo!(),
+        }
+    }
+}
+
+impl ColorMap256 {
+    pub fn data(&self) -> [[u8; 3]; 256] {
+        match self {
+            Self::Turbo => TURBO,
+            Self::Inferno => INFERNO,
+            Self::Plasma => PLASMA,
+            Self::Viridis => VIRIDIS,
+            Self::Magma => MAGMA,
+            Self::BentCoolWarm => BENTCOOLWARM,
+            Self::BlackBody => BLACKBODY,
+            Self::ExtendedKindLmann => EXTENDEDKINDLMANN,
+            Self::KindLmann => KINDLMANN,
+            Self::SmoothCoolWarm => SMOOTHCOOLWARM,
+        }
+    }
+}
 
 pub const TURBO: [[u8; 3]; 256] = [
     [48, 18, 59],

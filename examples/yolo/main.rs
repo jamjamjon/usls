@@ -160,7 +160,7 @@ fn main() -> Result<()> {
         // .with_names(&COCO_CLASS_NAMES_80)
         // .with_names2(&COCO_KEYPOINTS_17)
         .with_find_contours(!args.no_contours) // find contours or not
-        .exclude_classes(&[0])
+        // .exclude_classes(&[0])
         // .retain_classes(&[0, 5])
         .with_profile(args.profile);
 

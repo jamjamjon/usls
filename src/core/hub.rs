@@ -379,9 +379,9 @@ impl Hub {
                 .progress_chars("██ "),
             );
             pb.set_prefix(if i_try == 0 {
-                "    Fetching"
+                "Fetching"
             } else {
-                " Re-Fetching"
+                "Re-Fetching"
             });
             pb.set_message(prompt.unwrap_or_default().to_string());
 
@@ -408,7 +408,7 @@ impl Hub {
             }
 
             // update
-            pb.set_prefix("  Downloaded");
+            pb.set_prefix("Downloaded");
             pb.set_style(ProgressStyle::with_template(
                 crate::PROGRESS_BAR_STYLE_FINISH_3,
             )?);

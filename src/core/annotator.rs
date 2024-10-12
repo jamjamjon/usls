@@ -1,5 +1,5 @@
 use crate::{
-    colormap256, string_now, Bbox, Dir, Hub, Keypoint, Mask, Mbr, Polygon, Prob, CHECK_MARK,
+    string_now, Bbox, Color, ColorMap256, Dir, Hub, Keypoint, Mask, Mbr, Polygon, Prob, CHECK_MARK,
     CROSS_MARK, Y,
 };
 use ab_glyph::{FontArc, PxScale};
@@ -18,6 +18,7 @@ pub struct Annotator {
     saveout: Option<String>,
     saveout_subs: Vec<String>,
     decimal_places: usize,
+    palette: Vec<Color>,
 
     // About mbrs
     without_mbrs: bool,
@@ -73,6 +74,7 @@ impl Default for Annotator {
             _scale: 6.666667,
             scale_dy: 28.,
             polygons_alpha: 179,
+            palette: Color::palette1(),
             saveout: None,
             saveout_subs: vec![],
             saveout_base: String::from("runs"),
@@ -272,22 +274,8 @@ impl Annotator {
     }
 
     pub fn with_colormap(mut self, x: &str) -> Self {
-        let x = match x {
-            "turbo" | "Turbo" | "TURBO" => colormap256::TURBO,
-            "inferno" | "Inferno" | "INFERNO" => colormap256::INFERNO,
-            "plasma" | "Plasma" | "PLASMA" => colormap256::PLASMA,
-            "viridis" | "Viridis" | "VIRIDIS" => colormap256::VIRIDIS,
-            "magma" | "Magma" | "MAGMA" => colormap256::MAGMA,
-            "bentcoolwarm" | "BentCoolWarm" | "BENTCOOLWARM" => colormap256::BENTCOOLWARM,
-            "blackbody" | "BlackBody" | "BLACKBODY" => colormap256::BLACKBODY,
-            "extendedkindLmann" | "ExtendedKindLmann" | "EXTENDEDKINDLMANN" => {
-                colormap256::EXTENDEDKINDLMANN
-            }
-            "kindlmann" | "KindLmann" | "KINDLMANN" => colormap256::KINDLMANN,
-            "smoothcoolwarm" | "SmoothCoolWarm" | "SMOOTHCOOLWARM" => colormap256::SMOOTHCOOLWARM,
-            _ => todo!(),
-        };
-        self.colormap = Some(x);
+        let x = ColorMap256::from(x);
+        self.colormap = Some(x.data());
         self
     }
 
@@ -781,35 +769,8 @@ impl Annotator {
         Ok(FontArc::try_from_vec(buffer.to_owned())?)
     }
 
-    /// Pick color from pallette
+    /// Color palette
     pub fn get_color(&self, n: usize) -> (u8, u8, u8, u8) {
-        Self::color_palette()[n % Self::color_palette().len()]
-    }
-
-    /// Color pallette
-    fn color_palette() -> [(u8, u8, u8, u8); 20] {
-        // TODO: more colors
-        [
-            (0, 255, 127, 255),   // spring green
-            (255, 105, 180, 255), // hot pink
-            (255, 99, 71, 255),   // tomato
-            (255, 215, 0, 255),   // glod
-            (188, 143, 143, 255), // rosy brown
-            (0, 191, 255, 255),   // deep sky blue
-            (143, 188, 143, 255), // dark sea green
-            (238, 130, 238, 255), // violet
-            (154, 205, 50, 255),  // yellow green
-            (205, 133, 63, 255),  // peru
-            (30, 144, 255, 255),  // dodger blue
-            (112, 128, 144, 255), // slate gray
-            (127, 255, 212, 255), // aqua marine
-            (51, 153, 255, 255),  // blue
-            (0, 255, 255, 255),   // cyan
-            (138, 43, 226, 255),  // blue violet
-            (165, 42, 42, 255),   // brown
-            (216, 191, 216, 255), // thistle
-            (240, 255, 255, 255), // azure
-            (95, 158, 160, 255),  // cadet blue
-        ]
+        self.palette[n % self.palette.len()].rgba()
     }
 }

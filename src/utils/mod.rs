@@ -3,14 +3,17 @@
 use indicatif::{ProgressBar, ProgressStyle};
 use rand::{distributions::Alphanumeric, thread_rng, Rng};
 
-pub mod colormap256;
+pub mod color;
+mod colormap256;
 pub mod names;
 mod quantizer;
 
+pub use color::Color;
 pub use colormap256::*;
 pub use names::*;
 pub use quantizer::Quantizer;
 
+pub(crate) const PREFIX_LENGTH: usize = 12;
 pub(crate) const CHECK_MARK: &str = "✅";
 pub(crate) const CROSS_MARK: &str = "❌";
 pub(crate) const SAFE_CROSS_MARK: &str = "❎";
@@ -27,22 +30,22 @@ pub(crate) const STREAM_PROTOCOLS: &[&str] = &[
     "rtsp://", "rtsps://", "rtspu://", "rtmp://", "rtmps://", "hls://", "http://", "https://",
 ];
 pub(crate) const PROGRESS_BAR_STYLE_CYAN: &str =
-    "{prefix:.cyan.bold} {msg} {human_pos}/{human_len} |{bar}| {elapsed_precise}";
+    "{prefix:>12.cyan.bold} {msg} {human_pos}/{human_len} |{bar}| {elapsed_precise}";
 pub(crate) const PROGRESS_BAR_STYLE_GREEN: &str =
-    "{prefix:.green.bold} {msg} {human_pos}/{human_len} |{bar}| {elapsed_precise}";
+    "{prefix:>12.green.bold} {msg} {human_pos}/{human_len} |{bar}| {elapsed_precise}";
 pub(crate) const PROGRESS_BAR_STYLE_CYAN_2: &str =
-    "{prefix:.cyan.bold} {human_pos}/{human_len} |{bar}| {msg}";
+    "{prefix:>12.cyan.bold} {human_pos}/{human_len} |{bar}| {msg}";
 pub(crate) const PROGRESS_BAR_STYLE_CYAN_3: &str =
-    "{prefix:.cyan.bold} |{bar}| {human_pos}/{human_len} {msg}";
+    "{prefix:>12.cyan.bold} |{bar}| {human_pos}/{human_len} {msg}";
 pub(crate) const PROGRESS_BAR_STYLE_GREEN_2: &str =
-    "{prefix:.green.bold} {human_pos}/{human_len} |{bar}| {elapsed_precise}";
+    "{prefix:>12.green.bold} {human_pos}/{human_len} |{bar}| {elapsed_precise}";
 pub(crate) const PROGRESS_BAR_STYLE_FINISH: &str =
-    "{prefix:.green.bold} {msg} for {human_len} iterations in {elapsed}";
+    "{prefix:>12.green.bold} {msg} for {human_len} iterations in {elapsed}";
 pub(crate) const PROGRESS_BAR_STYLE_FINISH_2: &str =
-    "{prefix:.green.bold} {msg} x{human_len} in {elapsed}";
+    "{prefix:>12.green.bold} {msg} x{human_len} in {elapsed}";
 pub(crate) const PROGRESS_BAR_STYLE_FINISH_3: &str =
-    "{prefix:.green.bold} {msg} ({binary_total_bytes}) in {elapsed}";
-pub(crate) const PROGRESS_BAR_STYLE_FINISH_4: &str = "{prefix:.green.bold} {msg} in {elapsed}";
+    "{prefix:>12.green.bold} {msg} ({binary_total_bytes}) in {elapsed}";
+pub(crate) const PROGRESS_BAR_STYLE_FINISH_4: &str = "{prefix:>12.green.bold} {msg} in {elapsed}";
 
 pub fn human_bytes(size: f64) -> String {
     let units = ["B", "KB", "MB", "GB", "TB", "PB", "EB"];
@@ -83,7 +86,7 @@ pub fn build_progress_bar(
 ) -> anyhow::Result<ProgressBar> {
     let pb = ProgressBar::new(n);
     pb.set_style(ProgressStyle::with_template(style_temp)?.progress_chars("██ "));
-    pb.set_prefix(prefix.to_string());
+    pb.set_prefix(format!("{:>PREFIX_LENGTH$}", prefix));
     pb.set_message(msg.unwrap_or_default().to_string());
 
     Ok(pb)
