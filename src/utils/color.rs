@@ -1,3 +1,7 @@
+use anyhow::Result;
+use rand::Rng;
+
+/// Color: 0xRRGGBBAA
 #[derive(Copy, Clone)]
 pub struct Color(u32);
 
@@ -94,8 +98,35 @@ impl Color {
         xs.iter().copied().map(Into::into).collect()
     }
 
-    pub fn palette1() -> Vec<Self> {
-        // TODO
+    pub fn try_create_palette<A: TryInto<Self> + Copy>(xs: &[A]) -> Result<Vec<Self>>
+    where
+        <A as TryInto<Self>>::Error: std::fmt::Debug,
+    {
+        xs.iter()
+            .copied()
+            .map(|x| {
+                x.try_into()
+                    .map_err(|e| anyhow::anyhow!("Failed to convert: {:?}", e))
+            })
+            .collect()
+    }
+
+    pub fn palette_rand(n: usize) -> Vec<Self> {
+        let mut rng = rand::thread_rng();
+        let xs: Vec<(u8, u8, u8)> = (0..n)
+            .map(|_| {
+                (
+                    rng.gen_range(0..=255),
+                    rng.gen_range(0..=255),
+                    rng.gen_range(0..=255),
+                )
+            })
+            .collect();
+
+        Self::create_palette(&xs)
+    }
+
+    pub fn palette_base_20() -> Vec<Self> {
         Self::create_palette(&[
             0x00ff7fff, // SpringGreen
             0xff69b4ff, // HotPink
@@ -108,7 +139,7 @@ impl Color {
             0x9acd32ff, // YellowGreen
             0xcd853fff, // Peru
             0x1e90ffff, // DodgerBlue
-            0x708090ff, // SlateGray
+            0xd74a49ff, // ?
             0x7fffd4ff, // AquaMarine
             0x3399ffff, // Blue2
             0x00ffffff, // Cyan
@@ -120,11 +151,21 @@ impl Color {
         ])
     }
 
-    pub fn palette2() -> Vec<Self> {
-        // TODO
+    pub fn palette_cotton_candy_5() -> Vec<Self> {
+        Self::try_create_palette(&["#ff595e", "#ffca3a", "#8ac926", "#1982c4", "#6a4c93"])
+            .expect("Faild to create palette: Cotton Candy")
+    }
+
+    pub fn palette_tropical_sunrise_5() -> Vec<Self> {
+        // https://colorkit.co/palette/e12729-f37324-f8cc1b-72b043-007f4e/
+        Self::try_create_palette(&["#e12729", "#f37324", "#f8cc1b", "#72b043", "#007f4e"])
+            .expect("Faild to create palette: Tropical Sunrise")
+    }
+
+    pub fn palette_rainbow_10() -> Vec<Self> {
         Self::create_palette(&[
-            0x00202eff, 0x003f5cff, 0x2c4875ff, 0x8a508fff, 0xbc5090ff, 0xff6361ff, 0xff8531ff,
-            0xffa600ff, 0xffd380ff,
+            0xff595eff, 0xff924cff, 0xffca3aff, 0xc5ca30ff, 0x8ac926ff, 0x52a675ff, 0x1982c4ff,
+            0x4267acff, 0x6a4c93ff, 0xb5a6c9ff,
         ])
     }
 }

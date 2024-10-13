@@ -10,7 +10,6 @@ use imageproc::map::map_colors;
 /// Annotator for struct `Y`
 #[derive(Clone)]
 pub struct Annotator {
-    // TODO: Add lifetime
     font: FontArc,
     _scale: f32, // Cope with ab_glyph & imageproc=0.24.0
     scale_dy: f32,
@@ -58,7 +57,7 @@ pub struct Annotator {
 
     // About masks
     without_masks: bool,
-    colormap: Option<[[u8; 3]; 256]>,
+    colormap: Option<[Color; 256]>,
 
     // About probs
     probs_topk: usize,
@@ -74,7 +73,7 @@ impl Default for Annotator {
             _scale: 6.666667,
             scale_dy: 28.,
             polygons_alpha: 179,
-            palette: Color::palette1(),
+            palette: Color::palette_base_20(),
             saveout: None,
             saveout_subs: vec![],
             saveout_base: String::from("runs"),
@@ -661,7 +660,7 @@ impl Annotator {
             let luma = if let Some(colormap) = self.colormap {
                 let luma = map_colors(mask.mask(), |p| {
                     let x = p[0];
-                    image::Rgb(colormap[x as usize])
+                    image::Rgb(colormap[x as usize].rgb().into())
                 });
                 image::DynamicImage::from(luma)
             } else {
