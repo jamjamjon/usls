@@ -1,3 +1,4 @@
+use aksr::Builder;
 use geo::{
     coord, point, polygon, Area, BoundingRect, Centroid, ConvexHull, EuclideanLength, LineString,
     MinimumRotatedRect, Point, Simplify,
@@ -6,7 +7,7 @@ use geo::{
 use crate::{Bbox, Mbr};
 
 /// Polygon.
-#[derive(Clone, PartialEq)]
+#[derive(Builder, Clone, PartialEq)]
 pub struct Polygon {
     polygon: geo::Polygon,
     id: isize,
@@ -59,38 +60,6 @@ impl Polygon {
         self
     }
 
-    pub fn with_polygon(mut self, x: geo::Polygon) -> Self {
-        self.polygon = x;
-        self
-    }
-
-    pub fn with_id(mut self, x: isize) -> Self {
-        self.id = x;
-        self
-    }
-
-    pub fn with_name(mut self, x: &str) -> Self {
-        self.name = Some(x.to_string());
-        self
-    }
-
-    pub fn with_confidence(mut self, x: f32) -> Self {
-        self.confidence = x;
-        self
-    }
-
-    pub fn id(&self) -> isize {
-        self.id
-    }
-
-    pub fn name(&self) -> Option<&String> {
-        self.name.as_ref()
-    }
-
-    pub fn confidence(&self) -> f32 {
-        self.confidence
-    }
-
     pub fn label(&self, with_name: bool, with_conf: bool, decimal_places: usize) -> String {
         let mut label = String::new();
         if with_name {
@@ -110,10 +79,6 @@ impl Polygon {
             }
         }
         label
-    }
-
-    pub fn polygon(&self) -> &geo::Polygon {
-        &self.polygon
     }
 
     pub fn is_closed(&self) -> bool {

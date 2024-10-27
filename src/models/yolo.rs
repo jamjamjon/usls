@@ -124,7 +124,7 @@ impl Vision for YOLO {
             None => match options.nc {
                 Some(nc) => nc,
                 None => anyhow::bail!(
-                    "Unable to obtain the number of classes. Please specify them explicitly using `options.with_nc(usize)` or `options.with_names(&[&str])`."
+                    "Unable to obtain the number of classes. Please specify them explicitly using `options.with_nc(usize)` or `options.with_names()`."
                 ),
             }
         };
@@ -251,7 +251,7 @@ impl Vision for YOLO {
                     probs = probs
                         .with_names(&self.names.iter().map(|x| x.as_str()).collect::<Vec<_>>());
 
-                    return Some(y.with_probs(&probs));
+                    return Some(y.with_probs(probs));
                 }
 
                 let image_width = xs0[idx].width() as f32;

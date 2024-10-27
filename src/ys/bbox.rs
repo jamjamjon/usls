@@ -1,10 +1,12 @@
+use aksr::Builder;
+
 use crate::Nms;
 
 /// Bounding Box 2D.
 ///
 /// This struct represents a 2D bounding box with properties such as position, size,
 /// class ID, confidence score, optional name, and an ID representing the born state.
-#[derive(Clone, PartialEq, PartialOrd)]
+#[derive(Builder, Clone, PartialEq, PartialOrd)]
 pub struct Bbox {
     x: f32,
     y: f32,
@@ -160,62 +162,6 @@ impl Bbox {
         self
     }
 
-    /// Sets the class ID of the bounding box.
-    ///
-    /// # Arguments
-    ///
-    /// * `x` - The class ID to be set.
-    ///
-    /// # Returns
-    ///
-    /// A `Bbox` instance with updated class ID.
-    pub fn with_id(mut self, x: isize) -> Self {
-        self.id = x;
-        self
-    }
-
-    /// Sets the ID representing the born state of the bounding box.
-    ///
-    /// # Arguments
-    ///
-    /// * `x` - The ID to be set.
-    ///
-    /// # Returns
-    ///
-    /// A `Bbox` instance with updated born state ID.
-    pub fn with_id_born(mut self, x: isize) -> Self {
-        self.id_born = x;
-        self
-    }
-
-    /// Sets the confidence score of the bounding box.
-    ///
-    /// # Arguments
-    ///
-    /// * `x` - The confidence score to be set.
-    ///
-    /// # Returns
-    ///
-    /// A `Bbox` instance with updated confidence score.
-    pub fn with_confidence(mut self, x: f32) -> Self {
-        self.confidence = x;
-        self
-    }
-
-    /// Sets the optional name of the bounding box.
-    ///
-    /// # Arguments
-    ///
-    /// * `x` - The name to be set.
-    ///
-    /// # Returns
-    ///
-    /// A `Bbox` instance with updated name.
-    pub fn with_name(mut self, x: &str) -> Self {
-        self.name = Some(x.to_string());
-        self
-    }
-
     /// Returns the width of the bounding box.
     pub fn width(&self) -> f32 {
         self.w
@@ -270,26 +216,6 @@ impl Bbox {
     pub fn cxywh(&self) -> (f32, f32, f32, f32) {
         (self.cx(), self.cy(), self.w, self.h)
     }
-
-    /// Returns the class ID of the bounding box.
-    pub fn id(&self) -> isize {
-        self.id
-    }
-
-    /// Returns the born state ID of the bounding box.
-    pub fn id_born(&self) -> isize {
-        self.id_born
-    }
-
-    /// Returns the optional name associated with the bounding box, if any.
-    pub fn name(&self) -> Option<&String> {
-        self.name.as_ref()
-    }
-
-    // /// Returns the confidence score of the bounding box.
-    // pub fn confidence(&self) -> f32 {
-    //     self.confidence
-    // }
 
     /// A label string representing the bounding box, optionally including name and confidence score.
     pub fn label(&self, with_name: bool, with_conf: bool, decimal_places: usize) -> String {

@@ -93,7 +93,7 @@ impl SAM {
         let find_contours = options_decoder.find_contours;
         let use_low_res_mask = match kind {
             SamKind::Sam | SamKind::MobileSam | SamKind::SamHq => {
-                options_decoder.use_low_res_mask.unwrap_or(false)
+                options_decoder.low_res_mask.unwrap_or(false)
             }
             SamKind::EdgeSam | SamKind::Sam2 => true,
         };

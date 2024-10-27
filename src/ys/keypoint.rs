@@ -1,7 +1,8 @@
+use aksr::Builder;
 use std::ops::{Add, Div, Mul, Sub};
 
 /// Keypoint 2D.
-#[derive(PartialEq, Clone)]
+#[derive(Builder, PartialEq, Clone)]
 pub struct Keypoint {
     x: f32,
     y: f32,
@@ -178,41 +179,6 @@ impl Keypoint {
         self.x = x;
         self.y = y;
         self
-    }
-
-    pub fn with_confidence(mut self, x: f32) -> Self {
-        self.confidence = x;
-        self
-    }
-
-    pub fn with_id(mut self, x: isize) -> Self {
-        self.id = x;
-        self
-    }
-
-    pub fn with_name(mut self, x: &str) -> Self {
-        self.name = Some(x.to_string());
-        self
-    }
-
-    pub fn x(&self) -> f32 {
-        self.x
-    }
-
-    pub fn y(&self) -> f32 {
-        self.y
-    }
-
-    pub fn confidence(&self) -> f32 {
-        self.confidence
-    }
-
-    pub fn id(&self) -> isize {
-        self.id
-    }
-
-    pub fn name(&self) -> Option<&String> {
-        self.name.as_ref()
     }
 
     pub fn label(&self, with_name: bool, with_conf: bool, decimal_places: usize) -> String {

@@ -146,13 +146,13 @@ impl Florence2 {
                     // postprocess
                     let mut y = Y::default();
                     if let Task::Caption(_) | Task::Ocr = task {
-                        y = y.with_texts(&[text]);
+                        y = y.with_texts(&[&text]);
                     } else {
                         let elems = Self::loc_parse(&text)?;
                         match task {
                             Task::RegionToCategory(..) | Task::RegionToDescription(..) => {
                                 let text = elems[0][0].clone();
-                                y = y.with_texts(&[text]);
+                                y = y.with_texts(&[&text]);
                             }
                             Task::ObjectDetection
                             | Task::OpenSetDetection(_)

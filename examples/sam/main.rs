@@ -78,7 +78,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_ixx(0, 3, (800, 1024, 1024).into());
     let options_decoder = options_decoder
         .with_cuda(args.device_id)
-        .use_low_res_mask(args.use_low_res_mask)
+        .with_low_res_mask(args.use_low_res_mask)
         .with_find_contours(true);
 
     // Build model

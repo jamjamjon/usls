@@ -1,6 +1,6 @@
 [package]
 name = "usls"
-version = "0.0.19"
+version = "0.0.20"
 edition = "2021"
 description = "A Rust library integrated with ONNXRuntime, providing a collection of ML models."
 repository = "https://github.com/jamjamjon/usls"
@@ -39,6 +39,7 @@ natord = "1.0.9"
 tracing = "0.1.40"
 tracing-subscriber = "0.3.18"
 minifb = "0.27.0"
+aksr = { git = "https://github.com/jamjamjon/aksr.git" }
 
 
 [features]

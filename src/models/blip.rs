@@ -69,7 +69,7 @@ impl Blip {
             Ops::Nhwc2nchw,
         ])?;
         let ys = self.visual.run(Xs::from(xs_))?;
-        Ok(Y::default().with_embedding(&Embedding::from(ys[0].to_owned())))
+        Ok(Y::default().with_embedding(Embedding::from(ys[0].to_owned())))
     }
 
     pub fn caption(&mut self, xs: &Y, prompt: Option<&str>, show: bool) -> Result<Vec<Y>> {
@@ -141,7 +141,7 @@ impl Blip {
             println!();
         }
         self.tokenizer.clear();
-        ys.push(Y::default().with_texts(&[y_text]));
+        ys.push(Y::default().with_texts(&[&y_text]));
         Ok(ys)
     }
 

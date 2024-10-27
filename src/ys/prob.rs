@@ -1,5 +1,7 @@
+use aksr::Builder;
+
 /// Probabilities for classification.
-#[derive(Clone, PartialEq, Default)]
+#[derive(Builder, Clone, PartialEq, Default)]
 pub struct Prob {
     probs: Vec<f32>,
     names: Option<Vec<String>>,
@@ -12,25 +14,6 @@ impl std::fmt::Debug for Prob {
 }
 
 impl Prob {
-    pub fn with_names(mut self, names: &[&str]) -> Self {
-        let names = names.iter().map(|x| x.to_string()).collect::<Vec<String>>();
-        self.names = Some(names);
-        self
-    }
-
-    pub fn with_probs(mut self, x: &[f32]) -> Self {
-        self.probs = x.to_vec();
-        self
-    }
-
-    pub fn probs(&self) -> &Vec<f32> {
-        &self.probs
-    }
-
-    pub fn names(&self) -> Option<&Vec<String>> {
-        self.names.as_ref()
-    }
-
     pub fn topk(&self, k: usize) -> Vec<(usize, f32, Option<String>)> {
         let mut probs = self
             .probs

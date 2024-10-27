@@ -1,8 +1,13 @@
+use aksr::Builder;
+
 /// A value composed of Min-Opt-Max
-#[derive(Clone, Debug, PartialEq, PartialOrd, Eq, Ord)]
+#[derive(Builder, Clone, Debug, PartialEq, PartialOrd, Eq, Ord)]
 pub struct MinOptMax {
+    #[args(setter = false)]
     min: usize,
+    #[args(setter = false)]
     opt: usize,
+    #[args(setter = false)]
     max: usize,
 }
 
@@ -17,18 +22,6 @@ impl Default for MinOptMax {
 }
 
 impl MinOptMax {
-    pub fn min(&self) -> usize {
-        self.min
-    }
-
-    pub fn opt(&self) -> usize {
-        self.opt
-    }
-
-    pub fn max(&self) -> usize {
-        self.max
-    }
-
     pub fn ones() -> Self {
         Default::default()
     }

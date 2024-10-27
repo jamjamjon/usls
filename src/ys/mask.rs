@@ -1,7 +1,8 @@
+use aksr::Builder;
 use image::GrayImage;
 
 /// Mask: Gray Image.
-#[derive(Clone, PartialEq)]
+#[derive(Builder, Clone, PartialEq)]
 pub struct Mask {
     mask: GrayImage,
     id: isize,
@@ -31,39 +32,8 @@ impl std::fmt::Debug for Mask {
 }
 
 impl Mask {
-    pub fn with_mask(mut self, x: GrayImage) -> Self {
-        self.mask = x;
-        self
-    }
-
-    pub fn with_id(mut self, x: isize) -> Self {
-        self.id = x;
-        self
-    }
-
-    pub fn with_name(mut self, x: &str) -> Self {
-        self.name = Some(x.to_string());
-        self
-    }
-
-    pub fn mask(&self) -> &GrayImage {
-        &self.mask
-    }
-
     pub fn to_vec(&self) -> Vec<u8> {
         self.mask.to_vec()
-    }
-
-    pub fn id(&self) -> isize {
-        self.id
-    }
-
-    pub fn name(&self) -> Option<&String> {
-        self.name.as_ref()
-    }
-
-    pub fn confidence(&self) -> f32 {
-        self.confidence
     }
 
     pub fn height(&self) -> u32 {

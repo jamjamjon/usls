@@ -1,10 +1,11 @@
+use aksr::Builder;
 use anyhow::Result;
 use std::collections::HashMap;
 use std::ops::{Deref, Index};
 
 use crate::{string_random, X};
 
-#[derive(Debug, Default, Clone)]
+#[derive(Builder, Debug, Default, Clone)]
 pub struct Xs {
     map: HashMap<String, X>,
     names: Vec<String>,
@@ -54,10 +55,6 @@ impl Xs {
         } else {
             anyhow::bail!("Xs already contains key: {:?}", key)
         }
-    }
-
-    pub fn names(&self) -> &Vec<String> {
-        &self.names
     }
 }
 

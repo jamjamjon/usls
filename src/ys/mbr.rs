@@ -1,9 +1,10 @@
+use aksr::Builder;
 use geo::{coord, line_string, Area, BooleanOps, Coord, EuclideanDistance, LineString, Polygon};
 
 use crate::Nms;
 
 /// Minimum Bounding Rectangle.
-#[derive(Clone, PartialEq)]
+#[derive(Builder, Clone, PartialEq)]
 pub struct Mbr {
     ls: LineString,
     id: isize,
@@ -89,29 +90,6 @@ impl Mbr {
             ls,
             ..Default::default()
         }
-    }
-
-    pub fn with_id(mut self, id: isize) -> Self {
-        self.id = id;
-        self
-    }
-
-    pub fn with_confidence(mut self, x: f32) -> Self {
-        self.confidence = x;
-        self
-    }
-
-    pub fn with_name(mut self, x: &str) -> Self {
-        self.name = Some(x.to_string());
-        self
-    }
-
-    pub fn id(&self) -> isize {
-        self.id
-    }
-
-    pub fn name(&self) -> Option<&String> {
-        self.name.as_ref()
     }
 
     pub fn label(&self, with_name: bool, with_conf: bool, decimal_places: usize) -> String {

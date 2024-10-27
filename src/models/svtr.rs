@@ -94,7 +94,7 @@ impl SVTR {
                 .map(|idx| self.vocab[idx].to_owned())
                 .collect::<String>();
 
-            ys.push(Y::default().with_texts(&[text]))
+            ys.push(Y::default().with_texts(&[&text]))
         }
         Ok(ys)
     }

@@ -55,7 +55,7 @@ pub fn benchmark_cuda(c: &mut Criterion, h: isize, w: isize) -> Result<()> {
         .with_model("yolo/v8-m-dyn.onnx")?
         .with_cuda(0)
         // .with_cpu()
-        .with_dry_run(0)
+        .with_num_dry_run(0)
         .with_ixx(0, 2, (320, h, 1280).into())
         .with_ixx(0, 3, (320, w, 1280).into())
         .with_confs(&[0.2, 0.15]);

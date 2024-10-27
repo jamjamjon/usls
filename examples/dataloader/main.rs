@@ -9,7 +9,7 @@ fn main() -> anyhow::Result<()> {
 
     let options = Options::new()
         .with_device(Device::Cuda(0))
-        .with_model("yolo/v8-m-dyn.onnx")?
+        .with_model("yolo/v8-m-det.onnx")?
         .with_yolo_version(YOLOVersion::V8)
         .with_yolo_task(YOLOTask::Detect)
         .with_batch(2)

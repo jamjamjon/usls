@@ -2,27 +2,23 @@ use std::ops::Index;
 
 /// Dynamic Confidences
 #[derive(Clone, PartialEq, PartialOrd)]
-pub struct DynConf {
-    confs: Vec<f32>,
-}
+pub struct DynConf(Vec<f32>);
 
 impl Default for DynConf {
     fn default() -> Self {
-        Self {
-            confs: vec![0.4f32],
-        }
+        Self(vec![0.4f32])
     }
 }
 
 impl std::fmt::Debug for DynConf {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("").field("DynConf", &self.confs).finish()
+        f.debug_struct("").field("DynConf", &self.0).finish()
     }
 }
 
 impl std::fmt::Display for DynConf {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_list().entries(self.confs.iter()).finish()
+        f.debug_list().entries(self.0.iter()).finish()
     }
 }
 
@@ -30,7 +26,7 @@ impl Index<usize> for DynConf {
     type Output = f32;
 
     fn index(&self, i: usize) -> &Self::Output {
-        &self.confs[i]
+        &self.0[i]
     }
 }
 
@@ -50,6 +46,6 @@ impl DynConf {
             confs
         };
 
-        Self { confs }
+        Self(confs)
     }
 }

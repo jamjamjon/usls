@@ -97,8 +97,8 @@ impl OrtEngine {
                     &inputs_minoptmax,
                     &builder,
                     device_id,
-                    config.trt_int8_enable,
-                    config.trt_fp16_enable,
+                    config.trt_int8,
+                    config.trt_fp16,
                     config.trt_engine_cache_enable,
                 )?;
             }

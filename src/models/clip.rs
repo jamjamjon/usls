@@ -79,7 +79,7 @@ impl Clip {
             Ops::Nhwc2nchw,
         ])?;
         let ys = self.visual.run(Xs::from(xs_))?;
-        Ok(Y::default().with_embedding(&Embedding::from(ys[0].to_owned())))
+        Ok(Y::default().with_embedding(Embedding::from(ys[0].to_owned())))
     }
 
     pub fn encode_texts(&mut self, texts: &[String]) -> Result<Y> {
@@ -94,7 +94,7 @@ impl Clip {
         let xs = Array2::from_shape_vec((texts.len(), self.context_length), xs)?.into_dyn();
         let xs = X::from(xs);
         let ys = self.textual.run(Xs::from(xs))?;
-        Ok(Y::default().with_embedding(&Embedding::from(ys[0].to_owned())))
+        Ok(Y::default().with_embedding(Embedding::from(ys[0].to_owned())))
     }
 
     pub fn batch_visual(&self) -> usize {
