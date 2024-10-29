@@ -1,11 +1,12 @@
+use aksr::Builder;
 use anyhow::Result;
 use ndarray::{Array, Axis, Ix2, IxDyn};
 
 use crate::X;
 
 /// Embedding for image or text.
-#[derive(Clone, PartialEq, Default)]
-pub struct Embedding(Array<f32, IxDyn>);
+#[derive(Builder, Clone, PartialEq, Default)]
+pub struct Embedding(#[args(alias = "embedding")] Array<f32, IxDyn>);
 
 impl std::fmt::Debug for Embedding {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -22,11 +23,6 @@ impl From<X> for Embedding {
 impl Embedding {
     pub fn new(x: Array<f32, IxDyn>) -> Self {
         Self(x)
-    }
-
-    pub fn with_embedding(mut self, x: Array<f32, IxDyn>) -> Self {
-        self.0 = x;
-        self
     }
 
     pub fn data(&self) -> &Array<f32, IxDyn> {
