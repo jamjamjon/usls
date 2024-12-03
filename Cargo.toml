@@ -12,7 +12,7 @@ exclude = ["assets/*", "examples/*", "scripts/*", "runs/*"]
 [dependencies]
 clap = { version = "4.2.4", features = ["derive"] }
 ndarray = { version = "0.16.1", features = ["rayon"] }
-ort = { version = "2.0.0-rc.5", default-features = false}
+ort = { version = "2.0.0-rc.9", default-features = false }
 anyhow = { version = "1.0.75" }
 regex = { version = "1.5.4" }
 rand = { version = "0.8.5" }
@@ -30,7 +30,7 @@ imageproc = { version = "0.24" }
 ab_glyph = "0.2.23"
 geo = "0.28.0"
 prost = "0.12.4"
-fast_image_resize = { version = "4.2.1", features = ["image"]}
+fast_image_resize = { version = "4.2.1", features = ["image"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 tempfile = "3.12.0"
@@ -50,7 +50,6 @@ default = [
     "ort/cuda",
     "ort/tensorrt",
     "ort/coreml",
-    "ort/operator-libraries"
 ]
 auto = ["ort/download-binaries"]
 
