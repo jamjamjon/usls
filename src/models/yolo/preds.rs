@@ -227,13 +227,13 @@ impl YOLOPredsFormat {
         x: ArrayBase<ViewRepr<&'a f32>, Dim<IxDynImpl>>,
         nc: usize,
     ) -> (
-        Option<ArrayView<f32, IxDyn>>,
-        Option<ArrayView<f32, IxDyn>>,
-        ArrayView<f32, IxDyn>,
-        Option<ArrayView<f32, IxDyn>>,
-        Option<ArrayView<f32, IxDyn>>,
-        Option<ArrayView<f32, IxDyn>>,
-        Option<ArrayView<f32, IxDyn>>,
+        Option<ArrayView<'a, f32, IxDyn>>,
+        Option<ArrayView<'a, f32, IxDyn>>,
+        ArrayView<'a, f32, IxDyn>,
+        Option<ArrayView<'a, f32, IxDyn>>,
+        Option<ArrayView<'a, f32, IxDyn>>,
+        Option<ArrayView<'a, f32, IxDyn>>,
+        Option<ArrayView<'a, f32, IxDyn>>,
     ) {
         match self.task() {
             Task::ImageClassification => (None, None, x, None, None, None, None),

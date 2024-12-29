@@ -181,7 +181,8 @@ impl Ops<'_> {
     }
 
     pub fn make_divisible(x: usize, divisor: usize) -> usize {
-        (x + divisor - 1) / divisor * divisor
+        // (x + divisor - 1) / divisor * divisor
+        x.div_ceil(divisor)
     }
 
     // deprecated
