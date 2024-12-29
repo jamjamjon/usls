@@ -1,41 +1,67 @@
+use anyhow::Result;
 use usls::{models::GroundingDINO, Annotator, DataLoader, Options};
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let opts = Options::default()
-        .with_ixx(0, 0, (1, 1, 4).into())
-        .with_ixx(0, 2, (640, 800, 1200).into())
-        .with_ixx(0, 3, (640, 1200, 1200).into())
-        // .with_i10((1, 1, 4).into())
-        // .with_i11((256, 256, 512).into())
-        // .with_i20((1, 1, 4).into())
-        // .with_i21((256, 256, 512).into())
-        // .with_i30((1, 1, 4).into())
-        // .with_i31((256, 256, 512).into())
-        // .with_i40((1, 1, 4).into())
-        // .with_i41((256, 256, 512).into())
-        // .with_i50((1, 1, 4).into())
-        // .with_i51((256, 256, 512).into())
-        // .with_i52((256, 256, 512).into())
-        .with_model("grounding-dino/swint-ogc-dyn-u8.onnx")? // TODO: current onnx model does not support bs > 1
-        // .with_model("grounding-dino/swint-ogc-dyn-f32.onnx")?
-        .with_tokenizer("grounding-dino/tokenizer.json")?
-        .with_confs(&[0.2])
-        .with_profile(false);
-    let mut model = GroundingDINO::new(opts)?;
+#[derive(argh::FromArgs)]
+/// Example
+struct Args {
+    /// dtype
+    #[argh(option, default = "String::from(\"auto\")")]
+    dtype: String,
 
-    // Load images and set class names
-    let x = [DataLoader::try_read("images/bus.jpg")?];
-    let texts = [
-        "person", "hand", "shoes", "bus", "dog", "cat", "sign", "tie", "monitor", "window",
-        "glasses", "tree", "head",
-    ];
+    /// device
+    #[argh(option, default = "String::from(\"cpu:0\")")]
+    device: String,
 
-    // Run and annotate
-    let y = model.run(&x, &texts)?;
+    /// source image
+    #[argh(option, default = "vec![String::from(\"./assets/bus.jpg\")]")]
+    source: Vec<String>,
+
+    /// open class names
+    #[argh(
+        option,
+        default = "vec![
+            String::from(\"person\"), 
+            String::from(\"hand\"), 
+            String::from(\"shoes\"), 
+            String::from(\"bus\"), 
+            String::from(\"dog\"), 
+            String::from(\"cat\"), 
+            String::from(\"sign\"), 
+            String::from(\"tie\"), 
+            String::from(\"monitor\"), 
+            String::from(\"glasses\"), 
+            String::from(\"tree\"), 
+            String::from(\"head\"), 
+        ]"
+    )]
+    labels: Vec<String>,
+}
+
+fn main() -> Result<()> {
+    let args: Args = argh::from_env();
+
+    let options = Options::grounding_dino_tiny()
+        .with_model_dtype(args.dtype.as_str().try_into()?)
+        .with_model_device(args.device.as_str().try_into()?)
+        .with_text_names(&args.labels.iter().map(|x| x.as_str()).collect::<Vec<_>>())
+        .commit()?;
+
+    let mut model = GroundingDINO::new(options)?;
+
+    // load images
+    let xs = DataLoader::try_read_batch(&args.source)?;
+
+    // run
+    let ys = model.forward(&xs)?;
+
+    // annotate
     let annotator = Annotator::default()
         .with_bboxes_thickness(4)
-        .with_saveout("GroundingDINO");
-    annotator.annotate(&x, &y);
+        .with_saveout(model.spec());
+    annotator.annotate(&xs, &ys);
+
+    // summary
+    model.summary();
 
     Ok(())
 }

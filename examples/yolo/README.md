@@ -28,75 +28,37 @@
 cargo run -r --example yolo -- --task detect --ver v8 --nc 6 --model xxx.onnx  # YOLOv8
 
 # Classify
-cargo run -r --example yolo -- --task classify --ver v5 --scale s --width 224 --height 224 --nc 1000  # YOLOv5
-cargo run -r --example yolo -- --task classify --ver v8 --scale n --width 224 --height 224 --nc 1000  # YOLOv8 
-cargo run -r --example yolo -- --task classify --ver v11 --scale n --width 224 --height 224 --nc 1000  # YOLOv11 
+
+cargo run -r --example yolo -- --task classify --ver 5 --scale s --image-width 224 --image-height 224 --num-classes 1000 --use-imagenet-1k-classes # YOLOv5
+cargo run -r --example yolo -- --task classify --ver 8 --scale n --image-width 224 --image-height 224 # YOLOv8 
+cargo run -r --example yolo -- --task classify --ver 11 --scale n --image-width 224 --image-height 224  # YOLOv11 
 
 # Detect
-cargo run -r --example yolo -- --task detect --ver v5 --scale n  # YOLOv5 
-cargo run -r --example yolo -- --task detect --ver v6 --scale n  # YOLOv6
-cargo run -r --example yolo -- --task detect --ver v7 --scale t  # YOLOv7
-cargo run -r --example yolo -- --task detect --ver v8 --scale n  # YOLOv8
-cargo run -r --example yolo -- --task detect --ver v9 --scale t  # YOLOv9
-cargo run -r --example yolo -- --task detect --ver v10 --scale n  # YOLOv10
-cargo run -r --example yolo -- --task detect --ver v11 --scale n  # YOLOv11
-cargo run -r --example yolo -- --task detect --ver rtdetr --scale l  # RTDETR
-cargo run -r --example yolo -- --task detect --ver v8 --model yolo/v8-s-world-v2-shoes.onnx  # YOLOv8-world
+cargo run -r --example yolo -- --task detect --ver 5 --scale n --use-coco-80-classes  # YOLOv5 
+cargo run -r --example yolo -- --task detect --ver 6 --scale n --use-coco-80-classes  # YOLOv6
+cargo run -r --example yolo -- --task detect --ver 7 --scale t --use-coco-80-classes  # YOLOv7
+cargo run -r --example yolo -- --task detect --ver 8 --scale n --use-coco-80-classes  # YOLOv8
+cargo run -r --example yolo -- --task detect --ver 9 --scale t --use-coco-80-classes  # YOLOv9
+cargo run -r --example yolo -- --task detect --ver 10 --scale n --use-coco-80-classes  # YOLOv10
+cargo run -r --example yolo -- --task detect --ver 11 --scale n --use-coco-80-classes  # YOLOv11
+cargo run -r --example yolo -- --task detect --ver 8 --model v8-s-world-v2-shoes.onnx  # YOLOv8-world
 
 # Pose
-cargo run -r --example yolo -- --task pose --ver v8 --scale n   # YOLOv8-Pose
-cargo run -r --example yolo -- --task pose --ver v11 --scale n  # YOLOv11-Pose
+cargo run -r --example yolo -- --task pose --ver 8 --scale n   # YOLOv8-Pose
+cargo run -r --example yolo -- --task pose --ver 11 --scale n  # YOLOv11-Pose
 
 # Segment
-cargo run -r --example yolo -- --task segment --ver v5 --scale n  # YOLOv5-Segment
-cargo run -r --example yolo -- --task segment --ver v8 --scale n  # YOLOv8-Segment
-cargo run -r --example yolo -- --task segment --ver v11 --scale n  # YOLOv8-Segment
-cargo run -r --example yolo -- --task segment --ver v8 --model yolo/FastSAM-s-dyn-f16.onnx  # FastSAM
+cargo run -r --example yolo -- --task segment --ver 5 --scale n  # YOLOv5-Segment
+cargo run -r --example yolo -- --task segment --ver 8 --scale n  # YOLOv8-Segment
+cargo run -r --example yolo -- --task segment --ver 11 --scale n  # YOLOv8-Segment
 
 # Obb
-cargo run -r --example yolo -- --ver v8 --task obb --scale n --width 1024 --height 1024 --source images/dota.png  # YOLOv8-Obb
-cargo run -r --example yolo -- --ver v11 --task obb --scale n --width 1024 --height 1024 --source images/dota.png  # YOLOv11-Obb
+cargo run -r --example yolo -- --ver 8 --task obb --scale n --image-width 1024 --image-height 1024 --source images/dota.png  # YOLOv8-Obb
+cargo run -r --example yolo -- --ver 11 --task obb --scale n --image-width 1024 --image-height 1024 --source images/dota.png  # YOLOv11-Obb
 ```
 
 **`cargo run -r --example yolo -- --help` for more options**
 
-
-## YOLOs configs with `Options` 
-
-<details open>
-<summary>Use official YOLO Models</summary>
-
-```Rust
-let options = Options::default()
-    .with_yolo_version(YOLOVersion::V5)  // YOLOVersion: V5, V6, V7, V8, V9, V10, RTDETR
-    .with_yolo_task(YOLOTask::Classify)  // YOLOTask: Classify, Detect, Pose, Segment, Obb
-    .with_model("xxxx.onnx")?;
-
-```
-</details>
-
-<details open>
-<summary>Cutomized your own YOLO model</summary>
-
-```Rust
-// This config is for YOLOv8-Segment 
-use usls::{AnchorsPosition, BoxType, ClssType, YOLOPreds};
-
-let options = Options::default()
-    .with_yolo_preds(
-        YOLOPreds {
-            bbox: Some(BoxType::Cxcywh),
-            clss: ClssType::Clss,
-            coefs: Some(true),
-            anchors: Some(AnchorsPosition::After),
-            ..Default::default()
-        }
-    )
-    // .with_nc(80)
-    // .with_names(&COCO_CLASS_NAMES_80)
-    .with_model("xxxx.onnx")?;
-```
-</details>
 
 ## Other YOLOv8 Solution Models
 

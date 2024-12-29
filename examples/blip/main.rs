@@ -1,28 +1,39 @@
 use usls::{models::Blip, DataLoader, Options};
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // visual
-    let options_visual = Options::default()
-        .with_model("blip/visual-base.onnx")?
-        // .with_ixx(0, 2, 384.into())
-        // .with_ixx(0, 3, 384.into())
-        .with_profile(false);
+#[derive(argh::FromArgs)]
+/// BLIP Example
+struct Args {
+    /// device
+    #[argh(option, default = "String::from(\"cpu:0\")")]
+    device: String,
 
-    // textual
-    let options_textual = Options::default()
-        .with_model("blip/textual-base.onnx")?
-        .with_tokenizer("blip/tokenizer.json")?
-        .with_profile(false);
+    /// source image
+    #[argh(option, default = "vec![String::from(\"./assets/bus.jpg\")]")]
+    source: Vec<String>,
+}
+
+fn main() -> anyhow::Result<()> {
+    let args: Args = argh::from_env();
 
     // build model
+    let options_visual = Options::blip_v1_base_caption_visual()
+        .with_model_device(args.device.as_str().try_into()?)
+        .commit()?;
+    let options_textual = Options::blip_v1_base_caption_textual()
+        .with_model_device(args.device.as_str().try_into()?)
+        .commit()?;
     let mut model = Blip::new(options_visual, options_textual)?;
 
-    // image caption (this demo use batch_size=1)
-    let xs = [DataLoader::try_read("images/bus.jpg")?];
-    let image_embeddings = model.encode_images(&xs)?;
-    let _y = model.caption(&image_embeddings, None, true)?; // unconditional
-    let y = model.caption(&image_embeddings, Some("three man"), true)?; // conditional
-    println!("{:?}", y[0].texts());
+    // image caption
+    let xs = DataLoader::try_read_batch(&args.source)?;
+
+    // unconditional caption
+    let ys = model.forward(&xs, None)?;
+    println!("Unconditional: {:?}", ys);
+
+    // conditional caption
+    let ys = model.forward(&xs, Some("this image depict"))?;
+    println!("Conditional: {:?}", ys);
 
     Ok(())
 }

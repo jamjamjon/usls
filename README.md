@@ -124,7 +124,7 @@ cargo run -r --example yolo   # blip, clip, yolop, svtr, db, ...
     ```
 
 - #### Follow the pipeline
-    - Build model with the provided `models` and `Options`
+    - Build model with the provided `models` and `ModelConfig`
     - Load images, video and stream with `DataLoader`
     - Do inference
     - Retrieve inference results from `Vec<Y>`
@@ -136,11 +136,11 @@ cargo run -r --example yolo   # blip, clip, yolop, svtr, db, ...
     <summary>example code</summary>
     
     ```rust
-    use usls::{models::YOLO, Annotator, DataLoader, Nms, Options, Vision, YOLOTask, YOLOVersion};
+    use usls::{models::YOLO, Annotator, DataLoader, Nms, ModelConfig, Vision, YOLOTask, YOLOVersion};
 
     fn main() -> anyhow::Result<()> {
-        // Build model with Options
-        let options = Options::new()
+        // Build model with ModelConfig
+        let options = ModelConfig::new()
             .with_trt(0)
             .with_model("yolo/v8-m-dyn.onnx")?
             .with_yolo_version(YOLOVersion::V8) // YOLOVersion: V5, V6, V7, V8, V9, V10, RTDETR
@@ -181,7 +181,7 @@ cargo run -r --example yolo   # blip, clip, yolop, svtr, db, ...
             viewer.imshow(&images_plotted)?;
 
             // check out window and key event
-            if !viewer.is_open() || viewer.is_key_pressed(usls::Key::Escape) {
+            if !viewer.is_open() || viewer.is_key_pressed(crate::Key::Escape) {
                 break;
             }
 

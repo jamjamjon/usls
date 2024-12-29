@@ -1,7 +1,7 @@
 ## Quick Start
 
 ```shell
-cargo run -r --example grounding-dino
+cargo run -r -F cuda --example grounding-dino -- --device cuda --dtype fp16
 ```
 
 

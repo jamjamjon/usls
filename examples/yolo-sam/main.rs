@@ -1,31 +1,41 @@
+use anyhow::Result;
 use usls::{
-    models::{SamKind, SamPrompt, YOLOTask, YOLOVersion, SAM, YOLO},
-    Annotator, DataLoader, Options, Vision,
+    models::{SamPrompt, SAM, YOLO},
+    Annotator, DataLoader, Options, Scale,
 };
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+#[derive(argh::FromArgs)]
+/// Example
+struct Args {
+    /// device
+    #[argh(option, default = "String::from(\"cpu:0\")")]
+    device: String,
+}
+
+fn main() -> Result<()> {
+    // tracing_subscriber::fmt()
+    //     .with_max_level(tracing::Level::INFO)
+    //     .init();
+
+    let args: Args = argh::from_env();
+
     // build SAM
-    let options_encoder = Options::default().with_model("sam/mobile-sam-vit-t-encoder.onnx")?;
-    let options_decoder = Options::default()
-        .with_find_contours(true)
-        .with_sam_kind(SamKind::Sam)
-        .with_model("sam/mobile-sam-vit-t-decoder.onnx")?;
+    let (options_encoder, options_decoder) = (
+        Options::mobile_sam_tiny_encoder().commit()?,
+        Options::mobile_sam_tiny_decoder().commit()?,
+    );
     let mut sam = SAM::new(options_encoder, options_decoder)?;
 
-    // build YOLOv8-Det
-    let options_yolo = Options::default()
-        .with_yolo_version(YOLOVersion::V8)
-        .with_yolo_task(YOLOTask::Detect)
-        .with_model("yolo/v8-m-dyn.onnx")?
-        .with_cuda(0)
-        .with_ixx(0, 2, (416, 640, 800).into())
-        .with_ixx(0, 3, (416, 640, 800).into())
-        .with_find_contours(false)
-        .with_confs(&[0.45]);
+    // build YOLOv8
+    let options_yolo = Options::yolo_detect()
+        .with_model_scale(Scale::N)
+        .with_model_version(8.0.into())
+        .with_model_device(args.device.as_str().try_into()?)
+        .commit()?;
     let mut yolo = YOLO::new(options_yolo)?;
 
     // load one image
-    let xs = [DataLoader::try_read("images/dog.jpg")?];
+    let xs = DataLoader::try_read_batch(&["images/dog.jpg"])?;
 
     // build annotator
     let annotator = Annotator::default()
@@ -36,11 +46,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_saveout("YOLO-SAM");
 
     // run & annotate
-    let ys_det = yolo.run(&xs)?;
-    for y_det in ys_det {
+    let ys_det = yolo.forward(&xs)?;
+    for y_det in ys_det.iter() {
         if let Some(bboxes) = y_det.bboxes() {
             for bbox in bboxes {
-                let ys_sam = sam.run(
+                let ys_sam = sam.forward(
                     &xs,
                     &[SamPrompt::default().with_bbox(
                         bbox.xmin(),

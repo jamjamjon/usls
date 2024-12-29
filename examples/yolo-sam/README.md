@@ -1,7 +1,7 @@
 ## Quick Start
 
 ```shell
-cargo run -r --example yolo-sam
+cargo run -r -F cuda --example yolo-sam -- --device cuda 
 ```
 
 ## Results

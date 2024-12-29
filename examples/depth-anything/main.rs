@@ -1,24 +1,25 @@
+use anyhow::Result;
 use usls::{models::DepthAnything, Annotator, DataLoader, Options};
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // options
-    let options = Options::default()
-        // .with_model("depth-anything/v1-s-dyn.onnx")?
-        .with_model("depth-anything/v2-s.onnx")?
-        .with_ixx(0, 2, (384, 512, 1024).into())
-        .with_ixx(0, 3, (384, 512, 1024).into());
+fn main() -> Result<()> {
+    tracing_subscriber::fmt()
+        .with_max_level(tracing::Level::INFO)
+        .init();
+
+    // build model
+    let options = Options::depth_anything_v2_small().commit()?;
     let mut model = DepthAnything::new(options)?;
 
     // load
     let x = [DataLoader::try_read("images/street.jpg")?];
 
     // run
-    let y = model.run(&x)?;
+    let y = model.forward(&x)?;
 
     // annotate
     let annotator = Annotator::default()
         .with_colormap("Turbo")
-        .with_saveout("Depth-Anything");
+        .with_saveout(model.spec());
     annotator.annotate(&x, &y);
 
     Ok(())
