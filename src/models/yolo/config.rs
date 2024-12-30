@@ -1,7 +1,4 @@
-use crate::{
-    models::{YOLOPredsFormat, COCO_KEYPOINTS_NAMES_17},
-    Options, ResizeMode, Scale, Task,
-};
+use crate::{models::YOLOPredsFormat, Options, ResizeMode, Scale, Task, COCO_KEYPOINTS_NAMES_17};
 
 impl Options {
     pub fn yolo() -> Self {

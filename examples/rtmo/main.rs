@@ -1,8 +1,5 @@
 use anyhow::Result;
-use usls::{
-    models::{COCO_SKELETONS_16, RTMO},
-    Annotator, DataLoader, Options,
-};
+use usls::{models::RTMO, Annotator, DataLoader, Options, COCO_SKELETONS_16};
 
 fn main() -> Result<()> {
     // build model

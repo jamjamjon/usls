@@ -1,4 +1,4 @@
-use crate::models::COCO_CLASS_NAMES_80;
+use crate::COCO_CLASS_NAMES_80;
 
 /// Model configuration for `RT-DETR`
 impl crate::Options {
@@ -36,45 +36,5 @@ impl crate::Options {
 
     pub fn rtdetr_v2_x_coco() -> Self {
         Self::rtdetr().with_model_file("v2-x-coco.onnx")
-    }
-
-    pub fn dfine() -> Self {
-        Self::rtdetr().with_model_name("dfine")
-    }
-
-    pub fn dfine_n_coco() -> Self {
-        Self::dfine().with_model_file("n-coco.onnx")
-    }
-
-    pub fn dfine_s_coco() -> Self {
-        Self::dfine().with_model_file("s-coco.onnx")
-    }
-
-    pub fn dfine_m_coco() -> Self {
-        Self::dfine().with_model_file("m-coco.onnx")
-    }
-
-    pub fn dfine_l_coco() -> Self {
-        Self::dfine().with_model_file("l-coco.onnx")
-    }
-
-    pub fn dfine_x_coco() -> Self {
-        Self::dfine().with_model_file("x-coco.onnx")
-    }
-
-    pub fn dfine_s_coco_obj365() -> Self {
-        Self::dfine().with_model_file("s-obj2coco.onnx")
-    }
-
-    pub fn dfine_m_coco_obj365() -> Self {
-        Self::dfine().with_model_file("m-obj2coco.onnx")
-    }
-
-    pub fn dfine_l_coco_obj365() -> Self {
-        Self::dfine().with_model_file("l-obj2coco.onnx")
-    }
-
-    pub fn dfine_x_coco_obj365() -> Self {
-        Self::dfine().with_model_file("x-obj2coco.onnx")
     }
 }

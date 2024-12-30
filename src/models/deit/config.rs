@@ -1,4 +1,4 @@
-use crate::models::IMAGENET_NAMES_1K;
+use crate::IMAGENET_NAMES_1K;
 
 /// Model configuration for `DeiT`
 impl crate::Options {

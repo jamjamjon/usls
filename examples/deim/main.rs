@@ -3,13 +3,7 @@ use usls::{models::RTDETR, Annotator, DataLoader, Options};
 
 fn main() -> Result<()> {
     // options
-    let options = Options::rtdetr_v2_s_coco()
-        // rtdetr_v1_r18vd_coco()
-        // rtdetr_v2_ms_coco()
-        // rtdetr_v2_m_coco()
-        // rtdetr_v2_l_coco()
-        // rtdetr_v2_x_coco()
-        .commit()?;
+    let options = Options::deim_dfine_s_coco().commit()?;
     let mut model = RTDETR::new(options)?;
 
     // load

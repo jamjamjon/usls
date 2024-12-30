@@ -24,17 +24,10 @@ struct Args {
 }
 
 fn main() -> anyhow::Result<()> {
-    tracing_subscriber::fmt()
-        .with_max_level(tracing::Level::INFO)
-        .init();
     let args: Args = argh::from_env();
 
     // build model
     let options = Options::mobileone_s0()
-        // convnext_v2_atto()
-        // fastvit_sa24_distill()
-        // deit_tiny_distill()
-        // beit_base()
         .with_model_dtype(args.dtype.as_str().try_into()?)
         .with_model_device(args.device.as_str().try_into()?)
         .commit()?;

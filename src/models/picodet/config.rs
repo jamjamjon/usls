@@ -1,4 +1,4 @@
-use crate::{models::COCO_CLASS_NAMES_80, ResizeMode};
+use crate::{ResizeMode, COCO_CLASS_NAMES_80};
 
 /// Model configuration for `PicoDet`
 impl crate::Options {

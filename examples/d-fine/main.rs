@@ -2,12 +2,8 @@ use anyhow::Result;
 use usls::{models::RTDETR, Annotator, DataLoader, Options};
 
 fn main() -> Result<()> {
-    tracing_subscriber::fmt()
-        .with_max_level(tracing::Level::INFO)
-        .init();
-
     // options
-    let options = Options::dfine_n_coco().commit()?;
+    let options = Options::d_fine_n_coco().commit()?;
     let mut model = RTDETR::new(options)?;
 
     // load

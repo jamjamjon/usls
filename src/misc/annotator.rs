@@ -2,7 +2,6 @@ use ab_glyph::{FontArc, PxScale};
 use anyhow::Result;
 use image::{DynamicImage, GenericImage, Rgba, RgbaImage};
 use imageproc::map::map_colors;
-use log::{error, info};
 
 use crate::{
     string_now, Bbox, Color, ColorMap256, Dir, Hub, Keypoint, Mask, Mbr, Polygon, Prob, Y,
@@ -403,9 +402,9 @@ impl Annotator {
             if save {
                 let saveout = self.saveout()?.join(format!("{}.png", string_now("-")));
                 match img_rgba.save(&saveout) {
-                    Err(err) => error!("Saving failed: {:?}", err),
+                    Err(err) => anyhow::bail!("Failed to save annotated image: {:?}", err),
                     Ok(_) => {
-                        info!("Annotated image saved to: {:?}", saveout);
+                        println!("Annotated image saved to: {:?}", saveout);
                     }
                 }
             }

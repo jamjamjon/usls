@@ -1,7 +1,7 @@
 use anyhow::Result;
 use usls::{
-    models::{COCO_CLASS_NAMES_80, COCO_SKELETONS_16, IMAGENET_NAMES_1K, YOLO},
-    Annotator, DataLoader, Options,
+    models::YOLO, Annotator, DataLoader, Options, COCO_CLASS_NAMES_80, COCO_SKELETONS_16,
+    IMAGENET_NAMES_1K,
 };
 
 #[derive(argh::FromArgs, Debug)]

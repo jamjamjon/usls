@@ -1,6 +1,7 @@
 ## Quick Start
 
 ```shell
-cargo run -r --example dfine
+cargo run -r --example deim
 ```
+
 

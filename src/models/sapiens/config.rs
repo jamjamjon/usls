@@ -1,4 +1,4 @@
-use crate::models::BODY_PARTS_NAMES_28;
+use crate::BODY_PARTS_NAMES_28;
 
 /// Model configuration for `Sapiens`
 impl crate::Options {

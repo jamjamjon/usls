@@ -1,7 +1,7 @@
 ## Quick Start
 
 ```shell
-cargo run -r -F cuda --example image-classification -- --device cuda --dtype fp16
+cargo run -r -F cuda --example mobileone -- --device cuda --dtype fp16
 ```
  
 
