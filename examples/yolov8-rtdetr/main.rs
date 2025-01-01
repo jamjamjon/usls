@@ -5,7 +5,7 @@ use usls::{models::YOLO, Annotator, DataLoader, Options};
 /// Example
 struct Args {
     /// dtype
-    #[argh(option, default = "String::from(\"fp16\")")]
+    #[argh(option, default = "String::from(\"auto\")")]
     dtype: String,
 
     /// device
@@ -14,14 +14,10 @@ struct Args {
 }
 
 fn main() -> Result<()> {
-    tracing_subscriber::fmt()
-        .with_max_level(tracing::Level::INFO)
-        .init();
-
     let args: Args = argh::from_env();
 
     // build model
-    let config = Options::fastsam_s()
+    let config = Options::yolo_v8_rtdetr_l()
         .with_model_dtype(args.dtype.as_str().try_into()?)
         .with_model_device(args.device.as_str().try_into()?)
         .commit()?;
@@ -32,15 +28,13 @@ fn main() -> Result<()> {
 
     // run
     let ys = model.forward(&xs)?;
+    println!("{:?}", ys);
 
     // annotate
     let annotator = Annotator::default()
-        .without_masks(true)
         .with_bboxes_thickness(3)
-        .with_saveout("fastsam");
+        .with_saveout(model.spec());
     annotator.annotate(&xs, &ys);
-
-    model.summary();
 
     Ok(())
 }

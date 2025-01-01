@@ -15,7 +15,6 @@ cargo run -r -F cuda --example sam -- --device cuda --kind edge-sam
 cargo run -r -F cuda --example sam -- --device cuda --kind sam-hq
 ```
 
-
 ## Results
 
 ![](https://github.com/jamjamjon/assets/releases/download/sam/demo-car.png)

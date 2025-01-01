@@ -13,17 +13,26 @@ fn main() -> Result<()> {
     let mut model = RTDETR::new(options)?;
 
     // load
-    let x = [DataLoader::try_read("./assets/bus.jpg")?];
+    let xs = [DataLoader::try_read("./assets/bus.jpg")?];
 
     // run
-    let y = model.forward(&x)?;
-    println!("{:?}", y);
+    let ys = model.forward(&xs)?;
+
+    // extract bboxes
+    for y in ys.iter() {
+        if let Some(bboxes) = y.bboxes() {
+            println!("[Bboxes]: Found {} objects", bboxes.len());
+            for (i, bbox) in bboxes.iter().enumerate() {
+                println!("{}: {:?}", i, bbox)
+            }
+        }
+    }
 
     // annotate
     let annotator = Annotator::default()
         .with_bboxes_thickness(3)
         .with_saveout(model.spec());
-    annotator.annotate(&x, &y);
+    annotator.annotate(&xs, &ys);
 
     Ok(())
 }

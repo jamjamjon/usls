@@ -16,8 +16,7 @@ Task: Caption(2)
 Ys([Y { Texts: [Text("The image shows a vintage Volkswagen Beetle car parked on a cobblestone street in front of a yellow building with two wooden doors. The car is a light blue color with silver rims and appears to be in good condition. The building has a sloping roof and is painted in a bright yellow color. The sky is blue and there are trees in the background. The overall mood of the image is peaceful and serene.")] }, Y { Texts: [Text("The image shows a blue and white bus with the logo of the Brazilian football club, Cero Emisiones, on the side. The bus is parked on a street with a building in the background. There are several people walking on the sidewalk in front of the bus, some of them are carrying bags and one person is holding a camera. The sky is blue and there are trees and a traffic light visible in the top right corner of the image. The image appears to be taken during the day.")] }])
 ```
 
-
-# Tasks
+## Results
 
 | Task   |  Demo |
 | -----| ------|

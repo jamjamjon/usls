@@ -12,5 +12,4 @@ cargo run -r -F cuda --example clip -- --device cuda:0
 (99.9675%) ./examples/clip/images/carrot.jpg => Some carrots
 (99.93718%) ./examples/clip/images/doll.jpg => There is a doll with red hair and a clock on a table
 (100.0%) ./examples/clip/images/drink.jpg => Some people holding wine glasses in a restaurant 
-
 ```
