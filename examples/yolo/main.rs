@@ -122,7 +122,7 @@ struct Args {
 
 fn main() -> Result<()> {
     tracing_subscriber::fmt()
-        .with_max_level(tracing::Level::ERROR)
+        .with_max_level(tracing::Level::INFO)
         .init();
     let args: Args = argh::from_env();
 
