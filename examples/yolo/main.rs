@@ -1,171 +1,213 @@
 use anyhow::Result;
-use clap::Parser;
-
 use usls::{
-    models::YOLO, Annotator, DataLoader, Device, Options, Viewer, Vision, YOLOScale, YOLOTask,
-    YOLOVersion, COCO_SKELETONS_16,
+    models::YOLO, Annotator, DataLoader, Options, COCO_CLASS_NAMES_80, COCO_SKELETONS_16,
+    IMAGENET_NAMES_1K,
 };
 
-#[derive(Parser, Clone)]
-#[command(author, version, about, long_about = None)]
-pub struct Args {
-    /// Path to the model
-    #[arg(long)]
-    pub model: Option<String>,
+#[derive(argh::FromArgs, Debug)]
+/// Example
+struct Args {
+    /// model file
+    #[argh(option)]
+    model: Option<String>,
 
-    /// Input source path
-    #[arg(long, default_value_t = String::from("./assets/bus.jpg"))]
-    pub source: String,
+    /// source
+    #[argh(option, default = "String::from(\"./assets/bus.jpg\")")]
+    source: String,
 
-    /// YOLO Task
-    #[arg(long, value_enum, default_value_t = YOLOTask::Detect)]
-    pub task: YOLOTask,
+    /// dtype
+    #[argh(option, default = "String::from(\"auto\")")]
+    dtype: String,
 
-    /// YOLO Version
-    #[arg(long, value_enum, default_value_t = YOLOVersion::V8)]
-    pub ver: YOLOVersion,
+    /// task
+    #[argh(option, default = "String::from(\"det\")")]
+    task: String,
 
-    /// YOLO Scale
-    #[arg(long, value_enum, default_value_t = YOLOScale::N)]
-    pub scale: YOLOScale,
+    /// version
+    #[argh(option, default = "8.0")]
+    ver: f32,
 
-    /// Batch size
-    #[arg(long, default_value_t = 1)]
-    pub batch_size: usize,
+    /// device
+    #[argh(option, default = "String::from(\"cpu:0\")")]
+    device: String,
 
-    /// Minimum input width
-    #[arg(long, default_value_t = 224)]
-    pub width_min: isize,
+    /// scale
+    #[argh(option, default = "String::from(\"n\")")]
+    scale: String,
 
-    /// Input width
-    #[arg(long, default_value_t = 640)]
-    pub width: isize,
+    /// trt_fp16
+    #[argh(option, default = "true")]
+    trt_fp16: bool,
 
-    /// Maximum input width
-    #[arg(long, default_value_t = 1024)]
-    pub width_max: isize,
+    /// find_contours
+    #[argh(option, default = "true")]
+    find_contours: bool,
 
-    /// Minimum input height
-    #[arg(long, default_value_t = 224)]
-    pub height_min: isize,
+    /// batch_size
+    #[argh(option, default = "1")]
+    batch_size: usize,
 
-    /// Input height
-    #[arg(long, default_value_t = 640)]
-    pub height: isize,
+    /// min_batch_size
+    #[argh(option, default = "1")]
+    min_batch_size: usize,
 
-    /// Maximum input height
-    #[arg(long, default_value_t = 1024)]
-    pub height_max: isize,
+    /// max_batch_size
+    #[argh(option, default = "4")]
+    max_batch_size: usize,
 
-    /// Number of classes
-    #[arg(long, default_value_t = 80)]
-    pub nc: usize,
+    /// min_image_width
+    #[argh(option, default = "224")]
+    min_image_width: isize,
 
-    /// Class confidence
-    #[arg(long)]
-    pub confs: Vec<f32>,
+    /// image_width
+    #[argh(option, default = "640")]
+    image_width: isize,
 
-    /// Enable TensorRT support
-    #[arg(long)]
-    pub trt: bool,
+    /// max_image_width
+    #[argh(option, default = "1280")]
+    max_image_width: isize,
 
-    /// Enable CUDA support
-    #[arg(long)]
-    pub cuda: bool,
+    /// min_image_height
+    #[argh(option, default = "224")]
+    min_image_height: isize,
 
-    /// Enable CoreML support
-    #[arg(long)]
-    pub coreml: bool,
+    /// image_height
+    #[argh(option, default = "640")]
+    image_height: isize,
 
-    /// Use TensorRT half precision
-    #[arg(long)]
-    pub half: bool,
+    /// max_image_height
+    #[argh(option, default = "1280")]
+    max_image_height: isize,
 
-    /// Device ID to use
-    #[arg(long, default_value_t = 0)]
-    pub device_id: usize,
+    /// num_classes
+    #[argh(option)]
+    num_classes: Option<usize>,
 
-    /// Enable performance profiling
-    #[arg(long)]
-    pub profile: bool,
+    /// num_keypoints
+    #[argh(option)]
+    num_keypoints: Option<usize>,
 
-    /// Disable contour drawing
-    #[arg(long)]
-    pub no_contours: bool,
+    /// use_coco_80_classes
+    #[argh(switch)]
+    use_coco_80_classes: bool,
 
-    /// Show result
-    #[arg(long)]
-    pub view: bool,
+    /// use_imagenet_1k_classes
+    #[argh(switch)]
+    use_imagenet_1k_classes: bool,
 
-    /// Do not save output
-    #[arg(long)]
-    pub nosave: bool,
+    /// confs
+    #[argh(option)]
+    confs: Vec<f32>,
+
+    /// keypoint_confs
+    #[argh(option)]
+    keypoint_confs: Vec<f32>,
+
+    /// exclude_classes
+    #[argh(option)]
+    exclude_classes: Vec<usize>,
+
+    /// retain_classes
+    #[argh(option)]
+    retain_classes: Vec<usize>,
+
+    /// class_names
+    #[argh(option)]
+    class_names: Vec<String>,
+
+    /// keypoint_names
+    #[argh(option)]
+    keypoint_names: Vec<String>,
 }
 
 fn main() -> Result<()> {
-    let args = Args::parse();
+    tracing_subscriber::fmt()
+        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
+        .with_timer(tracing_subscriber::fmt::time::ChronoLocal::rfc_3339())
+        .init();
 
-    // model path
-    let path = match &args.model {
-        None => format!(
-            "yolo/{}-{}-{}.onnx",
-            args.ver.name(),
-            args.scale.name(),
-            args.task.name()
-        ),
-        Some(x) => x.to_string(),
-    };
+    let args: Args = argh::from_env();
 
-    // saveout
-    let saveout = match &args.model {
-        None => format!(
-            "{}-{}-{}",
-            args.ver.name(),
-            args.scale.name(),
-            args.task.name()
-        ),
-        Some(x) => {
-            let p = std::path::PathBuf::from(&x);
-            p.file_stem().unwrap().to_str().unwrap().to_string()
-        }
-    };
-
-    // device
-    let device = if args.cuda {
-        Device::Cuda(args.device_id)
-    } else if args.trt {
-        Device::Trt(args.device_id)
-    } else if args.coreml {
-        Device::CoreML(args.device_id)
-    } else {
-        Device::Cpu(args.device_id)
-    };
-
-    // build options
-    let options = Options::new()
-        .with_model(&path)?
-        .with_yolo_version(args.ver)
-        .with_yolo_task(args.task)
-        .with_device(device)
-        .with_trt_fp16(args.half)
-        .with_ixx(0, 0, (1, args.batch_size as _, 4).into())
-        .with_ixx(0, 2, (args.height_min, args.height, args.height_max).into())
-        .with_ixx(0, 3, (args.width_min, args.width, args.width_max).into())
-        .with_confs(if args.confs.is_empty() {
+    let mut options = Options::yolo()
+        .with_model_file(&args.model.unwrap_or_default())
+        .with_model_task(args.task.as_str().try_into()?)
+        .with_model_version(args.ver.into())
+        .with_model_scale(args.scale.as_str().try_into()?)
+        .with_model_dtype(args.dtype.as_str().try_into()?)
+        .with_model_device(args.device.as_str().try_into()?)
+        .with_trt_fp16(args.trt_fp16)
+        .with_model_ixx(
+            0,
+            0,
+            (args.min_batch_size, args.batch_size, args.max_batch_size).into(),
+        )
+        .with_model_ixx(
+            0,
+            2,
+            (
+                args.min_image_height,
+                args.image_height,
+                args.max_image_height,
+            )
+                .into(),
+        )
+        .with_model_ixx(
+            0,
+            3,
+            (args.min_image_width, args.image_width, args.max_image_width).into(),
+        )
+        .with_class_confs(if args.confs.is_empty() {
             &[0.2, 0.15]
         } else {
             &args.confs
         })
-        .with_nc(args.nc)
-        // .with_names(&COCO_CLASS_NAMES_80)
-        // .with_names2(&COCO_KEYPOINTS_17)
-        .with_find_contours(!args.no_contours) // find contours or not
-        .exclude_classes(&[0])
-        // .retain_classes(&[0, 5])
-        .with_profile(args.profile);
+        .with_keypoint_confs(if args.keypoint_confs.is_empty() {
+            &[0.5]
+        } else {
+            &args.keypoint_confs
+        })
+        .with_find_contours(args.find_contours)
+        .retain_classes(&args.retain_classes)
+        .exclude_classes(&args.exclude_classes);
+
+    if args.use_coco_80_classes {
+        options = options.with_class_names(&COCO_CLASS_NAMES_80);
+    }
+
+    if args.use_imagenet_1k_classes {
+        options = options.with_class_names(&IMAGENET_NAMES_1K);
+    }
+
+    if let Some(nc) = args.num_classes {
+        options = options.with_nc(nc);
+    }
+
+    if let Some(nk) = args.num_keypoints {
+        options = options.with_nk(nk);
+    }
+
+    if !args.class_names.is_empty() {
+        options = options.with_class_names(
+            &args
+                .class_names
+                .iter()
+                .map(|x| x.as_str())
+                .collect::<Vec<_>>(),
+        );
+    }
+
+    if !args.keypoint_names.is_empty() {
+        options = options.with_keypoint_names(
+            &args
+                .keypoint_names
+                .iter()
+                .map(|x| x.as_str())
+                .collect::<Vec<_>>(),
+        );
+    }
 
     // build model
-    let mut model = YOLO::new(options)?;
+    let mut model = YOLO::try_from(options.commit()?)?;
 
     // build dataloader
     let dl = DataLoader::new(&args.source)?
@@ -175,56 +217,28 @@ fn main() -> Result<()> {
     // build annotator
     let annotator = Annotator::default()
         .with_skeletons(&COCO_SKELETONS_16)
-        .without_masks(true) // No masks plotting when doing segment task.
+        .without_masks(true)
         .with_bboxes_thickness(3)
-        .with_keypoints_name(false) // Enable keypoints names
-        .with_saveout_subs(&["YOLO"])
-        .with_saveout(&saveout);
-
-    // build viewer
-    let mut viewer = if args.view {
-        Some(Viewer::new().with_delay(5).with_scale(1.).resizable(true))
-    } else {
-        None
-    };
+        .with_saveout(model.spec());
 
     // run & annotate
     for (xs, _paths) in dl {
-        // let ys = model.run(&xs)?;  // way one
-        let ys = model.forward(&xs, args.profile)?; // way two
-        let images_plotted = annotator.plot(&xs, &ys, !args.nosave)?;
+        let ys = model.forward(&xs)?;
+        // extract bboxes
+        // for y in ys.iter() {
+        //     if let Some(bboxes) = y.bboxes() {
+        //         println!("[Bboxes]: Found {} objects", bboxes.len());
+        //         for (i, bbox) in bboxes.iter().enumerate() {
+        //             println!("{}: {:?}", i, bbox)
+        //         }
+        //     }
+        // }
 
-        // show image
-        match &mut viewer {
-            Some(viewer) => viewer.imshow(&images_plotted)?,
-            None => continue,
-        }
-
-        // check out window and key event
-        match &mut viewer {
-            Some(viewer) => {
-                if !viewer.is_open() || viewer.is_key_pressed(usls::Key::Escape) {
-                    break;
-                }
-            }
-            None => continue,
-        }
-
-        // write video
-        if !args.nosave {
-            match &mut viewer {
-                Some(viewer) => viewer.write_batch(&images_plotted)?,
-                None => continue,
-            }
-        }
+        // plot
+        annotator.annotate(&xs, &ys);
     }
 
-    // finish video write
-    if !args.nosave {
-        if let Some(viewer) = &mut viewer {
-            viewer.finish_write()?;
-        }
-    }
+    model.summary();
 
     Ok(())
 }

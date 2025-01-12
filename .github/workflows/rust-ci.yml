@@ -11,193 +11,73 @@ env:
 
 
 jobs:
-  build-on-linux:
-    name: build / linux / ffmpeg ${{ matrix.ffmpeg_version }}
-    runs-on: ubuntu-latest
-    container: jrottenberg/ffmpeg:${{ matrix.ffmpeg_version }}-ubuntu
-
+  check:
+    name: Check
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        ffmpeg_version: ["4.3", "4.4", "5.0", "5.1", "6.0", "6.1", "7.0"]
-      fail-fast: false
-
+        os: [ubuntu-latest, macOS-latest, windows-latest]
+        rust: [stable]
     steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-
-      - name: Install dependencies
-        run: |
-          apt update
-          apt install -y --no-install-recommends clang curl pkg-config
-
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@v1
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
         with:
-          toolchain: stable
-    
-      - name: Build
-        run: cargo build
-
-  build-on-macos:
-    name: build / macos / ffmpeg latest
-    runs-on: macos-latest
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-
-      - name: Install dependencies
-        run: |
-          brew install ffmpeg pkg-config
-
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@v1
+          profile: minimal
+          toolchain: ${{ matrix.rust }}
+          override: true
+      - uses: actions-rs/cargo@v1
         with:
-          toolchain: stable
-    
-      - name: Build
-        run: cargo build
+          command: check
+          args: --all
 
-
-  build-on-windows:
-    name: build / windows / ffmpeg latest
-    runs-on: windows-latest
-
-    env:
-      FFMPEG_DOWNLOAD_URL: https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-full-shared.7z
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-
-      - name: Install dependencies
-        run: |
-          $VCINSTALLDIR = $(& "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath)
-          Add-Content $env:GITHUB_ENV "LIBCLANG_PATH=${VCINSTALLDIR}\VC\Tools\LLVM\x64\bin`n"
-          Invoke-WebRequest "${env:FFMPEG_DOWNLOAD_URL}" -OutFile ffmpeg-release-full-shared.7z
-          7z x ffmpeg-release-full-shared.7z
-          mkdir ffmpeg
-          mv ffmpeg-*/* ffmpeg/
-          Add-Content $env:GITHUB_ENV "FFMPEG_DIR=${pwd}\ffmpeg`n"
-          Add-Content $env:GITHUB_PATH "${pwd}\ffmpeg\bin`n"
-
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@v1
-        with:
-          toolchain: stable
-    
-      - name: Build
-        run: cargo build
-
-
-  test-on-linux:
-    name: test / linux / ffmpeg ${{ matrix.ffmpeg_version }}
-    runs-on: ubuntu-latest
-    container: jrottenberg/ffmpeg:${{ matrix.ffmpeg_version }}-ubuntu
-
+  test:
+    name: Test
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        ffmpeg_version: ["4.3", "4.4", "5.0", "5.1", "6.0", "6.1", "7.0"]
-      fail-fast: false
-
+        os: [ubuntu-latest, macOS-latest, windows-latest]
+        rust: [stable]
     steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-
-      - name: Install dependencies
-        run: |
-          apt update
-          apt install -y --no-install-recommends clang curl pkg-config
-
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@v1
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
         with:
-          toolchain: stable
-
-      - name: Run Tests with All Features
-        run: cargo test --all-features
-
-      - name: Run Tests in Release Mode
-        run: cargo test --release
-
-  test-on-macos:
-    name: test / macos / ffmpeg latest 
-    runs-on: macos-latest
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-
-      - name: Install dependencies
-        run: |
-          brew install ffmpeg pkg-config
-
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@v1
+          profile: minimal
+          toolchain: ${{ matrix.rust }}
+          override: true
+      - uses: actions-rs/cargo@v1
         with:
-          toolchain: stable
-    
-      - name: Run Tests with All Features
-        run: cargo test --all-features
+          command: test
+          args: --all
 
-      - name: Run Tests in Release Mode
-        run: cargo test --release
-
-  test-on-windows:
-    name: test / windows / ffmpeg latest
-    runs-on: windows-latest
-
-    env:
-      FFMPEG_DOWNLOAD_URL: https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-full-shared.7z
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-
-      - name: Install dependencies
-        run: |
-          $VCINSTALLDIR = $(& "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath)
-          Add-Content $env:GITHUB_ENV "LIBCLANG_PATH=${VCINSTALLDIR}\VC\Tools\LLVM\x64\bin`n"
-          Invoke-WebRequest "${env:FFMPEG_DOWNLOAD_URL}" -OutFile ffmpeg-release-full-shared.7z
-          7z x ffmpeg-release-full-shared.7z
-          mkdir ffmpeg
-          mv ffmpeg-*/* ffmpeg/
-          Add-Content $env:GITHUB_ENV "FFMPEG_DIR=${pwd}\ffmpeg`n"
-          Add-Content $env:GITHUB_PATH "${pwd}\ffmpeg\bin`n"
-
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@v1
-        with:
-          toolchain: stable
-    
-      - name: Run Tests with All Features
-        run: cargo test --all-features
-
-      - name: Run Tests in Release Mode
-        run: cargo test --release
-
-
-  lints:
+  fmt:
+    name: Rustfmt
     runs-on: ubuntu-latest
-    container: jrottenberg/ffmpeg:6-ubuntu
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-
-      - name: Install dependencies
-        run: |
-          apt update
-          apt install -y --no-install-recommends clang curl pkg-config
-
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@v1
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
         with:
+          profile: minimal
           toolchain: stable
-          components: rustfmt, clippy
-    
-      - name: Rustfmt
-        run: cargo fmt --all -- --check
+          override: true
+      - run: rustup component add rustfmt
+      - uses: actions-rs/cargo@v1
+        with:
+          command: fmt
+          args: --all -- --check
 
-      - name: Clippy
-        run: cargo clippy --all --all-targets --all-features -- -D warnings
+  clippy:
+    name: Clippy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - run: rustup component add clippy
+      - uses: actions-rs/cargo@v1
+        with:
+          command: clippy
+          args: --all --all-targets -- -D warnings
+

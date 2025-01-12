@@ -1,25 +1,47 @@
+use anyhow::Result;
 use usls::{models::DepthPro, Annotator, DataLoader, Options};
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // options
-    let options = Options::default()
-        .with_model("depth-pro/q4f16.onnx")? // bnb4, f16
-        .with_ixx(0, 0, 1.into()) // batch. Note: now only support batch_size = 1
-        .with_ixx(0, 1, 3.into()) // channel
-        .with_ixx(0, 2, 1536.into()) // height
-        .with_ixx(0, 3, 1536.into()); // width
+#[derive(argh::FromArgs)]
+/// BLIP Example
+struct Args {
+    /// device
+    #[argh(option, default = "String::from(\"cpu:0\")")]
+    device: String,
+
+    /// dtype
+    #[argh(option, default = "String::from(\"q4f16\")")]
+    dtype: String,
+
+    /// source image
+    #[argh(option, default = "String::from(\"images/street.jpg\")")]
+    source: String,
+}
+
+fn main() -> Result<()> {
+    tracing_subscriber::fmt()
+        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
+        .with_timer(tracing_subscriber::fmt::time::ChronoLocal::rfc_3339())
+        .init();
+
+    let args: Args = argh::from_env();
+
+    // model
+    let options = Options::depth_pro()
+        .with_model_dtype(args.dtype.as_str().try_into()?)
+        .with_model_device(args.device.as_str().try_into()?)
+        .commit()?;
     let mut model = DepthPro::new(options)?;
 
     // load
-    let x = [DataLoader::try_read("images/street.jpg")?];
+    let x = [DataLoader::try_read(&args.source)?];
 
     // run
-    let y = model.run(&x)?;
+    let y = model.forward(&x)?;
 
     // annotate
     let annotator = Annotator::default()
         .with_colormap("Turbo")
-        .with_saveout("Depth-Pro");
+        .with_saveout(model.spec());
     annotator.annotate(&x, &y);
 
     Ok(())

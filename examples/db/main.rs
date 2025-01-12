@@ -1,35 +1,48 @@
+use anyhow::Result;
 use usls::{models::DB, Annotator, DataLoader, Options};
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // build model
-    let options = Options::default()
-        .with_ixx(0, 0, (1, 4, 8).into())
-        .with_ixx(0, 2, (608, 960, 1280).into())
-        .with_ixx(0, 3, (608, 960, 1280).into())
-        // .with_trt(0)
-        .with_confs(&[0.4])
-        .with_min_width(5.0)
-        .with_min_height(12.0)
-        .with_model("db/ppocr-v4-db-dyn.onnx")?;
+#[derive(argh::FromArgs)]
+/// Example
+struct Args {
+    /// device
+    #[argh(option, default = "String::from(\"cpu:0\")")]
+    device: String,
+}
 
+fn main() -> Result<()> {
+    tracing_subscriber::fmt()
+        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
+        .with_timer(tracing_subscriber::fmt::time::ChronoLocal::rfc_3339())
+        .init();
+
+    let args: Args = argh::from_env();
+
+    // build model
+    let options = Options::ppocr_det_v4_server_ch()
+        .with_model_device(args.device.as_str().try_into()?)
+        .commit()?;
     let mut model = DB::new(options)?;
 
     // load image
-    let x = [
-        DataLoader::try_read("images/db.png")?,
-        DataLoader::try_read("images/street.jpg")?,
-    ];
+    let x = DataLoader::try_read_batch(&[
+        "images/table.png",
+        "images/table1.jpg",
+        "images/table2.png",
+        "images/table-ch.jpg",
+        "images/db.png",
+        "images/street.jpg",
+    ])?;
 
     // run
-    let y = model.run(&x)?;
+    let y = model.forward(&x)?;
 
     // annotate
     let annotator = Annotator::default()
         .without_bboxes(true)
+        .without_mbrs(true)
         .with_polygons_alpha(60)
         .with_contours_color([255, 105, 180, 255])
-        .without_mbrs(true)
-        .with_saveout("DB");
+        .with_saveout(model.spec());
     annotator.annotate(&x, &y);
 
     Ok(())

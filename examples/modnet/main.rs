@@ -1,22 +1,24 @@
 use usls::{models::MODNet, Annotator, DataLoader, Options};
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+fn main() -> anyhow::Result<()> {
+    tracing_subscriber::fmt()
+        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
+        .with_timer(tracing_subscriber::fmt::time::ChronoLocal::rfc_3339())
+        .init();
+
     // build model
-    let options = Options::default()
-        .with_model("modnet/dyn-f32.onnx")?
-        .with_ixx(0, 2, (416, 512, 800).into())
-        .with_ixx(0, 3, (416, 512, 800).into());
+    let options = Options::modnet_photographic().commit()?;
     let mut model = MODNet::new(options)?;
 
     // load image
-    let x = [DataLoader::try_read("images/liuyifei.png")?];
+    let xs = [DataLoader::try_read("images/liuyifei.png")?];
 
     // run
-    let y = model.run(&x)?;
+    let ys = model.forward(&xs)?;
 
     // annotate
-    let annotator = Annotator::default().with_saveout("MODNet");
-    annotator.annotate(&x, &y);
+    let annotator = Annotator::default().with_saveout(model.spec());
+    annotator.annotate(&xs, &ys);
 
     Ok(())
 }

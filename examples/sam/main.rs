@@ -1,97 +1,73 @@
-use clap::Parser;
-
+use anyhow::Result;
 use usls::{
     models::{SamKind, SamPrompt, SAM},
-    Annotator, DataLoader, Options,
+    Annotator, DataLoader, Options, Scale,
 };
 
-#[derive(Parser)]
-#[command(author, version, about, long_about = None)]
-pub struct Args {
-    #[arg(long, value_enum, default_value_t = SamKind::Sam)]
-    pub kind: SamKind,
+#[derive(argh::FromArgs)]
+/// Example
+struct Args {
+    /// device
+    #[argh(option, default = "String::from(\"cpu:0\")")]
+    device: String,
 
-    #[arg(long, default_value_t = 0)]
-    pub device_id: usize,
+    /// scale
+    #[argh(option, default = "String::from(\"t\")")]
+    scale: String,
 
-    #[arg(long)]
-    pub use_low_res_mask: bool,
+    /// SAM kind
+    #[argh(option, default = "String::from(\"sam\")")]
+    kind: String,
 }
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let args = Args::parse();
+fn main() -> Result<()> {
+    tracing_subscriber::fmt()
+        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
+        .with_timer(tracing_subscriber::fmt::time::ChronoLocal::rfc_3339())
+        .init();
 
-    // Options
-    let (options_encoder, options_decoder, saveout) = match args.kind {
-        SamKind::Sam => {
-            let options_encoder = Options::default()
-                // .with_model("sam/sam-vit-b-encoder.onnx")?;
-                .with_model("sam/sam-vit-b-encoder-u8.onnx")?;
-
-            let options_decoder = Options::default()
-                .with_sam_kind(SamKind::Sam)
-                // .with_model("sam/sam-vit-b-decoder.onnx")?;
-                // .with_model("sam/sam-vit-b-decoder-singlemask.onnx")?;
-                .with_model("sam/sam-vit-b-decoder-u8.onnx")?;
-            (options_encoder, options_decoder, "SAM")
-        }
-        SamKind::Sam2 => {
-            let options_encoder = Options::default()
-                // .with_model("sam/sam2-hiera-tiny-encoder.onnx")?;
-                // .with_model("sam/sam2-hiera-small-encoder.onnx")?;
-                .with_model("sam/sam2-hiera-base-plus-encoder.onnx")?;
-            let options_decoder = Options::default()
-                .with_sam_kind(SamKind::Sam2)
-                // .with_model("sam/sam2-hiera-tiny-decoder.onnx")?;
-                // .with_model("sam/sam2-hiera-small-decoder.onnx")?;
-                .with_model("sam/sam2-hiera-base-plus-decoder.onnx")?;
-            (options_encoder, options_decoder, "SAM2")
-        }
-        SamKind::MobileSam => {
-            let options_encoder =
-                Options::default().with_model("sam/mobile-sam-vit-t-encoder.onnx")?;
-
-            let options_decoder = Options::default()
-                .with_sam_kind(SamKind::MobileSam)
-                .with_model("sam/mobile-sam-vit-t-decoder.onnx")?;
-            (options_encoder, options_decoder, "Mobile-SAM")
-        }
-        SamKind::SamHq => {
-            let options_encoder = Options::default().with_model("sam/sam-hq-vit-t-encoder.onnx")?;
-
-            let options_decoder = Options::default()
-                .with_sam_kind(SamKind::SamHq)
-                .with_model("sam/sam-hq-vit-t-decoder.onnx")?;
-            (options_encoder, options_decoder, "SAM-HQ")
-        }
-        SamKind::EdgeSam => {
-            let options_encoder = Options::default().with_model("sam/edge-sam-3x-encoder.onnx")?;
-            let options_decoder = Options::default()
-                .with_sam_kind(SamKind::EdgeSam)
-                .with_model("sam/edge-sam-3x-decoder.onnx")?;
-            (options_encoder, options_decoder, "Edge-SAM")
-        }
-    };
-    let options_encoder = options_encoder
-        .with_cuda(args.device_id)
-        .with_ixx(0, 2, (800, 1024, 1024).into())
-        .with_ixx(0, 3, (800, 1024, 1024).into());
-    let options_decoder = options_decoder
-        .with_cuda(args.device_id)
-        .use_low_res_mask(args.use_low_res_mask)
-        .with_find_contours(true);
-
+    let args: Args = argh::from_env();
     // Build model
+    let (options_encoder, options_decoder) = match args.kind.as_str().try_into()? {
+        SamKind::Sam => (
+            Options::sam_v1_base_encoder(),
+            Options::sam_v1_base_decoder(),
+        ),
+        SamKind::Sam2 => match args.scale.as_str().try_into()? {
+            Scale::T => (Options::sam2_tiny_encoder(), Options::sam2_tiny_decoder()),
+            Scale::S => (Options::sam2_small_encoder(), Options::sam2_small_decoder()),
+            Scale::B => (
+                Options::sam2_base_plus_encoder(),
+                Options::sam2_base_plus_decoder(),
+            ),
+            _ => unimplemented!("Unsupported model scale: {:?}. Try b, s, t.", args.scale),
+        },
+
+        SamKind::MobileSam => (
+            Options::mobile_sam_tiny_encoder(),
+            Options::mobile_sam_tiny_decoder(),
+        ),
+        SamKind::SamHq => (
+            Options::sam_hq_tiny_encoder(),
+            Options::sam_hq_tiny_decoder(),
+        ),
+        SamKind::EdgeSam => (
+            Options::edge_sam_3x_encoder(),
+            Options::edge_sam_3x_decoder(),
+        ),
+    };
+
+    let options_encoder = options_encoder
+        .with_model_device(args.device.as_str().try_into()?)
+        .commit()?;
+    let options_decoder = options_decoder.commit()?;
     let mut model = SAM::new(options_encoder, options_decoder)?;
 
     // Load image
-    let xs = [
-        DataLoader::try_read("images/truck.jpg")?,
-        // DataLoader::try_read("images/dog.jpg")?,
-    ];
+    let xs = [DataLoader::try_read("images/truck.jpg")?];
 
     // Build annotator
-    let annotator = Annotator::default().with_saveout(saveout);
+    let annotator = Annotator::default().with_saveout(model.spec());
 
     // Prompt
     let prompts = vec![
@@ -102,7 +78,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     ];
 
     // Run & Annotate
-    let ys = model.run(&xs, &prompts)?;
+    let ys = model.forward(&xs, &prompts)?;
     annotator.annotate(&xs, &ys);
 
     Ok(())

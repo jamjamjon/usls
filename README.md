@@ -1,221 +1,161 @@
-<p align="center">
-    <h2 align="center">usls</h2>
-</p>
+<h2 align="center">usls</h2>
 
 <p align="center">
-    <a href="https://docs.rs/usls"><strong>Documentation</strong></a>
-    <br>
-    <br>
+    <a href="https://github.com/jamjamjon/usls/actions/workflows/rust-ci.yml">
+        <img src="https://github.com/jamjamjon/usls/actions/workflows/rust-ci.yml/badge.svg" alt="Rust Continuous Integration Badge">
+    </a>
+    <a href='https://crates.io/crates/usls'>
+        <img src='https://img.shields.io/crates/v/usls.svg' alt='usls Version'>
+    </a>
+    <a href='https://crates.io/crates/usls'>
+        <img src='https://img.shields.io/crates/msrv/usls-yellow?' alt='Rust MSRV'>
+    </a>
     <a href='https://github.com/microsoft/onnxruntime/releases'>
-      <img src='https://img.shields.io/badge/ONNXRuntime-v1.19.x-239DFF?style=for-the-badge&logo=onnx' alt='ONNXRuntime Release Page'>
+        <img src='https://img.shields.io/badge/onnxruntime-%3E%3D%201.19.0-3399FF' alt='ONNXRuntime MSRV'>
     </a>
     <a href='https://developer.nvidia.com/cuda-toolkit-archive'>
-      <img src='https://img.shields.io/badge/CUDA-12.x-76B900?style=for-the-badge&logo=nvidia' alt='CUDA Toolkit Page'>
+        <img src='https://img.shields.io/badge/cuda-%3E%3D%2012.0-green' alt='CUDA MSRV'>
     </a>
     <a href='https://developer.nvidia.com/tensorrt'>
-      <img src='https://img.shields.io/badge/TensorRT-10.x.x.x-76B900?style=for-the-badge&logo=nvidia' alt='TensorRT Page'>
+        <img src='https://img.shields.io/badge/TensorRT-%3E%3D%2012.0-0ABF53' alt='TensorRT MSRV'>
+    </a>
+    <a href="https://crates.io/crates/usls">
+        <img alt="Crates.io Total Downloads" src="https://img.shields.io/crates/d/usls?&color=946CE6">
+    </a>
+</p>
+<p align="center">
+    <a href="./examples">
+        <img src="https://img.shields.io/badge/Examples-1A86FD?&logo=anki" alt="Examples">
+    </a>
+    <a href='https://docs.rs/usls'>
+        <img src='https://img.shields.io/badge/Docs-usls-yellow?&logo=docs.rs&color=FFA200' alt='usls documentation'>
     </a>
 </p>
 
-<p align="center">
-   <a href='https://crates.io/crates/usls'>
-      <img src='https://img.shields.io/crates/v/usls.svg?style=for-the-badge&logo=rust' alt='Crates Page'>
-   </a>
-   <!-- Documentation Badge -->
-<!--    <a href="https://docs.rs/usls">
-      <img src='https://img.shields.io/badge/Documents-usls-000000?style=for-the-badge&logo=docs.rs' alt='Documentation'>
-   </a> -->
-   <!-- Downloads Badge -->
-   <a href="">
-       <img alt="Crates.io Total Downloads" src="https://img.shields.io/crates/d/usls?style=for-the-badge&color=3ECC5F">
-   </a>
-    
-</p>
+**usls** is a Rust library integrated with  **ONNXRuntime**, offering a suite of advanced models for **Computer Vision** and **Vision-Language** tasks, including:
 
-**`usls`** is a Rust library integrated with **ONNXRuntime** that provides a collection of state-of-the-art models for **Computer Vision** and **Vision-Language** tasks, including:
-
-- **YOLO Models**: [YOLOv5](https://github.com/ultralytics/yolov5), [YOLOv6](https://github.com/meituan/YOLOv6), [YOLOv7](https://github.com/WongKinYiu/yolov7), [YOLOv8](https://github.com/ultralytics/ultralytics), [YOLOv9](https://github.com/WongKinYiu/yolov9), [YOLOv10](https://github.com/THU-MIG/yolov10), [YOLOv11](https://github.com/ultralytics/ultralytics)
+- **YOLO Models**: [YOLOv5](https://github.com/ultralytics/yolov5), [YOLOv6](https://github.com/meituan/YOLOv6), [YOLOv7](https://github.com/WongKinYiu/yolov7), [YOLOv8](https://github.com/ultralytics/ultralytics), [YOLOv9](https://github.com/WongKinYiu/yolov9), [YOLOv10](https://github.com/THU-MIG/yolov10), [YOLO11](https://github.com/ultralytics/ultralytics)
 - **SAM Models**: [SAM](https://github.com/facebookresearch/segment-anything), [SAM2](https://github.com/facebookresearch/segment-anything-2), [MobileSAM](https://github.com/ChaoningZhang/MobileSAM), [EdgeSAM](https://github.com/chongzhou96/EdgeSAM), [SAM-HQ](https://github.com/SysCV/sam-hq), [FastSAM](https://github.com/CASIA-IVA-Lab/FastSAM)
-- **Vision Models**: [RTDETR](https://arxiv.org/abs/2304.08069), [RTMO](https://github.com/open-mmlab/mmpose/tree/main/projects/rtmo), [DB](https://arxiv.org/abs/1911.08947), [SVTR](https://arxiv.org/abs/2205.00159), [Depth-Anything-v1-v2](https://github.com/LiheYoung/Depth-Anything), [DINOv2](https://github.com/facebookresearch/dinov2), [MODNet](https://github.com/ZHKKKe/MODNet), [Sapiens](https://arxiv.org/abs/2408.12569), [DepthPro](https://github.com/apple/ml-depth-pro)
-- **Vision-Language Models**: [CLIP](https://github.com/openai/CLIP), [BLIP](https://arxiv.org/abs/2201.12086), [GroundingDINO](https://github.com/IDEA-Research/GroundingDINO), [YOLO-World](https://github.com/AILab-CVC/YOLO-World), [Florence2](https://arxiv.org/abs/2311.06242)
+- **Vision Models**: [RT-DETR](https://arxiv.org/abs/2304.08069), [RTMO](https://github.com/open-mmlab/mmpose/tree/main/projects/rtmo), [Depth-Anything](https://github.com/LiheYoung/Depth-Anything), [DINOv2](https://github.com/facebookresearch/dinov2), [MODNet](https://github.com/ZHKKKe/MODNet), [Sapiens](https://arxiv.org/abs/2408.12569), [DepthPro](https://github.com/apple/ml-depth-pro), [FastViT](https://github.com/apple/ml-fastvit), [BEiT](https://github.com/microsoft/unilm/tree/master/beit), [MobileOne](https://github.com/apple/ml-mobileone)
+- **Vision-Language Models**: [CLIP](https://github.com/openai/CLIP), [jina-clip-v1](https://huggingface.co/jinaai/jina-clip-v1), [BLIP](https://arxiv.org/abs/2201.12086), [GroundingDINO](https://github.com/IDEA-Research/GroundingDINO), [YOLO-World](https://github.com/AILab-CVC/YOLO-World), [Florence2](https://arxiv.org/abs/2311.06242)
+- **OCR Models**: [FAST](https://github.com/czczup/FAST), [DB(PaddleOCR-Det)](https://arxiv.org/abs/1911.08947), [SVTR(PaddleOCR-Rec)](https://arxiv.org/abs/2205.00159), [SLANet](https://paddlepaddle.github.io/PaddleOCR/latest/algorithm/table_recognition/algorithm_table_slanet.html), [TrOCR](https://huggingface.co/microsoft/trocr-base-printed), [DocLayout-YOLO](https://github.com/opendatalab/DocLayout-YOLO)
 
 <details>
-<summary>Click to expand Supported Models</summary>
+<summary>👉 More Supported Models</summary>
 
-## Supported Models
-
-| Model                                                               | Task / Type                                                                                   | Example                    | CUDA f32 | CUDA f16 | TensorRT f32 | TensorRT f16 |
-|---------------------------------------------------------------------|----------------------------------------------------------------------------------------------|----------------------------|----------|----------|--------------|--------------|
-| [YOLOv5](https://github.com/ultralytics/yolov5)                    | Classification<br>Object Detection<br>Instance Segmentation                                       | [demo](examples/yolo)      | ✅       | ✅       | ✅           | ✅           |
-| [YOLOv6](https://github.com/meituan/YOLOv6)                        | Object Detection                                                                             | [demo](examples/yolo)      | ✅       | ✅       | ✅           | ✅           |
-| [YOLOv7](https://github.com/WongKinYiu/yolov7)                     | Object Detection                                                                             | [demo](examples/yolo)      | ✅       | ✅       | ✅           | ✅           |
-| [YOLOv8](https://github.com/ultralytics/ultralytics)                | Object Detection<br>Instance Segmentation<br>Classification<br>Oriented Object Detection<br>Keypoint Detection | [demo](examples/yolo)      | ✅       | ✅       | ✅           | ✅           |
-| [YOLOv9](https://github.com/WongKinYiu/yolov9)                     | Object Detection                                                                             | [demo](examples/yolo)      | ✅       | ✅       | ✅           | ✅           |
-| [YOLOv10](https://github.com/THU-MIG/yolov10)                | Object Detection | [demo](examples/yolo)      | ✅       | ✅       | ✅           | ✅           |
-| [YOLOv11](https://github.com/ultralytics/ultralytics)                | Object Detection<br>Instance Segmentation<br>Classification<br>Oriented Object Detection<br>Keypoint Detection | [demo](examples/yolo)      | ✅       | ✅       | ✅           | ✅           |
-| [RTDETR](https://arxiv.org/abs/2304.08069)                         | Object Detection                                                                             | [demo](examples/yolo)      | ✅       | ✅       | ✅           | ✅           |
-| [FastSAM](https://github.com/CASIA-IVA-Lab/FastSAM)                 | Instance Segmentation                                                                         | [demo](examples/yolo)      | ✅       | ✅       | ✅           | ✅           |
-| [SAM](https://github.com/facebookresearch/segment-anything)         | Segment Anything                                                                             | [demo](examples/sam)       | ✅       | ✅       |              |              |
-| [SAM2](https://github.com/facebookresearch/segment-anything-2)      | Segment Anything                                                                             | [demo](examples/sam)       | ✅       | ✅       |              |              |
-| [MobileSAM](https://github.com/ChaoningZhang/MobileSAM)             | Segment Anything                                                                             | [demo](examples/sam)       | ✅       | ✅       |              |              |
-| [EdgeSAM](https://github.com/chongzhou96/EdgeSAM)                  | Segment Anything                                                                             | [demo](examples/sam)       | ✅       | ✅       |              |              |
-| [SAM-HQ](https://github.com/SysCV/sam-hq)                          | Segment Anything                                                                             | [demo](examples/sam)       | ✅       | ✅       |              |              |
-| [YOLO-World](https://github.com/AILab-CVC/YOLO-World)               | Object Detection                                                                             | [demo](examples/yolo)      | ✅       | ✅       | ✅           | ✅           |
-| [DINOv2](https://github.com/facebookresearch/dinov2)               | Vision-Self-Supervised                                                                        | [demo](examples/dinov2)    | ✅       | ✅       | ✅           | ✅           |
-| [CLIP](https://github.com/openai/CLIP)                             | Vision-Language                                                                             | [demo](examples/clip)      | ✅       | ✅       | ✅ Visual<br>❌ Textual | ✅ Visual<br>❌ Textual |
-| [BLIP](https://github.com/salesforce/BLIP)                         | Vision-Language                                                                             | [demo](examples/blip)      | ✅       | ✅       | ✅ Visual<br>❌ Textual | ✅ Visual<br>❌ Textual |
-| [DB](https://arxiv.org/abs/1911.08947)                             | Text Detection                                                                               | [demo](examples/db)        | ✅       | ✅       | ✅           | ✅           |
-| [SVTR](https://arxiv.org/abs/2205.00159)                           | Text Recognition                                                                            | [demo](examples/svtr)      | ✅       | ✅       | ✅           | ✅           |
-| [RTMO](https://github.com/open-mmlab/mmpose/tree/main/projects/rtmo) | Keypoint Detection                                                                          | [demo](examples/rtmo)      | ✅       | ✅       | ❌           | ❌           |
-| [YOLOPv2](https://arxiv.org/abs/2208.11434)                        | Panoptic Driving Perception                                                                   | [demo](examples/yolop)     | ✅       | ✅       | ✅           | ✅           |
-| [Depth-Anything v1 & v2](https://github.com/LiheYoung/Depth-Anything)      | Monocular Depth Estimation                                                                    | [demo](examples/depth-anything) | ✅       | ✅       | ❌           | ❌           |
-| [MODNet](https://github.com/ZHKKKe/MODNet)                         | Image Matting                                                                               | [demo](examples/modnet)    | ✅       | ✅       | ✅           | ✅           |
-| [GroundingDINO](https://github.com/IDEA-Research/GroundingDINO)   | Open-Set Detection With Language                                                             | [demo](examples/grounding-dino) | ✅       | ✅       |              |              |
-| [Sapiens](https://github.com/facebookresearch/sapiens/tree/main)   | Body Part Segmentation                                   | [demo](examples/sapiens) | ✅       | ✅       |              |              |
-| [Florence2](https://arxiv.org/abs/2311.06242)   | a Variety of Vision Tasks | [demo](examples/florence2) | ✅       | ✅       |              |              |
-| [DepthPro](https://github.com/apple/ml-depth-pro)     | Monocular Depth Estimation                   | [demo](examples/depth-pro) | ✅       | ✅       |            |            |
-
-
+| Model                                                                                                          | Task / Description                                                                                                           | Example                      | CoreML | CUDA<br />FP32 | CUDA<br />FP16 | TensorRT<br />FP32 | TensorRT<br />FP16 |
+| -------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- | ---------------------------- | ------ | -------------- | -------------- | ------------------ | ------------------ |
+| [BEiT](https://github.com/microsoft/unilm/tree/master/beit)                                                       | Image Classification                                                                                                         | [demo](examples/beit)           | ✅     | ✅             | ✅             |                    |                    |
+| [ConvNeXt](https://github.com/facebookresearch/ConvNeXt)                                                          | Image Classification                                                                                                         | [demo](examples/convnext)       | ✅     | ✅             | ✅             |                    |                    |
+| [FastViT](https://github.com/apple/ml-fastvit)                                                                    | Image Classification                                                                                                         | [demo](examples/fastvit)        | ✅     | ✅             | ✅             |                    |                    |
+| [MobileOne](https://github.com/apple/ml-mobileone)                                                                | Image Classification                                                                                                         | [demo](examples/mobileone)      | ✅     | ✅             | ✅             |                    |                    |
+| [DeiT](https://github.com/facebookresearch/deit)                                                                  | Image Classification                                                                                                         | [demo](examples/deit)           | ✅     | ✅             | ✅             |                    |                    |
+| [DINOv2](https://github.com/facebookresearch/dinov2)                                                              | Vision Embedding                                                                                                            | [demo](examples/dinov2)         | ✅     | ✅             | ✅             | ✅                 | ✅                 |
+| [YOLOv5](https://github.com/ultralytics/yolov5)                                                                   | Image Classification<br />Object Detection<br />Instance Segmentation                                                        | [demo](examples/yolo)           | ✅     | ✅             | ✅             | ✅                 | ✅                 |
+| [YOLOv6](https://github.com/meituan/YOLOv6)                                                                       | Object Detection                                                                                                             | [demo](examples/yolo)           | ✅     | ✅             | ✅             | ✅                 | ✅                 |
+| [YOLOv7](https://github.com/WongKinYiu/yolov7)                                                                    | Object Detection                                                                                                             | [demo](examples/yolo)           | ✅     | ✅             | ✅             | ✅                 | ✅                 |
+| [YOLOv8<br />YOLO11](https://github.com/ultralytics/ultralytics)                                                  | Object Detection<br />Instance Segmentation<br />Image Classification<br />Oriented Object Detection<br />Keypoint Detection | [demo](examples/yolo)           | ✅     | ✅             | ✅             | ✅                 | ✅                 |
+| [YOLOv9](https://github.com/WongKinYiu/yolov9)                                                                    | Object Detection                                                                                                             | [demo](examples/yolo)           | ✅     | ✅             | ✅             | ✅                 | ✅                 |
+| [YOLOv10](https://github.com/THU-MIG/yolov10)                                                                     | Object Detection                                                                                                             | [demo](examples/yolo)           | ✅     | ✅             | ✅             | ✅                 | ✅                 |
+| [RT-DETR](https://github.com/lyuwenyu/RT-DETR)                                                                    | Object Detection                                                                                                             | [demo](examples/rtdetr)         | ✅     | ✅             | ✅             |                    |                    |
+| [PP-PicoDet](https://github.com/PaddlePaddle/PaddleDetection/tree/release/2.8/configs/picodet)                    | Object Detection                                                                                                             | [demo](examples/picodet-layout) | ✅     | ✅             | ✅             |                    |                    |
+| [DocLayout-YOLO](https://github.com/opendatalab/DocLayout-YOLO)                                                   | Object Detection                                                                                                             | [demo](examples/picodet-layout) | ✅     | ✅             | ✅             |                    |                    |
+| [D-FINE](https://github.com/manhbd-22022602/D-FINE)                                                               | Object Detection                                                                                                             | [demo](examples/d-fine)         | ✅     | ✅             | ✅             |                    |                    |
+| [DEIM](https://github.com/ShihuaHuang95/DEIM)                                                                     | Object Detection                                                                                                             | [demo](examples/deim)           | ✅     | ✅             | ✅             |                    |                    |
+| [RTMO](https://github.com/open-mmlab/mmpose/tree/main/projects/rtmo)                                              | Keypoint Detection                                                                                                           | [demo](examples/rtmo)           | ✅     | ✅             | ✅             | ❌                 | ❌                 |
+| [SAM](https://github.com/facebookresearch/segment-anything)                                                       | Segment Anything                                                                                                             | [demo](examples/sam)            | ✅     | ✅             | ✅             |                    |                    |
+| [SAM2](https://github.com/facebookresearch/segment-anything-2)                                                    | Segment Anything                                                                                                             | [demo](examples/sam)            | ✅     | ✅             | ✅             |                    |                    |
+| [MobileSAM](https://github.com/ChaoningZhang/MobileSAM)                                                           | Segment Anything                                                                                                             | [demo](examples/sam)            | ✅     | ✅             | ✅             |                    |                    |
+| [EdgeSAM](https://github.com/chongzhou96/EdgeSAM)                                                                 | Segment Anything                                                                                                             | [demo](examples/sam)            | ✅     | ✅             | ✅             |                    |                    |
+| [SAM-HQ](https://github.com/SysCV/sam-hq)                                                                         | Segment Anything                                                                                                             | [demo](examples/sam)            | ✅     | ✅             | ✅             |                    |                    |
+| [FastSAM](https://github.com/CASIA-IVA-Lab/FastSAM)                                                               | Instance Segmentation                                                                                                        | [demo](examples/yolo)           | ✅     | ✅             | ✅             | ✅                 | ✅                 |
+| [YOLO-World](https://github.com/AILab-CVC/YOLO-World)                                                             | Open-Set Detection With Language                                                                                             | [demo](examples/yolo)           | ✅     | ✅             | ✅             | ✅                 | ✅                 |
+| [GroundingDINO](https://github.com/IDEA-Research/GroundingDINO)                                                   | Open-Set Detection With Language                                                                                             | [demo](examples/grounding-dino) | ✅     | ✅             | ✅             |                    |                    |
+| [CLIP](https://github.com/openai/CLIP)                                                                            | Vision-Language Embedding                                                                                                    | [demo](examples/clip)           | ✅     | ✅             | ✅             | ❌                 | ❌                 |
+| [jina-clip-v1](https://huggingface.co/jinaai/jina-clip-v1)                                                        | Vision-Language Embedding                                                                                                    | [demo](examples/clip)           | ✅     | ✅             | ✅             | ❌                 | ❌                 |
+| [BLIP](https://github.com/salesforce/BLIP)                                                                        | Image Captioning                                                                                                             | [demo](examples/blip)           | ✅     | ✅             | ✅             | ❌                 | ❌                 |
+| [DB(PaddleOCR-Det)](https://arxiv.org/abs/1911.08947)                                                             | Text Detection                                                                                                               | [demo](examples/db)             | ✅     | ✅             | ✅             | ✅                 | ✅                 |
+| [FAST](https://github.com/czczup/FAST)                                                                            | Text Detection                                                                                                               | [demo](examples/fast)           | ✅     | ✅             | ✅             | ✅                 | ✅                 |
+| [LinkNet](https://arxiv.org/abs/1707.03718)                                                                       | Text Detection                                                                                                               | [demo](examples/linknet)        | ✅     | ✅             | ✅             | ✅                 | ✅                 |
+| [SVTR(PaddleOCR-Rec)](https://arxiv.org/abs/2205.00159)                                                           | Text Recognition                                                                                                             | [demo](examples/svtr)           | ✅     | ✅             | ✅             | ✅                 | ✅                 |
+| [SLANet](https://paddlepaddle.github.io/PaddleOCR/latest/algorithm/table_recognition/algorithm_table_slanet.html) | Tabel Recognition                                                                                                            | [demo](examples/slanet)         | ✅     | ✅             | ✅             |                    |                    |
+| [TrOCR](https://huggingface.co/microsoft/trocr-base-printed)                                                      | Text Recognition                                                                                                             | [demo](examples/trocr)          | ✅     | ✅             | ✅             |                    |                    |
+| [YOLOPv2](https://arxiv.org/abs/2208.11434)                                                                       | Panoptic Driving Perception                                                                                                  | [demo](examples/yolop)          | ✅     | ✅             | ✅             | ✅                 | ✅                 |
+| [DepthAnything v1<br />DepthAnything v2](https://github.com/LiheYoung/Depth-Anything)                             | Monocular Depth Estimation                                                                                                   | [demo](examples/depth-anything) | ✅     | ✅             | ✅             | ❌                 | ❌                 |
+| [DepthPro](https://github.com/apple/ml-depth-pro)                                                                 | Monocular Depth Estimation                                                                                                   | [demo](examples/depth-pro)      | ✅     | ✅             | ✅             |                    |                    |
+| [MODNet](https://github.com/ZHKKKe/MODNet)                                                                        | Image Matting                                                                                                                | [demo](examples/modnet)         | ✅     | ✅             | ✅             | ✅                 | ✅                 |
+| [Sapiens](https://github.com/facebookresearch/sapiens/tree/main)                                                  | Foundation for Human Vision Models                                                                                           | [demo](examples/sapiens)        | ✅     | ✅             | ✅             |                    |                    |
+| [Florence2](https://arxiv.org/abs/2311.06242)                                                                     | a Variety of Vision Tasks                                                                                                    | [demo](examples/florence2)      | ✅     | ✅             | ✅             |                    |                    |
 
 </details>
 
+## ⛳️ Cargo Features
 
-## ⛳️ ONNXRuntime Linking 
+By default, **none of the following features are enabled**. You can enable them as needed:
 
-<details>
-<summary>You have two options to link the ONNXRuntime library</summary>
+- **`auto`**: Automatically downloads prebuilt ONNXRuntime binaries from Pyke’s CDN for supported platforms.
 
-- ### Option 1: Manual Linking
+  - If disabled, you'll need to [compile `ONNXRuntime` from source](https://github.com/microsoft/onnxruntime) or [download a precompiled package](https://github.com/microsoft/onnxruntime/releases), and then [link it manually](https://ort.pyke.io/setup/linking).
 
-    - #### For detailed setup instructions, refer to the [ORT documentation](https://ort.pyke.io/setup/linking).
+    <details>
+    <summary>👉 For Linux or macOS Users</summary>
 
-    - #### For Linux or macOS Users:
-        - Download the ONNX Runtime package from the [Releases page](https://github.com/microsoft/onnxruntime/releases).
-        - Set up the library path by exporting the `ORT_DYLIB_PATH` environment variable:
-           ```shell
-           export ORT_DYLIB_PATH=/path/to/onnxruntime/lib/libonnxruntime.so.1.19.0
-           ```
-       
-- ### Option 2: Automatic Download
-  Just use `--features auto`
-  ```shell
-  cargo run -r --example yolo --features auto
+    - Download from the [Releases page](https://github.com/microsoft/onnxruntime/releases).
+    - Set up the library path by exporting the `ORT_DYLIB_PATH` environment variable:
+      ```shell
+      export ORT_DYLIB_PATH=/path/to/onnxruntime/lib/libonnxruntime.so.1.20.1
+      ```
+
+    </details>
+- **`ffmpeg`**: Adds support for video streams, real-time frame visualization, and video export.
+
+  - Powered by [video-rs](https://github.com/oddity-ai/video-rs) and [minifb](https://github.com/emoon/rust_minifb). For any issues related to `ffmpeg` features, please refer to the issues of these two crates.
+- **`cuda`**: Enables the NVIDIA TensorRT provider.
+- **`trt`**: Enables the NVIDIA TensorRT provider.
+- **`mps`**: Enables the Apple CoreML provider.
+
+## 🎈 Example
+
+* **Using `CUDA`**
+
+  ```
+  cargo run -r -F cuda --example yolo -- --device cuda:0
+  ```
+* **Using Apple `CoreML`**
+
+  ```
+  cargo run -r -F mps --example yolo -- --device mps
+  ```
+* **Using `TensorRT`**
+
+  ```
+  cargo run -r -F trt --example yolo -- --device trt
+  ```
+* **Using `CPU`**
+
+  ```
+  cargo run -r --example yolo
   ```
 
-</details>
-
-## 🎈 Demo
-
-```Shell
-cargo run -r --example yolo   # blip, clip, yolop, svtr, db, ...
-```
+All examples are located in the [examples](./examples/) directory.
 
 ## 🥂 Integrate Into Your Own Project
 
-- #### Add `usls` as a dependency to your project's `Cargo.toml`
-    ```Shell
-    cargo add usls
-    ```
-    
-    Or use a specific commit:
-    ```Toml
-    [dependencies]
-    usls = { git = "https://github.com/jamjamjon/usls", rev = "commit-sha" }
-    ```
+Add `usls` as a dependency to your project's `Cargo.toml`
 
-- #### Follow the pipeline
-    - Build model with the provided `models` and `Options`
-    - Load images, video and stream with `DataLoader`
-    - Do inference
-    - Retrieve inference results from `Vec<Y>`
-    - Annotate inference results with `Annotator`
-    - Display images and write them to video with `Viewer` 
+```Shell
+cargo add usls -F cuda
+```
 
-    <br/>
-    <details>
-    <summary>example code</summary>
-    
-    ```rust
-    use usls::{models::YOLO, Annotator, DataLoader, Nms, Options, Vision, YOLOTask, YOLOVersion};
+Or use a specific commit:
 
-    fn main() -> anyhow::Result<()> {
-        // Build model with Options
-        let options = Options::new()
-            .with_trt(0)
-            .with_model("yolo/v8-m-dyn.onnx")?
-            .with_yolo_version(YOLOVersion::V8) // YOLOVersion: V5, V6, V7, V8, V9, V10, RTDETR
-            .with_yolo_task(YOLOTask::Detect) // YOLOTask: Classify, Detect, Pose, Segment, Obb
-            .with_ixx(0, 0, (1, 2, 4).into())
-            .with_ixx(0, 2, (0, 640, 640).into())
-            .with_ixx(0, 3, (0, 640, 640).into())
-            .with_confs(&[0.2]);
-        let mut model = YOLO::new(options)?;
-    
-        // Build DataLoader to load image(s), video, stream
-        let dl = DataLoader::new(
-            // "./assets/bus.jpg", // local image
-            // "images/bus.jpg",  // remote image
-            // "../images-folder",  // local images (from folder)
-            // "../demo.mp4",  // local video
-            // "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",  // online video
-            "rtsp://admin:kkasd1234@192.168.2.217:554/h264/ch1/",  // stream
-        )?
-        .with_batch(2)  // iterate with batch_size = 2
-        .build()?;
-    
-        // Build annotator
-        let annotator = Annotator::new()
-            .with_bboxes_thickness(4)
-            .with_saveout("YOLO-DataLoader");
-    
-        // Build viewer
-        let mut viewer = Viewer::new().with_delay(10).with_scale(1.).resizable(true);
+```Toml
+[dependencies]
+usls = { git = "https://github.com/jamjamjon/usls", rev = "commit-sha" }
+```
 
-        // Run and annotate results
-        for (xs, _) in dl {
-            let ys = model.forward(&xs, false)?;
-            // annotator.annotate(&xs, &ys);
-            let images_plotted = annotator.plot(&xs, &ys, false)?;
-
-            // show image
-            viewer.imshow(&images_plotted)?;
-
-            // check out window and key event
-            if !viewer.is_open() || viewer.is_key_pressed(usls::Key::Escape) {
-                break;
-            }
-
-            // write video
-            viewer.write_batch(&images_plotted)?;
-  
-            // Retrieve inference results
-            for y in ys {
-                // bboxes
-                if let Some(bboxes) = y.bboxes() {
-                    for bbox in bboxes {
-                        println!(
-                            "Bbox: {}, {}, {}, {}, {}, {}",
-                            bbox.xmin(),
-                            bbox.ymin(),
-                            bbox.xmax(),
-                            bbox.ymax(),
-                            bbox.confidence(),
-                            bbox.id(),
-                        );
-                    }
-                }
-            }
-        }
-
-        // finish video write
-        viewer.finish_write()?;
-    
-        Ok(())
-    }
-    ```
-    
-    </details>
-    </br>
+## 🥳 If you find this helpful, please give it a star ⭐
 
 ## 📌 License
+
 This project is licensed under [LICENSE](LICENSE).

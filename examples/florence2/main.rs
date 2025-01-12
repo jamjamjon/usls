@@ -1,116 +1,133 @@
-use usls::{models::Florence2, Annotator, DataLoader, Options, Task};
+use anyhow::Result;
+use usls::{models::Florence2, Annotator, DataLoader, Options, Scale, Task};
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let batch_size = 3;
+#[derive(argh::FromArgs)]
+/// Example
+struct Args {
+    /// dtype
+    #[argh(option, default = "String::from(\"auto\")")]
+    dtype: String,
 
-    // vision encoder
-    let options_vision_encoder = Options::default()
-        .with_model("florence2/base-vision-encoder-f16.onnx")?
-        .with_ixx(0, 2, (512, 768, 800).into())
-        .with_ixx(0, 3, 768.into())
-        .with_ixx(0, 0, (1, batch_size as _, 8).into());
+    /// device
+    #[argh(option, default = "String::from(\"cpu:0\")")]
+    device: String,
 
-    // text embed
-    let options_text_embed = Options::default()
-        .with_model("florence2/base-embed-tokens-f16.onnx")?
-        .with_tokenizer("florence2/tokenizer.json")?
-        .with_batch(batch_size);
+    /// scale
+    #[argh(option, default = "String::from(\"base\")")]
+    scale: String,
+}
 
-    // transformer encoder
-    let options_encoder = Options::default()
-        .with_model("florence2/base-encoder-f16.onnx")?
-        .with_batch(batch_size);
+fn main() -> Result<()> {
+    tracing_subscriber::fmt()
+        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
+        .with_timer(tracing_subscriber::fmt::time::ChronoLocal::rfc_3339())
+        .init();
 
-    // transformer decoder
-    let options_decoder = Options::default()
-        .with_model("florence2/base-decoder-f16.onnx")?
-        .with_batch(batch_size);
+    let args: Args = argh::from_env();
 
-    // transformer decoder merged
-    let options_decoder_merged = Options::default()
-        .with_model("florence2/base-decoder-merged-f16.onnx")?
-        .with_batch(batch_size);
+    // load images
+    let xs = [
+        DataLoader::try_read("images/green-car.jpg")?,
+        DataLoader::try_read("assets/bus.jpg")?,
+    ];
 
     // build model
-    let mut model = Florence2::new(
+    let (
         options_vision_encoder,
         options_text_embed,
         options_encoder,
         options_decoder,
         options_decoder_merged,
+    ) = match args.scale.as_str().try_into()? {
+        Scale::B => (
+            Options::florence2_visual_encoder_base(),
+            Options::florence2_textual_embed_base(),
+            Options::florence2_texual_encoder_base(),
+            Options::florence2_texual_decoder_base(),
+            Options::florence2_texual_decoder_merged_base(),
+        ),
+        Scale::L => todo!(),
+        _ => anyhow::bail!("Unsupported Florence2 scale."),
+    };
+
+    let mut model = Florence2::new(
+        options_vision_encoder
+            .with_model_dtype(args.dtype.as_str().try_into()?)
+            .with_model_device(args.device.as_str().try_into()?)
+            .with_batch_size(xs.len())
+            .commit()?,
+        options_text_embed
+            .with_model_dtype(args.dtype.as_str().try_into()?)
+            .with_model_device(args.device.as_str().try_into()?)
+            .with_batch_size(xs.len())
+            .commit()?,
+        options_encoder
+            .with_model_dtype(args.dtype.as_str().try_into()?)
+            .with_model_device(args.device.as_str().try_into()?)
+            .with_batch_size(xs.len())
+            .commit()?,
+        options_decoder
+            .with_model_dtype(args.dtype.as_str().try_into()?)
+            .with_model_device(args.device.as_str().try_into()?)
+            .with_batch_size(xs.len())
+            .commit()?,
+        options_decoder_merged
+            .with_model_dtype(args.dtype.as_str().try_into()?)
+            .with_model_device(args.device.as_str().try_into()?)
+            .with_batch_size(xs.len())
+            .commit()?,
     )?;
 
-    // load images
-    let xs = [
-        // DataLoader::try_read("florence2/car.jpg")?, // for testing region-related tasks
-        DataLoader::try_read("florence2/car.jpg")?,
-        // DataLoader::try_read("images/db.png")?,
-        DataLoader::try_read("assets/bus.jpg")?,
+    // tasks
+    let tasks = [
+        // w inputs
+        Task::Caption(0),
+        Task::Caption(1),
+        Task::Caption(2),
+        Task::Ocr,
+        // Task::OcrWithRegion,
+        Task::RegionProposal,
+        Task::ObjectDetection,
+        Task::DenseRegionCaption,
+        // w/o inputs
+        Task::OpenSetDetection("a vehicle"),
+        Task::CaptionToPhraseGrounding("A vehicle with two wheels parked in front of a building."),
+        Task::ReferringExpressionSegmentation("a vehicle"),
+        Task::RegionToSegmentation(
+            // 31, 156, 581, 373,  // car
+            449, 270, 556, 372, // wheel
+        ),
+        Task::RegionToCategory(
+            // 31, 156, 581, 373,
+            449, 270, 556, 372,
+        ),
+        Task::RegionToDescription(
+            // 31, 156, 581, 373,
+            449, 270, 556, 372,
+        ),
     ];
-
-    // region-related tasks
-    let quantizer = usls::Quantizer::default();
-    // let coords = [449., 270., 556., 372.];  // wheel
-    let coords = [31., 156., 581., 373.]; // car
-    let (width_car, height_car) = (xs[0].width(), xs[0].height());
-    let quantized_coords = quantizer.quantize(&coords, (width_car as _, height_car as _));
-
-    // run with tasks
-    let ys = model.run_with_tasks(
-        &xs,
-        &[
-            // w/ inputs
-            Task::Caption(0),
-            Task::Caption(1),
-            Task::Caption(2),
-            Task::Ocr,
-            Task::OcrWithRegion,
-            Task::RegionProposal,
-            Task::ObjectDetection,
-            Task::DenseRegionCaption,
-            // w/o inputs
-            Task::OpenSetDetection("a vehicle".into()),
-            Task::CaptionToPhraseGrounding(
-                "A vehicle with two wheels parked in front of a building.".into(),
-            ),
-            Task::ReferringExpressionSegmentation("a vehicle".into()),
-            Task::RegionToSegmentation(
-                quantized_coords[0],
-                quantized_coords[1],
-                quantized_coords[2],
-                quantized_coords[3],
-            ),
-            Task::RegionToCategory(
-                quantized_coords[0],
-                quantized_coords[1],
-                quantized_coords[2],
-                quantized_coords[3],
-            ),
-            Task::RegionToDescription(
-                quantized_coords[0],
-                quantized_coords[1],
-                quantized_coords[2],
-                quantized_coords[3],
-            ),
-        ],
-    )?;
 
     // annotator
     let annotator = Annotator::new()
         .without_bboxes_conf(true)
         .with_bboxes_thickness(3)
         .with_saveout_subs(&["Florence2"]);
-    for (task, ys_) in ys.iter() {
+
+    // inference
+    for task in tasks.iter() {
+        let ys = model.forward(&xs, task)?;
+
+        // annotate
         match task {
             Task::Caption(_)
             | Task::Ocr
             | Task::RegionToCategory(..)
             | Task::RegionToDescription(..) => {
-                println!("Task: {:?}\n{:?}\n", task, ys_)
+                println!("Task: {:?}\n{:?}\n", task, &ys)
             }
             Task::DenseRegionCaption => {
                 let annotator = annotator.clone().with_saveout("Dense-Region-Caption");
-                annotator.annotate(&xs, ys_);
+                annotator.annotate(&xs, &ys);
             }
             Task::RegionProposal => {
                 let annotator = annotator
@@ -118,40 +135,42 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     .without_bboxes_name(false)
                     .with_saveout("Region-Proposal");
 
-                annotator.annotate(&xs, ys_);
+                annotator.annotate(&xs, &ys);
             }
             Task::ObjectDetection => {
                 let annotator = annotator.clone().with_saveout("Object-Detection");
-                annotator.annotate(&xs, ys_);
+                annotator.annotate(&xs, &ys);
             }
             Task::OpenSetDetection(_) => {
                 let annotator = annotator.clone().with_saveout("Open-Set-Detection");
-                annotator.annotate(&xs, ys_);
+                annotator.annotate(&xs, &ys);
             }
             Task::CaptionToPhraseGrounding(_) => {
                 let annotator = annotator
                     .clone()
                     .with_saveout("Caption-To-Phrase-Grounding");
-                annotator.annotate(&xs, ys_);
+                annotator.annotate(&xs, &ys);
             }
             Task::ReferringExpressionSegmentation(_) => {
                 let annotator = annotator
                     .clone()
                     .with_saveout("Referring-Expression-Segmentation");
-                annotator.annotate(&xs, ys_);
+                annotator.annotate(&xs, &ys);
             }
             Task::RegionToSegmentation(..) => {
                 let annotator = annotator.clone().with_saveout("Region-To-Segmentation");
-                annotator.annotate(&xs, ys_);
+                annotator.annotate(&xs, &ys);
             }
             Task::OcrWithRegion => {
                 let annotator = annotator.clone().with_saveout("Ocr-With-Region");
-                annotator.annotate(&xs, ys_);
+                annotator.annotate(&xs, &ys);
             }
 
             _ => (),
         }
     }
+
+    model.summary();
 
     Ok(())
 }

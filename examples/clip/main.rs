@@ -1,43 +1,54 @@
-use usls::{models::Clip, DataLoader, Options};
+use anyhow::Result;
+use usls::{models::Clip, DataLoader, Ops, Options};
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // visual
-    let options_visual = Options::default().with_model("clip/visual-base-dyn.onnx")?;
+#[derive(argh::FromArgs)]
+/// CLIP Example
+struct Args {
+    /// device
+    #[argh(option, default = "String::from(\"cpu:0\")")]
+    device: String,
+}
 
-    // textual
-    let options_textual = Options::default()
-        .with_model("clip/textual-base-dyn.onnx")?
-        .with_tokenizer("clip/tokenizer.json")?;
+fn main() -> Result<()> {
+    tracing_subscriber::fmt()
+        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
+        .with_timer(tracing_subscriber::fmt::time::ChronoLocal::rfc_3339())
+        .init();
 
+    let args: Args = argh::from_env();
     // build model
+    let options_visual = Options::jina_clip_v1_visual()
+        // clip_vit_b32_visual()
+        .with_model_device(args.device.as_str().try_into()?)
+        .commit()?;
+    let options_textual = Options::jina_clip_v1_textual()
+        // clip_vit_b32_textual()
+        .with_model_device(args.device.as_str().try_into()?)
+        .commit()?;
     let mut model = Clip::new(options_visual, options_textual)?;
 
     // texts
     let texts = vec![
-        "A photo of a dinosaur ".to_string(),
-        "A photo of a cat".to_string(),
-        "A photo of a dog".to_string(),
-        "几个胡萝卜".to_string(),
-        "There are some playing cards on a striped table cloth".to_string(),
-        "There is a doll with red hair and a clock on a table".to_string(),
-        "Some people holding wine glasses in a restaurant".to_string(),
+        "A photo of a dinosaur",
+        "A photo of a cat",
+        "A photo of a dog",
+        "Some carrots",
+        "There are some playing cards on a striped table cloth",
+        "There is a doll with red hair and a clock on a table",
+        "Some people holding wine glasses in a restaurant",
     ];
     let feats_text = model.encode_texts(&texts)?; // [n, ndim]
 
-    // load image
+    // load images
     let dl = DataLoader::new("./examples/clip/images")?.build()?;
 
-    // loop
+    // run
     for (images, paths) in dl {
-        let feats_image = model.encode_images(&images).unwrap();
+        let feats_image = model.encode_images(&images)?;
 
         // use image to query texts
-        let matrix = match feats_image.embedding() {
-            Some(x) => x.dot2(feats_text.embedding().unwrap())?,
-            None => continue,
-        };
+        let matrix = Ops::dot2(&feats_image, &feats_text)?;
 
-        // summary
         for i in 0..paths.len() {
             let probs = &matrix[i];
             let (id, &score) = probs
@@ -52,7 +63,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 paths[i].display(),
                 &texts[id]
             );
-            println!("{:?}\n", probs);
         }
     }
 
