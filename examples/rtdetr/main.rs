@@ -2,6 +2,11 @@ use anyhow::Result;
 use usls::{models::RTDETR, Annotator, DataLoader, Options};
 
 fn main() -> Result<()> {
+    tracing_subscriber::fmt()
+        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
+        .with_timer(tracing_subscriber::fmt::time::ChronoLocal::rfc_3339())
+        .init();
+
     // options
     let options = Options::rtdetr_v2_s_coco()
         // rtdetr_v1_r18vd_coco()

@@ -5,10 +5,10 @@ use fast_image_resize::{
     FilterType, ResizeAlg, ResizeOptions, Resizer,
 };
 use image::{DynamicImage, GenericImageView};
-use ndarray::{s, Array};
+use ndarray::{s, Array, Axis};
 use tokenizers::{Encoding, Tokenizer};
 
-use crate::X;
+use crate::{LogitsSampler, X};
 
 #[derive(Debug, Clone)]
 pub enum ResizeMode {
@@ -35,6 +35,7 @@ pub struct Processor {
     pub tokenizer: Option<Tokenizer>,
     pub vocab: Vec<String>,
     pub unsigned: bool,
+    pub logits_sampler: Option<LogitsSampler>,
 }
 
 impl Default for Processor {
@@ -54,6 +55,7 @@ impl Default for Processor {
             tokenizer: Default::default(),
             vocab: vec![],
             unsigned: false,
+            logits_sampler: None,
         }
     }
 }
@@ -185,6 +187,50 @@ impl Processor {
                 skip_special_tokens,
             )
             .map_err(|err| anyhow::anyhow!("Tokenizer decode_batch error: {}", err))
+    }
+
+    pub fn par_generate(
+        &self,
+        logits: &X,
+        token_ids: &mut [Vec<u32>],
+        eos_token_id: u32,
+    ) -> Result<(bool, Vec<f32>)> {
+        // token ids
+        // let mut token_ids: Vec<Vec<u32>> = vec![vec![]; self.encoder.batch()];
+        // let mut finished = vec![false; self.encoder.batch()];
+        let batch = token_ids.len();
+        let mut finished = vec![false; batch];
+        let mut last_tokens: Vec<f32> = vec![0.; batch];
+        // let mut logits_sampler = LogitsSampler::new();
+
+        // decode each token for each batch
+        for (i, logit) in logits.axis_iter(Axis(0)).enumerate() {
+            if !finished[i] {
+                let token_id = self
+                    .logits_sampler
+                    .as_ref()
+                    .expect("No `LogitsSampler` specified!")
+                    .decode(
+                        &logit
+                            .slice(s![-1, ..])
+                            .into_owned()
+                            .into_raw_vec_and_offset()
+                            .0,
+                    )?;
+
+                if token_id == eos_token_id {
+                    finished[i] = true;
+                } else {
+                    token_ids[i].push(token_id);
+                }
+
+                // update
+                last_tokens[i] = token_id as f32;
+            }
+        }
+
+        // all finished?
+        Ok((finished.iter().all(|&x| x), last_tokens))
     }
 
     pub fn build_resizer_filter(ty: &str) -> Result<(Resizer, ResizeOptions)> {

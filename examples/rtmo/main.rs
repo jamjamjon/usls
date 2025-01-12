@@ -2,6 +2,11 @@ use anyhow::Result;
 use usls::{models::RTMO, Annotator, DataLoader, Options, COCO_SKELETONS_16};
 
 fn main() -> Result<()> {
+    tracing_subscriber::fmt()
+        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
+        .with_timer(tracing_subscriber::fmt::time::ChronoLocal::rfc_3339())
+        .init();
+
     // build model
     let mut model = RTMO::new(Options::rtmo_s().commit()?)?;
 

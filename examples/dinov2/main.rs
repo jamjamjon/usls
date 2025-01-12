@@ -2,6 +2,11 @@ use anyhow::Result;
 use usls::{models::DINOv2, DataLoader, Options};
 
 fn main() -> Result<()> {
+    tracing_subscriber::fmt()
+        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
+        .with_timer(tracing_subscriber::fmt::time::ChronoLocal::rfc_3339())
+        .init();
+
     // images
     let xs = [
         DataLoader::try_read("./assets/bus.jpg")?,

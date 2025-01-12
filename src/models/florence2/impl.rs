@@ -168,7 +168,7 @@ impl Florence2 {
         let mut token_ids: Vec<Vec<u32>> = vec![vec![]; self.batch()];
         let mut finished = vec![false; self.batch()];
         let mut last_tokens: Vec<f32> = vec![0.; self.batch()];
-        let mut logits_sampler = LogitsSampler::new();
+        let logits_sampler = LogitsSampler::new();
 
         // generate
         for _ in 0..self.max_length {
@@ -180,6 +180,16 @@ impl Florence2 {
                 .collect();
 
             // decode each token for each batch
+            // let (finished, last_tokens) = self.decoder_merged.processor().par_generate(
+            //     logits,
+            //     &mut token_ids,
+            //     self.eos_token_id,
+            // )?;
+
+            // if finished {
+            //     break;
+            // }
+
             for (i, logit) in logits.axis_iter(Axis(0)).enumerate() {
                 if !finished[i] {
                     let token_id = logits_sampler.decode(

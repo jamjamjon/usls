@@ -1,7 +1,7 @@
 use anyhow::Result;
 use rand::distributions::{Distribution, WeightedIndex};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct LogitsSampler {
     temperature: f32,
     p: f32,
@@ -31,7 +31,7 @@ impl LogitsSampler {
         self
     }
 
-    pub fn decode(&mut self, logits: &[f32]) -> Result<u32> {
+    pub fn decode(&self, logits: &[f32]) -> Result<u32> {
         if self.p == 0.0 {
             self.search_by_argmax(logits)
         } else {
@@ -39,7 +39,7 @@ impl LogitsSampler {
         }
     }
 
-    fn search_by_argmax(&mut self, logits: &[f32]) -> Result<u32> {
+    fn search_by_argmax(&self, logits: &[f32]) -> Result<u32> {
         // no need to do softmax
         let (token_id, _) = logits
             .iter()
@@ -49,7 +49,7 @@ impl LogitsSampler {
         Ok(token_id as u32)
     }
 
-    fn sample_by_topp(&mut self, logits: &[f32]) -> Result<u32> {
+    fn sample_by_topp(&self, logits: &[f32]) -> Result<u32> {
         let logits = self.softmax(logits);
         let mut logits: Vec<(usize, f32)> = logits
             .iter()

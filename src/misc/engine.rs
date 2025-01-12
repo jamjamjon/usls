@@ -177,7 +177,7 @@ impl Engine {
 
             // update
             pb.set_message(format!(
-                "{}(Params: {}) on {:?}",
+                "{}({}) on {:?}",
                 self.spec,
                 match self.params {
                     Some(bytes) if bytes != 0 => {
@@ -601,8 +601,13 @@ impl Engine {
     }
 
     pub fn load_onnx<P: AsRef<std::path::Path>>(p: P) -> Result<onnx::ModelProto> {
-        let f = std::fs::read(p)?;
-        Ok(onnx::ModelProto::decode(f.as_slice())?)
+        let f = std::fs::read(p.as_ref())?;
+        onnx::ModelProto::decode(f.as_slice()).map_err(|err| {
+            anyhow::anyhow!(
+                "Failed to read the ONNX model: The file might be incomplete or corrupted. More detailed: {}",
+                err
+            )
+        })
     }
 
     pub fn batch(&self) -> &MinOptMax {

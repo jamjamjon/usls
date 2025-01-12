@@ -361,7 +361,7 @@ impl DataLoader {
 
         // try to fetch from hub or local cache
         if !path.exists() {
-            let p = Hub::new()?.try_fetch(path.to_str().unwrap())?;
+            let p = Hub::default().try_fetch(path.to_str().unwrap())?;
             path = PathBuf::from(&p);
         }
         let img = Self::read_into_rgb8(path)?;

@@ -24,6 +24,11 @@ struct Args {
 }
 
 fn main() -> anyhow::Result<()> {
+    tracing_subscriber::fmt()
+        .with_timer(tracing_subscriber::fmt::time::ChronoLocal::rfc_3339())
+        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
+        .init();
+
     let args: Args = argh::from_env();
 
     // build model

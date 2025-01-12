@@ -18,6 +18,7 @@ pub(crate) mod onnx;
 mod ops;
 mod options;
 mod processor;
+mod retry;
 mod scale;
 mod task;
 mod ts;

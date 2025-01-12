@@ -59,7 +59,7 @@ impl Blip {
         let mut token_ids = self.encode_texts(text)?;
 
         // generate
-        let mut logits_sampler = LogitsSampler::new();
+        let logits_sampler = LogitsSampler::new();
         let mut finished = vec![false; self.batch()];
         for _ in 0..self.max_length {
             let input_ids_nd = token_ids

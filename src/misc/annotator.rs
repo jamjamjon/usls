@@ -759,7 +759,7 @@ impl Annotator {
     /// Load custom font
     fn load_font(path: Option<&str>) -> Result<FontArc> {
         let path_font = match path {
-            None => Hub::new()?.try_fetch("fonts/Arial.ttf")?,
+            None => Hub::default().try_fetch("fonts/Arial.ttf")?,
             Some(p) => p.into(),
         };
         let buf = std::fs::read(path_font)?;

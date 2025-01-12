@@ -6,7 +6,8 @@ use tokenizers::{PaddingParams, PaddingStrategy, Tokenizer, TruncationParams};
 
 use crate::{
     models::{SamKind, YOLOPredsFormat},
-    DType, Device, Engine, Hub, Iiix, Kind, MinOptMax, Processor, ResizeMode, Scale, Task, Version,
+    DType, Device, Engine, Hub, Iiix, Kind, LogitsSampler, MinOptMax, Processor, ResizeMode, Scale,
+    Task, Version,
 };
 
 /// Options for building models and inference
@@ -97,6 +98,8 @@ pub struct Options {
     pub generation_config_file: Option<String>,
     pub vocab_file: Option<String>, // vocab.json file
     pub vocab_txt: Option<String>,  // vacab.txt file, not kv pairs
+    pub temperature: f32,
+    pub topp: f32,
 
     // For DB
     pub unclip_ratio: Option<f32>,
@@ -181,6 +184,8 @@ impl Default for Options {
             binary_thresh: Some(0.2),
             sam_kind: None,
             low_res_mask: None,
+            temperature: 1.,
+            topp: 0.,
         }
     }
 }
@@ -204,6 +209,10 @@ impl Options {
     }
 
     pub fn to_processor(&self) -> Result<Processor> {
+        let logits_sampler = LogitsSampler::new()
+            .with_temperature(self.temperature)
+            .with_topp(self.topp);
+
         // try to build tokenizer
         let tokenizer = match self.model_kind {
             Some(Kind::Language) | Some(Kind::VisionLanguage) => Some(self.try_build_tokenizer()?),
@@ -214,7 +223,7 @@ impl Options {
         let vocab: Vec<String> = match &self.vocab_txt {
             Some(x) => {
                 let file = if !std::path::PathBuf::from(&x).exists() {
-                    Hub::new()?.try_fetch(&format!("{}/{}", self.model_name, x))?
+                    Hub::default().try_fetch(&format!("{}/{}", self.model_name, x))?
                 } else {
                     x.to_string()
                 };
@@ -239,6 +248,7 @@ impl Options {
             unsigned: self.unsigned,
             tokenizer,
             vocab,
+            logits_sampler: Some(logits_sampler),
             ..Default::default()
         })
     }
@@ -248,53 +258,73 @@ impl Options {
 
         if std::path::PathBuf::from(&self.model_file).exists() {
             // Local
-            self.model_spec = crate::try_fetch_stem(&self.model_file)?;
+            self.model_spec = format!(
+                "{}/{}",
+                self.model_name,
+                crate::try_fetch_stem(&self.model_file)?
+            );
         } else {
             // Remote
             if self.model_file.is_empty() && self.model_name.is_empty() {
                 anyhow::bail!("Neither `model_name` nor `model_file` were specified. Faild to fetch model from remote.")
             }
 
-            // special yolo case
-            if self.model_file.is_empty() && self.model_name == "yolo" {
-                // [version]-[scale]-[task]
-                let mut y = String::new();
-                if let Some(x) = self.model_version() {
-                    y.push_str(&x.to_string());
-                }
-                if let Some(x) = self.model_scale() {
-                    y.push_str(&format!("-{}", x));
-                }
-                if let Some(x) = self.model_task() {
-                    y.push_str(&format!("-{}", x.yolo_str()));
-                }
-                y.push_str(".onnx");
-                self.model_file = y;
-            }
-
-            // append dtype to model file
-            match self.model_dtype {
-                d @ (DType::Auto | DType::Fp32) => {
-                    if self.model_file.is_empty() {
-                        self.model_file = format!("{}.onnx", d);
-                    }
-                }
-                dtype => {
-                    if self.model_file.is_empty() {
-                        self.model_file = format!("{}.onnx", dtype);
-                    } else {
-                        let pos = self.model_file.len() - 5; // .onnx
-                        let suffix = self.model_file.split_off(pos);
-                        self.model_file = format!("{}-{}{}", self.model_file, dtype, suffix);
-                    }
-                }
-            }
-
             // Load
-            let stem = crate::try_fetch_stem(&self.model_file)?;
-            self.model_spec = format!("{}/{}", self.model_name, stem);
-            self.model_file =
-                Hub::new()?.try_fetch(&format!("{}/{}", self.model_name, self.model_file))?;
+            match Hub::is_valid_github_release_url(&self.model_file) {
+                Some((owner, repo, tag, _file_name)) => {
+                    let stem = crate::try_fetch_stem(&self.model_file)?;
+                    self.model_spec =
+                        format!("{}/{}-{}-{}-{}", self.model_name, owner, repo, tag, stem);
+                    self.model_file = Hub::default().try_fetch(&self.model_file)?;
+                }
+                None => {
+                    // special yolo case
+                    if self.model_file.is_empty() && self.model_name == "yolo" {
+                        // [version]-[scale]-[task]
+                        let mut y = String::new();
+                        if let Some(x) = self.model_version() {
+                            y.push_str(&x.to_string());
+                        }
+                        if let Some(x) = self.model_scale() {
+                            y.push_str(&format!("-{}", x));
+                        }
+                        if let Some(x) = self.model_task() {
+                            y.push_str(&format!("-{}", x.yolo_str()));
+                        }
+                        y.push_str(".onnx");
+                        self.model_file = y;
+                    }
+
+                    // append dtype to model file
+                    match self.model_dtype {
+                        d @ (DType::Auto | DType::Fp32) => {
+                            if self.model_file.is_empty() {
+                                self.model_file = format!("{}.onnx", d);
+                            }
+                        }
+                        dtype => {
+                            if self.model_file.is_empty() {
+                                self.model_file = format!("{}.onnx", dtype);
+                            } else {
+                                let pos = self.model_file.len() - 5; // .onnx
+                                let suffix = self.model_file.split_off(pos);
+                                self.model_file =
+                                    format!("{}-{}{}", self.model_file, dtype, suffix);
+                            }
+                        }
+                    }
+
+                    let stem = crate::try_fetch_stem(&self.model_file)?;
+                    self.model_spec = format!("{}/{}", self.model_name, stem);
+                    self.model_file = Hub::default()
+                        .try_fetch(&format!("{}/{}", self.model_name, self.model_file))?;
+                }
+            }
+
+            // let stem = crate::try_fetch_stem(&self.model_file)?;
+            // self.model_spec = format!("{}/{}", self.model_name, stem);
+            // self.model_file =
+            //     Hub::default().try_fetch(&format!("{}/{}", self.model_name, self.model_file))?;
         }
 
         Ok(self)
@@ -323,7 +353,6 @@ impl Options {
     }
 
     pub fn exclude_classes(mut self, xs: &[usize]) -> Self {
-        // TODO: remove???
         self.classes_retained.clear();
         self.classes_excluded.extend_from_slice(xs);
         self
@@ -336,7 +365,7 @@ impl Options {
     }
 
     pub fn try_build_tokenizer(&self) -> Result<Tokenizer> {
-        let mut hub = Hub::new()?;
+        let mut hub = Hub::default();
         // config file
         // TODO: save configs?
         let pad_id = match hub.try_fetch(
