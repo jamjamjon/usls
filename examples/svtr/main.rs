@@ -7,6 +7,10 @@ struct Args {
     /// device
     #[argh(option, default = "String::from(\"cpu:0\")")]
     device: String,
+
+    /// dtype
+    #[argh(option, default = "String::from(\"auto\")")]
+    dtype: String,
 }
 
 fn main() -> Result<()> {
@@ -19,9 +23,9 @@ fn main() -> Result<()> {
 
     // build model
     let options = Options::ppocr_rec_v4_ch()
-        // svtr_v2_teacher_ch()
-        // .with_batch_size(2)
+        // repsvtr_ch()
         .with_model_device(args.device.as_str().try_into()?)
+        .with_model_dtype(args.dtype.as_str().try_into()?)
         .commit()?;
     let mut model = SVTR::new(options)?;
 
@@ -37,7 +41,7 @@ fn main() -> Result<()> {
         println!("{paths:?}: {:?}", ys)
     }
 
-    //summary
+    // summary
     model.summary();
 
     Ok(())

@@ -4,6 +4,7 @@ impl crate::Options {
         Self::default()
             .with_model_name("svtr")
             .with_model_ixx(0, 0, (1, 1, 8).into())
+            .with_model_ixx(0, 1, 3.into())
             .with_model_ixx(0, 2, 48.into())
             .with_model_ixx(0, 3, (320, 960, 1600).into())
             .with_resize_mode(crate::ResizeMode::FitHeight)

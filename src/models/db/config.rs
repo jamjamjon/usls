@@ -33,8 +33,6 @@ impl crate::Options {
         Self::db()
             .with_image_mean(&[0.798, 0.785, 0.772])
             .with_image_std(&[0.264, 0.2749, 0.287])
-        // .with_binary_thresh(0.3)
-        // .with_class_confs(&[0.1])
     }
 
     pub fn db_mobilenet_v3_large() -> Self {

@@ -41,12 +41,11 @@ fn main() -> Result<()> {
 
     // load image
     let x = DataLoader::try_read_batch(&[
-        "images/table.png",
-        "images/table1.jpg",
-        "images/table2.png",
-        "images/table-ch.jpg",
         "images/db.png",
+        "images/table.png",
+        "images/table-ch.jpg",
         "images/street.jpg",
+        "images/slanted-text-number.jpg",
     ])?;
 
     // run

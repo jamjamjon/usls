@@ -2,8 +2,9 @@ use aksr::Builder;
 use anyhow::Result;
 use image::DynamicImage;
 use ndarray::Axis;
+use rayon::prelude::*;
 
-use crate::{elapsed, DynConf, Engine, Mbr, Ops, Options, Polygon, Processor, Ts, Xs, Ys, Y};
+use crate::{elapsed, Bbox, DynConf, Engine, Mbr, Ops, Options, Polygon, Processor, Ts, Xs, Ys, Y};
 
 #[derive(Debug, Builder)]
 pub struct DB {
@@ -73,102 +74,120 @@ impl DB {
         Ok(ys)
     }
 
-    pub fn summary(&mut self) {
-        self.ts.summary();
-    }
-
     pub fn postprocess(&mut self, xs: Xs) -> Result<Ys> {
-        let mut ys = Vec::new();
-        for (idx, luma) in xs[0].axis_iter(Axis(0)).enumerate() {
-            let mut y_bbox = Vec::new();
-            let mut y_polygons: Vec<Polygon> = Vec::new();
-            let mut y_mbrs: Vec<Mbr> = Vec::new();
+        let ys: Vec<Y> = xs[0]
+            .axis_iter(Axis(0))
+            .into_par_iter()
+            .enumerate()
+            .filter_map(|(idx, luma)| {
+                // input image
+                let (image_height, image_width) = self.processor.image0s_size[idx];
 
-            // input image
-            let (image_height, image_width) = self.processor.image0s_size[idx];
+                // reshape
+                let ratio = self.processor.scale_factors_hw[idx][0];
+                let v = luma
+                    .as_slice()?
+                    .par_iter()
+                    .map(|x| {
+                        if x <= &self.binary_thresh {
+                            0u8
+                        } else {
+                            (*x * 255.0) as u8
+                        }
+                    })
+                    .collect::<Vec<_>>();
 
-            // reshape
-            let ratio = self.processor.scale_factors_hw[idx][0];
-            let v = luma
-                .into_owned()
-                .into_raw_vec_and_offset()
-                .0
-                .iter()
-                .map(|x| {
-                    if x <= &self.binary_thresh {
-                        0u8
-                    } else {
-                        (*x * 255.0) as u8
-                    }
-                })
-                .collect::<Vec<_>>();
+                let luma = Ops::resize_luma8_u8(
+                    &v,
+                    self.width as _,
+                    self.height as _,
+                    image_width as _,
+                    image_height as _,
+                    true,
+                    "Bilinear",
+                )
+                .ok()?;
+                let mask_im: image::ImageBuffer<image::Luma<_>, Vec<_>> =
+                    image::ImageBuffer::from_raw(image_width as _, image_height as _, luma)?;
 
-            let luma = Ops::resize_luma8_u8(
-                &v,
-                self.width as _,
-                self.height as _,
-                image_width as _,
-                image_height as _,
-                true,
-                "Bilinear",
-            )?;
-            let mask_im: image::ImageBuffer<image::Luma<_>, Vec<_>> =
-                match image::ImageBuffer::from_raw(image_width as _, image_height as _, luma) {
-                    None => continue,
-                    Some(x) => x,
-                };
+                // contours
+                let contours: Vec<imageproc::contours::Contour<i32>> =
+                    imageproc::contours::find_contours_with_threshold(&mask_im, 1);
 
-            // contours
-            let contours: Vec<imageproc::contours::Contour<i32>> =
-                imageproc::contours::find_contours_with_threshold(&mask_im, 1);
+                // loop
+                let (y_polygons, y_bbox, y_mbrs): (Vec<Polygon>, Vec<Bbox>, Vec<Mbr>) = contours
+                    .par_iter()
+                    .filter_map(|contour| {
+                        if contour.border_type == imageproc::contours::BorderType::Hole
+                            && contour.points.len() <= 2
+                        {
+                            return None;
+                        }
 
-            // loop
-            for contour in contours.iter() {
-                if contour.border_type == imageproc::contours::BorderType::Hole
-                    && contour.points.len() <= 2
-                {
-                    continue;
-                }
+                        let polygon = Polygon::default()
+                            .with_points_imageproc(&contour.points)
+                            .with_id(0);
+                        let delta =
+                            polygon.area() * ratio.round() as f64 * self.unclip_ratio as f64
+                                / polygon.perimeter();
 
-                let polygon = Polygon::default().with_points_imageproc(&contour.points);
-                let delta = polygon.area() * ratio.round() as f64 * self.unclip_ratio as f64
-                    / polygon.perimeter();
+                        let polygon = polygon
+                            .unclip(delta, image_width as f64, image_height as f64)
+                            .resample(50)
+                            // .simplify(6e-4)
+                            .convex_hull()
+                            .verify();
 
-                // TODO: optimize
-                let polygon = polygon
-                    .unclip(delta, image_width as f64, image_height as f64)
-                    .resample(50)
-                    // .simplify(6e-4)
-                    .convex_hull()
-                    .verify();
+                        polygon.bbox().and_then(|bbox| {
+                            if bbox.height() < self.min_height || bbox.width() < self.min_width {
+                                return None;
+                            }
+                            let confidence = polygon.area() as f32 / bbox.area();
+                            if confidence < self.confs[0] {
+                                return None;
+                            }
+                            let bbox = bbox.with_confidence(confidence).with_id(0);
+                            let mbr = polygon
+                                .mbr()
+                                .map(|mbr| mbr.with_confidence(confidence).with_id(0));
 
-                if let Some(bbox) = polygon.bbox() {
-                    if bbox.height() < self.min_height || bbox.width() < self.min_width {
-                        continue;
-                    }
-                    let confidence = polygon.area() as f32 / bbox.area();
-                    if confidence < self.confs[0] {
-                        continue;
-                    }
-                    y_bbox.push(bbox.with_confidence(confidence).with_id(0));
+                            Some((polygon, bbox, mbr))
+                        })
+                    })
+                    .fold(
+                        || (Vec::new(), Vec::new(), Vec::new()),
+                        |mut acc, (polygon, bbox, mbr)| {
+                            acc.0.push(polygon);
+                            acc.1.push(bbox);
+                            if let Some(mbr) = mbr {
+                                acc.2.push(mbr);
+                            }
+                            acc
+                        },
+                    )
+                    .reduce(
+                        || (Vec::new(), Vec::new(), Vec::new()),
+                        |mut acc, (polygons, bboxes, mbrs)| {
+                            acc.0.extend(polygons);
+                            acc.1.extend(bboxes);
+                            acc.2.extend(mbrs);
+                            acc
+                        },
+                    );
 
-                    if let Some(mbr) = polygon.mbr() {
-                        y_mbrs.push(mbr.with_confidence(confidence).with_id(0));
-                    }
-                    y_polygons.push(polygon.with_id(0));
-                } else {
-                    continue;
-                }
-            }
-
-            ys.push(
-                Y::default()
-                    .with_bboxes(&y_bbox)
-                    .with_polygons(&y_polygons)
-                    .with_mbrs(&y_mbrs),
-            );
-        }
+                Some(
+                    Y::default()
+                        .with_bboxes(&y_bbox)
+                        .with_polygons(&y_polygons)
+                        .with_mbrs(&y_mbrs),
+                )
+            })
+            .collect();
 
         Ok(ys.into())
+    }
+
+    pub fn summary(&mut self) {
+        self.ts.summary();
     }
 }

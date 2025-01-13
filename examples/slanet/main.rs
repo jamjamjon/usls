@@ -11,6 +11,10 @@ struct Args {
     /// device
     #[argh(option, default = "String::from(\"cpu:0\")")]
     device: String,
+
+    /// dtype
+    #[argh(option, default = "String::from(\"auto\")")]
+    dtype: String,
 }
 
 fn main() -> Result<()> {
@@ -24,6 +28,7 @@ fn main() -> Result<()> {
     // build model
     let options = Options::slanet_lcnet_v2_mobile_ch()
         .with_model_device(args.device.as_str().try_into()?)
+        .with_model_dtype(args.dtype.as_str().try_into()?)
         .commit()?;
     let mut model = SLANet::new(options)?;
 
@@ -32,7 +37,7 @@ fn main() -> Result<()> {
 
     // run
     let ys = model.forward(&xs)?;
-    println!("{:?}", ys);
+    // println!("{:?}", ys);
 
     // annotate
     let annotator = Annotator::default()
