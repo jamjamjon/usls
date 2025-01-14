@@ -7,7 +7,8 @@ use fast_image_resize::{
     FilterType, ResizeAlg, ResizeOptions, Resizer,
 };
 use image::{DynamicImage, GenericImageView};
-use ndarray::{concatenate, s, Array, Array3, Axis, IntoDimension, Ix2, IxDyn};
+use ndarray::{concatenate, s, Array, Array3, ArrayView1, Axis, IntoDimension, Ix2, IxDyn, Zip};
+
 use rayon::prelude::*;
 
 pub enum Ops<'a> {
@@ -27,7 +28,7 @@ pub enum Ops<'a> {
 }
 
 impl Ops<'_> {
-    pub fn normalize(x: Array<f32, IxDyn>, min: f32, max: f32) -> Result<Array<f32, IxDyn>> {
+    pub fn normalize(x: &mut Array<f32, IxDyn>, min: f32, max: f32) -> Result<()> {
         if min >= max {
             anyhow::bail!(
                 "Invalid range in `normalize`: `min` ({}) must be less than `max` ({}).",
@@ -35,7 +36,10 @@ impl Ops<'_> {
                 max
             );
         }
-        Ok((x - min) / (max - min))
+        let range = max - min;
+        x.par_mapv_inplace(|x| (x - min) / range);
+
+        Ok(())
     }
 
     pub fn sigmoid(x: Array<f32, IxDyn>) -> Array<f32, IxDyn> {
@@ -74,11 +78,11 @@ impl Ops<'_> {
     }
 
     pub fn standardize(
-        x: Array<f32, IxDyn>,
-        mean: &[f32],
-        std: &[f32],
+        x: &mut Array<f32, IxDyn>,
+        mean: ArrayView1<f32>,
+        std: ArrayView1<f32>,
         dim: usize,
-    ) -> Result<Array<f32, IxDyn>> {
+    ) -> Result<()> {
         if mean.len() != std.len() {
             anyhow::bail!(
                 "`standardize`: `mean` and `std` lengths are not equal. Mean length: {}, Std length: {}.",
@@ -86,6 +90,7 @@ impl Ops<'_> {
                 std.len()
             );
         }
+
         let shape = x.shape();
         if dim >= shape.len() || shape[dim] != mean.len() {
             anyhow::bail!(
@@ -95,11 +100,20 @@ impl Ops<'_> {
                 mean.len()
             );
         }
-        let mut shape = vec![1; shape.len()];
-        shape[dim] = mean.len();
-        let mean = Array::from_shape_vec(shape.clone(), mean.to_vec())?;
-        let std = Array::from_shape_vec(shape, std.to_vec())?;
-        Ok((x - mean) / std)
+        let mean_broadcast = mean.broadcast(shape).ok_or_else(|| {
+            anyhow::anyhow!("Failed to broadcast `mean` to the shape of the input array.")
+        })?;
+        let std_broadcast = std.broadcast(shape).ok_or_else(|| {
+            anyhow::anyhow!("Failed to broadcast `std` to the shape of the input array.")
+        })?;
+        Zip::from(x)
+            .and(mean_broadcast)
+            .and(std_broadcast)
+            .par_for_each(|x_val, &mean_val, &std_val| {
+                *x_val = (*x_val - mean_val) / std_val;
+            });
+
+        Ok(())
     }
 
     pub fn permute(x: Array<f32, IxDyn>, shape: &[usize]) -> Result<Array<f32, IxDyn>> {

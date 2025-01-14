@@ -172,12 +172,13 @@ impl X {
     }
 
     pub fn normalize(mut self, min_: f32, max_: f32) -> Result<Self> {
-        self.0 = Ops::normalize(self.0, min_, max_)?;
+        Ops::normalize(&mut self.0, min_, max_)?;
+
         Ok(self)
     }
 
     pub fn standardize(mut self, mean: &[f32], std: &[f32], dim: usize) -> Result<Self> {
-        self.0 = Ops::standardize(self.0, mean, std, dim)?;
+        Ops::standardize(&mut self.0, mean.into(), std.into(), dim)?;
         Ok(self)
     }
 
@@ -187,7 +188,7 @@ impl X {
     }
 
     pub fn unsigned(mut self) -> Self {
-        self.0 = self.0.mapv(|x| if x < 0.0 { 0.0 } else { x });
+        self.0.par_mapv_inplace(|x| if x < 0.0 { 0.0 } else { x });
         self
     }
 

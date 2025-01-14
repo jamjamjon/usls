@@ -6,6 +6,8 @@ use fast_image_resize::{
 };
 use image::{DynamicImage, GenericImageView};
 use ndarray::{s, Array, Axis};
+use rayon::prelude::*;
+use std::sync::Mutex;
 use tokenizers::{Encoding, Tokenizer};
 
 use crate::{LogitsSampler, X};
@@ -67,10 +69,10 @@ impl Processor {
     }
 
     pub fn process_images(&mut self, xs: &[DynamicImage]) -> Result<X> {
-        // reset
-        self.reset_image0_status();
-
-        let mut x = self.resize_batch(xs)?;
+        // self.reset_image0_status();
+        let (mut x, image0s_size, scale_factors_hw) = self.par_resize(xs)?;
+        self.image0s_size = image0s_size;
+        self.scale_factors_hw = scale_factors_hw;
         if self.do_normalize {
             x = x.normalize(0., 255.)?;
         }
@@ -85,6 +87,7 @@ impl Processor {
         if self.unsigned {
             x = x.unsigned();
         }
+
         Ok(x)
     }
 
@@ -341,26 +344,144 @@ impl Processor {
         Ok(y.into())
     }
 
-    pub fn resize_batch(&mut self, xs: &[DynamicImage]) -> Result<X> {
-        // TODO: par resize
-        if xs.is_empty() {
-            anyhow::bail!("Found no input images.")
+    #[allow(clippy::type_complexity)]
+    pub fn resize2(&self, x: &DynamicImage) -> Result<(X, (u32, u32), Vec<f32>)> {
+        if self.image_width + self.image_height == 0 {
+            anyhow::bail!(
+                "Invalid target height: {} or width: {}.",
+                self.image_height,
+                self.image_width
+            );
         }
 
-        let mut ys = Array::ones((
-            xs.len(),
-            self.image_height as usize,
-            self.image_width as usize,
-            3,
-        ))
+        let image0s_size: (u32, u32); // original image height and width
+        let scale_factors_hw: Vec<f32>;
+
+        let buffer = match x.dimensions() {
+            (w, h) if (w, h) == (self.image_height, self.image_width) => {
+                image0s_size = (h, w);
+                scale_factors_hw = vec![1., 1.];
+                x.to_rgb8().into_raw()
+            }
+            (w0, h0) => {
+                image0s_size = (h0, w0);
+                let (mut resizer, options) = Self::build_resizer_filter(self.resize_filter)?;
+
+                if let ResizeMode::FitExact = self.resize_mode {
+                    let mut dst = Image::new(self.image_width, self.image_height, PixelType::U8x3);
+                    resizer.resize(x, &mut dst, &options)?;
+                    scale_factors_hw = vec![
+                        (self.image_height as f32 / h0 as f32),
+                        (self.image_width as f32 / w0 as f32),
+                    ];
+
+                    dst.into_vec()
+                } else {
+                    let (w, h) = match self.resize_mode {
+                        ResizeMode::Letterbox | ResizeMode::FitAdaptive => {
+                            let r = (self.image_width as f32 / w0 as f32)
+                                .min(self.image_height as f32 / h0 as f32);
+                            scale_factors_hw = vec![r, r];
+
+                            (
+                                (w0 as f32 * r).round() as u32,
+                                (h0 as f32 * r).round() as u32,
+                            )
+                        }
+                        ResizeMode::FitHeight => {
+                            let r = self.image_height as f32 / h0 as f32;
+                            scale_factors_hw = vec![1.0, r];
+                            ((r * w0 as f32).round() as u32, self.image_height)
+                        }
+                        ResizeMode::FitWidth => {
+                            // scale factor
+                            let r = self.image_width as f32 / w0 as f32;
+                            scale_factors_hw = vec![r, 1.0];
+                            (self.image_width, (r * h0 as f32).round() as u32)
+                        }
+
+                        _ => unreachable!(),
+                    };
+
+                    let mut dst = Image::from_vec_u8(
+                        self.image_width,
+                        self.image_height,
+                        vec![
+                            self.padding_value;
+                            3 * self.image_height as usize * self.image_width as usize
+                        ],
+                        PixelType::U8x3,
+                    )?;
+                    let (l, t) = if let ResizeMode::Letterbox = self.resize_mode {
+                        if w == self.image_width {
+                            (0, (self.image_height - h) / 2)
+                        } else {
+                            ((self.image_width - w) / 2, 0)
+                        }
+                    } else {
+                        (0, 0)
+                    };
+
+                    let mut dst_cropped = CroppedImageMut::new(&mut dst, l, t, w, h)?;
+                    resizer.resize(x, &mut dst_cropped, &options)?;
+                    dst.into_vec()
+                }
+            }
+        };
+
+        let y = Array::from_shape_vec(
+            (self.image_height as usize, self.image_width as usize, 3),
+            buffer,
+        )?
+        .mapv(|x| x as f32)
         .into_dyn();
 
-        xs.iter().enumerate().try_for_each(|(idx, x)| {
-            let y = self.resize(x)?;
-            ys.slice_mut(s![idx, .., .., ..]).assign(&y);
-            anyhow::Ok(())
-        })?;
+        Ok((y.into(), image0s_size, scale_factors_hw))
+    }
 
-        Ok(ys.into())
+    #[allow(clippy::type_complexity)]
+    pub fn par_resize(&self, xs: &[DynamicImage]) -> Result<(X, Vec<(u32, u32)>, Vec<Vec<f32>>)> {
+        match xs.len() {
+            0 => anyhow::bail!("Found no input images."),
+            1 => {
+                let (y, image0_size, scale_factors) = self.resize2(&xs[0])?;
+                Ok((y.insert_axis(0)?, vec![image0_size], vec![scale_factors]))
+            }
+            _ => {
+                let ys = Mutex::new(
+                    Array::zeros((
+                        xs.len(),
+                        self.image_height as usize,
+                        self.image_width as usize,
+                        3,
+                    ))
+                    .into_dyn(),
+                );
+
+                let results: Result<Vec<((u32, u32), Vec<f32>)>> = xs
+                    .par_iter()
+                    .enumerate()
+                    .map(|(idx, x)| {
+                        let (y, image0_size, scale_factors) = self.resize2(x)?;
+                        {
+                            let mut ys_guard = ys
+                                .lock()
+                                .map_err(|e| anyhow::anyhow!("Mutex lock error: {e}"))?;
+                            ys_guard.slice_mut(s![idx, .., .., ..]).assign(&y);
+                        }
+
+                        Ok((image0_size, scale_factors))
+                    })
+                    .collect();
+
+                let (image0s_size, scale_factors_hw): (Vec<_>, Vec<_>) =
+                    results?.into_iter().unzip();
+                let ys_inner = ys
+                    .into_inner()
+                    .map_err(|e| anyhow::anyhow!("Mutex into_inner error: {e}"))?;
+
+                Ok((ys_inner.into(), image0s_size, scale_factors_hw))
+            }
+        }
     }
 }
