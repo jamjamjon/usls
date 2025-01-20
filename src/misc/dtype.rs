@@ -3,6 +3,7 @@ use ort::tensor::TensorElementType;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum DType {
     Auto,
+    Int4,
     Int8,
     Int16,
     Int32,
@@ -32,6 +33,7 @@ impl TryFrom<&str> for DType {
             "u16" | "uint16" => Ok(Self::Uint16),
             "u32" | "uint32" => Ok(Self::Uint32),
             "u64" | "uint64" => Ok(Self::Uint64),
+            "i4" | "int4" => Ok(Self::Int4),
             "i8" | "int8" => Ok(Self::Int8),
             "i16" | "int=16" => Ok(Self::Int16),
             "i32" | "int32" => Ok(Self::Int32),
@@ -52,6 +54,7 @@ impl std::fmt::Display for DType {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         let x = match self {
             Self::Auto => "auto",
+            Self::Int4 => "int4",
             Self::Int8 => "int8",
             Self::Int16 => "int16",
             Self::Int32 => "int32",

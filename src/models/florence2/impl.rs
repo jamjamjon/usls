@@ -88,7 +88,7 @@ impl Florence2 {
                     .quantize(&[*x0, *y0, *x1, *y1], (image_width, image_height));
                 Task::RegionToDescription(xyxy[0], xyxy[1], xyxy[2], xyxy[3])
             }
-            _ => *task,
+            _ => task.clone(),
         }
     }
 

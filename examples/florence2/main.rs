@@ -90,9 +90,11 @@ fn main() -> Result<()> {
         Task::ObjectDetection,
         Task::DenseRegionCaption,
         // w/o inputs
-        Task::OpenSetDetection("a vehicle"),
-        Task::CaptionToPhraseGrounding("A vehicle with two wheels parked in front of a building."),
-        Task::ReferringExpressionSegmentation("a vehicle"),
+        Task::OpenSetDetection("a vehicle".into()),
+        Task::CaptionToPhraseGrounding(
+            "A vehicle with two wheels parked in front of a building.".into(),
+        ),
+        Task::ReferringExpressionSegmentation("a vehicle".into()),
         Task::RegionToSegmentation(
             // 31, 156, 581, 373,  // car
             449, 270, 556, 372, // wheel

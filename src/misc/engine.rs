@@ -206,6 +206,7 @@ impl Engine {
                         x, dtype,
                     )?));
                 }
+
                 xs_
             });
 
@@ -223,6 +224,7 @@ impl Engine {
                     ys.push_kv(name.as_str(), X::from(y))?;
                 }
             });
+
             Ok(ys)
         } else {
             anyhow::bail!("Failed to run with ONNXRuntime. No model info found.");
