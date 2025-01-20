@@ -68,6 +68,11 @@ pub struct Options {
     pub text_confs_2: Vec<f32>,
     pub text_confs_3: Vec<f32>,
 
+    // Files
+    pub file: Option<String>,
+    pub file_2: Option<String>,
+    pub file_3: Option<String>,
+
     // For classification
     pub apply_softmax: Option<bool>,
 
@@ -149,6 +154,9 @@ impl Default for Options {
             text_names: None,
             text_names_2: None,
             text_names_3: None,
+            file: None,
+            file_2: None,
+            file_3: None,
             class_confs: vec![0.3f32],
             class_confs_2: vec![0.3f32],
             class_confs_3: vec![0.3f32],
@@ -320,11 +328,6 @@ impl Options {
                         .try_fetch(&format!("{}/{}", self.model_name, self.model_file))?;
                 }
             }
-
-            // let stem = crate::try_fetch_stem(&self.model_file)?;
-            // self.model_spec = format!("{}/{}", self.model_name, stem);
-            // self.model_file =
-            //     Hub::default().try_fetch(&format!("{}/{}", self.model_name, self.model_file))?;
         }
 
         Ok(self)
@@ -408,7 +411,7 @@ impl Options {
                     .unwrap_or(&format!("{}/tokenizer.json", self.model_name)),
             )?,
         )
-        .map_err(|_| anyhow::anyhow!("No `tokenizer.json` found"))?;
+        .map_err(|err| anyhow::anyhow!("Faild to build tokenizer: {err}"))?;
 
         // TODO: padding
         // if `max_length` specified: use `Fixed` strategy

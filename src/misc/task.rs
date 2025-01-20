@@ -1,4 +1,4 @@
-#[derive(Debug, Copy, Clone, Ord, Eq, PartialOrd, PartialEq)]
+#[derive(Debug, Clone, Ord, Eq, PartialOrd, PartialEq)]
 pub enum Task {
     /// Image classification task.
     /// Input: image
@@ -32,7 +32,7 @@ pub enum Task {
     /// Input: image
     /// Output: bounding boxes, class labels (including an "unknown" category for unfamiliar objects), and detection scores
     /// Open set detection task, with String query
-    OpenSetDetection(&'static str),
+    OpenSetDetection(String),
     /// Task for generating brief descriptions of dense regions in the image.
     /// Input: image
     /// Output: bounding boxes (bboxes), brief phrase labels, and optional scores for detected regions
@@ -44,6 +44,7 @@ pub enum Task {
     /// Output: coordinates of detected keypoints
     KeypointsDetection,
     Pose,
+    OpenSetKeypointsDetection(String),
 
     /// Semantic segmentation task, segmenting the image into different semantic regions.
     /// Input: image
@@ -97,12 +98,12 @@ pub enum Task {
     /// Input: image and text
     /// Output: image region and the corresponding phrase
     /// caption to phrase grounding
-    CaptionToPhraseGrounding(&'static str),
+    CaptionToPhraseGrounding(String),
 
     /// Referring expression segmentation task, segmenting objects in the image based on a text description.
     /// Input: image and referring expression
     /// Output: a segmentation mask for the object referred to by the text
-    ReferringExpressionSegmentation(&'static str),
+    ReferringExpressionSegmentation(String),
 
     /// Region-to-segmentation task, similar to combining object detection with segmentation (e.g., YOLO + SAM).
     /// Input: image and region proposals
@@ -125,7 +126,7 @@ pub enum Task {
     /// Visual question answering (VQA) task, answering questions related to an image.
     /// Input: image and question text
     /// Output: the answer to the question
-    Vqa(&'static str),
+    Vqa(String),
 
     /// Optical character recognition (OCR) task, recognizing text in an image.
     /// Input: image
@@ -156,6 +157,7 @@ impl std::fmt::Display for Task {
             Self::Ocr => "ocr",
             Self::OcrWithRegion => "ocr-with-region",
             Self::Vqa(_) => "vqa",
+            Self::OpenSetKeypointsDetection(_) => "open-set-keypoints-detection",
             _ => todo!(),
         };
         write!(f, "{}", x)
@@ -166,13 +168,33 @@ impl TryFrom<&str> for Task {
     type Error = anyhow::Error;
 
     fn try_from(s: &str) -> Result<Self, Self::Error> {
+        // TODO
         match s.to_lowercase().as_str() {
             "cls" | "classify" | "classification" => Ok(Self::ImageClassification),
             "det" | "od" | "detect" => Ok(Self::ObjectDetection),
             "kpt" | "pose" => Ok(Self::KeypointsDetection),
             "seg" | "segment" => Ok(Self::InstanceSegmentation),
             "obb" => Ok(Self::OrientedObjectDetection),
-            _ => todo!(), // x => anyhow::bail!("Unsupported model task: {}", x),
+            "cap" | "cap0" | "caption" => Ok(Self::Caption(0)),
+            "cap1" | "caption1" => Ok(Self::Caption(1)),
+            "cap2" | "caption2" => Ok(Self::Caption(2)),
+            x if x.contains(":") => {
+                let t_tt: Vec<&str> = x.trim().split(':').collect();
+                let (t, tt) = match t_tt.len() {
+                    2 => (t_tt[0].trim(), t_tt[1].trim()),
+                    _ => anyhow::bail!(
+                        "Fail to parse task: {x}. Expect: `task:content`. e.g. `vqa:What's in this image?`"
+                    ),
+                };
+                match t {
+                    "cap" | "caption" => Ok(Self::Caption(tt.parse::<usize>().unwrap_or(0) as u8)),
+                    "vqa" => Ok(Self::Vqa(tt.into())),
+                    "open-det" | "open-od" => Ok(Self::OpenSetDetection(tt.into())),
+                    "open-kpt" | "open-pose" => Ok(Self::OpenSetKeypointsDetection(tt.into())),
+                    _ => todo!(),
+                }
+            }
+            _ => todo!(),
         }
     }
 }

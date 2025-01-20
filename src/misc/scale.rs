@@ -13,6 +13,8 @@ pub enum Scale {
     P,
     A,
     F,
+    Million(f32),
+    Billion(f32),
 }
 
 impl std::fmt::Display for Scale {
@@ -31,6 +33,8 @@ impl std::fmt::Display for Scale {
             Self::P => "p",
             Self::A => "a",
             Self::F => "f",
+            Self::Million(x) => &format!("{x}m"),
+            Self::Billion(x) => &format!("{x}b"), // x.0 -> x
         };
         write!(f, "{}", x)
     }
@@ -77,6 +81,20 @@ impl TryFrom<&str> for Scale {
             "p" | "pico" => Ok(Self::P),
             "a" | "atto" => Ok(Self::A),
             "f" | "femto" => Ok(Self::F),
+            scale if scale.ends_with("b") => {
+                let num_str = &scale[..scale.len() - 1];
+                match num_str.parse::<f32>() {
+                    Ok(x) => Ok(Self::Billion(x)),
+                    Err(_) => anyhow::bail!("Invalid Billion format: {}", scale),
+                }
+            }
+            scale if scale.ends_with("m") => {
+                let num_str = &scale[..scale.len() - 1];
+                match num_str.parse::<f32>() {
+                    Ok(x) => Ok(Self::Million(x)),
+                    Err(_) => anyhow::bail!("Invalid Million format: {}", scale),
+                }
+            }
             x => anyhow::bail!("Unsupported model scale: {:?}", x),
         }
     }

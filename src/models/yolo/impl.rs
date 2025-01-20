@@ -59,8 +59,8 @@ impl YOLO {
             .to_processor()?
             .with_image_width(width as _)
             .with_image_height(height as _);
-        let task: Option<Task> = match options.model_task {
-            Some(task) => Some(task),
+        let task: Option<Task> = match &options.model_task {
+            Some(task) => Some(task.clone()),
             None => match engine.try_fetch("task") {
                 Some(x) => match x.as_str() {
                     "classify" => Some(Task::ImageClassification),
@@ -104,7 +104,7 @@ impl YOLO {
             // version + task
             None => match (task, version) {
                 (Some(task), Some(version)) => {
-                    let layout = match (task, version) {
+                    let layout = match (task.clone(), version) {
                         (Task::ImageClassification, Version(5, 0)) => {
                             YOLOPredsFormat::n_clss().apply_softmax(true)
                         }

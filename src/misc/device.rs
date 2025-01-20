@@ -33,8 +33,8 @@ impl TryFrom<&str> for Device {
         // device and its id
         let d_id: Vec<&str> = s.trim().split(':').collect();
         let (d, id) = match d_id.len() {
-            1 => (d_id[0], 0),
-            2 => (d_id[0], d_id[1].parse::<usize>().unwrap_or(0)),
+            1 => (d_id[0].trim(), 0),
+            2 => (d_id[0].trim(), d_id[1].trim().parse::<usize>().unwrap_or(0)),
             _ => anyhow::bail!(
                 "Fail to parse device string: {s}. Expect: `device:device_id` or `device`. e.g. `cuda:0` or `cuda`"
             ),
