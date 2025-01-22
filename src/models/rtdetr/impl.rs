@@ -1,11 +1,10 @@
-use crate::{elapsed, Bbox, DynConf, Engine, Processor, Ts, Xs, Ys, X, Y};
 use aksr::Builder;
 use anyhow::Result;
 use image::DynamicImage;
 use ndarray::{s, Axis};
 use rayon::prelude::*;
 
-use crate::Options;
+use crate::{elapsed, Bbox, DynConf, Engine, Options, Processor, Ts, Xs, Ys, X, Y};
 
 #[derive(Debug, Builder)]
 pub struct RTDETR {

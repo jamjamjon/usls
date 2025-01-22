@@ -75,11 +75,11 @@ impl X {
         Self::from(Array::ones(Dim(IxDynImpl::from(shape.to_vec()))))
     }
 
-    pub fn zeros_like(x: Self) -> Self {
+    pub fn zeros_like(x: &Self) -> Self {
         Self::from(Array::zeros(x.raw_dim()))
     }
 
-    pub fn ones_like(x: Self) -> Self {
+    pub fn ones_like(x: &Self) -> Self {
         Self::from(Array::ones(x.raw_dim()))
     }
 
