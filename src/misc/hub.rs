@@ -460,8 +460,10 @@ impl Hub {
         let cache = to.path()?.join(Self::cache_file(owner, repo));
         let is_file_expired = Self::is_file_expired(&cache, ttl)?;
         let body = if is_file_expired {
-            let gh_api_release =
-                format!("https://api.github.com/repos/{}/{}/releases", owner, repo);
+            let gh_api_release = format!(
+                "https://api.github.com/repos/{}/{}/releases?per_page=100",
+                owner, repo
+            );
             Self::fetch_and_cache_releases(&gh_api_release, &cache)?
         } else {
             std::fs::read_to_string(&cache)?

@@ -1,7 +1,7 @@
 use aksr::Builder;
 use anyhow::Result;
 use half::{bf16, f16};
-use log::{error, info, warn};
+use log::{debug, info, warn};
 use ndarray::{Array, IxDyn};
 #[allow(unused_imports)]
 use ort::{
@@ -275,7 +275,7 @@ impl Engine {
         {
             match x.try_extract_tensor::<T>() {
                 Err(err) => {
-                    error!("Failed to extract from ort outputs: {:?}", err);
+                    debug!("Failed to extract from ort outputs: {:?}. A default value has been generated.", err);
                     Array::zeros(0).into_dyn()
                 }
                 Ok(x) => x.view().mapv(map_fn).into_owned(),
