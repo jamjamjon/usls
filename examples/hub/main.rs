@@ -17,9 +17,9 @@ fn main() -> anyhow::Result<()> {
 
     // 3. Fetch tags and files
     let hub = Hub::default().with_owner("jamjamjon").with_repo("usls");
-    for tag in hub.tags().iter() {
+    for (i, tag) in hub.tags().iter().enumerate() {
         let files = hub.files(tag);
-        println!("{} => {:?}", tag, files); // Should be empty
+        println!("{} :: {} => {:?}", i, tag, files); // Should be empty
     }
 
     Ok(())
