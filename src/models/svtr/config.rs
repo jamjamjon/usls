@@ -11,34 +11,49 @@ impl crate::Options {
             .with_padding_value(0)
             .with_normalize(true)
             .with_class_confs(&[0.2])
-            .with_vocab_txt("vocab-v1-ppocr-rec-ch.txt")
+    }
+
+    pub fn svtr_ch() -> Self {
+        Self::svtr().with_vocab_txt("vocab-v1-ppocr-rec-ch.txt")
+    }
+
+    pub fn svtr_en() -> Self {
+        Self::svtr().with_vocab_txt("vocab-v1-ppocr-rec-en.txt")
     }
 
     pub fn ppocr_rec_v3_ch() -> Self {
-        Self::svtr().with_model_file("ppocr-v3-ch.onnx")
+        Self::svtr_ch().with_model_file("ppocr-v3-ch.onnx")
     }
 
     pub fn ppocr_rec_v4_ch() -> Self {
-        Self::svtr().with_model_file("ppocr-v4-ch.onnx")
+        Self::svtr_ch().with_model_file("ppocr-v4-ch.onnx")
+    }
+
+    pub fn ppocr_rec_v3_en() -> Self {
+        Self::svtr_en().with_model_file("ppocr-v3-en.onnx")
+    }
+
+    pub fn ppocr_rec_v4_en() -> Self {
+        Self::svtr_en().with_model_file("ppocr-v4-en.onnx")
     }
 
     pub fn ppocr_rec_v4_server_ch() -> Self {
-        Self::svtr().with_model_file("ppocr-v4-server-ch.onnx")
+        Self::svtr_ch().with_model_file("ppocr-v4-server-ch.onnx")
     }
 
     pub fn svtr_v2_server_ch() -> Self {
-        Self::svtr().with_model_file("v2-server-ch.onnx")
+        Self::svtr_ch().with_model_file("v2-server-ch.onnx")
     }
 
     pub fn repsvtr_ch() -> Self {
-        Self::svtr().with_model_file("repsvtr-ch.onnx")
+        Self::svtr_ch().with_model_file("repsvtr-ch.onnx")
     }
 
     pub fn svtr_v2_teacher_ch() -> Self {
-        Self::svtr().with_model_file("v2-distill-teacher-ch.onnx")
+        Self::svtr_ch().with_model_file("v2-distill-teacher-ch.onnx")
     }
 
     pub fn svtr_v2_student_ch() -> Self {
-        Self::svtr().with_model_file("v2-distill-student-ch.onnx")
+        Self::svtr_ch().with_model_file("v2-distill-student-ch.onnx")
     }
 }

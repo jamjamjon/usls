@@ -23,6 +23,7 @@ fn main() -> Result<()> {
 
     // build model
     let options = Options::ppocr_rec_v4_ch()
+        // ppocr_rec_v4_en()
         // repsvtr_ch()
         .with_model_device(args.device.as_str().try_into()?)
         .with_model_dtype(args.dtype.as_str().try_into()?)
