@@ -1,4 +1,4 @@
-/// Model configuration for `OWLv2`
+/// Model configuration for `SmolVLM`
 impl crate::Options {
     pub fn smolvlm() -> Self {
         Self::default()
