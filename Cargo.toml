@@ -20,7 +20,7 @@ anyhow = { version = "1.0.75" }
 regex = { version = "1.5.4" }
 rand = { version = "0.8.5" }
 chrono = { version = "0.4.30" }
-tokenizers = { version = "0.15.2" }
+tokenizers = { version = "0.21.0" }
 log = { version = "0.4.22" }
 indicatif = "0.17.8"
 serde_json = "1.0"
@@ -62,6 +62,6 @@ trt = [ "ort/tensorrt" ]
 mps = [ "ort/coreml" ]
 
 [profile.release]
-# lto = true
+lto = true
 strip = true
 panic = "abort"

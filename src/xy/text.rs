@@ -2,6 +2,12 @@
 #[derive(aksr::Builder, Debug, Clone, Default, PartialEq)]
 pub struct Text(String);
 
+impl std::fmt::Display for Text {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
 impl std::ops::Deref for Text {
     type Target = String;
 

@@ -88,6 +88,7 @@
 | [Florence2](https://arxiv.org/abs/2311.06242)                                                                     | a Variety of Vision Tasks                                                                                                    | [demo](examples/florence2)      | ✅     | ✅             | ✅             |                    |                    |
 | [Moondream2](https://github.com/vikhyat/moondream/tree/main)                                                      | Open-Set Object Detection<br />Open-Set Keypoints Detection<br />Image Caption<br />Visual Question Answering               | [demo](examples/moondream2)     | ✅     | ✅             | ✅             |                    |                    |
 | [OWLv2](https://huggingface.co/google/owlv2-base-patch16-ensemble)                                                | Open-Set Object Detection                                                                                                    | [demo](examples/owlv2)          | ✅     | ✅             | ✅             |                    |                    |
+| [SmolVLM(256M, 500M)](https://huggingface.co/HuggingFaceTB/SmolVLM-256M-Instruct)                                                | Visual Question Answering                                                                                                    | [demo](examples/smolvlm)          | ✅     | ✅             | ✅             |                    |                    |
 
 </details>
 
