@@ -134,6 +134,10 @@ impl Options {
         Self::yolo().with_model_version(11.0.into())
     }
 
+    pub fn yolo_v12() -> Self {
+        Self::yolo().with_model_version(12.0.into())
+    }
+
     pub fn yolo_v8_n() -> Self {
         Self::yolo()
             .with_model_version(8.0.into())

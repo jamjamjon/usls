@@ -114,9 +114,10 @@ impl YOLO {
                         (Task::ObjectDetection, Version(5, 0) | Version(6, 0) | Version(7, 0)) => {
                             YOLOPredsFormat::n_a_cxcywh_confclss()
                         }
-                        (Task::ObjectDetection, Version(8, 0) | Version(9, 0) | Version(11, 0)) => {
-                            YOLOPredsFormat::n_cxcywh_clss_a()
-                        }
+                        (
+                            Task::ObjectDetection,
+                            Version(8, 0) | Version(9, 0) | Version(11, 0) | Version(12, 0),
+                        ) => YOLOPredsFormat::n_cxcywh_clss_a(),
                         (Task::ObjectDetection, Version(10, 0)) => {
                             YOLOPredsFormat::n_a_xyxy_confcls().apply_nms(false)
                         }
@@ -143,7 +144,7 @@ impl YOLO {
                     let layout = match version {
                         // single task, no need to specified task
                         Version(6, 0) | Version(7, 0) => YOLOPredsFormat::n_a_cxcywh_confclss(),
-                        Version(9, 0) => YOLOPredsFormat::n_cxcywh_clss_a(),
+                        Version(9, 0) | Version(12, 0) => YOLOPredsFormat::n_cxcywh_clss_a(),
                         Version(10, 0) => YOLOPredsFormat::n_a_xyxy_confcls().apply_nms(false),
                         _ => {
                             anyhow::bail!(
