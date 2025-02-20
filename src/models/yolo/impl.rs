@@ -114,9 +114,10 @@ impl YOLO {
                         (Task::ObjectDetection, Version(5, 0) | Version(6, 0) | Version(7, 0)) => {
                             YOLOPredsFormat::n_a_cxcywh_confclss()
                         }
-                        (Task::ObjectDetection, Version(8, 0) | Version(9, 0) | Version(11, 0) | Version(12, 0)) => {
-                            YOLOPredsFormat::n_cxcywh_clss_a()
-                        }
+                        (
+                            Task::ObjectDetection,
+                            Version(8, 0) | Version(9, 0) | Version(11, 0) | Version(12, 0),
+                        ) => YOLOPredsFormat::n_cxcywh_clss_a(),
                         (Task::ObjectDetection, Version(10, 0)) => {
                             YOLOPredsFormat::n_a_xyxy_confcls().apply_nms(false)
                         }
