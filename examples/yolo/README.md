@@ -1,20 +1,22 @@
 <h1 align='center'>YOLO-Series</h1>
 
-|                                               Detection                                               |                                         Instance Segmentation                                         |                                                  Pose                                                  |
-| :----------------------------------------------------------------------------------------------------: | :----------------------------------------------------------------------------------------------------: | :-----------------------------------------------------------------------------------------------------: |
-| `<img src='https://github.com/jamjamjon/assets/releases/download/yolo/demo-det.png'  width="300px">` | `<img src='https://github.com/jamjamjon/assets/releases/download/yolo/demo-seg.png'  width="300px">` | `<img src='https://github.com/jamjamjon/assets/releases/download/yolo/demo-pose.png'  width="300px">` |
+|      Detection     |    Instance Segmentation   |   Pose     | 
+| :---------------: | :------------------------: |:---------------: |
+| <img src='https://github.com/jamjamjon/assets/releases/download/yolo/demo-det.png'  width="300px">  | <img src='https://github.com/jamjamjon/assets/releases/download/yolo/demo-seg.png'  width="300px"> |<img src='https://github.com/jamjamjon/assets/releases/download/yolo/demo-pose.png'  width="300px">  | 
 
-|                                             Classification                                             |                                                   Obb                                                   |
-| :----------------------------------------------------------------------------------------------------: | :------------------------------------------------------------------------------------------------------: |
-| `<img src='https://github.com/jamjamjon/assets/releases/download/yolo/demo-cls.png'  width="300px">` | `<img src='https://github.com/jamjamjon/assets/releases/download/yolo/demo-obb-2.png'  width="628px">` |
+|    Classification   |    Obb   |
+| :------------------------: |:------------------------: |
+|<img src='https://github.com/jamjamjon/assets/releases/download/yolo/demo-cls.png'  width="300px"> |<img src='https://github.com/jamjamjon/assets/releases/download/yolo/demo-obb-2.png'  width="628px">
 
-|                                             Head Detection                                             |                                               Fall Detection                                               |                                             Trash Detection                                             |
-| :-----------------------------------------------------------------------------------------------------: | :---------------------------------------------------------------------------------------------------------: | :------------------------------------------------------------------------------------------------------: |
-| `<img src='https://github.com/jamjamjon/assets/releases/download/yolo/demo-head.png'  width="300px">` | `<img src='https://github.com/jamjamjon/assets/releases/download/yolo/demo-falldown.png'  width="300px">` | `<img src='https://github.com/jamjamjon/assets/releases/download/yolo/demo-trash.png'  width="300px">` |
+|    Head Detection   |    Fall Detection   | Trash Detection   |
+| :------------------------: |:------------------------: |:------------------------: |
+|<img src='https://github.com/jamjamjon/assets/releases/download/yolo/demo-head.png'  width="300px"> |<img src='https://github.com/jamjamjon/assets/releases/download/yolo/demo-falldown.png'  width="300px">|<img src='https://github.com/jamjamjon/assets/releases/download/yolo/demo-trash.png'  width="300px">
 
-|                                                   YOLO-World                                                   |                                                  Face Parsing                                                  |                                                  FastSAM                                                  |
-| :-------------------------------------------------------------------------------------------------------------: | :-------------------------------------------------------------------------------------------------------------: | :--------------------------------------------------------------------------------------------------------: |
-| `<img src='https://github.com/jamjamjon/assets/releases/download/yolo/demo-yolov8-world.png'  width="300px">` | `<img src='https://github.com/jamjamjon/assets/releases/download/yolo/demo-face-parsing.png'  width="300px">` | `<img src='https://github.com/jamjamjon/assets/releases/download/yolo/demo-fastsam.png'  width="300px">` |
+|    YOLO-World   |    Face Parsing   | FastSAM   |
+| :------------------------: |:------------------------: |:------------------------: |
+|<img src='https://github.com/jamjamjon/assets/releases/download/yolo/demo-yolov8-world.png'  width="300px"> |<img src='https://github.com/jamjamjon/assets/releases/download/yolo/demo-face-parsing.png'  width="300px">|<img src='https://github.com/jamjamjon/assets/releases/download/yolo/demo-fastsam.png'  width="300px">
+
+
 
 ## Quick Start
 
