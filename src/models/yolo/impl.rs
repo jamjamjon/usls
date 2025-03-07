@@ -564,7 +564,7 @@ impl YOLO {
                                 // Find contours
                                 let polygons = if self.find_contours {
                                     let contours: Vec<imageproc::contours::Contour<i32>> =
-                                        imageproc::contours::find_contours_with_threshold(&mask, 0);
+                                        imageproc::contours::find_contours_with_threshold(&mask, 220);
                                     contours
                                         .into_par_iter()
                                         .map(|x| {
