@@ -1,6 +1,6 @@
 use aksr::Builder;
 use geo::{
-    coord, point, polygon, Area, BoundingRect, Centroid, ConvexHull, EuclideanLength, LineString,
+    coord, point, polygon, Area, BoundingRect, Centroid, ConvexHull, Euclidean, Length, LineString,
     MinimumRotatedRect, Point, Simplify,
 };
 
@@ -90,7 +90,8 @@ impl Polygon {
     }
 
     pub fn perimeter(&self) -> f64 {
-        self.polygon.exterior().euclidean_length()
+        // use the `line.length::<Euclidean>()` via the `Length` trait instead.
+        Euclidean.length(self.polygon.exterior())
     }
 
     pub fn area(&self) -> f64 {

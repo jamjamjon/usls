@@ -1,5 +1,5 @@
 use aksr::Builder;
-use geo::{coord, line_string, Area, BooleanOps, Coord, EuclideanDistance, LineString, Polygon};
+use geo::{coord, line_string, Area, BooleanOps, Coord, Distance, Euclidean, LineString, Polygon};
 
 use crate::Nms;
 
@@ -163,8 +163,9 @@ impl Mbr {
 
     pub fn distance_min_max(&self) -> (f32, f32) {
         let ls = self.vertices();
-        let min = ls[0].euclidean_distance(&ls[1]);
-        let max = ls[1].euclidean_distance(&ls[2]);
+        // "Please use the `Euclidean.distance` method from the `Distance` trait instead"
+        let min = Euclidean.distance(ls[0], ls[1]);
+        let max = Euclidean.distance(ls[1], ls[2]);
         if min < max {
             (min as f32, max as f32)
         } else {
