@@ -12,8 +12,8 @@ impl crate::Options {
             .with_image_mean(&[0.485, 0.456, 0.406])
             .with_image_std(&[0.229, 0.224, 0.225])
             .with_normalize(true)
-            .with_class_confs(&[0.4])
-            .with_text_confs(&[0.3])
+            .with_class_confs(&[0.25])
+            .with_text_confs(&[0.25])
     }
 
     pub fn grounding_dino_tiny() -> Self {
