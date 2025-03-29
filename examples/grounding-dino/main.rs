@@ -20,18 +20,18 @@ struct Args {
     #[argh(
         option,
         default = "vec![
-            String::from(\"person\"), 
-            String::from(\"hand\"), 
-            String::from(\"shoes\"), 
-            String::from(\"bus\"), 
-            String::from(\"dog\"), 
-            String::from(\"cat\"), 
-            String::from(\"sign\"), 
-            String::from(\"tie\"), 
-            String::from(\"monitor\"), 
-            String::from(\"glasses\"), 
-            String::from(\"tree\"), 
-            String::from(\"head\"), 
+            String::from(\"person\"),
+            String::from(\"a hand\"),
+            String::from(\"a shoe\"),
+            String::from(\"bus\"),
+            String::from(\"dog\"),
+            String::from(\"cat\"),
+            String::from(\"sign\"),
+            String::from(\"tie\"),
+            String::from(\"monitor\"),
+            String::from(\"glasses\"),
+            String::from(\"tree\"),
+            String::from(\"head\"),
         ]"
     )]
     labels: Vec<String>,
@@ -49,6 +49,8 @@ fn main() -> Result<()> {
         .with_model_dtype(args.dtype.as_str().try_into()?)
         .with_model_device(args.device.as_str().try_into()?)
         .with_text_names(&args.labels.iter().map(|x| x.as_str()).collect::<Vec<_>>())
+        .with_class_confs(&[0.25])
+        .with_text_confs(&[0.25])
         .commit()?;
 
     let mut model = GroundingDINO::new(options)?;
