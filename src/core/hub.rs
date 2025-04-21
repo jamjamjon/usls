@@ -82,7 +82,7 @@ impl Default for Hub {
     fn default() -> Self {
         let owner = "jamjamjon".to_string();
         let repo = "assets".to_string();
-        let _gh_api_release = format!("https://api.github.com/repos/{}/{}/releases", owner, repo);
+        let _gh_api_release = format!("https://api.github.com/repos/{}/{}/releases?per_page=100", owner, repo);
 
         Self {
             owner,
