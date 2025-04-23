@@ -12,26 +12,25 @@ fn main() -> Result<()> {
     let mut model = RFDETR::new(options)?;
 
     // load
-    let xs = [DataLoader::try_read("./assets/bus.jpg")?];
+    let xs = DataLoader::try_read_n(&["./assets/bus.jpg"])?;
 
     // run
     let ys = model.forward(&xs)?;
 
     // extract bboxes
-    for y in ys.iter() {
-        if let Some(bboxes) = y.bboxes() {
-            println!("[Bboxes]: Found {} objects", bboxes.len());
-            for (i, bbox) in bboxes.iter().enumerate() {
-                println!("{}: {:?}", i, bbox)
-            }
-        }
-    }
+    println!("{:?}", ys);
 
     // annotate
-    let annotator = Annotator::default()
-        .with_bboxes_thickness(3)
-        .with_saveout(model.spec());
-    annotator.annotate(&xs, &ys);
+    let annotator = Annotator::default();
+    for (x, y) in xs.iter().zip(ys.iter()) {
+        annotator.annotate(x, y)?.save(format!(
+            "{}.jpg",
+            usls::Dir::Current
+                .base_dir_with_subs(&["runs", model.spec()])?
+                .join(usls::timestamp(None))
+                .display(),
+        ))?;
+    }
 
     Ok(())
 }

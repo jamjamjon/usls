@@ -1,9 +1,8 @@
 use aksr::Builder;
 use anyhow::Result;
-use image::DynamicImage;
 use ndarray::Axis;
 
-use crate::{elapsed, Engine, Mask, Ops, Options, Processor, Ts, Xs, Ys, Y};
+use crate::{elapsed, Engine, Image, Mask, Ops, Options, Processor, Ts, Xs, Y};
 
 #[derive(Builder, Debug)]
 pub struct DepthPro {
@@ -42,7 +41,7 @@ impl DepthPro {
         })
     }
 
-    fn preprocess(&mut self, xs: &[DynamicImage]) -> Result<Xs> {
+    fn preprocess(&mut self, xs: &[Image]) -> Result<Xs> {
         Ok(self.processor.process_images(xs)?.into())
     }
 
@@ -50,13 +49,16 @@ impl DepthPro {
         self.engine.run(xs)
     }
 
-    fn postprocess(&mut self, xs: Xs) -> Result<Ys> {
+    fn postprocess(&mut self, xs: Xs) -> Result<Vec<Y>> {
         let (predicted_depth, _focallength_px) = (&xs["predicted_depth"], &xs["focallength_px"]);
         let predicted_depth = predicted_depth.mapv(|x| 1. / x);
 
         let mut ys: Vec<Y> = Vec::new();
         for (idx, luma) in predicted_depth.axis_iter(Axis(0)).enumerate() {
-            let (h1, w1) = self.processor.image0s_size[idx];
+            let (h1, w1) = (
+                self.processor.images_transform_info[idx].height_src,
+                self.processor.images_transform_info[idx].width_src,
+            );
             let v = luma.into_owned().into_raw_vec_and_offset().0;
             let max_ = v.iter().max_by(|x, y| x.total_cmp(y)).unwrap();
             let min_ = v.iter().min_by(|x, y| x.total_cmp(y)).unwrap();
@@ -82,10 +84,10 @@ impl DepthPro {
             ys.push(Y::default().with_masks(&[Mask::default().with_mask(luma)]));
         }
 
-        Ok(ys.into())
+        Ok(ys)
     }
 
-    pub fn forward(&mut self, xs: &[DynamicImage]) -> Result<Ys> {
+    pub fn forward(&mut self, xs: &[Image]) -> Result<Vec<Y>> {
         let ys = elapsed!("preprocess", self.ts, { self.preprocess(xs)? });
         let ys = elapsed!("inference", self.ts, { self.inference(ys)? });
         let ys = elapsed!("postprocess", self.ts, { self.postprocess(ys)? });

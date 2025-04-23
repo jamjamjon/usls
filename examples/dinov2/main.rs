@@ -8,10 +8,7 @@ fn main() -> Result<()> {
         .init();
 
     // images
-    let xs = [
-        DataLoader::try_read("./assets/bus.jpg")?,
-        DataLoader::try_read("./assets/bus.jpg")?,
-    ];
+    let xs = DataLoader::try_read_n(&["./assets/bus.jpg", "./assets/bus.jpg"])?;
 
     // model
     let options = Options::dinov2_small().with_batch_size(xs.len()).commit()?;

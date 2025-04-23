@@ -1,5 +1,5 @@
 use anyhow::Result;
-use usls::{models::DB, Annotator, DataLoader, Options, Scale};
+use usls::{models::DB, Annotator, DataLoader, Options, Scale, Style};
 
 #[derive(argh::FromArgs)]
 /// Example
@@ -40,7 +40,7 @@ fn main() -> Result<()> {
     )?;
 
     // load image
-    let x = DataLoader::try_read_batch(&[
+    let xs = DataLoader::try_read_n(&[
         "images/db.png",
         "images/table.png",
         "images/table-ch.jpg",
@@ -49,16 +49,46 @@ fn main() -> Result<()> {
     ])?;
 
     // run
-    let y = model.forward(&x)?;
+    let ys = model.forward(&xs)?;
 
     // annotate
     let annotator = Annotator::default()
-        .without_bboxes(true)
-        .without_mbrs(true)
-        .with_polygons_alpha(60)
-        .with_contours_color([255, 105, 180, 255])
-        .with_saveout(model.spec());
-    annotator.annotate(&x, &y);
+        .with_polygon_style(
+            Style::polygon()
+                .with_visible(true)
+                .with_text_visible(false)
+                .show_confidence(true)
+                .show_id(true)
+                .show_name(true)
+                .with_color(usls::StyleColors::default().with_outline([255, 105, 180, 255].into())),
+        )
+        .with_hbb_style(
+            Style::hbb()
+                .with_visible(false)
+                .with_text_visible(false)
+                .with_thickness(1)
+                .show_confidence(false)
+                .show_id(false)
+                .show_name(false),
+        )
+        .with_obb_style(
+            Style::obb()
+                .with_visible(false)
+                .with_text_visible(false)
+                .show_confidence(false)
+                .show_id(false)
+                .show_name(false),
+        );
+
+    for (x, y) in xs.iter().zip(ys.iter()) {
+        annotator.annotate(x, y)?.save(format!(
+            "{}.jpg",
+            usls::Dir::Current
+                .base_dir_with_subs(&["runs", model.spec()])?
+                .join(usls::timestamp(None))
+                .display(),
+        ))?;
+    }
 
     Ok(())
 }

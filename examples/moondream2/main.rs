@@ -116,7 +116,7 @@ fn main() -> Result<()> {
     )?;
 
     // load images
-    let xs = DataLoader::try_read_batch(&args.source)?;
+    let xs = DataLoader::try_read_n(&args.source)?;
 
     // run with task
     let task: Task = args.task.as_str().try_into()?;
@@ -142,13 +142,37 @@ fn main() -> Result<()> {
         }
         Task::OpenSetDetection(_) | Task::OpenSetKeypointsDetection(_) => {
             println!("{:?}", ys);
+            // let annotator = Annotator::default()
+            //     .with_bboxes_thickness(4)
+            //     .without_bboxes_conf(true)
+            //     .with_keypoints_radius(6)
+            //     .with_keypoints_name(true)
+            //     .with_saveout("moondream2");
+            // annotator.annotate(&xs, &ys);
+
+            // annotate
             let annotator = Annotator::default()
-                .with_bboxes_thickness(4)
-                .without_bboxes_conf(true)
-                .with_keypoints_radius(6)
-                .with_keypoints_name(true)
-                .with_saveout("moondream2");
-            annotator.annotate(&xs, &ys);
+                .with_hbb_style(
+                    usls::Style::hbb()
+                        .with_draw_fill(true)
+                        .show_confidence(false),
+                )
+                .with_keypoint_style(
+                    usls::Style::keypoint()
+                        .show_confidence(false)
+                        .show_id(true)
+                        .show_name(false),
+                );
+
+            for (x, y) in xs.iter().zip(ys.iter()) {
+                annotator.annotate(x, y)?.save(format!(
+                    "{}.jpg",
+                    usls::Dir::Current
+                        .base_dir_with_subs(&["runs", "moondream2"])?
+                        .join(usls::timestamp(None))
+                        .display(),
+                ))?;
+            }
         }
         _ => unimplemented!("Unsupported moondream2 task."),
     }

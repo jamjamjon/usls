@@ -1,9 +1,9 @@
 use aksr::Builder;
 use anyhow::Result;
-use image::DynamicImage;
 
 use crate::{
-    elapsed, DType, Device, Engine, Kind, Options, Processor, Scale, Task, Ts, Version, Xs, X,
+    elapsed, DType, Device, Engine, Image, Kind, Options, Processor, Scale, Task, Ts, Version, Xs,
+    X,
 };
 
 #[derive(Debug, Builder)]
@@ -70,7 +70,7 @@ impl BaseModelVisual {
         })
     }
 
-    pub fn preprocess(&mut self, xs: &[DynamicImage]) -> Result<Xs> {
+    pub fn preprocess(&mut self, xs: &[Image]) -> Result<Xs> {
         let x = self.processor.process_images(xs)?;
         self.batch = xs.len(); // update
 
@@ -81,7 +81,7 @@ impl BaseModelVisual {
         self.engine.run(xs)
     }
 
-    pub fn encode(&mut self, xs: &[DynamicImage]) -> Result<X> {
+    pub fn encode(&mut self, xs: &[Image]) -> Result<X> {
         let xs = elapsed!("visual-preprocess", self.ts, { self.preprocess(xs)? });
         let xs = elapsed!("visual-inference", self.ts, { self.inference(xs)? });
 

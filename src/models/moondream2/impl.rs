@@ -1,12 +1,12 @@
 use aksr::Builder;
 use anyhow::{Context, Result};
-use image::{DynamicImage, GenericImageView};
+use image::GenericImageView;
 use ndarray::{s, Array, Array2, Array3, Axis, IxDyn};
 use ndarray_npy::ReadNpyExt;
 
 use crate::{
-    BaseModelTextual, Bbox, DType, Engine, Hub, Keypoint, LogitsSampler, Options, Processor, Scale,
-    Task, Ts, Xs, Ys, X, Y,
+    BaseModelTextual, DType, Engine, Hbb, Hub, Image, Keypoint, LogitsSampler, Options, Processor,
+    Scale, Task, Ts, Xs, X, Y,
 };
 
 #[derive(Builder, Debug)]
@@ -46,6 +46,7 @@ impl Moondream2 {
         let dtype = options_vision_encoder.model_dtype;
         let scale = options_vision_encoder
             .model_scale
+            .clone()
             .unwrap_or(Scale::Billion(0.5));
         let initial_kv_cache: X = KVCache::new(&scale, &dtype)?.0.into();
         let vision_encoder = VisionEncoder::new(options_vision_encoder)?;
@@ -83,24 +84,24 @@ impl Moondream2 {
         })
     }
 
-    pub fn encode_image(&mut self, x: &DynamicImage) -> Result<X> {
+    pub fn encode_image(&mut self, x: &Image) -> Result<X> {
         let patches_emb = self.vision_encoder.encode(x)?.clone().insert_axis(0)?;
         let image_embedding = self.vision_projection.inference(patches_emb.into())?[0].to_owned();
 
         Ok(image_embedding)
     }
 
-    pub fn forward(&mut self, xs: &[DynamicImage], task: &Task) -> Result<Ys> {
+    pub fn forward(&mut self, xs: &[Image], task: &Task) -> Result<Vec<Y>> {
         let mut ys: Vec<Y> = Vec::new();
         for x in xs.iter() {
             let y = self.forward_once(x, task)?;
             ys.push(y);
         }
 
-        Ok(ys.into())
+        Ok(ys)
     }
 
-    pub fn forward_once(&mut self, images: &DynamicImage, task: &Task) -> Result<Y> {
+    pub fn forward_once(&mut self, images: &Image, task: &Task) -> Result<Y> {
         let image_embedding = self.encode_image(images)?;
         let kv_cache = self.prepare_kv_cache(&image_embedding)?;
 
@@ -111,7 +112,7 @@ impl Moondream2 {
                     _ => vec![198., 198., 24334., 1159., 25.],
                 };
                 let text = self.generate_text(&input_ids, kv_cache)?;
-                let y = Y::default().with_texts(&[text.into()]);
+                let y = Y::default().with_texts(&[&text]);
 
                 Ok(y)
             }
@@ -129,7 +130,7 @@ impl Moondream2 {
                     .collect();
 
                 let text = self.generate_text(&input_ids, kv_cache)?;
-                let y = Y::default().with_texts(&[text.into()]);
+                let y = Y::default().with_texts(&[&text]);
 
                 Ok(y)
             }
@@ -148,7 +149,7 @@ impl Moondream2 {
                 let (_, y_bboxes) =
                     self.generate_points_boxes(&input_ids, kv_cache, object, true)?;
 
-                Ok(Y::default().with_bboxes(&y_bboxes))
+                Ok(Y::default().with_hbbs(&y_bboxes))
             }
             Task::OpenSetKeypointsDetection(object) => {
                 let input_ids: Vec<_> = [198., 198., 12727., 25.]
@@ -165,7 +166,7 @@ impl Moondream2 {
                 let (y_kpts, _) =
                     self.generate_points_boxes(&input_ids, kv_cache, object, false)?;
 
-                Ok(Y::default().with_keypoints(&y_kpts))
+                Ok(Y::default().with_keypointss(&y_kpts))
             }
             x => anyhow::bail!("Unsupported Moondream2 task: {}", x),
         }
@@ -237,10 +238,14 @@ impl Moondream2 {
         kv_cache: Array<f32, IxDyn>,
         object: &str,
         generate_boxes: bool,
-    ) -> Result<(Vec<Vec<Keypoint>>, Vec<Bbox>)> {
-        let mut y_bboxes: Vec<Bbox> = Vec::new();
+    ) -> Result<(Vec<Vec<Keypoint>>, Vec<Hbb>)> {
+        let mut y_bboxes: Vec<Hbb> = Vec::new();
         let mut y_kpts: Vec<Vec<Keypoint>> = Vec::new();
-        let (image_height, image_width) = self.vision_encoder.processor.image0s_size[0];
+        let (image_height, image_width) = (
+            self.vision_encoder.processor.images_transform_info[0].height_src,
+            self.vision_encoder.processor.images_transform_info[0].width_src,
+        );
+
         let mut pos = self.vision_projection.seq_len() + self.initial_kv_cache.shape()[4];
         let logits_sampler = LogitsSampler::new();
 
@@ -317,8 +322,8 @@ impl Moondream2 {
                 y_kpts.push(vec![Keypoint::from((
                     cx * image_width as f32,
                     cy * image_height as f32,
-                    0,
                 ))
+                .with_id(0)
                 .with_name(object)]);
 
                 // keep?
@@ -365,7 +370,7 @@ impl Moondream2 {
                 let ymin = cy - h / 2.;
 
                 y_bboxes.push(
-                    Bbox::from((
+                    Hbb::from((
                         xmin * image_width as f32,
                         ymin * image_height as f32,
                         w * image_width as f32,
@@ -470,10 +475,7 @@ impl VisionEncoder {
         })
     }
 
-    fn create_patches(
-        image: &DynamicImage,
-        image_patch_size: usize,
-    ) -> (Vec<DynamicImage>, (u32, u32)) {
+    fn create_patches(image: &Image, image_patch_size: usize) -> (Vec<Image>, (u32, u32)) {
         let mut patches = vec![image.clone()];
         let image = image.to_rgb8();
 
@@ -506,7 +508,7 @@ impl VisionEncoder {
                     .view(x_min, y_min, patch_width, patch_height)
                     .to_image();
 
-                patches.push(DynamicImage::from(cropped));
+                patches.push(Image::from(cropped));
             }
         }
 
@@ -517,7 +519,7 @@ impl VisionEncoder {
         self.engine.run(xs)
     }
 
-    pub fn encode(&mut self, x: &DynamicImage) -> Result<X> {
+    pub fn encode(&mut self, x: &Image) -> Result<X> {
         let (patches, selected_template) = Self::create_patches(x, self.patch_size);
         let patches = self.processor.process_images(&patches)?;
         let template = (

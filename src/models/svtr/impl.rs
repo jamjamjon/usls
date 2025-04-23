@@ -1,10 +1,9 @@
 use aksr::Builder;
 use anyhow::Result;
-use image::DynamicImage;
 use ndarray::Axis;
 use rayon::prelude::*;
 
-use crate::{elapsed, DynConf, Engine, Options, Processor, Ts, Xs, Ys, Y};
+use crate::{elapsed, DynConf, Engine, Image, Options, Processor, Ts, Xs, Y};
 
 #[derive(Builder, Debug)]
 pub struct SVTR {
@@ -50,7 +49,7 @@ impl SVTR {
         })
     }
 
-    fn preprocess(&mut self, xs: &[DynamicImage]) -> Result<Xs> {
+    fn preprocess(&mut self, xs: &[Image]) -> Result<Xs> {
         Ok(self.processor.process_images(xs)?.into())
     }
 
@@ -58,7 +57,7 @@ impl SVTR {
         self.engine.run(xs)
     }
 
-    pub fn forward(&mut self, xs: &[DynamicImage]) -> Result<Ys> {
+    pub fn forward(&mut self, xs: &[Image]) -> Result<Vec<Y>> {
         let ys = elapsed!("preprocess", self.ts, { self.preprocess(xs)? });
         let ys = elapsed!("inference", self.ts, { self.inference(ys)? });
         let ys = elapsed!("postprocess", self.ts, { self.postprocess(ys)? });
@@ -70,7 +69,7 @@ impl SVTR {
         self.ts.summary();
     }
 
-    pub fn postprocess(&self, xs: Xs) -> Result<Ys> {
+    pub fn postprocess(&self, xs: Xs) -> Result<Vec<Y>> {
         let ys: Vec<Y> = xs[0]
             .axis_iter(Axis(0))
             .into_par_iter()
@@ -88,10 +87,10 @@ impl SVTR {
                     .map(|(id, _)| self.processor.vocab()[id].clone())
                     .collect();
 
-                Y::default().with_texts(&[text.into()])
+                Y::default().with_texts(&[&text])
             })
             .collect();
 
-        Ok(ys.into())
+        Ok(ys)
     }
 }

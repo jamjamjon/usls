@@ -1,5 +1,6 @@
 use anyhow::Result;
-use usls::{models::PicoDet, Annotator, DataLoader, Options};
+use usls::DataLoader;
+use usls::{models::PicoDet, Annotator, Options};
 
 fn main() -> Result<()> {
     tracing_subscriber::fmt()
@@ -15,17 +16,23 @@ fn main() -> Result<()> {
     let mut model = PicoDet::new(options)?;
 
     // load
-    let xs = [DataLoader::try_read("images/academic.jpg")?];
-
-    // annotator
-    let annotator = Annotator::default()
-        .with_bboxes_thickness(3)
-        .with_saveout(model.spec());
+    let xs = DataLoader::try_read_n(&["images/academic.jpg"])?;
 
     // run
     let ys = model.forward(&xs)?;
     println!("{:?}", ys);
-    annotator.annotate(&xs, &ys);
+
+    // annotate
+    let annotator = Annotator::default();
+    for (x, y) in xs.iter().zip(ys.iter()) {
+        annotator.annotate(x, y)?.save(format!(
+            "{}.jpg",
+            usls::Dir::Current
+                .base_dir_with_subs(&["runs", model.spec()])?
+                .join(usls::timestamp(None))
+                .display(),
+        ))?;
+    }
 
     Ok(())
 }

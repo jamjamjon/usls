@@ -1,9 +1,8 @@
 use aksr::Builder;
 use anyhow::Result;
-use image::DynamicImage;
 use ndarray::{s, Array2, Axis};
 
-use crate::{elapsed, Engine, Mask, Ops, Options, Polygon, Processor, Task, Ts, Xs, Ys, Y};
+use crate::{elapsed, Engine, Image, Mask, Ops, Options, Polygon, Processor, Task, Ts, Xs, Y};
 
 #[derive(Builder, Debug)]
 pub struct Sapiens {
@@ -48,7 +47,7 @@ impl Sapiens {
         })
     }
 
-    fn preprocess(&mut self, xs: &[DynamicImage]) -> Result<Xs> {
+    fn preprocess(&mut self, xs: &[Image]) -> Result<Xs> {
         Ok(self.processor.process_images(xs)?.into())
     }
 
@@ -56,7 +55,7 @@ impl Sapiens {
         self.engine.run(xs)
     }
 
-    pub fn forward(&mut self, xs: &[DynamicImage]) -> Result<Ys> {
+    pub fn forward(&mut self, xs: &[Image]) -> Result<Vec<Y>> {
         let ys = elapsed!("preprocess", self.ts, { self.preprocess(xs)? });
         let ys = elapsed!("inference", self.ts, { self.inference(ys)? });
         let ys = elapsed!("postprocess", self.ts, {
@@ -74,11 +73,14 @@ impl Sapiens {
         self.ts.summary();
     }
 
-    pub fn postprocess_seg(&self, xs: Xs) -> Result<Ys> {
+    pub fn postprocess_seg(&self, xs: Xs) -> Result<Vec<Y>> {
         let mut ys: Vec<Y> = Vec::new();
         for (idx, b) in xs[0].axis_iter(Axis(0)).enumerate() {
             // rescale
-            let (h1, w1) = self.processor.image0s_size[idx];
+            let (h1, w1) = (
+                self.processor.images_transform_info[idx].height_src,
+                self.processor.images_transform_info[idx].width_src,
+            );
             let masks = Ops::interpolate_3d(b.to_owned(), w1 as _, h1 as _, "Bilinear")?;
 
             // generate mask
@@ -111,40 +113,17 @@ impl Sapiens {
             let mut y_masks: Vec<Mask> = Vec::new();
             let mut y_polygons: Vec<Polygon> = Vec::new();
             for i in ids.iter() {
-                let luma = mask.mapv(|x| if x == *i { 255 } else { 0 });
-                let luma: image::ImageBuffer<image::Luma<_>, Vec<_>> =
-                    match image::ImageBuffer::from_raw(
-                        w1 as _,
-                        h1 as _,
-                        luma.into_raw_vec_and_offset().0,
-                    ) {
-                        None => continue,
-                        Some(x) => x,
-                    };
-
-                // contours
-                let contours: Vec<imageproc::contours::Contour<i32>> =
-                    imageproc::contours::find_contours_with_threshold(&luma, 0);
-                let polygon = match contours
-                    .into_iter()
-                    .map(|x| {
-                        let mut polygon = Polygon::default()
-                            .with_id(*i as _)
-                            .with_points_imageproc(&x.points)
-                            .verify();
-                        if let Some(names_body) = &self.names_body {
-                            polygon = polygon.with_name(&names_body[*i]);
-                        }
-                        polygon
-                    })
-                    .max_by(|x, y| x.area().total_cmp(&y.area()))
-                {
-                    Some(p) => p,
-                    None => continue,
+                let luma = mask
+                    .mapv(|x| if x == *i { 255 } else { 0 })
+                    .into_raw_vec_and_offset()
+                    .0;
+                let mut mask = match Mask::new(&luma, w1, h1) {
+                    Ok(luma) => luma.with_id(*i),
+                    Err(_) => continue,
                 };
-                y_polygons.push(polygon);
-
-                let mut mask = Mask::default().with_mask(luma).with_id(*i as _);
+                if let Some(polygon) = mask.polygon() {
+                    y_polygons.push(polygon);
+                }
                 if let Some(names_body) = &self.names_body {
                     mask = mask.with_name(&names_body[*i]);
                 }
@@ -153,6 +132,6 @@ impl Sapiens {
             ys.push(Y::default().with_masks(&y_masks).with_polygons(&y_polygons));
         }
 
-        Ok(ys.into())
+        Ok(ys)
     }
 }

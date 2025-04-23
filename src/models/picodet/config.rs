@@ -1,4 +1,4 @@
-use crate::{ResizeMode, COCO_CLASS_NAMES_80};
+use crate::{ResizeMode, COCO_NAMES_80};
 
 /// Model configuration for `PicoDet`
 impl crate::Options {
@@ -20,7 +20,7 @@ impl crate::Options {
     pub fn picodet_l_coco() -> Self {
         Self::picodet()
             .with_model_file("l-coco.onnx")
-            .with_class_names(&COCO_CLASS_NAMES_80)
+            .with_class_names(&COCO_NAMES_80)
     }
 
     pub fn picodet_layout_1x() -> Self {

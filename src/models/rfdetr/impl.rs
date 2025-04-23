@@ -1,10 +1,9 @@
 use aksr::Builder;
 use anyhow::Result;
-use image::DynamicImage;
 use ndarray::{s, Axis};
 use rayon::prelude::*;
 
-use crate::{elapsed, Bbox, DynConf, Engine, Options, Processor, Ts, Xs, Ys, Y};
+use crate::{elapsed, DynConf, Engine, Hbb, Image, Options, Processor, Ts, Xs, Y};
 
 #[derive(Debug, Builder)]
 pub struct RFDETR {
@@ -52,7 +51,7 @@ impl RFDETR {
         })
     }
 
-    fn preprocess(&mut self, xs: &[DynamicImage]) -> Result<Xs> {
+    fn preprocess(&mut self, xs: &[Image]) -> Result<Xs> {
         let x1 = self.processor.process_images(xs)?;
         let xs = Xs::from(vec![x1]);
 
@@ -63,7 +62,7 @@ impl RFDETR {
         self.engine.run(xs)
     }
 
-    pub fn forward(&mut self, xs: &[DynamicImage]) -> Result<Ys> {
+    pub fn forward(&mut self, xs: &[Image]) -> Result<Vec<Y>> {
         let ys = elapsed!("preprocess", self.ts, { self.preprocess(xs)? });
         let ys = elapsed!("inference", self.ts, { self.inference(ys)? });
         let ys = elapsed!("postprocess", self.ts, { self.postprocess(ys)? });
@@ -71,7 +70,7 @@ impl RFDETR {
         Ok(ys)
     }
 
-    fn postprocess(&mut self, xs: Xs) -> Result<Ys> {
+    fn postprocess(&mut self, xs: Xs) -> Result<Vec<Y>> {
         // 0: bboxes
         // 1: logits
         let ys: Vec<Y> = xs[1]
@@ -79,9 +78,12 @@ impl RFDETR {
             .into_par_iter()
             .enumerate()
             .filter_map(|(idx, logits)| {
-                let (image_height, image_width) = self.processor.image0s_size[idx];
-                let ratio = self.processor.scale_factors_hw[idx][0];
-                let y_bboxes: Vec<Bbox> = logits
+                let (image_height, image_width) = (
+                    self.processor.images_transform_info[idx].height_src,
+                    self.processor.images_transform_info[idx].width_src,
+                );
+                let ratio = self.processor.images_transform_info[idx].height_scale;
+                let y_bboxes: Vec<Hbb> = logits
                     .axis_iter(Axis(0))
                     .into_par_iter()
                     .enumerate()
@@ -107,7 +109,7 @@ impl RFDETR {
                         let y = y.max(0.0).min(image_height as _);
 
                         Some(
-                            Bbox::default()
+                            Hbb::default()
                                 .with_xywh(x, y, w, h)
                                 .with_confidence(conf)
                                 .with_id(class_id as _)
@@ -118,14 +120,14 @@ impl RFDETR {
 
                 let mut y = Y::default();
                 if !y_bboxes.is_empty() {
-                    y = y.with_bboxes(&y_bboxes);
+                    y = y.with_hbbs(&y_bboxes);
                 }
 
                 Some(y)
             })
             .collect();
 
-        Ok(ys.into())
+        Ok(ys)
     }
 
     pub fn summary(&mut self) {

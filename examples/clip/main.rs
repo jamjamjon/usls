@@ -43,13 +43,13 @@ fn main() -> Result<()> {
     let dl = DataLoader::new("./examples/clip/images")?.build()?;
 
     // run
-    for (images, paths) in dl {
+    for images in dl {
         let feats_image = model.encode_images(&images)?;
 
         // use image to query texts
         let matrix = Ops::dot2(&feats_image, &feats_text)?;
 
-        for i in 0..paths.len() {
+        for i in 0..images.len() {
             let probs = &matrix[i];
             let (id, &score) = probs
                 .iter()
@@ -58,9 +58,9 @@ fn main() -> Result<()> {
                 .unwrap();
 
             println!(
-                "({:?}%) {} => {} ",
+                "({:?}%) {:?} => {} ",
                 score * 100.0,
-                paths[i].display(),
+                images[i].source(),
                 &texts[id]
             );
         }

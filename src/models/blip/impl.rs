@@ -1,12 +1,11 @@
 use aksr::Builder;
 use anyhow::Result;
-use image::DynamicImage;
 use ndarray::{s, Axis};
 
 use crate::{
     elapsed,
     models::{BaseModelTextual, BaseModelVisual},
-    LogitsSampler, Options, Ts, Xs, Ys, X, Y,
+    Image, LogitsSampler, Options, Ts, Xs, X, Y,
 };
 
 #[derive(Debug, Builder)]
@@ -35,7 +34,7 @@ impl Blip {
         })
     }
 
-    pub fn encode_images(&mut self, xs: &[DynamicImage]) -> Result<X> {
+    pub fn encode_images(&mut self, xs: &[Image]) -> Result<X> {
         self.visual.encode(xs)
     }
 
@@ -47,14 +46,14 @@ impl Blip {
         Ok(vec![input_ids.clone(); self.batch()])
     }
 
-    pub fn forward(&mut self, images: &[DynamicImage], text: Option<&str>) -> Result<Ys> {
+    pub fn forward(&mut self, images: &[Image], text: Option<&str>) -> Result<Vec<Y>> {
         let image_embeds = elapsed!("encode_images", self.ts, { self.encode_images(images)? });
         let ys = elapsed!("generate", self.ts, { self.generate(&image_embeds, text)? });
 
         Ok(ys)
     }
 
-    pub fn generate(&mut self, image_embeds: &X, text: Option<&str>) -> Result<Ys> {
+    pub fn generate(&mut self, image_embeds: &X, text: Option<&str>) -> Result<Vec<Y>> {
         // encode texts
         let mut token_ids = self.encode_texts(text)?;
 
@@ -113,9 +112,9 @@ impl Blip {
 
         let ys = texts
             .into_iter()
-            .map(|x| Y::default().with_texts(&[x.into()]))
-            .collect::<Vec<_>>()
-            .into();
+            .map(|x| Y::default().with_texts(&[&x]))
+            .collect::<Vec<_>>();
+        // .into();
 
         Ok(ys)
     }

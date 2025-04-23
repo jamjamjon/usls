@@ -1,5 +1,5 @@
 use anyhow::Result;
-use usls::{models::Florence2, Annotator, DataLoader, Options, Scale, Task};
+use usls::{models::Florence2, Annotator, DataLoader, Options, Scale, Style, Task};
 
 #[derive(argh::FromArgs)]
 /// Example
@@ -26,10 +26,7 @@ fn main() -> Result<()> {
     let args: Args = argh::from_env();
 
     // load images
-    let xs = [
-        DataLoader::try_read("images/green-car.jpg")?,
-        DataLoader::try_read("assets/bus.jpg")?,
-    ];
+    let xs = DataLoader::try_read_n(&["images/green-car.jpg", "assets/bus.jpg"])?;
 
     // build model
     let (
@@ -109,12 +106,6 @@ fn main() -> Result<()> {
         ),
     ];
 
-    // annotator
-    let annotator = Annotator::new()
-        .without_bboxes_conf(true)
-        .with_bboxes_thickness(3)
-        .with_saveout_subs(&["Florence2"]);
-
     // inference
     for task in tasks.iter() {
         let ys = model.forward(&xs, task)?;
@@ -128,44 +119,122 @@ fn main() -> Result<()> {
                 println!("Task: {:?}\n{:?}\n", task, &ys)
             }
             Task::DenseRegionCaption => {
-                let annotator = annotator.clone().with_saveout("Dense-Region-Caption");
-                annotator.annotate(&xs, &ys);
+                for (x, y) in xs.iter().zip(ys.iter()) {
+                    Annotator::default()
+                        .with_hbb_style(Style::hbb().show_confidence(false))
+                        .annotate(x, y)?
+                        .save(format!(
+                            "{}.jpg",
+                            usls::Dir::Current
+                                .base_dir_with_subs(&["runs", "Florence2", "Dense-Region-Caption"])?
+                                .join(usls::timestamp(None))
+                                .display(),
+                        ))?;
+                }
             }
             Task::RegionProposal => {
-                let annotator = annotator
-                    .clone()
-                    .without_bboxes_name(false)
-                    .with_saveout("Region-Proposal");
-
-                annotator.annotate(&xs, &ys);
+                for (x, y) in xs.iter().zip(ys.iter()) {
+                    Annotator::default()
+                        .with_hbb_style(Style::hbb().show_confidence(false).show_name(false))
+                        .annotate(x, y)?
+                        .save(format!(
+                            "{}.jpg",
+                            usls::Dir::Current
+                                .base_dir_with_subs(&["runs", "Florence2", "Region-Proposal"])?
+                                .join(usls::timestamp(None))
+                                .display(),
+                        ))?;
+                }
             }
             Task::ObjectDetection => {
-                let annotator = annotator.clone().with_saveout("Object-Detection");
-                annotator.annotate(&xs, &ys);
+                for (x, y) in xs.iter().zip(ys.iter()) {
+                    Annotator::default().annotate(x, y)?.save(format!(
+                        "{}.jpg",
+                        usls::Dir::Current
+                            .base_dir_with_subs(&["runs", "Florence2", "Object-Detection"])?
+                            .join(usls::timestamp(None))
+                            .display(),
+                    ))?;
+                }
             }
             Task::OpenSetDetection(_) => {
-                let annotator = annotator.clone().with_saveout("Open-Set-Detection");
-                annotator.annotate(&xs, &ys);
+                for (x, y) in xs.iter().zip(ys.iter()) {
+                    Annotator::default().annotate(x, y)?.save(format!(
+                        "{}.jpg",
+                        usls::Dir::Current
+                            .base_dir_with_subs(&["runs", "Florence2", "Open-Object-Detection"])?
+                            .join(usls::timestamp(None))
+                            .display(),
+                    ))?;
+                }
             }
             Task::CaptionToPhraseGrounding(_) => {
-                let annotator = annotator
-                    .clone()
-                    .with_saveout("Caption-To-Phrase-Grounding");
-                annotator.annotate(&xs, &ys);
+                for (x, y) in xs.iter().zip(ys.iter()) {
+                    Annotator::default()
+                        .with_hbb_style(Style::hbb().show_confidence(false))
+                        .annotate(x, y)?
+                        .save(format!(
+                            "{}.jpg",
+                            usls::Dir::Current
+                                .base_dir_with_subs(&[
+                                    "runs",
+                                    "Florence2",
+                                    "Caption-To-Phrase-Grounding"
+                                ])?
+                                .join(usls::timestamp(None))
+                                .display(),
+                        ))?;
+                }
             }
             Task::ReferringExpressionSegmentation(_) => {
-                let annotator = annotator
-                    .clone()
-                    .with_saveout("Referring-Expression-Segmentation");
-                annotator.annotate(&xs, &ys);
+                for (x, y) in xs.iter().zip(ys.iter()) {
+                    Annotator::default()
+                        .with_hbb_style(Style::hbb().show_confidence(false))
+                        .annotate(x, y)?
+                        .save(format!(
+                            "{}.jpg",
+                            usls::Dir::Current
+                                .base_dir_with_subs(&[
+                                    "runs",
+                                    "Florence2",
+                                    "Referring-Expression-Segmentation"
+                                ])?
+                                .join(usls::timestamp(None))
+                                .display(),
+                        ))?;
+                }
             }
             Task::RegionToSegmentation(..) => {
-                let annotator = annotator.clone().with_saveout("Region-To-Segmentation");
-                annotator.annotate(&xs, &ys);
+                for (x, y) in xs.iter().zip(ys.iter()) {
+                    Annotator::default()
+                        .with_hbb_style(Style::hbb().show_confidence(false))
+                        .annotate(x, y)?
+                        .save(format!(
+                            "{}.jpg",
+                            usls::Dir::Current
+                                .base_dir_with_subs(&[
+                                    "runs",
+                                    "Florence2",
+                                    "Region-To-Segmentation",
+                                ])?
+                                .join(usls::timestamp(None))
+                                .display(),
+                        ))?;
+                }
             }
             Task::OcrWithRegion => {
-                let annotator = annotator.clone().with_saveout("Ocr-With-Region");
-                annotator.annotate(&xs, &ys);
+                for (x, y) in xs.iter().zip(ys.iter()) {
+                    Annotator::default()
+                        .with_hbb_style(Style::hbb().show_confidence(false))
+                        .annotate(x, y)?
+                        .save(format!(
+                            "{}.jpg",
+                            usls::Dir::Current
+                                .base_dir_with_subs(&["runs", "Florence2", "Ocr-With-Region",])?
+                                .join(usls::timestamp(None))
+                                .display(),
+                        ))?;
+                }
             }
 
             _ => (),

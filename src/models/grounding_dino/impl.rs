@@ -1,11 +1,10 @@
 use aksr::Builder;
 use anyhow::Result;
-use image::DynamicImage;
 use ndarray::{s, Array2, Axis};
 use rayon::prelude::*;
 use std::fmt::Write;
 
-use crate::{elapsed, Bbox, DynConf, Engine, Options, Processor, Ts, Xs, Ys, X, Y};
+use crate::{elapsed, DynConf, Engine, Hbb, Image, Options, Processor, Ts, Xs, X, Y};
 
 #[derive(Builder, Debug)]
 pub struct GroundingDINO {
@@ -77,7 +76,7 @@ impl GroundingDINO {
         })
     }
 
-    fn preprocess(&mut self, xs: &[DynamicImage]) -> Result<Xs> {
+    fn preprocess(&mut self, xs: &[Image]) -> Result<Xs> {
         // encode images
         let image_embeddings = self.processor.process_images(xs)?;
 
@@ -107,7 +106,7 @@ impl GroundingDINO {
         Ok(xs)
     }
 
-    pub fn forward(&mut self, xs: &[DynamicImage]) -> Result<Ys> {
+    pub fn forward(&mut self, xs: &[Image]) -> Result<Vec<Y>> {
         let ys = elapsed!("preprocess", self.ts, { self.preprocess(xs)? });
         let ys = elapsed!("inference", self.ts, { self.inference(ys)? });
         let ys = elapsed!("postprocess", self.ts, { self.postprocess(ys)? });
@@ -123,15 +122,18 @@ impl GroundingDINO {
         self.engine.run(xs)
     }
 
-    fn postprocess(&self, xs: Xs) -> Result<Ys> {
+    fn postprocess(&self, xs: Xs) -> Result<Vec<Y>> {
         let ys: Vec<Y> = xs["logits"]
             .axis_iter(Axis(0))
             .into_par_iter()
             .enumerate()
             .filter_map(|(idx, logits)| {
-                let (image_height, image_width) = self.processor.image0s_size[idx];
-                let ratio = self.processor.scale_factors_hw[idx][0];
-                let y_bboxes: Vec<Bbox> = logits
+                let (image_height, image_width) = (
+                    self.processor.images_transform_info[idx].height_src,
+                    self.processor.images_transform_info[idx].width_src,
+                );
+                let ratio = self.processor.images_transform_info[idx].height_scale;
+                let y_bboxes: Vec<Hbb> = logits
                     .axis_iter(Axis(0))
                     .into_par_iter()
                     .enumerate()
@@ -158,7 +160,7 @@ impl GroundingDINO {
 
                         self.class_ids_map[class_id].map(|c| {
                             let mut bbox =
-                                Bbox::default().with_xywh(x, y, w, h).with_confidence(conf);
+                                Hbb::default().with_xywh(x, y, w, h).with_confidence(conf);
 
                             if conf > self.confs_textual[c] {
                                 bbox = bbox.with_name(&self.class_names[c]).with_id(c as _);
@@ -169,14 +171,14 @@ impl GroundingDINO {
                     .collect();
 
                 if !y_bboxes.is_empty() {
-                    Some(Y::default().with_bboxes(&y_bboxes))
+                    Some(Y::default().with_hbbs(&y_bboxes))
                 } else {
                     None
                 }
             })
             .collect();
 
-        Ok(ys.into())
+        Ok(ys)
     }
 
     fn gen_text_attn_masks_and_pos_ids(input_ids: &[f32]) -> Result<(X, X)> {

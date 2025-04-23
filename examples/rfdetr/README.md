@@ -1,17 +1,17 @@
 ## Quick Start
 
 ```shell
-cargo run -r --example rfdetr
+cargo run -r --example rtdetr
 ```
 
 ## Results
 
 ```
-[Bboxes]: Found 6 objects
-0: Bbox { xyxy: [221.55753, 408.0652, 345.23325, 860.2527], class_id: 1, name: Some("person"), confidence: 0.93212366 }
-1: Bbox { xyxy: [44.967827, 397.84177, 246.13187, 905.7567], class_id: 1, name: Some("person"), confidence: 0.93540853 }
-2: Bbox { xyxy: [6.2678833, 233.208, 801.6806, 737.4714], class_id: 6, name: Some("bus"), confidence: 0.93637216 }
-3: Bbox { xyxy: [0.0, 555.167, 77.74801, 870.2772], class_id: 1, name: Some("person"), confidence: 0.85163206 }
-4: Bbox { xyxy: [133.94543, 473.6574, 149.62558, 507.99875], class_id: 32, name: Some("tie"), confidence: 0.2992424 }
-5: Bbox { xyxy: [669.81836, 395.28635, 813.44855, 879.9562], class_id: 1, name: Some("person"), confidence: 0.83661026 }
+[Bboxes]: Found 5 objects
+0: Bbox { xyxy: [47.969677, 397.81808, 246.22426, 904.8823], class_id: 0, name: Some("person"), confidence: 0.94432133 }
+1: Bbox { xyxy: [668.0796, 399.28854, 810.3779, 880.7412], class_id: 0, name: Some("person"), confidence: 0.93386495 }
+2: Bbox { xyxy: [20.852705, 229.30482, 807.43494, 729.51196], class_id: 5, name: Some("bus"), confidence: 0.9319465 }
+3: Bbox { xyxy: [223.28226, 405.37265, 343.92603, 859.50366], class_id: 0, name: Some("person"), confidence: 0.9130827 }
+4: Bbox { xyxy: [0.0, 552.6165, 65.99908, 868.00525], class_id: 0, name: Some("person"), confidence: 0.7910869 }
+
 ```

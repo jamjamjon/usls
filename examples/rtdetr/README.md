@@ -13,4 +13,5 @@ cargo run -r --example rtdetr
 2: Bbox { xyxy: [20.852705, 229.30482, 807.43494, 729.51196], class_id: 5, name: Some("bus"), confidence: 0.9319465 }
 3: Bbox { xyxy: [223.28226, 405.37265, 343.92603, 859.50366], class_id: 0, name: Some("person"), confidence: 0.9130827 }
 4: Bbox { xyxy: [0.0, 552.6165, 65.99908, 868.00525], class_id: 0, name: Some("person"), confidence: 0.7910869 }
+
 ```

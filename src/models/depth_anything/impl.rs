@@ -1,8 +1,7 @@
 use aksr::Builder;
 use anyhow::Result;
-use image::DynamicImage;
 
-use crate::{elapsed, Engine, Mask, Ops, Options, Processor, Ts, Xs, Ys, Y};
+use crate::{elapsed, Engine, Image, Mask, Ops, Options, Processor, Ts, Xs, Y};
 
 #[derive(Debug, Builder)]
 pub struct DepthAnything {
@@ -43,7 +42,7 @@ impl DepthAnything {
         })
     }
 
-    fn preprocess(&mut self, xs: &[DynamicImage]) -> Result<Xs> {
+    fn preprocess(&mut self, xs: &[Image]) -> Result<Xs> {
         Ok(self.processor.process_images(xs)?.into())
     }
 
@@ -51,11 +50,14 @@ impl DepthAnything {
         self.engine.run(xs)
     }
 
-    fn postprocess(&mut self, xs: Xs) -> Result<Ys> {
+    fn postprocess(&mut self, xs: Xs) -> Result<Vec<Y>> {
         let mut ys: Vec<Y> = Vec::new();
         for (idx, luma) in xs[0].axis_iter(ndarray::Axis(0)).enumerate() {
             // image size
-            let (h1, w1) = self.processor.image0s_size[idx];
+            let (h1, w1) = (
+                self.processor.images_transform_info[idx].height_src,
+                self.processor.images_transform_info[idx].width_src,
+            );
             let v = luma.into_owned().into_raw_vec_and_offset().0;
             let max_ = v.iter().max_by(|x, y| x.total_cmp(y)).unwrap();
             let min_ = v.iter().min_by(|x, y| x.total_cmp(y)).unwrap();
@@ -81,10 +83,10 @@ impl DepthAnything {
             ys.push(Y::default().with_masks(&[Mask::default().with_mask(luma)]));
         }
 
-        Ok(ys.into())
+        Ok(ys)
     }
 
-    pub fn forward(&mut self, xs: &[DynamicImage]) -> Result<Ys> {
+    pub fn forward(&mut self, xs: &[Image]) -> Result<Vec<Y>> {
         let ys = elapsed!("preprocess", self.ts, { self.preprocess(xs)? });
         let ys = elapsed!("inference", self.ts, { self.inference(ys)? });
         let ys = elapsed!("postprocess", self.ts, { self.postprocess(ys)? });

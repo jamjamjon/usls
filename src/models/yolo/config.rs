@@ -63,13 +63,13 @@ impl Options {
     pub fn fastsam_s() -> Self {
         Self::yolo_segment()
             .with_model_scale(Scale::S)
-            .with_model_version(8.0.into())
+            .with_model_version(8.into())
             .with_model_file("FastSAM-s.onnx")
     }
 
     pub fn yolo_v8_rtdetr() -> Self {
         Self::yolo()
-            .with_model_version(7.0.into())
+            .with_model_version(7.into())
             .with_yolo_preds_format(YOLOPredsFormat::n_a_cxcywh_clss_n())
     }
 
@@ -107,94 +107,94 @@ impl Options {
     }
 
     pub fn yolo_v5() -> Self {
-        Self::yolo().with_model_version(5.0.into())
+        Self::yolo().with_model_version(5.into())
     }
 
     pub fn yolo_v6() -> Self {
-        Self::yolo().with_model_version(6.0.into())
+        Self::yolo().with_model_version(6.into())
     }
 
     pub fn yolo_v7() -> Self {
-        Self::yolo().with_model_version(7.0.into())
+        Self::yolo().with_model_version(7.into())
     }
 
     pub fn yolo_v8() -> Self {
-        Self::yolo().with_model_version(8.0.into())
+        Self::yolo().with_model_version(8.into())
     }
 
     pub fn yolo_v9() -> Self {
-        Self::yolo().with_model_version(9.0.into())
+        Self::yolo().with_model_version(9.into())
     }
 
     pub fn yolo_v10() -> Self {
-        Self::yolo().with_model_version(10.0.into())
+        Self::yolo().with_model_version(10.into())
     }
 
     pub fn yolo_v11() -> Self {
-        Self::yolo().with_model_version(11.0.into())
+        Self::yolo().with_model_version(11.into())
     }
 
     pub fn yolo_v12() -> Self {
-        Self::yolo().with_model_version(12.0.into())
+        Self::yolo().with_model_version(12.into())
     }
 
     pub fn yolo_v8_n() -> Self {
         Self::yolo()
-            .with_model_version(8.0.into())
+            .with_model_version(8.into())
             .with_model_scale(Scale::N)
     }
 
     pub fn yolo_v8_s() -> Self {
         Self::yolo()
-            .with_model_version(8.0.into())
+            .with_model_version(8.into())
             .with_model_scale(Scale::S)
     }
 
     pub fn yolo_v8_m() -> Self {
         Self::yolo()
-            .with_model_version(8.0.into())
+            .with_model_version(8.into())
             .with_model_scale(Scale::M)
     }
 
     pub fn yolo_v8_l() -> Self {
         Self::yolo()
-            .with_model_version(8.0.into())
+            .with_model_version(8.into())
             .with_model_scale(Scale::L)
     }
 
     pub fn yolo_v8_x() -> Self {
         Self::yolo()
-            .with_model_version(8.0.into())
+            .with_model_version(8.into())
             .with_model_scale(Scale::X)
     }
 
     pub fn yolo_v11_n() -> Self {
         Self::yolo()
-            .with_model_version(11.0.into())
+            .with_model_version(11.into())
             .with_model_scale(Scale::N)
     }
 
     pub fn yolo_v11_s() -> Self {
         Self::yolo()
-            .with_model_version(11.0.into())
+            .with_model_version(11.into())
             .with_model_scale(Scale::S)
     }
 
     pub fn yolo_v11_m() -> Self {
         Self::yolo()
-            .with_model_version(11.0.into())
+            .with_model_version(11.into())
             .with_model_scale(Scale::M)
     }
 
     pub fn yolo_v11_l() -> Self {
         Self::yolo()
-            .with_model_version(11.0.into())
+            .with_model_version(11.into())
             .with_model_scale(Scale::L)
     }
 
     pub fn yolo_v11_x() -> Self {
         Self::yolo()
-            .with_model_version(11.0.into())
+            .with_model_version(11.into())
             .with_model_scale(Scale::X)
     }
 }

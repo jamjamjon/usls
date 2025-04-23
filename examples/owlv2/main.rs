@@ -1,5 +1,6 @@
 use anyhow::Result;
-use usls::{models::OWLv2, Annotator, DataLoader, Options};
+use usls::DataLoader;
+use usls::{models::OWLv2, Annotator, Options};
 
 #[derive(argh::FromArgs)]
 /// Example
@@ -55,16 +56,22 @@ fn main() -> Result<()> {
     let mut model = OWLv2::new(options)?;
 
     // load
-    let xs = DataLoader::try_read_batch(&args.source)?;
+    let xs = DataLoader::try_read_n(&args.source)?;
 
     // run
     let ys = model.forward(&xs)?;
 
     // annotate
-    let annotator = Annotator::default()
-        .with_bboxes_thickness(3)
-        .with_saveout(model.spec());
-    annotator.annotate(&xs, &ys);
+    let annotator = Annotator::default();
+    for (x, y) in xs.iter().zip(ys.iter()) {
+        annotator.annotate(x, y)?.save(format!(
+            "{}.jpg",
+            usls::Dir::Current
+                .base_dir_with_subs(&["runs", model.spec()])?
+                .join(usls::timestamp(None))
+                .display(),
+        ))?;
+    }
 
     Ok(())
 }

@@ -1,5 +1,5 @@
 use anyhow::Result;
-use usls::{models::RTMO, Annotator, DataLoader, Options, COCO_SKELETONS_16};
+use usls::{models::RTMO, Annotator, DataLoader, Options, Style, COCO_SKELETONS_16};
 
 fn main() -> Result<()> {
     tracing_subscriber::fmt()
@@ -11,16 +11,31 @@ fn main() -> Result<()> {
     let mut model = RTMO::new(Options::rtmo_s().commit()?)?;
 
     // load image
-    let xs = [DataLoader::try_read("images/bus.jpg")?];
+    let xs = DataLoader::try_read_n(&["./assets/bus.jpg"])?;
 
     // run
     let ys = model.forward(&xs)?;
+    println!("ys: {:?}", ys);
 
     // annotate
     let annotator = Annotator::default()
-        .with_saveout(model.spec())
-        .with_skeletons(&COCO_SKELETONS_16);
-    annotator.annotate(&xs, &ys);
+        .with_skeletons(&COCO_SKELETONS_16)
+        .with_hbb_style(Style::hbb().with_draw_fill(true))
+        .with_keypoint_style(
+            Style::keypoint()
+                .show_confidence(false)
+                .show_id(true)
+                .show_name(false),
+        );
+    for (x, y) in xs.iter().zip(ys.iter()) {
+        annotator.annotate(x, y)?.save(format!(
+            "{}.jpg",
+            usls::Dir::Current
+                .base_dir_with_subs(&["runs", model.spec()])?
+                .join(usls::timestamp(None))
+                .display(),
+        ))?;
+    }
 
     Ok(())
 }
