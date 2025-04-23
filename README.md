@@ -139,15 +139,15 @@ Enable only the features you need:
     - **`ort-download-binaries`**  (**default**): Automatically downloads prebuilt `ONNXRuntime` binaries for supported platforms. Provides core model loading and inference capabilities using the CPU execution provider.
     - **`ort-load-dynamic `** Dynamic linking. You'll need to compile `ONNXRuntime` from [source](https://github.com/microsoft/onnxruntime) or download a [precompiled package](https://github.com/microsoft/onnxruntime/releases), and then link it manually. [See the guide here](https://ort.pyke.io/setup/linking#dynamic-linking).
     
-    - `cuda`: Enables the NVIDIA CUDA provider. Requires CUDA toolkit and cuDNN installed.
-    - `trt`: Enables the NVIDIA TensorRT provider. Requires TensorRT libraries installed.
-    - `mps`: Enables the Apple CoreML provider for macOS.
+    - **`cuda`**: Enables the NVIDIA CUDA provider. Requires CUDA toolkit and cuDNN installed.
+    - **`trt`**: Enables the NVIDIA TensorRT provider. Requires TensorRT libraries installed.
+    - **`mps`**: Enables the Apple CoreML provider for macOS.
 
 - If you do not need ONNXRuntime-based model inference (e.g., you only want to use image/video reading, result visualization, etc.), you can disable the default features to minimize dependencies:
     ```shell
     usls = { git = "https://github.com/jamjamjon/usls", default-features = false }
     ```
-    - `video` : Enable video stream reading, and video writing.(Note: Powered by [video-rs](https://github.com/oddity-ai/video-rs) and [minifb](https://github.com/emoon/rust_minifb). Check their repositories for potential issues.)
+    - **`video`** : Enable video stream reading, and video writing.(Note: Powered by [video-rs](https://github.com/oddity-ai/video-rs) and [minifb](https://github.com/emoon/rust_minifb). Check their repositories for potential issues.)
 
 ## ✨ Example
 
@@ -157,12 +157,12 @@ Enable only the features you need:
     cargo run -r -F cuda --example yolo -- --device cuda:0  # GPU
     ```
 
-- Reading Images and Videos
+- Reading Images
     ```rust
-    // Read a single image with DataLoader
+    // Read a single image
     let image = DataLoader::try_read_one("./assets/bus.jpg")?;
 
-    // Read multiple images with DataLoader
+    // Read multiple images
     let images = DataLoader::try_read_n(&["./assets/bus.jpg", "./assets/cat.png"])?;
 
     // Read all images in a folder
@@ -170,14 +170,59 @@ Enable only the features you need:
 
     // Read images matching a pattern (glob)
     let images = DataLoader::try_read_pattern("./assets/*.Jpg")?;
-    // let images = DataLoader::try_read_pattern_case_insensitive("./assets/*.Jpg")?;
 
-    // Load images and iterate with DataLoader
+    // Load images and iterate
     let dl = DataLoader::new("./assets")?.with_batch(2).build()?;
-    for (i, images) in dl.iter().enumerate() {
-        println!("## Batch-{}: {:?}", i + 1, images);
+    for images in dl.iter() {
+        // Code here
     }
     ```
+
+- Reading Video
+    ```rust
+    let dl = DataLoader::new("http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4")?
+        .with_batch(1)
+        .with_nf_skip(1)
+        .with_progress_bar(true)
+        .build()?;
+    for images in dl.iter() {
+        // Code here
+    }
+    ```
+
+- Annotate
+    ```rust
+    let annotator = Annotator::default();
+    let image = DataLoader::try_read_one("./assets/bus.jpg")?;
+    // hbb
+    let hbb = Hbb::default()
+            .with_xyxy(669.5233, 395.4491, 809.0367, 878.81226)
+            .with_id(0)
+            .with_name("person")
+            .with_confidence(0.87094545);
+    let _ = annotator.annotate(&image, &hbb)?;
+
+    // keypoints
+    let keypoints: Vec<Keypoint> = vec![
+        Keypoint::default()
+            .with_xy(139.35767, 443.43655)
+            .with_id(0)
+            .with_name("nose")
+            .with_confidence(0.9739332),
+        Keypoint::default()
+            .with_xy(147.38545, 434.34055)
+            .with_id(1)
+            .with_name("left_eye")
+            .with_confidence(0.9098319),
+        Keypoint::default()
+            .with_xy(128.5701, 434.07516)
+            .with_id(2)
+            .with_name("right_eye")
+            .with_confidence(0.9320564),
+    ];
+    let _ = annotator.annotate(&image, &keypoints)?;
+    ```
+
 
 - Visualizing Inference Results and Exporting Video
     ```rust

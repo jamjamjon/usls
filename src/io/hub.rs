@@ -385,7 +385,6 @@ impl Hub {
     }
 
     /// Download a file from a github release to a specified path with a progress bar
-    // TODO
     pub fn download<P: AsRef<Path> + std::fmt::Debug>(
         src: &str,
         dst: P,
@@ -396,8 +395,7 @@ impl Hub {
             .header("Content-Length")
             .and_then(|s| s.parse::<u64>().ok())
             .context("Content-Length header is missing or invalid")?;
-
-        let  pb = crate::build_progress_bar(
+        let pb = crate::build_progress_bar(
             ntotal,
             "Fetching",
             Some(message.unwrap_or_default()),
@@ -405,7 +403,7 @@ impl Hub {
         )?;
 
         let mut reader = resp.into_reader();
-        let mut buffer = [0; 512];
+        let mut buffer = [0; 2048];
         let mut downloaded_bytes = 0usize;
         let mut file = std::fs::File::create(&dst)
             .with_context(|| format!("Failed to create destination file: {:?}", dst))?;
@@ -436,10 +434,11 @@ impl Hub {
     }
 
     fn fetch_get_response(url: &str) -> anyhow::Result<ureq::Response> {
-        let response = ureq::get(url)
+        let agent = ureq::AgentBuilder::new().try_proxy_from_env(true).build();
+        let response = agent
+            .get(url)
             .call()
             .map_err(|err| anyhow::anyhow!("Failed to GET response from {}: {}", url, err))?;
-
         if response.status() != 200 {
             anyhow::bail!("Failed to fetch data from remote due to: {:?}", response);
         }

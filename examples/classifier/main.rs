@@ -42,8 +42,7 @@ fn main() -> anyhow::Result<()> {
         "deit" => Options::deit_tiny_distill(),
         "fastvit" => Options::fastvit_t8_distill(),
         "mobileone" => Options::mobileone_s0(),
-
-        _ => panic!("Unknown model: {}", args.model),
+        _ => anyhow::bail!("Unsupported model: {}", args.model),
     };
 
     let options = options
@@ -57,6 +56,7 @@ fn main() -> anyhow::Result<()> {
 
     // run
     let ys = model.forward(&xs)?;
+    println!("{:?}", ys);
 
     // annotate
     let annotator = Annotator::default();

@@ -31,7 +31,6 @@ impl Default for Processor {
             images_transform_info: vec![],
             image_width: 0,
             image_height: 0,
-            // scale_factors_hw: vec![],
             resize_mode: ResizeMode::FitAdaptive,
             resize_filter: "Bilinear",
             padding_value: 114,
@@ -78,8 +77,8 @@ impl Processor {
             0 => anyhow::bail!("Found no input images."),
             1 => {
                 let (image, trans_info) = xs[0].resize_with_info(
-                    self.image_height,
                     self.image_width,
+                    self.image_height,
                     self.resize_filter,
                     &self.resize_mode,
                     self.padding_value,
@@ -104,8 +103,8 @@ impl Processor {
                     .enumerate()
                     .map(|(idx, x)| {
                         let (image, trans_info) = x.resize_with_info(
-                            self.image_height,
                             self.image_width,
+                            self.image_height,
                             self.resize_filter,
                             &self.resize_mode,
                             self.padding_value,

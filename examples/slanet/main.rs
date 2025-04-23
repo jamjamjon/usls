@@ -37,6 +37,7 @@ fn main() -> Result<()> {
 
     // run
     let ys = model.forward(&xs)?;
+    println!("{:?}", ys);
 
     // annotate
     let annotator = Annotator::default().with_skeletons(&[(0, 1), (1, 2), (2, 3), (3, 0)]);
