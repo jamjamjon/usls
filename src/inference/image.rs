@@ -200,7 +200,7 @@ impl Image {
             .map_err(|err| anyhow::anyhow!("Failed to save image: {:?}", err))
     }
 
-    /// The width and height of this image.
+    /// (width, height)
     pub fn dimensions(&self) -> (u32, u32) {
         self.image.dimensions()
     }
@@ -304,7 +304,7 @@ impl Image {
         if (w0, h0) == (tw, th) {
             return Ok((
                 self.clone(),
-                trans_info.with_width_scale(1.0).with_height_scale(1.0),
+                trans_info.with_width_scale(1.).with_height_scale(1.),
             ));
         }
 
@@ -332,7 +332,7 @@ impl Image {
                 }
                 ResizeMode::FitHeight => {
                     let r = th as f32 / h0 as f32;
-                    trans_info = trans_info.with_height_scale(1.0).with_width_scale(r);
+                    trans_info = trans_info.with_height_scale(1.).with_width_scale(r);
 
                     ((r * w0 as f32).round() as u32, th)
                 }
@@ -342,7 +342,6 @@ impl Image {
 
                     (tw, (r * h0 as f32).round() as u32)
                 }
-
                 _ => unreachable!(),
             };
 

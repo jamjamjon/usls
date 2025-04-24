@@ -93,30 +93,33 @@ impl Drawable for Keypoint {
 
 impl Drawable for Vec<Keypoint> {
     fn draw(&self, ctx: &DrawContext, canvas: &mut RgbaImage) -> Result<()> {
-        if let Some(skeletons) = ctx.skeletons {
-            for &(i, ii) in skeletons.iter() {
-                let nk = self.len();
-                if i >= nk || ii >= nk {
-                    continue;
+        let nk = self.len();
+        if nk > 0 {
+            if let Some(skeleton) = ctx.skeleton {
+                for connection in skeleton.iter() {
+                    let (i, ii) = connection.indices;
+                    let color = connection.color.unwrap_or(Color::white()); // TODO: default color
+                    if i >= nk || ii >= nk {
+                        continue;
+                    }
+                    let kpt1: &_ = &self[i];
+                    let kpt2: &_ = &self[ii];
+
+                    if kpt1.confidence().is_none()
+                        || kpt1.confidence().unwrap() == 0.0
+                        || kpt2.confidence().is_none()
+                        || kpt2.confidence().unwrap() == 0.0
+                    {
+                        continue;
+                    }
+
+                    imageproc::drawing::draw_line_segment_mut(
+                        canvas,
+                        (kpt1.x(), kpt1.y()),
+                        (kpt2.x(), kpt2.y()),
+                        Rgba(color.into()),
+                    );
                 }
-
-                let kpt1: &_ = &self[i];
-                let kpt2: &_ = &self[ii];
-
-                if kpt1.confidence().is_none()
-                    || kpt1.confidence().unwrap() == 0.0
-                    || kpt2.confidence().is_none()
-                    || kpt2.confidence().unwrap() == 0.0
-                {
-                    continue;
-                }
-
-                imageproc::drawing::draw_line_segment_mut(
-                    canvas,
-                    (kpt1.x(), kpt1.y()),
-                    (kpt2.x(), kpt2.y()),
-                    Rgba(Color::white().into()),
-                );
             }
         }
 

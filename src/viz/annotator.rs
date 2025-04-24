@@ -1,7 +1,7 @@
 use aksr::Builder;
 use anyhow::Result;
 
-use crate::{Color, ColorMap256, DrawContext, Drawable, Image, Style, TextRenderer};
+use crate::{Color, ColorMap256, DrawContext, Drawable, Image, Skeleton, Style, TextRenderer};
 
 /// Annotator provides configuration for drawing annotations on images,
 /// including styles, color palettes, and text rendering options.
@@ -15,7 +15,7 @@ pub struct Annotator {
     mask_style: Option<Style>,
     text_renderer: TextRenderer,
     palette: Vec<Color>,
-    skeletons: Option<Vec<(usize, usize)>>,
+    skeleton: Option<Skeleton>,
     colormap256: Option<ColorMap256>,
 }
 
@@ -30,7 +30,7 @@ impl Default for Annotator {
             polygon_style: Some(Style::polygon()),
             mask_style: Some(Style::mask()),
             palette: Color::palette_base_20(),
-            skeletons: None,
+            skeleton: None,
             colormap256: None,
         }
     }
@@ -40,7 +40,7 @@ impl Annotator {
     pub fn annotate<T: Drawable>(&self, image: &Image, drawable: &T) -> Result<Image> {
         let ctx = DrawContext {
             text_renderer: &self.text_renderer,
-            skeletons: self.skeletons.as_ref(),
+            skeleton: self.skeleton.as_ref(),
             palette: &self.palette,
             colormap256: self.colormap256.as_ref(),
             prob_style: self.prob_style.as_ref(),

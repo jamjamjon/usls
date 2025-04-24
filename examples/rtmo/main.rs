@@ -1,5 +1,5 @@
 use anyhow::Result;
-use usls::{models::RTMO, Annotator, DataLoader, Options, Style, COCO_SKELETONS_16};
+use usls::{models::RTMO, Annotator, DataLoader, Options, Style, COCO_SKELETON_16};
 
 fn main() -> Result<()> {
     tracing_subscriber::fmt()
@@ -19,7 +19,7 @@ fn main() -> Result<()> {
 
     // annotate
     let annotator = Annotator::default()
-        .with_skeletons(&COCO_SKELETONS_16)
+        .with_skeleton(COCO_SKELETON_16.into())
         .with_hbb_style(Style::hbb().with_draw_fill(true))
         .with_keypoint_style(
             Style::keypoint()

@@ -111,6 +111,7 @@ impl OWLv2 {
                     self.processor.images_transform_info[idx].height_src,
                     self.processor.images_transform_info[idx].width_src,
                 );
+
                 let ratio = image_height.max(image_width) as f32;
                 let y_bboxes: Vec<Hbb> = clss
                     .axis_iter(Axis(0))

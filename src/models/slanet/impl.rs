@@ -88,7 +88,11 @@ impl SLANet {
                         .mapv(|x| x * image_height as f32);
                     y_kpts.push(
                         (0..=3)
-                            .map(|i| Keypoint::from((x14[i], y14[i])).with_id(i))
+                            .map(|i| {
+                                Keypoint::from((x14[i], y14[i]))
+                                    .with_id(i)
+                                    .with_confidence(1.)
+                            })
                             .collect(),
                     );
                 }

@@ -1,4 +1,4 @@
-use crate::{Color, ColorMap256, Style, StyleColors, TextRenderer};
+use crate::{Color, ColorMap256, Skeleton, Style, StyleColors, TextRenderer};
 
 #[derive(Debug, Clone)]
 pub struct DrawContext<'a> {
@@ -11,7 +11,7 @@ pub struct DrawContext<'a> {
 
     pub text_renderer: &'a TextRenderer,
     pub palette: &'a [Color],
-    pub skeletons: Option<&'a Vec<(usize, usize)>>,
+    pub skeleton: Option<&'a Skeleton>,
     pub colormap256: Option<&'a ColorMap256>,
 }
 

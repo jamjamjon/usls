@@ -1,5 +1,5 @@
 use anyhow::Result;
-use usls::{models::SLANet, Annotator, DataLoader, Options};
+use usls::{models::SLANet, Annotator, Color, DataLoader, Options};
 
 #[derive(argh::FromArgs)]
 /// Example
@@ -40,7 +40,15 @@ fn main() -> Result<()> {
     println!("{:?}", ys);
 
     // annotate
-    let annotator = Annotator::default().with_skeletons(&[(0, 1), (1, 2), (2, 3), (3, 0)]);
+    let annotator = Annotator::default()
+        .with_skeleton(
+            (
+                [(0, 1), (1, 2), (2, 3), (3, 0)],
+                [Color::black(), Color::red(), Color::green(), Color::blue()],
+            )
+                .into(),
+        )
+        .with_keypoint_style(usls::Style::keypoint().with_text_visible(false));
 
     for (x, y) in xs.iter().zip(ys.iter()) {
         annotator.annotate(x, y)?.save(format!(

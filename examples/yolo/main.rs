@@ -1,7 +1,7 @@
 use anyhow::Result;
 use usls::{
     models::YOLO, Annotator, DataLoader, Options, Style, COCO_KEYPOINTS_NAMES_17, COCO_NAMES_80,
-    COCO_SKELETONS_16, IMAGENET_NAMES_1K,
+    COCO_SKELETON_16, IMAGENET_NAMES_1K,
 };
 
 #[derive(argh::FromArgs, Debug)]
@@ -224,7 +224,31 @@ fn main() -> Result<()> {
 
     // build annotator
     let annotator = Annotator::default()
-        .with_skeletons(&COCO_SKELETONS_16)
+        .with_skeleton(
+            // COCO_SKELETON_16.into(),
+            (
+                COCO_SKELETON_16,
+                [
+                    0xff9933ff.into(),
+                    0xffb266ff.into(),
+                    0xe6e600ff.into(),
+                    0xff99ffff.into(),
+                    0x99ccffff.into(),
+                    0xff66ffff.into(),
+                    0xff33ffff.into(),
+                    0x66b2ffff.into(),
+                    0x3399ffff.into(),
+                    0xff9999ff.into(),
+                    0xff6666ff.into(),
+                    0xff3333ff.into(),
+                    0x99ff99ff.into(),
+                    0x66ff66ff.into(),
+                    0x33ff33ff.into(),
+                    0x00ff00ff.into(),
+                ],
+            )
+                .into(),
+        )
         .with_obb_style(Style::obb().with_draw_fill(true))
         .with_hbb_style(Style::hbb().with_draw_fill(true))
         .with_keypoint_style(

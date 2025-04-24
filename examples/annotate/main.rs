@@ -1,4 +1,4 @@
-use usls::{Annotator, DataLoader, Hbb, Keypoint, Polygon, Prob, Style, COCO_SKELETONS_16, Y};
+use usls::{Annotator, DataLoader, Hbb, Keypoint, Polygon, Prob, Style, COCO_SKELETON_16, Y};
 
 fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt()
@@ -616,7 +616,7 @@ fn main() -> anyhow::Result<()> {
 
     // Build annotator
     let annotator = Annotator::default()
-        .with_skeletons(&COCO_SKELETONS_16)
+        .with_skeleton(COCO_SKELETON_16.into())
         .with_prob_style(Style::prob().with_text_loc(usls::TextLoc::InnerTopLeft))
         .with_hbb_style(Style::hbb().with_thickness(5).with_draw_fill(true))
         .with_keypoint_style(
