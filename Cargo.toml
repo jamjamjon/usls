@@ -11,7 +11,7 @@ readme = "README.md"
 exclude = ["assets/*", "examples/*", "runs/*", "benches/*"]
 
 [dependencies]
-aksr = { version = "0.0.2" }
+aksr = { version = "0.0.3" }
 image = { version = "0.25" }
 imageproc = { version = "0.25" }
 ndarray = { version = "0.16.1", features = ["rayon", "serde"] }
