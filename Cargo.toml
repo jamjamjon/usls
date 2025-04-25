@@ -1,14 +1,14 @@
 [package]
 name = "usls"
 edition = "2021"
-version = "0.1.0"
+version = "0.1.0-beta.1"
 rust-version = "1.82"
 description = "A Rust library integrated with ONNXRuntime, providing a collection of ML models."
 repository = "https://github.com/jamjamjon/usls"
 authors = ["Jamjamjon <xxyydzml@outlook.com>"]
 license = "MIT"
 readme = "README.md"
-exclude = ["assets/*", "examples/*", "runs/*", "benches/*"]
+exclude = ["assets/*", "examples/*", "runs/*", "benches/*", "tests/*"]
 
 [dependencies]
 anyhow = { version = "1" }
@@ -43,8 +43,10 @@ ort = { version = "2.0.0-rc.9", default-features = false, optional = true , feat
    "copy-dylibs", 
    "half"
 ]}
-tokenizers = { version = "0.21.0" }
+tokenizers = { version = "0.21.1" }
 
+[build-dependencies]
+prost-build = "0.13.5"
 
 [dev-dependencies]
 argh = "0.1.13"

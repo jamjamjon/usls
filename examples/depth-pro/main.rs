@@ -1,9 +1,9 @@
 use anyhow::Result;
 use usls::DataLoader;
-use usls::{models::DepthPro, Annotator, Options};
+use usls::{models::DepthPro, Annotator, Options, Style};
 
 #[derive(argh::FromArgs)]
-/// BLIP Example
+/// Example
 struct Args {
     /// device
     #[argh(option, default = "String::from(\"cpu:0\")")]
@@ -36,7 +36,8 @@ fn main() -> Result<()> {
     let ys = model.forward(&xs)?;
 
     // annotate
-    let annotator = Annotator::default().with_colormap256("turbo".into());
+    let annotator =
+        Annotator::default().with_mask_style(Style::mask().with_colormap256("turbo".into()));
     for (x, y) in xs.iter().zip(ys.iter()) {
         annotator.annotate(x, y)?.save(format!(
             "{}.jpg",

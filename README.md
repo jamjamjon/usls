@@ -57,7 +57,7 @@
 - **Annotation & Visualization:** Draw and display inference results directly, similar to OpenCV's `imshow()`.
 
 
-## 🎈 Supported Models
+## 🧩 Supported Models
 
 - **YOLO Models**: [YOLOv5](https://github.com/ultralytics/yolov5), [YOLOv6](https://github.com/meituan/YOLOv6), [YOLOv7](https://github.com/WongKinYiu/yolov7), [YOLOv8](https://github.com/ultralytics/ultralytics), [YOLOv9](https://github.com/WongKinYiu/yolov9), [YOLOv10](https://github.com/THU-MIG/yolov10), [YOLO11](https://github.com/ultralytics/ultralytics), [YOLOv12](https://github.com/sunsmarterjie/yolov12)
 - **SAM Models**: [SAM](https://github.com/facebookresearch/segment-anything), [SAM2](https://github.com/facebookresearch/segment-anything-2), [MobileSAM](https://github.com/ChaoningZhang/MobileSAM), [EdgeSAM](https://github.com/chongzhou96/EdgeSAM), [SAM-HQ](https://github.com/SysCV/sam-hq), [FastSAM](https://github.com/CASIA-IVA-Lab/FastSAM)
@@ -66,7 +66,7 @@
 - **OCR-Related Models**: [FAST](https://github.com/czczup/FAST), [DB(PaddleOCR-Det)](https://arxiv.org/abs/1911.08947), [SVTR(PaddleOCR-Rec)](https://arxiv.org/abs/2205.00159), [SLANet](https://paddlepaddle.github.io/PaddleOCR/latest/algorithm/table_recognition/algorithm_table_slanet.html), [TrOCR](https://huggingface.co/microsoft/trocr-base-printed), [DocLayout-YOLO](https://github.com/opendatalab/DocLayout-YOLO)
 
 <details>
-<summary>🧩 Full list of supported models (click to expand)</summary>
+<summary>Full list of supported models (click to expand)</summary>
 
 | Model                                                                                                          | Task / Description                                                                                                           | Example                      | CoreML | CUDA<br />FP32 | CUDA<br />FP16 | TensorRT<br />FP32 | TensorRT<br />FP16 |
 | -------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- | ---------------------------- | ------ | -------------- | -------------- | ------------------ | ------------------ |
@@ -122,28 +122,26 @@
 
 
 ## 🛠️ Installation
-⚠️ **Note:** It is recommended to use the GitHub repository as the source, since the crates.io version may not be up-to-date.
+**Note:** It is recommended to use the GitHub repository as the source, since the crates.io version may not be up-to-date.
 
 ```toml
 [dependencies]
 usls = { git = "https://github.com/jamjamjon/usls" }
 
-# crates.io version (not recommended for now):
+# crates.io version
 usls = "latest-version"
 ```
 
 ## ⚡ Cargo Features
-Enable only the features you need:
-
-- ONNXRuntime-based model inference features (enabled by default):
-    - **`ort-download-binaries`**  (**default**): Automatically downloads prebuilt `ONNXRuntime` binaries for supported platforms. Provides core model loading and inference capabilities using the CPU execution provider.
+- **ONNXRuntime-related features (enabled by default)**, provide model inference and model zoo support:
+    - **`ort-download-binaries`**  (**default**): Automatically downloads prebuilt `ONNXRuntime` binaries for supported platforms. Provides core model loading and inference capabilities using the `CPU` execution provider.
     - **`ort-load-dynamic `** Dynamic linking. You'll need to compile `ONNXRuntime` from [source](https://github.com/microsoft/onnxruntime) or download a [precompiled package](https://github.com/microsoft/onnxruntime/releases), and then link it manually. [See the guide here](https://ort.pyke.io/setup/linking#dynamic-linking).
     
-    - **`cuda`**: Enables the NVIDIA CUDA provider. Requires CUDA toolkit and cuDNN installed.
-    - **`trt`**: Enables the NVIDIA TensorRT provider. Requires TensorRT libraries installed.
-    - **`mps`**: Enables the Apple CoreML provider for macOS.
+    - **`cuda`**: Enables the NVIDIA `CUDA` provider. Requires `CUDA` toolkit and `cuDNN` installed.
+    - **`trt`**: Enables the NVIDIA `TensorRT` provider. Requires `TensorRT` libraries installed.
+    - **`mps`**: Enables the Apple `CoreML` provider for macOS.
 
-- If you do not need ONNXRuntime-based model inference (e.g., you only want to use image/video reading, result visualization, etc.), you can disable the default features to minimize dependencies:
+- **If you only need basic features** (such as image/video reading, result visualization, etc.), you can disable the default features to minimize dependencies:
     ```shell
     usls = { git = "https://github.com/jamjamjon/usls", default-features = false }
     ```
@@ -182,7 +180,7 @@ Enable only the features you need:
     ```rust
     let dl = DataLoader::new("http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4")?
         .with_batch(1)
-        .with_nf_skip(1)
+        .with_nf_skip(2)
         .with_progress_bar(true)
         .build()?;
     for images in dl.iter() {
@@ -263,7 +261,6 @@ See issues or open a new discussion.
 
 Contributions are welcome! If you have suggestions, bug reports, or want to add new features or models, feel free to open an issue or submit a pull request.  
 
-Thank you for helping make usls better!
 
 ## 📜 License
 

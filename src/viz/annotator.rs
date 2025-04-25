@@ -1,7 +1,7 @@
 use aksr::Builder;
 use anyhow::Result;
 
-use crate::{Color, ColorMap256, DrawContext, Drawable, Image, Skeleton, Style, TextRenderer};
+use crate::{DrawContext, Drawable, Image, Style, TextRenderer};
 
 /// Annotator provides configuration for drawing annotations on images,
 /// including styles, color palettes, and text rendering options.
@@ -14,9 +14,6 @@ pub struct Annotator {
     polygon_style: Option<Style>,
     mask_style: Option<Style>,
     text_renderer: TextRenderer,
-    palette: Vec<Color>,
-    skeleton: Option<Skeleton>,
-    colormap256: Option<ColorMap256>,
 }
 
 impl Default for Annotator {
@@ -29,9 +26,6 @@ impl Default for Annotator {
             keypoint_style: Some(Style::keypoint()),
             polygon_style: Some(Style::polygon()),
             mask_style: Some(Style::mask()),
-            palette: Color::palette_base_20(),
-            skeleton: None,
-            colormap256: None,
         }
     }
 }
@@ -40,9 +34,6 @@ impl Annotator {
     pub fn annotate<T: Drawable>(&self, image: &Image, drawable: &T) -> Result<Image> {
         let ctx = DrawContext {
             text_renderer: &self.text_renderer,
-            skeleton: self.skeleton.as_ref(),
-            palette: &self.palette,
-            colormap256: self.colormap256.as_ref(),
             prob_style: self.prob_style.as_ref(),
             hbb_style: self.hbb_style.as_ref(),
             obb_style: self.obb_style.as_ref(),
@@ -59,5 +50,10 @@ impl Annotator {
     pub fn with_font(mut self, path: &str) -> Result<Self> {
         self.text_renderer = self.text_renderer.with_font(path)?;
         Ok(self)
+    }
+
+    pub fn with_font_size(mut self, x: f32) -> Self {
+        self.text_renderer = self.text_renderer.with_font_size(x);
+        self
     }
 }

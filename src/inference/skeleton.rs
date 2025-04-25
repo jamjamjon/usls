@@ -1,6 +1,6 @@
 use crate::Color;
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct Connection {
     pub indices: (usize, usize),
     pub color: Option<Color>,
@@ -24,7 +24,7 @@ impl From<(usize, usize, Color)> for Connection {
     }
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct Skeleton {
     pub connections: Vec<Connection>,
 }
@@ -85,23 +85,46 @@ impl<const N: usize> From<([(usize, usize); N], [Color; N])> for Skeleton {
     }
 }
 
-pub const COCO_SKELETON_16: [(usize, usize); 16] = [
-    (0, 1),
-    (0, 2),
-    (1, 3),
-    (2, 4),
-    (5, 6),
+pub const SKELETON_COCO_19: [(usize, usize); 19] = [
+    (15, 13),
+    (13, 11),
+    (16, 14),
+    (14, 12),
+    (11, 12),
     (5, 11),
     (6, 12),
-    (11, 12),
+    (5, 6),
     (5, 7),
     (6, 8),
     (7, 9),
     (8, 10),
-    (11, 13),
-    (12, 14),
-    (13, 15),
-    (14, 16),
+    (1, 2),
+    (0, 1),
+    (0, 2),
+    (1, 3),
+    (2, 4),
+    (3, 5),
+    (4, 6),
 ];
 
-// pub const COCO_SKELETON_COLOR_16: [(usize, usize); 16] = [];
+pub const SKELETON_COLOR_COCO_19: [Color; 19] = [
+    Color(0x3399ffff),
+    Color(0x3399ffff),
+    Color(0x3399ffff),
+    Color(0x3399ffff),
+    Color(0xff33ffff),
+    Color(0xff33ffff),
+    Color(0xff33ffff),
+    Color(0xff8000ff),
+    Color(0xff8000ff),
+    Color(0xff8000ff),
+    Color(0xff8000ff),
+    Color(0xff8000ff),
+    Color(0x00ff00ff),
+    Color(0x00ff00ff),
+    Color(0x00ff00ff),
+    Color(0x00ff00ff),
+    Color(0x00ff00ff),
+    Color(0x00ff00ff),
+    Color(0x00ff00ff),
+];

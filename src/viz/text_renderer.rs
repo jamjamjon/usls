@@ -18,7 +18,7 @@ impl Default for TextRenderer {
         Self {
             font: Self::load_font(None)
                 .unwrap_or_else(|err| panic!("Failed to load font: {}", err)),
-            font_size: 26.0,
+            font_size: 24.0,
             _scale: 6.666667,
         }
     }

@@ -1,4 +1,4 @@
-use crate::{models::YOLOPredsFormat, Options, ResizeMode, Scale, Task, COCO_KEYPOINTS_NAMES_17};
+use crate::{models::YOLOPredsFormat, Options, ResizeMode, Scale, Task, NAMES_COCO_KEYPOINTS_17};
 
 impl Options {
     pub fn yolo() -> Self {
@@ -49,7 +49,7 @@ impl Options {
     pub fn yolo_pose() -> Self {
         Self::yolo()
             .with_model_task(Task::KeypointsDetection)
-            .with_keypoint_names(&COCO_KEYPOINTS_NAMES_17)
+            .with_keypoint_names(&NAMES_COCO_KEYPOINTS_17)
     }
 
     pub fn yolo_segment() -> Self {

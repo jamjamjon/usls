@@ -1,4 +1,4 @@
-use crate::COCO_NAMES_91;
+use crate::NAMES_COCO_91;
 
 /// Model configuration for `RT-DETR`
 impl crate::Options {
@@ -13,7 +13,7 @@ impl crate::Options {
             .with_image_mean(&[0.485, 0.456, 0.406])
             .with_image_std(&[0.229, 0.224, 0.225])
             .with_class_confs(&[0.25])
-            .with_class_names(&COCO_NAMES_91)
+            .with_class_names(&NAMES_COCO_91)
     }
 
     pub fn rfdetr_base() -> Self {

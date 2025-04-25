@@ -1,7 +1,7 @@
 use anyhow::Result;
 use usls::{
-    models::YOLO, Annotator, DataLoader, Options, Style, COCO_KEYPOINTS_NAMES_17, COCO_NAMES_80,
-    COCO_SKELETON_16, IMAGENET_NAMES_1K,
+    models::YOLO, Annotator, DataLoader, Options, Style, NAMES_COCO_80, NAMES_COCO_KEYPOINTS_17,
+    NAMES_IMAGENET_1K, SKELETON_COCO_19, SKELETON_COLOR_COCO_19,
 };
 
 #[derive(argh::FromArgs, Debug)]
@@ -175,15 +175,15 @@ fn main() -> Result<()> {
         .exclude_classes(&args.exclude_classes);
 
     if args.use_coco_80_classes {
-        options = options.with_class_names(&COCO_NAMES_80);
+        options = options.with_class_names(&NAMES_COCO_80);
     }
 
     if args.use_coco_17_keypoints_classes {
-        options = options.with_keypoint_names(&COCO_KEYPOINTS_NAMES_17);
+        options = options.with_keypoint_names(&NAMES_COCO_KEYPOINTS_17);
     }
 
     if args.use_imagenet_1k_classes {
-        options = options.with_class_names(&IMAGENET_NAMES_1K);
+        options = options.with_class_names(&NAMES_IMAGENET_1K);
     }
 
     if let Some(nc) = args.num_classes {
@@ -224,35 +224,15 @@ fn main() -> Result<()> {
 
     // build annotator
     let annotator = Annotator::default()
-        .with_skeleton(
-            // COCO_SKELETON_16.into(),
-            (
-                COCO_SKELETON_16,
-                [
-                    0xff9933ff.into(),
-                    0xffb266ff.into(),
-                    0xe6e600ff.into(),
-                    0xff99ffff.into(),
-                    0x99ccffff.into(),
-                    0xff66ffff.into(),
-                    0xff33ffff.into(),
-                    0x66b2ffff.into(),
-                    0x3399ffff.into(),
-                    0xff9999ff.into(),
-                    0xff6666ff.into(),
-                    0xff3333ff.into(),
-                    0x99ff99ff.into(),
-                    0x66ff66ff.into(),
-                    0x33ff33ff.into(),
-                    0x00ff00ff.into(),
-                ],
-            )
-                .into(),
-        )
         .with_obb_style(Style::obb().with_draw_fill(true))
-        .with_hbb_style(Style::hbb().with_draw_fill(true))
+        .with_hbb_style(
+            Style::hbb()
+                .with_draw_fill(true)
+                .with_palette(&usls::Color::palette_coco_80()),
+        )
         .with_keypoint_style(
             Style::keypoint()
+                .with_skeleton((SKELETON_COCO_19, SKELETON_COLOR_COCO_19).into())
                 .show_confidence(false)
                 .show_id(true)
                 .show_name(false),

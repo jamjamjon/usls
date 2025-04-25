@@ -1,23 +1,26 @@
 use aksr::Builder;
 
-use crate::Color;
+use crate::{Color, ColorMap256, Skeleton};
 
 #[derive(Debug, Clone, Builder, PartialEq)]
 pub struct Style {
-    visible: bool,                   // For ALL
-    text_visible: bool,              // For ALL
-    draw_fill: bool,                 // For ALL
-    draw_outline: bool,              // For ALL
-    color_fill_alpha: Option<u8>,    // Alpha for fill
-    radius: usize,                   // For Keypoint
-    text_x_pos: f32,                 // For Probs
-    text_y_pos: f32,                 // For Probs
-    thickness: usize,                // For Hbb
-    thickness_threshold: f32,        // For Hbb
-    draw_mask_polygons: bool,        // For Masks
-    draw_mask_polygon_largest: bool, // For Masks
-    text_loc: TextLoc,               // For ALL
-    color: StyleColors,              // For ALL
+    visible: bool,                    // For ALL
+    text_visible: bool,               // For ALL
+    draw_fill: bool,                  // For ALL
+    draw_outline: bool,               // For ALL
+    color_fill_alpha: Option<u8>,     // Alpha for fill
+    radius: usize,                    // For Keypoint
+    text_x_pos: f32,                  // For Probs
+    text_y_pos: f32,                  // For Probs
+    thickness: usize,                 // For Hbb
+    thickness_threshold: f32,         // For Hbb
+    draw_mask_polygons: bool,         // For Masks
+    draw_mask_polygon_largest: bool,  // For Masks
+    text_loc: TextLoc,                // For ALL
+    color: StyleColors,               // For ALL
+    palette: Vec<Color>,              // For ALL
+    skeleton: Option<Skeleton>,       // For Keypoints
+    colormap256: Option<ColorMap256>, // For Masks
     decimal_places: usize,
     #[args(set_pre = "show")]
     confidence: bool,
@@ -48,11 +51,18 @@ impl Default for Style {
             confidence: true,
             name: true,
             id: true,
+            palette: Color::palette_base_20(),
+            skeleton: None,
+            colormap256: None,
         }
     }
 }
 
 impl Style {
+    pub fn color_from_palette(&self, i: usize) -> Color {
+        self.palette[i % self.palette.len()]
+    }
+
     pub fn draw_text(&self) -> bool {
         self.text_visible() && (self.name() || self.confidence() || self.id())
     }

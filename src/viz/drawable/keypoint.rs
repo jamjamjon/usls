@@ -95,10 +95,16 @@ impl Drawable for Vec<Keypoint> {
     fn draw(&self, ctx: &DrawContext, canvas: &mut RgbaImage) -> Result<()> {
         let nk = self.len();
         if nk > 0 {
-            if let Some(skeleton) = ctx.skeleton {
+            let style = ctx.update_style(
+                self.get_local_style(),
+                self.get_global_style(ctx),
+                self.get_id(),
+            );
+
+            if let Some(skeleton) = style.skeleton() {
                 for connection in skeleton.iter() {
                     let (i, ii) = connection.indices;
-                    let color = connection.color.unwrap_or(Color::white()); // TODO: default color
+                    let color = connection.color.unwrap_or(Color::white());
                     if i >= nk || ii >= nk {
                         continue;
                     }
@@ -124,6 +130,10 @@ impl Drawable for Vec<Keypoint> {
         }
 
         self.iter().try_for_each(|x| x.draw(ctx, canvas))
+    }
+
+    fn get_global_style<'a>(&self, ctx: &'a DrawContext) -> Option<&'a Style> {
+        ctx.keypoint_style
     }
 }
 

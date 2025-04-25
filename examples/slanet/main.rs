@@ -40,15 +40,17 @@ fn main() -> Result<()> {
     println!("{:?}", ys);
 
     // annotate
-    let annotator = Annotator::default()
-        .with_skeleton(
-            (
-                [(0, 1), (1, 2), (2, 3), (3, 0)],
-                [Color::black(), Color::red(), Color::green(), Color::blue()],
-            )
-                .into(),
-        )
-        .with_keypoint_style(usls::Style::keypoint().with_text_visible(false));
+    let annotator = Annotator::default().with_keypoint_style(
+        usls::Style::keypoint()
+            .with_text_visible(false)
+            .with_skeleton(
+                (
+                    [(0, 1), (1, 2), (2, 3), (3, 0)],
+                    [Color::black(), Color::red(), Color::green(), Color::blue()],
+                )
+                    .into(),
+            ),
+    );
 
     for (x, y) in xs.iter().zip(ys.iter()) {
         annotator.annotate(x, y)?.save(format!(

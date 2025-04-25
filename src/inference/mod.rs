@@ -6,14 +6,17 @@ mod instance_meta;
 mod keypoint;
 mod mask;
 mod obb;
-#[cfg(any(feature = "ort-download-binaries", feature = "ort-load-dynamic"))]
-pub(crate) mod onnx;
 mod polygon;
 mod prob;
 mod skeleton;
 mod x;
 mod xs;
 mod y;
+#[cfg(any(feature = "ort-download-binaries", feature = "ort-load-dynamic"))]
+#[allow(clippy::all)]
+pub(crate) mod onnx {
+    include!(concat!(env!("OUT_DIR"), "/onnx.rs"));
+}
 
 #[cfg(any(feature = "ort-download-binaries", feature = "ort-load-dynamic"))]
 pub use engine::*;

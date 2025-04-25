@@ -1,4 +1,4 @@
-pub const COCO_KEYPOINTS_NAMES_17: [&str; 17] = [
+pub const NAMES_COCO_KEYPOINTS_17: [&str; 17] = [
     "nose",
     "left_eye",
     "right_eye",
@@ -18,7 +18,7 @@ pub const COCO_KEYPOINTS_NAMES_17: [&str; 17] = [
     "right_ankle",
 ];
 
-pub const COCO_NAMES_80: [&str; 80] = [
+pub const NAMES_COCO_80: [&str; 80] = [
     "person",
     "bicycle",
     "car",
@@ -101,7 +101,7 @@ pub const COCO_NAMES_80: [&str; 80] = [
     "toothbrush",
 ];
 
-pub const COCO_NAMES_91: [&str; 91] = [
+pub const NAMES_COCO_91: [&str; 91] = [
     "background",     // 0
     "person",         // 1
     "bicycle",        // 2
@@ -195,7 +195,7 @@ pub const COCO_NAMES_91: [&str; 91] = [
     "toothbrush",     // 90
 ];
 
-pub const BODY_PARTS_NAMES_28: [&str; 28] = [
+pub const NAMES_BODY_PARTS_28: [&str; 28] = [
     "Background",
     "Apparel",
     "Face Neck",
@@ -226,7 +226,7 @@ pub const BODY_PARTS_NAMES_28: [&str; 28] = [
     "Tongue",
 ];
 
-pub const IMAGENET_NAMES_1K: [&str; 1000] = [
+pub const NAMES_IMAGENET_1K: [&str; 1000] = [
     "tench, Tinca tinca",
     "goldfish, Carassius auratus",
     "great white shark, white shark, man-eater, man-eating shark, Carcharodon carcharias",

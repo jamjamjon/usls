@@ -1,25 +1,17 @@
-use crate::{Color, ColorMap256, Skeleton, Style, StyleColors, TextRenderer};
+use crate::{Color, Style, StyleColors, TextRenderer};
 
 #[derive(Debug, Clone)]
 pub struct DrawContext<'a> {
+    pub text_renderer: &'a TextRenderer,
     pub prob_style: Option<&'a Style>,
     pub hbb_style: Option<&'a Style>,
     pub obb_style: Option<&'a Style>,
     pub keypoint_style: Option<&'a Style>,
     pub polygon_style: Option<&'a Style>,
     pub mask_style: Option<&'a Style>,
-
-    pub text_renderer: &'a TextRenderer,
-    pub palette: &'a [Color],
-    pub skeleton: Option<&'a Skeleton>,
-    pub colormap256: Option<&'a ColorMap256>,
 }
 
 impl<'a> DrawContext<'a> {
-    pub fn color_from_palette(&self, i: usize) -> Color {
-        self.palette[i % self.palette.len()]
-    }
-
     pub fn update_style(
         &self,
         instance_style: Option<&'a Style>,
@@ -52,7 +44,7 @@ impl<'a> DrawContext<'a> {
     fn compute_prob_colors(&self, style: &Style, id: Option<usize>) -> StyleColors {
         let color_text = style.color().text().copied().unwrap_or_else(Color::black);
         let color_text_bg = style.color().text_bg().copied().unwrap_or_else(|| {
-            id.map(|id| self.color_from_palette(id))
+            id.map(|id| style.color_from_palette(id))
                 .unwrap_or_else(|| Color::white().with_alpha(70))
         });
 
@@ -81,7 +73,7 @@ impl<'a> DrawContext<'a> {
         // 2. Using palette color via instance ID if available.
         // 3. Defaulting to black.
         let color_outline = style.color().outline().copied().unwrap_or_else(|| {
-            id.map(|id| self.color_from_palette(id))
+            id.map(|id| style.color_from_palette(id))
                 .unwrap_or_else(Color::black)
         });
 
@@ -95,7 +87,7 @@ impl<'a> DrawContext<'a> {
         //   - If an ID is provided, the color is derived from the palette using the ID.
         //   - Otherwise, a default white color is used.
         let color_text_bg = style.color().text_bg().copied().unwrap_or_else(|| {
-            id.map(|id| self.color_from_palette(id))
+            id.map(|id| style.color_from_palette(id))
                 .unwrap_or_else(Color::white)
         });
 
@@ -113,7 +105,7 @@ impl<'a> DrawContext<'a> {
         // 3. Otherwise, use fixed black color
         // 4. And set color alpha
         let mut color_fill = style.color().fill().copied().unwrap_or_else(|| {
-            id.map(|id| self.color_from_palette(id).with_alpha(220))
+            id.map(|id| style.color_from_palette(id).with_alpha(220))
                 .unwrap_or_else(|| Color::black().with_alpha(220))
         });
 
@@ -140,7 +132,7 @@ impl<'a> DrawContext<'a> {
         // 2. Use palette color based on ID
         // 3. Default to white background
         let color_text_bg = style.color().text_bg().copied().unwrap_or_else(|| {
-            id.map(|id| self.color_from_palette(id))
+            id.map(|id| style.color_from_palette(id))
                 .unwrap_or_else(Color::white)
         });
 
@@ -158,7 +150,7 @@ impl<'a> DrawContext<'a> {
         // 3. Otherwise, use fixed black color
         // 4. And set color alpha
         let mut color_fill = style.color().fill().copied().unwrap_or_else(|| {
-            id.map(|id| self.color_from_palette(id).with_alpha(79))
+            id.map(|id| style.color_from_palette(id).with_alpha(79))
                 .unwrap_or_else(|| Color::black().with_alpha(79))
         });
 

@@ -2,10 +2,10 @@ use crate::Drawable;
 use anyhow::Result;
 use image::{DynamicImage, RgbaImage};
 
-use crate::{DrawContext, Mask, Style};
+use crate::{ColorMap256, DrawContext, Mask, Style};
 
-fn render_mask(mask: &Mask, ctx: &DrawContext) -> DynamicImage {
-    if let Some(colormap256) = ctx.colormap256 {
+fn render_mask(mask: &Mask, colormap256: Option<&ColorMap256>) -> DynamicImage {
+    if let Some(colormap256) = colormap256 {
         let luma = imageproc::map::map_colors(mask.mask(), |p| {
             let idx = p[0];
             image::Rgb(colormap256.data()[idx as usize].rgb().into())
@@ -34,7 +34,11 @@ fn best_grid(n: usize) -> (usize, usize) {
     (best_rows, best_cols)
 }
 
-fn draw_masks(masks: &[&Mask], ctx: &DrawContext, canvas: &mut RgbaImage) -> Result<()> {
+fn draw_masks(
+    masks: &[&Mask],
+    colormap256: Option<&ColorMap256>,
+    canvas: &mut RgbaImage,
+) -> Result<()> {
     let (w, h) = canvas.dimensions();
     let n = masks.len() + 1; // +1 for original
     let (rows, cols) = best_grid(n);
@@ -54,7 +58,7 @@ fn draw_masks(masks: &[&Mask], ctx: &DrawContext, canvas: &mut RgbaImage) -> Res
         let x = ((w as i32 - mw as i32) / 2).max(0) as u32;
         let y = ((h as i32 - mh as i32) / 2).max(0) as u32;
 
-        let mask_dyn = render_mask(mask, ctx);
+        let mask_dyn = render_mask(mask, colormap256);
         image::imageops::overlay(&mut mask_img, &mask_dyn, x as i64, y as i64);
 
         let out_x = (col as u32 * w) as i64;
@@ -67,6 +71,10 @@ fn draw_masks(masks: &[&Mask], ctx: &DrawContext, canvas: &mut RgbaImage) -> Res
 }
 
 impl Drawable for Vec<Mask> {
+    fn get_global_style<'a>(&self, ctx: &'a DrawContext) -> Option<&'a Style> {
+        ctx.mask_style
+    }
+
     fn draw(&self, ctx: &DrawContext, canvas: &mut RgbaImage) -> Result<()> {
         let mut masks_visible = Vec::with_capacity(self.len());
         for mask in self.iter() {
@@ -92,7 +100,12 @@ impl Drawable for Vec<Mask> {
             }
         }
 
-        draw_masks(&masks_visible, ctx, canvas)
+        let style = ctx.update_style(
+            self.get_local_style(),
+            self.get_global_style(ctx),
+            self.get_id(),
+        );
+        draw_masks(&masks_visible, style.colormap256(), canvas)
     }
 }
 
@@ -129,7 +142,7 @@ impl Drawable for Mask {
 
         if style.visible() {
             let (w, h) = canvas.dimensions();
-            let mask_dyn = render_mask(self, ctx);
+            let mask_dyn = render_mask(self, style.colormap256());
 
             let (mut out, mask_x, mask_y) = if w <= h {
                 (RgbaImage::new(w * 2, h), w as i64, 0)

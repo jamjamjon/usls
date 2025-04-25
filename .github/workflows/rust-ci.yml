@@ -1,7 +1,7 @@
 name: Rust-CI
 on:
   push:
-    branches: [ "main", "dev", "develop", "x", "xy" , "xyz" ]
+    branches: [ "main", "dev", "x" ]
   pull_request:
     branches: [ "main" ]
 env:
@@ -24,7 +24,7 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: check
-          args: --all
+          args: --all-features --all-targets
   test:
     name: Test
     runs-on: ${{ matrix.os }}
@@ -42,7 +42,7 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --all
+          args: --all-targets
   fmt:
     name: Rustfmt
     runs-on: ubuntu-latest
@@ -57,7 +57,7 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: fmt
-          args: --all -- --check
+          args: --all --check
   clippy:
     name: Clippy
     runs-on: ubuntu-latest
@@ -72,4 +72,4 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: clippy
-          args: --all --all-targets -- -D warnings
+          args: --all-targets --all-features -- -D warnings
