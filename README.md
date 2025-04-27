@@ -120,17 +120,43 @@
 </details>
 
 
-
 ## 🛠️ Installation
-**Note:** It is recommended to use the GitHub repository as the source, since the crates.io version may not be up-to-date.
 
+To get started, you'll need:
+
+### 1. Protocol Buffers Compiler (`protoc`)
+Required for building the project. [Official installation guide](https://protobuf.dev/installation/)
+```shell
+# Linux (apt)
+sudo apt install -y protobuf-compiler
+
+# macOS (Homebrew)
+brew install protobuf
+
+# Windows (Winget)
+winget install protobuf
+
+# Verify installation
+protoc --version  # Should be 3.x or higher
+```
+
+### 2. Rust Toolchain
+```shell
+# Install Rust and Cargo
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+```
+
+### 3. Add usls to Your Project
+Add the following to your `Cargo.toml`:
 ```toml
 [dependencies]
+# Recommended: Use GitHub version
 usls = { git = "https://github.com/jamjamjon/usls" }
 
-# crates.io version
+# Alternative: Use crates.io version
 usls = "latest-version"
 ```
+> **Note:** **The GitHub version is recommended as it contains the latest updates.**
 
 ## ⚡ Cargo Features
 - **ONNXRuntime-related features (enabled by default)**, provide model inference and model zoo support:
