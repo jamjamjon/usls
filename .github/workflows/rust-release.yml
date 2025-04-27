@@ -1,0 +1,25 @@
+name: Rust Release
+
+on:
+  push:
+    tags:
+      - v*
+
+jobs:
+  rust_publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo Registry
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/registry
+          key: ubuntu-latest-cargo-registry-${{ hashFiles('**/Cargo.toml') }}
+
+      - name: Publish package rust
+        run: cargo publish --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
