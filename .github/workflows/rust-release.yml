@@ -14,8 +14,7 @@ jobs:
         
       - name: Install dependencies
         run: |
-          DEBIAN_FRONTEND=noninteractive apt-get update
-          DEBIAN_FRONTEND=noninteractive apt-get install -y build-essential ca-certificates clang curl pkg-config protobuf-compiler
+          sudo apt-get update && sudo apt-get install -y build-essential ca-certificates clang curl pkg-config protobuf-compiler
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
