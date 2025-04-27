@@ -22,13 +22,13 @@ impl crate::Options {
 
     pub fn blip_v1_base_caption_visual() -> Self {
         Self::blip_visual()
-            .with_model_version(1.0.into())
+            .with_model_version(1.into())
             .with_model_file("v1-base-caption-visual.onnx")
     }
 
     pub fn blip_v1_base_caption_textual() -> Self {
         Self::blip_textual()
-            .with_model_version(1.0.into())
+            .with_model_version(1.into())
             .with_model_file("v1-base-caption-textual.onnx")
     }
 }

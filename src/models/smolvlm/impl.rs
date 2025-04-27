@@ -1,10 +1,10 @@
 use aksr::Builder;
 use anyhow::Result;
-use image::{DynamicImage, GenericImageView};
+use image::GenericImageView;
 use ndarray::s;
 
 use crate::{
-    models::BaseModelTextual, Engine, LogitsSampler, Options, Processor, Scale, Ts, Xs, Ys, X, Y,
+    models::BaseModelTextual, Engine, Image, LogitsSampler, Options, Processor, Scale, Ts, Xs, X, Y,
 };
 
 #[derive(Debug, Builder)]
@@ -50,7 +50,7 @@ impl SmolVLM {
             Some(Scale::Million(500.)) => (32, 64, 5),
             _ => unimplemented!(),
         };
-        let scale = *decoder.scale().unwrap();
+        let scale = (*decoder.scale().unwrap()).clone();
 
         Ok(Self {
             vision,
@@ -72,17 +72,17 @@ impl SmolVLM {
         })
     }
 
-    pub fn forward(&mut self, images: &[DynamicImage], text: &str) -> Result<Ys> {
+    pub fn forward(&mut self, images: &[Image], text: &str) -> Result<Vec<Y>> {
         let mut ys: Vec<Y> = Vec::new();
         for image in images.iter() {
             let y = self.generate_one(image, text)?;
-            ys.push(Y::default().with_texts(&[y.into()]));
+            ys.push(Y::default().with_texts(&[&y]));
         }
 
-        Ok(ys.into())
+        Ok(ys)
     }
 
-    fn generate_one(&mut self, image: &DynamicImage, text: &str) -> Result<String> {
+    fn generate_one(&mut self, image: &Image, text: &str) -> Result<String> {
         let bs = 1; // TODO
 
         // patches and pixel_attention_mask
@@ -272,10 +272,7 @@ impl VisionEncoder {
         })
     }
 
-    fn create_patches(
-        image: &DynamicImage,
-        patch_size: (u32, u32),
-    ) -> (Vec<DynamicImage>, (u32, u32)) {
+    fn create_patches(image: &Image, patch_size: (u32, u32)) -> (Vec<Image>, (u32, u32)) {
         let mut patches = vec![];
         let image_rgb8 = image.to_rgb8();
         let (image_width, image_height) = image_rgb8.dimensions();
@@ -298,7 +295,7 @@ impl VisionEncoder {
                     let x1 = (x0 + optimal_width).min(image_width);
                     let y1 = (y0 + optimal_height).min(image_height);
                     let sub_image = image_rgb8.view(x0, y0, x1 - x0, y1 - y0).to_image();
-                    patches.push(DynamicImage::from(sub_image));
+                    patches.push(Image::from(sub_image));
                 }
             }
             (nw, nh)
@@ -314,7 +311,7 @@ impl VisionEncoder {
         self.engine.run(xs)
     }
 
-    pub fn process_one(&mut self, x: &DynamicImage) -> Result<(X, (u32, u32))> {
+    pub fn process_one(&mut self, x: &Image) -> Result<(X, (u32, u32))> {
         let (patches, nw_nh) = Self::create_patches(x, (self.width as _, self.height as _));
         let patches = self.processor.process_images(&patches)?.insert_axis(0)?;
 

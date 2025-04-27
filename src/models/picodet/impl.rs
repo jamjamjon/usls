@@ -1,10 +1,9 @@
 use aksr::Builder;
 use anyhow::Result;
-use image::DynamicImage;
 use ndarray::Axis;
 use rayon::prelude::*;
 
-use crate::{elapsed, Bbox, DynConf, Engine, Options, Processor, Ts, Xs, Ys, X, Y};
+use crate::{elapsed, DynConf, Engine, Hbb, Image, Options, Processor, Ts, Xs, X, Y};
 
 #[derive(Debug, Builder)]
 pub struct PicoDet {
@@ -52,9 +51,15 @@ impl PicoDet {
         })
     }
 
-    fn preprocess(&mut self, xs: &[DynamicImage]) -> Result<Xs> {
+    fn preprocess(&mut self, xs: &[Image]) -> Result<Xs> {
         let x1 = self.processor.process_images(xs)?;
-        let x2: X = self.processor.scale_factors_hw.clone().try_into()?;
+        let x2: X = self
+            .processor
+            .images_transform_info
+            .iter()
+            .map(|x| vec![x.height_scale, x.width_scale])
+            .collect::<Vec<_>>()
+            .try_into()?;
 
         Ok(Xs::from(vec![x1, x2]))
     }
@@ -63,7 +68,7 @@ impl PicoDet {
         self.engine.run(xs)
     }
 
-    pub fn forward(&mut self, xs: &[DynamicImage]) -> Result<Ys> {
+    pub fn forward(&mut self, xs: &[Image]) -> Result<Vec<Y>> {
         let ys = elapsed!("preprocess", self.ts, { self.preprocess(xs)? });
         let ys = elapsed!("inference", self.ts, { self.inference(ys)? });
         let ys = elapsed!("postprocess", self.ts, { self.postprocess(ys)? });
@@ -75,12 +80,12 @@ impl PicoDet {
         self.ts.summary();
     }
 
-    fn postprocess(&mut self, xs: Xs) -> Result<Ys> {
+    fn postprocess(&mut self, xs: Xs) -> Result<Vec<Y>> {
         // ONNX models exported by paddle2onnx
         // TODO: ONNX model's batch size seems always = 1
         // xs[0] : n, 6
         // xs[1] : n
-        let y_bboxes: Vec<Bbox> = xs[0]
+        let y_bboxes: Vec<Hbb> = xs[0]
             .axis_iter(Axis(0))
             .into_par_iter()
             .enumerate()
@@ -92,10 +97,10 @@ impl PicoDet {
                 let (x1, y1, x2, y2) = (pred[2], pred[3], pred[4], pred[5]);
 
                 Some(
-                    Bbox::default()
+                    Hbb::default()
                         .with_xyxy(x1.max(0.0f32), y1.max(0.0f32), x2, y2)
                         .with_confidence(confidence)
-                        .with_id(class_id as isize)
+                        .with_id(class_id)
                         .with_name(&self.names[class_id]),
                 )
             })
@@ -103,9 +108,9 @@ impl PicoDet {
 
         let mut y = Y::default();
         if !y_bboxes.is_empty() {
-            y = y.with_bboxes(&y_bboxes);
+            y = y.with_hbbs(&y_bboxes);
         }
 
-        Ok(vec![y].into())
+        Ok(vec![y])
     }
 }

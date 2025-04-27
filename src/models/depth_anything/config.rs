@@ -18,11 +18,11 @@ impl crate::Options {
     }
 
     pub fn depth_anything_v1() -> Self {
-        Self::depth_anything().with_model_version(1.0.into())
+        Self::depth_anything().with_model_version(1.into())
     }
 
     pub fn depth_anything_v2() -> Self {
-        Self::depth_anything().with_model_version(2.0.into())
+        Self::depth_anything().with_model_version(2.into())
     }
 
     pub fn depth_anything_v1_small() -> Self {
@@ -36,5 +36,4 @@ impl crate::Options {
             .with_model_scale(crate::Scale::S)
             .with_model_file("v2-s.onnx")
     }
-    // TODO
 }

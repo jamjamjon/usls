@@ -1,4 +1,4 @@
-use crate::BODY_PARTS_NAMES_28;
+use crate::NAMES_BODY_PARTS_28;
 
 /// Model configuration for `Sapiens`
 impl crate::Options {
@@ -18,7 +18,7 @@ impl crate::Options {
     pub fn sapiens_body_part_segmentation() -> Self {
         Self::sapiens()
             .with_model_task(crate::Task::InstanceSegmentation)
-            .with_class_names(&BODY_PARTS_NAMES_28)
+            .with_class_names(&NAMES_BODY_PARTS_28)
     }
 
     pub fn sapiens_seg_0_3b() -> Self {

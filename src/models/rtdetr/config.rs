@@ -1,4 +1,4 @@
-use crate::COCO_CLASS_NAMES_80;
+use crate::NAMES_COCO_80;
 
 /// Model configuration for `RT-DETR`
 impl crate::Options {
@@ -11,7 +11,7 @@ impl crate::Options {
             .with_resize_mode(crate::ResizeMode::FitAdaptive)
             .with_normalize(true)
             .with_class_confs(&[0.5])
-            .with_class_names(&COCO_CLASS_NAMES_80)
+            .with_class_names(&NAMES_COCO_80)
     }
 
     pub fn rtdetr_v1_r18vd_coco() -> Self {

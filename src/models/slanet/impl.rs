@@ -1,9 +1,8 @@
 use aksr::Builder;
 use anyhow::Result;
-use image::DynamicImage;
 use ndarray::{s, Axis};
 
-use crate::{elapsed, models::BaseModelVisual, Keypoint, Options, Text, Ts, Xs, Ys, Y};
+use crate::{elapsed, models::BaseModelVisual, Image, Keypoint, Options, Ts, Xs, Y};
 
 #[derive(Builder, Debug)]
 pub struct SLANet {
@@ -38,7 +37,7 @@ impl SLANet {
         })
     }
 
-    pub fn forward(&mut self, xs: &[DynamicImage]) -> Result<Ys> {
+    pub fn forward(&mut self, xs: &[Image]) -> Result<Vec<Y>> {
         let ys = elapsed!("preprocess", self.ts, { self.base.preprocess(xs)? });
         let ys = elapsed!("inference", self.ts, { self.base.inference(ys)? });
         let ys = elapsed!("postprocess", self.ts, { self.postprocess(ys)? });
@@ -46,16 +45,19 @@ impl SLANet {
         Ok(ys)
     }
 
-    fn postprocess(&self, xs: Xs) -> Result<Ys> {
+    fn postprocess(&self, xs: Xs) -> Result<Vec<Y>> {
         let mut ys: Vec<Y> = Vec::new();
         for (bid, (bboxes, structures)) in xs[0]
             .axis_iter(Axis(0))
             .zip(xs[1].axis_iter(Axis(0)))
             .enumerate()
         {
-            let mut y_texts: Vec<Text> = vec!["<html>".into(), "<body>".into(), "<table>".into()];
+            let mut y_texts: Vec<&str> = vec!["<html>", "<body>", "<table>"];
             let mut y_kpts: Vec<Vec<Keypoint>> = Vec::new();
-            let (image_height, image_width) = self.base.processor().image0s_size[bid];
+            let (image_height, image_width) = (
+                self.base.processor().images_transform_info[bid].height_src,
+                self.base.processor().images_transform_info[bid].width_src,
+            );
             for (i, structure) in structures.axis_iter(Axis(0)).enumerate() {
                 let (token_id, &_confidence) = match structure
                     .into_iter()
@@ -86,24 +88,28 @@ impl SLANet {
                         .mapv(|x| x * image_height as f32);
                     y_kpts.push(
                         (0..=3)
-                            .map(|i| (x14[i], y14[i], i as isize).into())
+                            .map(|i| {
+                                Keypoint::from((x14[i], y14[i]))
+                                    .with_id(i)
+                                    .with_confidence(1.)
+                            })
                             .collect(),
                     );
                 }
 
-                y_texts.push(token.into());
+                y_texts.push(token);
             }
 
             // clean up text
             if y_texts.len() == 3 {
                 y_texts.clear();
             } else {
-                y_texts.extend_from_slice(&["</table>".into(), "</body>".into(), "</html>".into()]);
+                y_texts.extend_from_slice(&["</table>", "</body>", "</html>"]);
             }
 
-            ys.push(Y::default().with_keypoints(&y_kpts).with_texts(&y_texts));
+            ys.push(Y::default().with_keypointss(&y_kpts).with_texts(&y_texts));
         }
 
-        Ok(ys.into())
+        Ok(ys)
     }
 }

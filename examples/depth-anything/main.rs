@@ -1,5 +1,5 @@
 use anyhow::Result;
-use usls::{models::DepthAnything, Annotator, DataLoader, Options};
+use usls::{models::DepthAnything, Annotator, DataLoader, Options, Style};
 
 fn main() -> Result<()> {
     tracing_subscriber::fmt()
@@ -12,16 +12,23 @@ fn main() -> Result<()> {
     let mut model = DepthAnything::new(options)?;
 
     // load
-    let x = [DataLoader::try_read("images/street.jpg")?];
+    let xs = DataLoader::try_read_n(&["images/street.jpg"])?;
 
     // run
-    let y = model.forward(&x)?;
+    let ys = model.forward(&xs)?;
 
     // annotate
-    let annotator = Annotator::default()
-        .with_colormap("Turbo")
-        .with_saveout(model.spec());
-    annotator.annotate(&x, &y);
+    let annotator =
+        Annotator::default().with_mask_style(Style::mask().with_colormap256("turbo".into()));
+    for (x, y) in xs.iter().zip(ys.iter()) {
+        annotator.annotate(x, y)?.save(format!(
+            "{}.jpg",
+            usls::Dir::Current
+                .base_dir_with_subs(&["runs", model.spec()])?
+                .join(usls::timestamp(None))
+                .display(),
+        ))?;
+    }
 
     Ok(())
 }

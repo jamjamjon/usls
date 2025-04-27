@@ -1,7 +1,7 @@
 use anyhow::Result;
 use usls::{
-    models::YOLO, Annotator, DataLoader, Options, COCO_CLASS_NAMES_80, COCO_SKELETONS_16,
-    IMAGENET_NAMES_1K,
+    models::YOLO, Annotator, DataLoader, Options, Style, NAMES_COCO_80, NAMES_COCO_KEYPOINTS_17,
+    NAMES_IMAGENET_1K, SKELETON_COCO_19, SKELETON_COLOR_COCO_19,
 };
 
 #[derive(argh::FromArgs, Debug)]
@@ -38,10 +38,6 @@ struct Args {
     /// trt_fp16
     #[argh(option, default = "true")]
     trt_fp16: bool,
-
-    /// find_contours
-    #[argh(option, default = "true")]
-    find_contours: bool,
 
     /// batch_size
     #[argh(option, default = "1")]
@@ -91,6 +87,10 @@ struct Args {
     #[argh(switch)]
     use_coco_80_classes: bool,
 
+    /// use_coco_17_keypoints_classes
+    #[argh(switch)]
+    use_coco_17_keypoints_classes: bool,
+
     /// use_imagenet_1k_classes
     #[argh(switch)]
     use_imagenet_1k_classes: bool,
@@ -118,6 +118,10 @@ struct Args {
     /// keypoint_names
     #[argh(option)]
     keypoint_names: Vec<String>,
+
+    /// topk
+    #[argh(option, default = "5")]
+    topk: usize,
 }
 
 fn main() -> Result<()> {
@@ -131,7 +135,7 @@ fn main() -> Result<()> {
     let mut options = Options::yolo()
         .with_model_file(&args.model.unwrap_or_default())
         .with_model_task(args.task.as_str().try_into()?)
-        .with_model_version(args.ver.into())
+        .with_model_version(args.ver.try_into()?)
         .with_model_scale(args.scale.as_str().try_into()?)
         .with_model_dtype(args.dtype.as_str().try_into()?)
         .with_model_device(args.device.as_str().try_into()?)
@@ -166,16 +170,20 @@ fn main() -> Result<()> {
         } else {
             &args.keypoint_confs
         })
-        .with_find_contours(args.find_contours)
+        .with_topk(args.topk)
         .retain_classes(&args.retain_classes)
         .exclude_classes(&args.exclude_classes);
 
     if args.use_coco_80_classes {
-        options = options.with_class_names(&COCO_CLASS_NAMES_80);
+        options = options.with_class_names(&NAMES_COCO_80);
+    }
+
+    if args.use_coco_17_keypoints_classes {
+        options = options.with_keypoint_names(&NAMES_COCO_KEYPOINTS_17);
     }
 
     if args.use_imagenet_1k_classes {
-        options = options.with_class_names(&IMAGENET_NAMES_1K);
+        options = options.with_class_names(&NAMES_IMAGENET_1K);
     }
 
     if let Some(nc) = args.num_classes {
@@ -216,26 +224,35 @@ fn main() -> Result<()> {
 
     // build annotator
     let annotator = Annotator::default()
-        .with_skeletons(&COCO_SKELETONS_16)
-        .without_masks(true)
-        .with_bboxes_thickness(3)
-        .with_saveout(model.spec());
+        .with_obb_style(Style::obb().with_draw_fill(true))
+        .with_hbb_style(
+            Style::hbb()
+                .with_draw_fill(true)
+                .with_palette(&usls::Color::palette_coco_80()),
+        )
+        .with_keypoint_style(
+            Style::keypoint()
+                .with_skeleton((SKELETON_COCO_19, SKELETON_COLOR_COCO_19).into())
+                .show_confidence(false)
+                .show_id(true)
+                .show_name(false),
+        )
+        .with_mask_style(Style::mask().with_draw_mask_polygon_largest(true));
 
     // run & annotate
-    for (xs, _paths) in dl {
+    for xs in &dl {
         let ys = model.forward(&xs)?;
-        // extract bboxes
-        // for y in ys.iter() {
-        //     if let Some(bboxes) = y.bboxes() {
-        //         println!("[Bboxes]: Found {} objects", bboxes.len());
-        //         for (i, bbox) in bboxes.iter().enumerate() {
-        //             println!("{}: {:?}", i, bbox)
-        //         }
-        //     }
-        // }
+        println!("ys: {:?}", ys);
 
-        // plot
-        annotator.annotate(&xs, &ys);
+        for (x, y) in xs.iter().zip(ys.iter()) {
+            annotator.annotate(x, y)?.save(format!(
+                "{}.jpg",
+                usls::Dir::Current
+                    .base_dir_with_subs(&["runs", model.spec()])?
+                    .join(usls::timestamp(None))
+                    .display(),
+            ))?;
+        }
     }
 
     model.summary();

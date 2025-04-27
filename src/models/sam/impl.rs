@@ -1,10 +1,11 @@
 use aksr::Builder;
 use anyhow::Result;
-use image::DynamicImage;
 use ndarray::{s, Array, Axis};
 use rand::prelude::*;
 
-use crate::{elapsed, DynConf, Engine, Mask, Ops, Options, Polygon, Processor, Ts, Xs, Ys, X, Y};
+use crate::{
+    elapsed, DynConf, Engine, Image, Mask, Ops, Options, Polygon, Processor, Ts, Xs, X, Y,
+};
 
 #[derive(Debug, Clone)]
 pub enum SamKind {
@@ -140,19 +141,19 @@ impl SAM {
         })
     }
 
-    pub fn forward(&mut self, xs: &[DynamicImage], prompts: &[SamPrompt]) -> Result<Ys> {
+    pub fn forward(&mut self, xs: &[Image], prompts: &[SamPrompt]) -> Result<Vec<Y>> {
         let ys = elapsed!("encode", self.ts, { self.encode(xs)? });
         let ys = elapsed!("decode", self.ts, { self.decode(&ys, prompts)? });
 
         Ok(ys)
     }
 
-    pub fn encode(&mut self, xs: &[DynamicImage]) -> Result<Xs> {
+    pub fn encode(&mut self, xs: &[Image]) -> Result<Xs> {
         let xs_ = self.processor.process_images(xs)?;
         self.encoder.run(Xs::from(xs_))
     }
 
-    pub fn decode(&mut self, xs: &Xs, prompts: &[SamPrompt]) -> Result<Ys> {
+    pub fn decode(&mut self, xs: &Xs, prompts: &[SamPrompt]) -> Result<Vec<Y>> {
         let (image_embeddings, high_res_features_0, high_res_features_1) = match self.kind {
             SamKind::Sam2 => (&xs[0], Some(&xs[1]), Some(&xs[2])),
             _ => (&xs[0], None, None),
@@ -160,8 +161,11 @@ impl SAM {
 
         let mut ys: Vec<Y> = Vec::new();
         for (idx, image_embedding) in image_embeddings.axis_iter(Axis(0)).enumerate() {
-            let (image_height, image_width) = self.processor.image0s_size[idx];
-            let ratio = self.processor.scale_factors_hw[idx][0];
+            let (image_height, image_width) = (
+                self.processor.images_transform_info[idx].height_src,
+                self.processor.images_transform_info[idx].width_src,
+            );
+            let ratio = self.processor.images_transform_info[idx].height_scale;
 
             let args = match self.kind {
                 SamKind::Sam | SamKind::MobileSam => {
@@ -288,24 +292,16 @@ impl SAM {
                         .0
                 };
 
-                let luma: image::ImageBuffer<image::Luma<_>, Vec<_>> =
-                    match image::ImageBuffer::from_raw(image_width as _, image_height as _, luma) {
-                        None => continue,
-                        Some(x) => x,
-                    };
-
                 // contours
                 let mut rng = thread_rng();
                 let id = rng.gen_range(0..20);
+                let mask = Mask::new(&luma, image_width, image_height)?.with_id(id);
                 if self.find_contours {
-                    let contours: Vec<imageproc::contours::Contour<i32>> =
-                        imageproc::contours::find_contours_with_threshold(&luma, 0);
-                    for c in contours.iter() {
-                        let polygon = Polygon::default().with_points_imageproc(&c.points).verify();
+                    for polygon in mask.polygons().into_iter() {
                         y_polygons.push(polygon.with_confidence(iou[0]).with_id(id));
                     }
                 }
-                y_masks.push(Mask::default().with_mask(luma).with_id(id));
+                y_masks.push(mask);
             }
 
             let mut y = Y::default();
@@ -319,7 +315,7 @@ impl SAM {
             ys.push(y);
         }
 
-        Ok(ys.into())
+        Ok(ys)
     }
 
     pub fn width_low_res(&self) -> usize {

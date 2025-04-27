@@ -1,9 +1,8 @@
 use aksr::Builder;
 use anyhow::Result;
-use image::DynamicImage;
 use ndarray::Array2;
 
-use crate::{elapsed, Engine, Options, Processor, Ts, Xs, X};
+use crate::{elapsed, Engine, Image, Options, Processor, Ts, Xs, X};
 
 #[derive(Debug, Builder)]
 pub struct ClipVisual {
@@ -39,7 +38,7 @@ impl ClipVisual {
         })
     }
 
-    pub fn preprocess(&mut self, xs: &[DynamicImage]) -> Result<Xs> {
+    pub fn preprocess(&mut self, xs: &[Image]) -> Result<Xs> {
         let x = self.processor.process_images(xs)?;
 
         Ok(x.into())
@@ -49,7 +48,7 @@ impl ClipVisual {
         self.engine.run(xs)
     }
 
-    pub fn encode_images(&mut self, xs: &[DynamicImage]) -> Result<X> {
+    pub fn encode_images(&mut self, xs: &[Image]) -> Result<X> {
         let xs = elapsed!("visual-preprocess", self.ts, { self.preprocess(xs)? });
         let xs = elapsed!("visual-inference", self.ts, { self.inference(xs)? });
         let x = elapsed!("visual-postprocess", self.ts, { xs[0].to_owned() });
@@ -129,7 +128,7 @@ impl Clip {
         })
     }
 
-    pub fn encode_images(&mut self, xs: &[DynamicImage]) -> Result<X> {
+    pub fn encode_images(&mut self, xs: &[Image]) -> Result<X> {
         let x = elapsed!("encode_images", self.ts, { self.visual.encode_images(xs)? });
         Ok(x)
     }

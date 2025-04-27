@@ -1,9 +1,10 @@
 use aksr::Builder;
 use anyhow::Result;
-use image::DynamicImage;
 use ndarray::{s, Array, Axis, IxDyn};
 
-use crate::{elapsed, Bbox, DynConf, Engine, Ops, Options, Polygon, Processor, Ts, Xs, Ys, Y};
+use crate::{
+    elapsed, DynConf, Engine, Hbb, Image, NmsOps, Ops, Options, Polygon, Processor, Ts, Xs, Y,
+};
 
 #[derive(Builder, Debug)]
 pub struct YOLOPv2 {
@@ -49,7 +50,7 @@ impl YOLOPv2 {
         })
     }
 
-    fn preprocess(&mut self, xs: &[DynamicImage]) -> Result<Xs> {
+    fn preprocess(&mut self, xs: &[Image]) -> Result<Xs> {
         Ok(self.processor.process_images(xs)?.into())
     }
 
@@ -57,7 +58,7 @@ impl YOLOPv2 {
         self.engine.run(xs)
     }
 
-    pub fn forward(&mut self, xs: &[DynamicImage]) -> Result<Ys> {
+    pub fn forward(&mut self, xs: &[Image]) -> Result<Vec<Y>> {
         let ys = elapsed!("preprocess", self.ts, { self.preprocess(xs)? });
         let ys = elapsed!("inference", self.ts, { self.inference(ys)? });
         let ys = elapsed!("postprocess", self.ts, { self.postprocess(ys)? });
@@ -69,7 +70,7 @@ impl YOLOPv2 {
         self.ts.summary();
     }
 
-    fn postprocess(&mut self, xs: Xs) -> Result<Ys> {
+    fn postprocess(&mut self, xs: Xs) -> Result<Vec<Y>> {
         let mut ys: Vec<Y> = Vec::new();
         let (xs_da, xs_ll, xs_det) = (&xs[0], &xs[1], &xs[2]);
         for (idx, ((x_det, x_ll), x_da)) in xs_det
@@ -78,8 +79,11 @@ impl YOLOPv2 {
             .zip(xs_da.axis_iter(Axis(0)))
             .enumerate()
         {
-            let (image_height, image_width) = self.processor.image0s_size[idx];
-            let ratio = self.processor.scale_factors_hw[idx][0];
+            let (image_height, image_width) = (
+                self.processor.images_transform_info[idx].height_src,
+                self.processor.images_transform_info[idx].width_src,
+            );
+            let ratio = self.processor.images_transform_info[idx].height_scale;
 
             // Vehicle
             let mut y_bboxes = Vec::new();
@@ -105,12 +109,14 @@ impl YOLOPv2 {
                 let x = x.max(0.0).min(image_width as _);
                 let y = y.max(0.0).min(image_height as _);
                 y_bboxes.push(
-                    Bbox::default()
+                    Hbb::default()
                         .with_xywh(x, y, w, h)
                         .with_confidence(conf)
-                        .with_id(id as isize),
+                        .with_id(id),
                 );
             }
+            y_bboxes.apply_nms_inplace(self.iou);
+
             let mut y_polygons: Vec<Polygon> = Vec::new();
 
             // Drivable area
@@ -170,13 +176,11 @@ impl YOLOPv2 {
 
             // save
             ys.push(
-                Y::default()
-                    .with_bboxes(&y_bboxes)
-                    .with_polygons(&y_polygons)
-                    .apply_nms(self.iou),
+                Y::default().with_hbbs(&y_bboxes).with_polygons(&y_polygons), // .apply_nms(self.iou),
             );
         }
-        Ok(ys.into())
+
+        Ok(ys)
     }
 
     fn get_contours_from_mask(

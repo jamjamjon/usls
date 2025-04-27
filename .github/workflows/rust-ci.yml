@@ -1,83 +1,102 @@
-name: Rust-CI
+name: CI
 
 on:
   push:
-    branches: [ "main", "dev", "develop", "x", "xy" , "xyz" ]
+    branches: [ "main", "dev", "x" ]
   pull_request:
     branches: [ "main" ]
 
 env:
   CARGO_TERM_COLOR: always
 
-
 jobs:
-  check:
-    name: Check
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macOS-latest, windows-latest]
-        rust: [stable]
+  lints:
+    name: Rustfmt & Clippy
+    runs-on: ubuntu-latest
+    container: jrottenberg/ffmpeg:7.1-ubuntu
+
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          DEBIAN_FRONTEND=noninteractive apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y build-essential ca-certificates clang curl pkg-config protobuf-compiler
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
         with:
-          profile: minimal
-          toolchain: ${{ matrix.rust }}
-          override: true
-      - uses: actions-rs/cargo@v1
-        with:
-          command: check
-          args: --all
+          components: rustfmt, clippy
+
+      - name: Rustfmt
+        run: cargo fmt --all -- --check
+
+      - name: Clippy
+        run: cargo clippy --all-features --all-targets -- -D warnings
+
+  check:
+    name: cargo-check
+    runs-on: ubuntu-latest
+    container: jrottenberg/ffmpeg:7.1-ubuntu
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          DEBIAN_FRONTEND=noninteractive apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y build-essential ca-certificates clang curl pkg-config protobuf-compiler
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Check
+        run: cargo check --all-features --all-targets
 
   test:
-    name: Test
-    runs-on: ${{ matrix.os }}
+    name: cargo-test
+    runs-on: ubuntu-latest
+    container: jrottenberg/ffmpeg:7.1-ubuntu
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          DEBIAN_FRONTEND=noninteractive apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y build-essential ca-certificates clang curl pkg-config protobuf-compiler
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@nightly
+
+      - name: Test
+        run: cargo +nightly test --all-features --all-targets 
+
+  build-linux:
+    needs: test
+    name: cargo build / linux / ffmpeg ${{ matrix.ffmpeg_version }}
+    runs-on: ubuntu-latest
+    container: jrottenberg/ffmpeg:${{ matrix.ffmpeg_version }}-ubuntu
+
     strategy:
       matrix:
-        os: [ubuntu-latest, macOS-latest, windows-latest]
-        rust: [stable]
-    steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: ${{ matrix.rust }}
-          override: true
-      - uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --all
+        ffmpeg_version: [ "5.0", "5.1", "6.0", "6.1", "7.0", "7.1" ]  # "4.3", "4.4"
+      fail-fast: false
 
-  fmt:
-    name: Rustfmt
-    runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
-      - run: rustup component add rustfmt
-      - uses: actions-rs/cargo@v1
-        with:
-          command: fmt
-          args: --all -- --check
+      - name: Checkout
+        uses: actions/checkout@v4
 
-  clippy:
-    name: Clippy
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
-      - run: rustup component add clippy
-      - uses: actions-rs/cargo@v1
-        with:
-          command: clippy
-          args: --all --all-targets -- -D warnings
+      - name: Install dependencies
+        run: |
+          DEBIAN_FRONTEND=noninteractive apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y build-essential ca-certificates clang curl pkg-config protobuf-compiler
 
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build
+        run: cargo build --all-features

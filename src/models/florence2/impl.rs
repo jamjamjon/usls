@@ -1,13 +1,12 @@
 use aksr::Builder;
 use anyhow::Result;
-use image::DynamicImage;
 use ndarray::{s, Axis};
 use rayon::prelude::*;
 
 use crate::{
     elapsed,
     models::{BaseModelTextual, BaseModelVisual, Quantizer},
-    Bbox, LogitsSampler, Options, Polygon, Scale, Task, Ts, Xs, Ys, X, Y,
+    Hbb, Image, LogitsSampler, Options, Polygon, Scale, Task, Ts, Xs, X, Y,
 };
 
 #[derive(Debug, Builder)]
@@ -92,7 +91,7 @@ impl Florence2 {
         }
     }
 
-    fn encode_text(&mut self, task: &Task, images: &[DynamicImage]) -> Result<X> {
+    fn encode_text(&mut self, task: &Task, images: &[Image]) -> Result<X> {
         let xs = images
             .par_iter()
             .map(|im| {
@@ -109,7 +108,7 @@ impl Florence2 {
         Ok(x)
     }
 
-    pub fn forward(&mut self, xs_visual: &[DynamicImage], x_textual: &Task) -> Result<Ys> {
+    pub fn forward(&mut self, xs_visual: &[Image], x_textual: &Task) -> Result<Vec<Y>> {
         let visual_embeddings = elapsed!("visual-encode", self.ts, {
             self.vision_encoder.encode(xs_visual)?
         });
@@ -245,9 +244,9 @@ impl Florence2 {
     fn postprocess(
         &mut self,
         generated_text: &[String],
-        xs_visual: &[DynamicImage],
+        xs_visual: &[Image],
         x_textual: &Task,
-    ) -> Result<Ys> {
+    ) -> Result<Vec<Y>> {
         let mut ys = Vec::new();
         let ys_task = (0..self.batch())
             .into_par_iter()
@@ -266,19 +265,19 @@ impl Florence2 {
                 // postprocess
                 let mut y = Y::default();
                 if let Task::Caption(_) | Task::Ocr = x_textual {
-                    y = y.with_texts(&[text.into()]);
+                    y = y.with_texts(&[&text]);
                 } else {
                     let elems = Self::loc_parse(&text)?;
                     match x_textual {
                         Task::RegionToCategory(..) | Task::RegionToDescription(..) => {
                             let text = elems[0][0].clone();
-                            y = y.with_texts(&[text.into()]);
+                            y = y.with_texts(&[&text]);
                         }
                         Task::ObjectDetection
                         | Task::OpenSetDetection(_)
                         | Task::DenseRegionCaption
                         | Task::CaptionToPhraseGrounding(_) => {
-                            let y_bboxes: Vec<Bbox> = elems
+                            let y_bboxes: Vec<Hbb> = elems
                                 .par_iter()
                                 .enumerate()
                                 .flat_map(|(i, elem)| {
@@ -291,17 +290,17 @@ impl Florence2 {
                                     )
                                 })
                                 .collect();
-                            y = y.with_bboxes(&y_bboxes);
+                            y = y.with_hbbs(&y_bboxes);
                         }
                         Task::RegionProposal => {
-                            let y_bboxes: Vec<Bbox> = Self::process_bboxes(
+                            let y_bboxes: Vec<Hbb> = Self::process_bboxes(
                                 &elems[0],
                                 &self.quantizer,
                                 image_width,
                                 image_height,
                                 None,
                             );
-                            y = y.with_bboxes(&y_bboxes);
+                            y = y.with_hbbs(&y_bboxes);
                         }
                         Task::ReferringExpressionSegmentation(_)
                         | Task::RegionToSegmentation(..) => {
@@ -343,7 +342,7 @@ impl Florence2 {
 
         ys.extend_from_slice(&ys_task);
 
-        Ok(ys.into())
+        Ok(ys)
     }
 
     fn process_polygons(
@@ -367,7 +366,7 @@ impl Florence2 {
         image_width: usize,
         image_height: usize,
         class_name: Option<(&str, usize)>,
-    ) -> Vec<Bbox> {
+    ) -> Vec<Hbb> {
         elems
             .par_chunks(4)
             .enumerate()
@@ -375,7 +374,7 @@ impl Florence2 {
                 let bbox: Vec<_> = chunk.iter().map(|s| s.parse::<usize>().unwrap()).collect();
                 let dequantized_bbox = quantizer.dequantize(&bbox, (image_width, image_height));
 
-                let mut bbox = Bbox::default().with_xyxy(
+                let mut bbox = Hbb::default().with_xyxy(
                     dequantized_bbox[0].max(0.0f32).min(image_width as f32),
                     dequantized_bbox[1].max(0.0f32).min(image_height as f32),
                     dequantized_bbox[2],

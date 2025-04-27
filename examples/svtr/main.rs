@@ -37,9 +37,9 @@ fn main() -> Result<()> {
         .build()?;
 
     // run
-    for (xs, paths) in dl {
+    for xs in &dl {
         let ys = model.forward(&xs)?;
-        println!("{paths:?}: {:?}", ys)
+        println!("ys: {:?}", ys);
     }
 
     // summary

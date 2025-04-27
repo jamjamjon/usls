@@ -1,13 +1,12 @@
 use aksr::Builder;
 use anyhow::Result;
-use image::DynamicImage;
 use ndarray::{s, Axis};
 use rayon::prelude::*;
 
 use crate::{
     elapsed,
     models::{BaseModelTextual, BaseModelVisual},
-    LogitsSampler, Options, Scale, Ts, Xs, Ys, X, Y,
+    Image, LogitsSampler, Options, Scale, Ts, Xs, X, Y,
 };
 
 #[derive(Debug, Copy, Clone)]
@@ -87,7 +86,7 @@ impl TrOCR {
         })
     }
 
-    pub fn forward(&mut self, xs: &[DynamicImage]) -> Result<Ys> {
+    pub fn forward(&mut self, xs: &[Image]) -> Result<Vec<Y>> {
         let encoder_hidden_states = elapsed!("encode", self.ts, { self.encoder.encode(xs)? });
         let generated = elapsed!("generate", self.ts, {
             self.generate(&encoder_hidden_states)?
@@ -236,7 +235,7 @@ impl TrOCR {
     //     Ok(token_ids)
     // }
 
-    pub fn decode(&self, token_ids: Vec<Vec<u32>>) -> Result<Ys> {
+    pub fn decode(&self, token_ids: Vec<Vec<u32>>) -> Result<Vec<Y>> {
         // decode
         let texts = self
             .decoder_merged
@@ -246,9 +245,8 @@ impl TrOCR {
         // to texts
         let texts = texts
             .into_par_iter()
-            .map(|x| Y::default().with_texts(&[x.into()]))
-            .collect::<Vec<_>>()
-            .into();
+            .map(|x| Y::default().with_texts(&[&x]))
+            .collect::<Vec<_>>();
 
         Ok(texts)
     }
