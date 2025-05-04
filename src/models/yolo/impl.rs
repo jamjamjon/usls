@@ -570,7 +570,7 @@ impl YOLO {
                                 if let Some(id) = bbox.id() {
                                     mask = mask.with_id(id);
                                 }
-                              
+
                                 if let Some(name) = bbox.name() {
                                     mask = mask.with_name(name);
                                 }
