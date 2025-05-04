@@ -1,10 +1,11 @@
 use aksr::Builder;
 use anyhow::Result;
-use image::DynamicImage;
 use ndarray::Axis;
 use rayon::prelude::*;
 
-use crate::{elapsed, Bbox, DynConf, Engine, Mbr, Ops, Options, Polygon, Processor, Ts, Xs, Ys, Y};
+use crate::{
+    elapsed, DynConf, Engine, Hbb, Image, Mask, Obb, Ops, Options, Polygon, Processor, Ts, Xs, Y,
+};
 
 #[derive(Debug, Builder)]
 pub struct DB {
@@ -58,7 +59,7 @@ impl DB {
         })
     }
 
-    fn preprocess(&mut self, xs: &[DynamicImage]) -> Result<Xs> {
+    fn preprocess(&mut self, xs: &[Image]) -> Result<Xs> {
         Ok(self.processor.process_images(xs)?.into())
     }
 
@@ -66,7 +67,7 @@ impl DB {
         self.engine.run(xs)
     }
 
-    pub fn forward(&mut self, xs: &[DynamicImage]) -> Result<Ys> {
+    pub fn forward(&mut self, xs: &[Image]) -> Result<Vec<Y>> {
         let ys = elapsed!("preprocess", self.ts, { self.preprocess(xs)? });
         let ys = elapsed!("inference", self.ts, { self.inference(ys)? });
         let ys = elapsed!("postprocess", self.ts, { self.postprocess(ys)? });
@@ -74,17 +75,20 @@ impl DB {
         Ok(ys)
     }
 
-    pub fn postprocess(&mut self, xs: Xs) -> Result<Ys> {
+    pub fn postprocess(&mut self, xs: Xs) -> Result<Vec<Y>> {
         let ys: Vec<Y> = xs[0]
             .axis_iter(Axis(0))
             .into_par_iter()
             .enumerate()
             .filter_map(|(idx, luma)| {
                 // input image
-                let (image_height, image_width) = self.processor.image0s_size[idx];
+                let (image_height, image_width) = (
+                    self.processor.images_transform_info[idx].height_src,
+                    self.processor.images_transform_info[idx].width_src,
+                );
 
                 // reshape
-                let ratio = self.processor.scale_factors_hw[idx][0];
+                let ratio = self.processor.images_transform_info[idx].height_scale;
                 let v = luma
                     .as_slice()?
                     .par_iter()
@@ -107,26 +111,13 @@ impl DB {
                     "Bilinear",
                 )
                 .ok()?;
-                let mask_im: image::ImageBuffer<image::Luma<_>, Vec<_>> =
-                    image::ImageBuffer::from_raw(image_width as _, image_height as _, luma)?;
+                let mask = Mask::new(&luma, image_width, image_height).ok()?;
 
-                // contours
-                let contours: Vec<imageproc::contours::Contour<i32>> =
-                    imageproc::contours::find_contours_with_threshold(&mask_im, 1);
-
-                // loop
-                let (y_polygons, y_bbox, y_mbrs): (Vec<Polygon>, Vec<Bbox>, Vec<Mbr>) = contours
-                    .par_iter()
-                    .filter_map(|contour| {
-                        if contour.border_type == imageproc::contours::BorderType::Hole
-                            && contour.points.len() <= 2
-                        {
-                            return None;
-                        }
-
-                        let polygon = Polygon::default()
-                            .with_points_imageproc(&contour.points)
-                            .with_id(0);
+                let (y_polygons, y_bbox, y_mbrs): (Vec<Polygon>, Vec<Hbb>, Vec<Obb>) = mask
+                    .polygons()
+                    .into_par_iter()
+                    .filter_map(|polygon| {
+                        let polygon = polygon.with_id(0);
                         let delta =
                             polygon.area() * ratio.round() as f64 * self.unclip_ratio as f64
                                 / polygon.perimeter();
@@ -138,7 +129,7 @@ impl DB {
                             .convex_hull()
                             .verify();
 
-                        polygon.bbox().and_then(|bbox| {
+                        polygon.hbb().and_then(|bbox| {
                             if bbox.height() < self.min_height || bbox.width() < self.min_width {
                                 return None;
                             }
@@ -148,10 +139,10 @@ impl DB {
                             }
                             let bbox = bbox.with_confidence(confidence).with_id(0);
                             let mbr = polygon
-                                .mbr()
+                                .obb()
                                 .map(|mbr| mbr.with_confidence(confidence).with_id(0));
 
-                            Some((polygon, bbox, mbr))
+                            Some((polygon.with_confidence(confidence), bbox, mbr))
                         })
                     })
                     .fold(
@@ -177,14 +168,14 @@ impl DB {
 
                 Some(
                     Y::default()
-                        .with_bboxes(&y_bbox)
+                        .with_hbbs(&y_bbox)
                         .with_polygons(&y_polygons)
-                        .with_mbrs(&y_mbrs),
+                        .with_obbs(&y_mbrs),
                 )
             })
             .collect();
 
-        Ok(ys.into())
+        Ok(ys)
     }
 
     pub fn summary(&mut self) {

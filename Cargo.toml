@@ -1,67 +1,62 @@
 [package]
 name = "usls"
-version = "0.1.0"
-rust-version = "1.80.1"
 edition = "2021"
+version = "0.1.0-beta.1"
+rust-version = "1.82"
 description = "A Rust library integrated with ONNXRuntime, providing a collection of ML models."
 repository = "https://github.com/jamjamjon/usls"
 authors = ["Jamjamjon <xxyydzml@outlook.com>"]
 license = "MIT"
 readme = "README.md"
-exclude = ["assets/*", "examples/*", "runs/*", "benches/*"]
+exclude = ["assets/*", "examples/*", "runs/*", "benches/*", "tests/*"]
 
 [dependencies]
-aksr = { version = "0.0.2" }
-image = { version = "0.25.2" }
-imageproc = { version = "0.24" }
+anyhow = { version = "1" }
+aksr = { version = "0.0.3" }
+ab_glyph = { version = "0.2.29" }
+image = { version = "0.25" }
+imageproc = { version = "0.25" }
 ndarray = { version = "0.16.1", features = ["rayon", "serde"] }
-rayon = { version = "1.10.0" }
-anyhow = { version = "1.0.75" }
-regex = { version = "1.5.4" }
+indicatif = { version = "0.17.11" }
+log = "0.4.26"
+minifb = { version = "0.28.0" }
 rand = { version = "0.8.5" }
-chrono = { version = "0.4.30" }
-tokenizers = { version = "0.21.0" }
-log = { version = "0.4.22" }
-indicatif = "0.17.8"
-serde_json = "1.0"
+ureq = { version = "2", default-features = true, features = [ "socks-proxy" ] }
 serde = { version = "1.0", features = ["derive"] }
-ort = { version = "2.0.0-rc.9", default-features = false}
-prost = "0.12.4"
-ab_glyph = "0.2.23"
-dirs = { version = "5.0.1" }
-tempfile = "3.12.0"
-geo = "0.28.0"
-half = { version = "2.3.1" }
-ureq = { version = "2.12.1", default-features = false, features = [ "tls" ] }
-fast_image_resize = { version = "4.2.1", features = ["image"]}
+serde_json = "1.0"
+rayon = { version = "1.10.0" }
+glob = "0.3.2"
+dirs = "6.0.0"
 natord = "1.0.9"
-video-rs = { version = "0.10.0", features = ["ndarray"], optional = true }
-minifb = { version = "0.27.0", optional = true }
+geo = "0.30.0"
+chrono = "0.4.40"
+regex = "1.11.1"
 sha2 = "0.10.8"
-ndarray-npy = "0.9.1"
+tempfile = "3.19.1"  
+video-rs = { version = "0.10.3", features = ["ndarray"], optional = true }
+fast_image_resize = { version = "5.1.2", features = ["image"]}
+ndarray-npy = "0.9.1"  
+half = { version = "2.3.1" }
+prost = "0.13.5"
+ort = { version = "2.0.0-rc.9", default-features = false, optional = true , features = [
+   "ndarray", 
+   "copy-dylibs", 
+   "half"
+]}
+tokenizers = { version = "0.21.1" }
+
+[build-dependencies]
+prost-build = "0.13.5"
 
 [dev-dependencies]
 argh = "0.1.13"
 tracing-subscriber = { version = "0.3.18", features = ["env-filter", "chrono"] }
 
-[[example]]
-name = "viewer"
-required-features = ["ffmpeg"]
-
 [features]
-default = [
-   "ort/ndarray",
-   "ort/copy-dylibs",
-   "ort/load-dynamic",
-   "ort/half",
-]
-auto = ["ort/download-binaries"]
-ffmpeg = ["dep:video-rs", "dep:minifb"]
-cuda = [ "ort/cuda" ]
-trt = [ "ort/tensorrt" ]
-mps = [ "ort/coreml" ]
-
-[profile.release]
-lto = true
-strip = true
-panic = "abort"
+default = ["ort-download-binaries"]
+ort-download-binaries = ["ort", "ort/download-binaries"]
+ort-load-dynamic = ["ort", "ort/load-dynamic"]
+cuda = ["ort/cuda"]
+trt = ["ort/tensorrt"]
+mps = ["ort/coreml"]
+video = ["dep:video-rs"]

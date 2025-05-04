@@ -1,7 +1,7 @@
 use anyhow::Result;
 use usls::{
     models::{SamPrompt, SAM, YOLO},
-    Annotator, DataLoader, Options, Scale,
+    Annotator, DataLoader, Options, Scale, Style,
 };
 
 #[derive(argh::FromArgs)]
@@ -30,37 +30,41 @@ fn main() -> Result<()> {
     // build YOLOv8
     let options_yolo = Options::yolo_detect()
         .with_model_scale(Scale::N)
-        .with_model_version(8.0.into())
+        .with_model_version(8.into())
         .with_model_device(args.device.as_str().try_into()?)
         .commit()?;
     let mut yolo = YOLO::new(options_yolo)?;
 
     // load one image
-    let xs = DataLoader::try_read_batch(&["images/dog.jpg"])?;
+    let xs = DataLoader::try_read_n(&["images/dog.jpg"])?;
 
     // build annotator
-    let annotator = Annotator::default()
-        .with_bboxes_thickness(7)
-        .without_bboxes_name(true)
-        .without_bboxes_conf(true)
-        .without_mbrs(true)
-        .with_saveout("YOLO-SAM");
+    let annotator = Annotator::default().with_hbb_style(Style::hbb().with_draw_fill(true));
 
     // run & annotate
     let ys_det = yolo.forward(&xs)?;
     for y_det in ys_det.iter() {
-        if let Some(bboxes) = y_det.bboxes() {
-            for bbox in bboxes {
+        if let Some(hbbs) = y_det.hbbs() {
+            for hbb in hbbs {
                 let ys_sam = sam.forward(
                     &xs,
                     &[SamPrompt::default().with_bbox(
-                        bbox.xmin(),
-                        bbox.ymin(),
-                        bbox.xmax(),
-                        bbox.ymax(),
+                        hbb.xmin(),
+                        hbb.ymin(),
+                        hbb.xmax(),
+                        hbb.ymax(),
                     )],
                 )?;
-                annotator.annotate(&xs, &ys_sam);
+                // annotator.annotate(&xs, &ys_sam);
+                for (x, y) in xs.iter().zip(ys_sam.iter()) {
+                    annotator.annotate(x, y)?.save(format!(
+                        "{}.jpg",
+                        usls::Dir::Current
+                            .base_dir_with_subs(&["runs", "YOLO-SAM"])?
+                            .join(usls::timestamp(None))
+                            .display(),
+                    ))?;
+                }
             }
         }
     }

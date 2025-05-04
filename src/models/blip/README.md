@@ -10,9 +10,3 @@ The official repository can be found on: [GitHub](https://github.com/salesforce/
 - [ ] Visual Question Answering (VQA)
 - [ ] Image-Text Retrieval
 - [ ] TensorRT Support for Textual Model
-
-## Example
-
-Refer to the [example](../../../examples/blip)
-
-

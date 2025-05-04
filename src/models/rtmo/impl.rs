@@ -1,9 +1,8 @@
 use aksr::Builder;
 use anyhow::Result;
-use image::DynamicImage;
 use ndarray::Axis;
 
-use crate::{elapsed, Bbox, DynConf, Engine, Keypoint, Options, Processor, Ts, Xs, Ys, Y};
+use crate::{elapsed, DynConf, Engine, Hbb, Image, Keypoint, Options, Processor, Ts, Xs, Y};
 
 #[derive(Builder, Debug)]
 pub struct RTMO {
@@ -50,7 +49,7 @@ impl RTMO {
         })
     }
 
-    fn preprocess(&mut self, xs: &[DynamicImage]) -> Result<Xs> {
+    fn preprocess(&mut self, xs: &[Image]) -> Result<Xs> {
         Ok(self.processor.process_images(xs)?.into())
     }
 
@@ -58,7 +57,7 @@ impl RTMO {
         self.engine.run(xs)
     }
 
-    pub fn forward(&mut self, xs: &[DynamicImage]) -> Result<Ys> {
+    pub fn forward(&mut self, xs: &[Image]) -> Result<Vec<Y>> {
         let ys = elapsed!("preprocess", self.ts, { self.preprocess(xs)? });
         let ys = elapsed!("inference", self.ts, { self.inference(ys)? });
         let ys = elapsed!("postprocess", self.ts, { self.postprocess(ys)? });
@@ -70,7 +69,7 @@ impl RTMO {
         self.ts.summary();
     }
 
-    fn postprocess(&mut self, xs: Xs) -> Result<Ys> {
+    fn postprocess(&mut self, xs: Xs) -> Result<Vec<Y>> {
         let mut ys: Vec<Y> = Vec::new();
         // let (preds_bboxes, preds_kpts) = (&xs["dets"], &xs["keypoints"]);
         let (preds_bboxes, preds_kpts) = (&xs[0], &xs[1]);
@@ -80,8 +79,11 @@ impl RTMO {
             .zip(preds_kpts.axis_iter(Axis(0)))
             .enumerate()
         {
-            let (height_original, width_original) = self.processor.image0s_size[idx];
-            let ratio = self.processor.scale_factors_hw[idx][0];
+            let (height_original, width_original) = (
+                self.processor.images_transform_info[idx].height_src,
+                self.processor.images_transform_info[idx].width_src,
+            );
+            let ratio = self.processor.images_transform_info[idx].height_scale;
 
             let mut y_bboxes = Vec::new();
             let mut y_kpts: Vec<Vec<Keypoint>> = Vec::new();
@@ -100,7 +102,7 @@ impl RTMO {
                     continue;
                 }
                 y_bboxes.push(
-                    Bbox::default()
+                    Hbb::default()
                         .with_xyxy(
                             x1.max(0.0f32).min(width_original as _),
                             y1.max(0.0f32).min(height_original as _),
@@ -108,7 +110,7 @@ impl RTMO {
                             y2,
                         )
                         .with_confidence(confidence)
-                        .with_id(0isize)
+                        .with_id(0)
                         .with_name("Person"),
                 );
 
@@ -121,22 +123,17 @@ impl RTMO {
                     if c < self.kconfs[i] {
                         kpts_.push(Keypoint::default());
                     } else {
-                        kpts_.push(
-                            Keypoint::default()
-                                .with_id(i as isize)
-                                .with_confidence(c)
-                                .with_xy(
-                                    x.max(0.0f32).min(width_original as _),
-                                    y.max(0.0f32).min(height_original as _),
-                                ),
-                        );
+                        kpts_.push(Keypoint::default().with_id(i).with_confidence(c).with_xy(
+                            x.max(0.0f32).min(width_original as _),
+                            y.max(0.0f32).min(height_original as _),
+                        ));
                     }
                 }
                 y_kpts.push(kpts_);
             }
-            ys.push(Y::default().with_bboxes(&y_bboxes).with_keypoints(&y_kpts));
+            ys.push(Y::default().with_hbbs(&y_bboxes).with_keypointss(&y_kpts));
         }
 
-        Ok(ys.into())
+        Ok(ys)
     }
 }

@@ -1,10 +1,9 @@
 use aksr::Builder;
 use anyhow::Result;
-use image::DynamicImage;
 use ndarray::{s, Axis};
 use rayon::prelude::*;
 
-use crate::{elapsed, Bbox, DynConf, Engine, Options, Processor, Ts, Xs, Ys, X, Y};
+use crate::{elapsed, DynConf, Engine, Hbb, Image, Options, Processor, Ts, Xs, X, Y};
 
 #[derive(Debug, Builder)]
 pub struct RTDETR {
@@ -52,7 +51,7 @@ impl RTDETR {
         })
     }
 
-    fn preprocess(&mut self, xs: &[DynamicImage]) -> Result<Xs> {
+    fn preprocess(&mut self, xs: &[Image]) -> Result<Xs> {
         let x1 = self.processor.process_images(xs)?;
         let x2 = X::from(vec![self.height as f32, self.width as f32])
             .insert_axis(0)?
@@ -67,7 +66,7 @@ impl RTDETR {
         self.engine.run(xs)
     }
 
-    pub fn forward(&mut self, xs: &[DynamicImage]) -> Result<Ys> {
+    pub fn forward(&mut self, xs: &[Image]) -> Result<Vec<Y>> {
         let ys = elapsed!("preprocess", self.ts, { self.preprocess(xs)? });
         let ys = elapsed!("inference", self.ts, { self.inference(ys)? });
         let ys = elapsed!("postprocess", self.ts, { self.postprocess(ys)? });
@@ -79,7 +78,7 @@ impl RTDETR {
         self.ts.summary();
     }
 
-    fn postprocess(&mut self, xs: Xs) -> Result<Ys> {
+    fn postprocess(&mut self, xs: Xs) -> Result<Vec<Y>> {
         let ys: Vec<Y> = xs[0]
             .axis_iter(Axis(0))
             .into_par_iter()
@@ -87,7 +86,7 @@ impl RTDETR {
             .zip(xs[2].axis_iter(Axis(0)).into_par_iter())
             .enumerate()
             .filter_map(|(idx, ((labels, boxes), scores))| {
-                let ratio = self.processor.scale_factors_hw[idx][0];
+                let ratio = self.processor.images_transform_info[idx].height_scale;
 
                 let mut y_bboxes = Vec::new();
                 for (i, &score) in scores.iter().enumerate() {
@@ -105,23 +104,23 @@ impl RTDETR {
                     );
 
                     y_bboxes.push(
-                        Bbox::default()
+                        Hbb::default()
                             .with_xyxy(x1.max(0.0f32), y1.max(0.0f32), x2, y2)
                             .with_confidence(score)
-                            .with_id(class_id as isize)
+                            .with_id(class_id)
                             .with_name(&self.names[class_id]),
                     );
                 }
 
                 let mut y = Y::default();
                 if !y_bboxes.is_empty() {
-                    y = y.with_bboxes(&y_bboxes);
+                    y = y.with_hbbs(&y_bboxes);
                 }
 
                 Some(y)
             })
             .collect();
 
-        Ok(ys.into())
+        Ok(ys)
     }
 }

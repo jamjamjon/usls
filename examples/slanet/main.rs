@@ -1,5 +1,5 @@
 use anyhow::Result;
-use usls::{models::SLANet, Annotator, DataLoader, Options};
+use usls::{models::SLANet, Annotator, Color, DataLoader, Options};
 
 #[derive(argh::FromArgs)]
 /// Example
@@ -33,18 +33,34 @@ fn main() -> Result<()> {
     let mut model = SLANet::new(options)?;
 
     // load
-    let xs = DataLoader::try_read_batch(&[args.source])?;
+    let xs = DataLoader::try_read_n(&[args.source])?;
 
     // run
     let ys = model.forward(&xs)?;
-    // println!("{:?}", ys);
+    println!("{:?}", ys);
 
     // annotate
-    let annotator = Annotator::default()
-        .with_keypoints_radius(2)
-        .with_skeletons(&[(0, 1), (1, 2), (2, 3), (3, 0)])
-        .with_saveout(model.spec());
-    annotator.annotate(&xs, &ys);
+    let annotator = Annotator::default().with_keypoint_style(
+        usls::Style::keypoint()
+            .with_text_visible(false)
+            .with_skeleton(
+                (
+                    [(0, 1), (1, 2), (2, 3), (3, 0)],
+                    [Color::black(), Color::red(), Color::green(), Color::blue()],
+                )
+                    .into(),
+            ),
+    );
+
+    for (x, y) in xs.iter().zip(ys.iter()) {
+        annotator.annotate(x, y)?.save(format!(
+            "{}.jpg",
+            usls::Dir::Current
+                .base_dir_with_subs(&["runs", model.spec()])?
+                .join(usls::timestamp(None))
+                .display(),
+        ))?;
+    }
 
     // summary
     model.summary();

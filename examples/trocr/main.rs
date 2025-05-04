@@ -32,7 +32,7 @@ fn main() -> anyhow::Result<()> {
     let args: Args = argh::from_env();
 
     // load images
-    let xs = DataLoader::try_read_batch(&[
+    let xs = DataLoader::try_read_n(&[
         "images/text-en-dark.png",
         "images/text-hello-rust-handwritten.png",
     ])?;

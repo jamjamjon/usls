@@ -1,5 +1,5 @@
 use anyhow::Result;
-use usls::{models::DB, Annotator, DataLoader, Options};
+use usls::{models::DB, Annotator, DataLoader, Options, Style};
 
 #[derive(argh::FromArgs)]
 /// Example
@@ -16,21 +16,21 @@ struct Args {
     #[argh(option, default = "String::from(\"auto\")")]
     dtype: String,
 
-    /// show bboxes
+    /// show hbbs
     #[argh(option, default = "false")]
-    show_bboxes: bool,
+    show_hbbs: bool,
 
-    /// show mbrs
+    /// show obbs
     #[argh(option, default = "false")]
-    show_mbrs: bool,
+    show_obbs: bool,
 
     /// show bboxes confidence
     #[argh(option, default = "false")]
-    show_bboxes_conf: bool,
+    show_hbbs_conf: bool,
 
     /// show mbrs confidence
     #[argh(option, default = "false")]
-    show_mbrs_conf: bool,
+    show_obbs_conf: bool,
 }
 
 fn main() -> Result<()> {
@@ -52,7 +52,7 @@ fn main() -> Result<()> {
     )?;
 
     // load image
-    let x = DataLoader::try_read_batch(&[
+    let xs = DataLoader::try_read_n(&[
         "images/db.png",
         "images/table.png",
         "images/table-ch.jpg",
@@ -61,20 +61,46 @@ fn main() -> Result<()> {
     ])?;
 
     // run
-    let y = model.forward(&x)?;
+    let ys = model.forward(&xs)?;
 
     // annotate
     let annotator = Annotator::default()
-        .without_bboxes(!args.show_bboxes)
-        .without_mbrs(!args.show_mbrs)
-        .without_bboxes_name(true)
-        .without_mbrs_name(true)
-        .without_bboxes_conf(!args.show_bboxes_conf)
-        .without_mbrs_conf(!args.show_mbrs_conf)
-        .with_polygons_alpha(60)
-        .with_contours_color([255, 105, 180, 255])
-        .with_saveout(model.spec());
-    annotator.annotate(&x, &y);
+        .with_polygon_style(
+            Style::polygon()
+                .with_visible(true)
+                .with_text_visible(false)
+                .show_confidence(true)
+                .show_id(true)
+                .show_name(true)
+                .with_color(usls::StyleColors::default().with_outline([255, 105, 180, 255].into())),
+        )
+        .with_hbb_style(
+            Style::hbb()
+                .with_visible(args.show_hbbs)
+                .with_text_visible(false)
+                .with_thickness(1)
+                .show_confidence(args.show_hbbs_conf)
+                .show_id(false)
+                .show_name(false),
+        )
+        .with_obb_style(
+            Style::obb()
+                .with_visible(args.show_obbs)
+                .with_text_visible(false)
+                .show_confidence(args.show_obbs_conf)
+                .show_id(false)
+                .show_name(false),
+        );
+
+    for (x, y) in xs.iter().zip(ys.iter()) {
+        annotator.annotate(x, y)?.save(format!(
+            "{}.jpg",
+            usls::Dir::Current
+                .base_dir_with_subs(&["runs", model.spec()])?
+                .join(usls::timestamp(None))
+                .display(),
+        ))?;
+    }
 
     // summary
     model.summary();

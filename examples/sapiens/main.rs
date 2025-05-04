@@ -23,17 +23,22 @@ fn main() -> Result<()> {
     let mut model = Sapiens::new(options)?;
 
     // load
-    let x = [DataLoader::try_read("images/paul-george.jpg")?];
+    let xs = DataLoader::try_read_n(&["images/paul-george.jpg"])?;
 
     // run
-    let y = model.forward(&x)?;
+    let ys = model.forward(&xs)?;
 
     // annotate
-    let annotator = Annotator::default()
-        .without_masks(true)
-        .with_polygons_name(true)
-        .with_saveout(model.spec());
-    annotator.annotate(&x, &y);
+    let annotator = Annotator::default();
+    for (x, y) in xs.iter().zip(ys.iter()) {
+        annotator.annotate(x, y)?.save(format!(
+            "{}.jpg",
+            usls::Dir::Current
+                .base_dir_with_subs(&["runs", model.spec()])?
+                .join(usls::timestamp(None))
+                .display(),
+        ))?;
+    }
 
     Ok(())
 }

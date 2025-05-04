@@ -17,7 +17,6 @@ fn main() -> anyhow::Result<()> {
         .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
         .with_timer(tracing_subscriber::fmt::time::ChronoLocal::rfc_3339())
         .init();
-
     let args: Args = argh::from_env();
 
     // build model
@@ -30,7 +29,7 @@ fn main() -> anyhow::Result<()> {
     let mut model = Blip::new(options_visual, options_textual)?;
 
     // image caption
-    let xs = DataLoader::try_read_batch(&args.source)?;
+    let xs = DataLoader::try_read_n(&args.source)?;
 
     // unconditional caption
     let ys = model.forward(&xs, None)?;

@@ -1,10 +1,9 @@
 use aksr::Builder;
 use anyhow::Result;
-use image::DynamicImage;
 use ndarray::Axis;
 use rayon::prelude::*;
 
-use crate::{elapsed, DynConf, Engine, Options, Prob, Processor, Ts, Xs, Ys, Y};
+use crate::{elapsed, DynConf, Engine, Image, Options, Prob, Processor, Ts, Xs, Y};
 
 #[derive(Debug, Builder)]
 pub struct ImageClassifier {
@@ -81,7 +80,7 @@ impl ImageClassifier {
         self.ts.summary();
     }
 
-    fn preprocess(&mut self, xs: &[DynamicImage]) -> Result<Xs> {
+    fn preprocess(&mut self, xs: &[Image]) -> Result<Xs> {
         let x = self.processor.process_images(xs)?;
 
         Ok(x.into())
@@ -91,7 +90,7 @@ impl ImageClassifier {
         self.engine.run(xs)
     }
 
-    pub fn forward(&mut self, xs: &[DynamicImage]) -> Result<Ys> {
+    pub fn forward(&mut self, xs: &[Image]) -> Result<Vec<Y>> {
         let ys = elapsed!("preprocess", self.ts, { self.preprocess(xs)? });
         let ys = elapsed!("inference", self.ts, { self.inference(ys)? });
         let ys = elapsed!("postprocess", self.ts, { self.postprocess(ys)? });
@@ -99,8 +98,8 @@ impl ImageClassifier {
         Ok(ys)
     }
 
-    fn postprocess(&self, xs: Xs) -> Result<Ys> {
-        let ys: Ys = xs[0]
+    fn postprocess(&self, xs: Xs) -> Result<Vec<Y>> {
+        let ys: Vec<Y> = xs[0]
             .axis_iter(Axis(0))
             .into_par_iter()
             .filter_map(|logits| {
@@ -111,14 +110,15 @@ impl ImageClassifier {
                 } else {
                     logits.into_owned()
                 };
-                let probs = Prob::default()
-                    .with_probs(&logits.into_raw_vec_and_offset().0)
-                    .with_names(&self.names.iter().map(|x| x.as_str()).collect::<Vec<_>>());
+                let probs = Prob::new_probs(
+                    &logits.into_raw_vec_and_offset().0,
+                    Some(&self.names.iter().map(|x| x.as_str()).collect::<Vec<_>>()),
+                    3,
+                );
 
-                Some(Y::default().with_probs(probs))
+                Some(Y::default().with_probs(&probs))
             })
-            .collect::<Vec<_>>()
-            .into();
+            .collect::<Vec<_>>();
 
         Ok(ys)
     }

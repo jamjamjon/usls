@@ -57,7 +57,7 @@ fn main() -> Result<()> {
     )?;
 
     // load images
-    let xs = DataLoader::try_read_batch(&args.source)?;
+    let xs = DataLoader::try_read_n(&args.source)?;
 
     // run
     let ys = model.forward(&xs, &args.prompt)?;

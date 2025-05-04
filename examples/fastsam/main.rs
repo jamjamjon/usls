@@ -29,17 +29,27 @@ fn main() -> Result<()> {
     let mut model = YOLO::new(config)?;
 
     // load images
-    let xs = DataLoader::try_read_batch(&["./assets/bus.jpg"])?;
+    let xs = DataLoader::try_read_n(&["./assets/bus.jpg"])?;
 
     // run
     let ys = model.forward(&xs)?;
 
     // annotate
-    let annotator = Annotator::default()
-        .without_masks(true)
-        .with_bboxes_thickness(3)
-        .with_saveout("fastsam");
-    annotator.annotate(&xs, &ys);
+    let annotator = Annotator::default().with_hbb_style(
+        usls::Style::hbb()
+            .show_confidence(true)
+            .show_id(false)
+            .show_name(false),
+    );
+    for (x, y) in xs.iter().zip(ys.iter()) {
+        annotator.annotate(x, y)?.save(format!(
+            "{}.jpg",
+            usls::Dir::Current
+                .base_dir_with_subs(&["runs", "FastSAM"])?
+                .join(usls::timestamp(None))
+                .display(),
+        ))?;
+    }
 
     Ok(())
 }

@@ -1,6 +1,5 @@
 use aksr::Builder;
 use anyhow::Result;
-use image::DynamicImage;
 use log::{error, info};
 use ndarray::{s, Array, Axis};
 use rayon::prelude::*;
@@ -9,8 +8,8 @@ use regex::Regex;
 use crate::{
     elapsed,
     models::{BoxType, YOLOPredsFormat},
-    Bbox, DynConf, Engine, Keypoint, Mask, Mbr, Ops, Options, Polygon, Prob, Processor, Task, Ts,
-    Version, Xs, Ys, Y,
+    DynConf, Engine, Hbb, Image, Keypoint, Mask, NmsOps, Obb, Ops, Options, Prob, Processor, Task,
+    Ts, Version, Xs, Y,
 };
 
 #[derive(Debug, Builder)]
@@ -29,12 +28,12 @@ pub struct YOLO {
     confs: DynConf,
     kconfs: DynConf,
     iou: f32,
-    find_contours: bool,
     processor: Processor,
     ts: Ts,
     spec: String,
     classes_excluded: Vec<usize>,
     classes_retained: Vec<usize>,
+    topk: usize,
 }
 
 impl TryFrom<Options> for YOLO {
@@ -105,32 +104,36 @@ impl YOLO {
             None => match (task, version) {
                 (Some(task), Some(version)) => {
                     let layout = match (task.clone(), version) {
-                        (Task::ImageClassification, Version(5, 0)) => {
+                        (Task::ImageClassification, Version(5, 0, _)) => {
                             YOLOPredsFormat::n_clss().apply_softmax(true)
                         }
-                        (Task::ImageClassification, Version(8, 0) | Version(11, 0)) => {
+                        (Task::ImageClassification, Version(8, 0, _) | Version(11, 0, _)) => {
                             YOLOPredsFormat::n_clss()
-                        }
-                        (Task::ObjectDetection, Version(5, 0) | Version(6, 0) | Version(7, 0)) => {
-                            YOLOPredsFormat::n_a_cxcywh_confclss()
                         }
                         (
                             Task::ObjectDetection,
-                            Version(8, 0) | Version(9, 0) | Version(11, 0) | Version(12, 0),
+                            Version(5, 0, _) | Version(6, 0, _) | Version(7, 0, _),
+                        ) => YOLOPredsFormat::n_a_cxcywh_confclss(),
+                        (
+                            Task::ObjectDetection,
+                            Version(8, 0, _)
+                            | Version(9, 0, _)
+                            | Version(11, 0, _)
+                            | Version(12, 0, _),
                         ) => YOLOPredsFormat::n_cxcywh_clss_a(),
-                        (Task::ObjectDetection, Version(10, 0)) => {
+                        (Task::ObjectDetection, Version(10, 0, _)) => {
                             YOLOPredsFormat::n_a_xyxy_confcls().apply_nms(false)
                         }
-                        (Task::KeypointsDetection, Version(8, 0) | Version(11, 0)) => {
+                        (Task::KeypointsDetection, Version(8, 0, _) | Version(11, 0, _)) => {
                             YOLOPredsFormat::n_cxcywh_clss_xycs_a()
                         }
-                        (Task::InstanceSegmentation, Version(5, 0)) => {
+                        (Task::InstanceSegmentation, Version(5, 0, _)) => {
                             YOLOPredsFormat::n_a_cxcywh_confclss_coefs()
                         }
-                        (Task::InstanceSegmentation, Version(8, 0) | Version(11, 0)) => {
+                        (Task::InstanceSegmentation, Version(8, 0, _) | Version(11, 0, _)) => {
                             YOLOPredsFormat::n_cxcywh_clss_coefs_a()
                         }
-                        (Task::OrientedObjectDetection, Version(8, 0) | Version(11, 0)) => {
+                        (Task::OrientedObjectDetection, Version(8, 0, _) | Version(11, 0, _)) => {
                             YOLOPredsFormat::n_cxcywh_clss_r_a()
                         }
                         (task, version) => {
@@ -143,9 +146,11 @@ impl YOLO {
                 (None, Some(version)) => {
                     let layout = match version {
                         // single task, no need to specified task
-                        Version(6, 0) | Version(7, 0) => YOLOPredsFormat::n_a_cxcywh_confclss(),
-                        Version(9, 0) | Version(12, 0) => YOLOPredsFormat::n_cxcywh_clss_a(),
-                        Version(10, 0) => YOLOPredsFormat::n_a_xyxy_confcls().apply_nms(false),
+                        Version(6, 0, _) | Version(7, 0, _) => {
+                            YOLOPredsFormat::n_a_cxcywh_confclss()
+                        }
+                        Version(9, 0, _) | Version(12, 0, _) => YOLOPredsFormat::n_cxcywh_clss_a(),
+                        Version(10, 0, _) => YOLOPredsFormat::n_a_xyxy_confcls().apply_nms(false),
                         _ => {
                             anyhow::bail!(
                                 "No clear YOLO Task specified for Version: {:?}.",
@@ -224,18 +229,19 @@ impl YOLO {
         };
 
         // Attributes
+        let topk = options.topk().unwrap_or(5);
         let confs = DynConf::new(options.class_confs(), nc);
         let kconfs = DynConf::new(options.keypoint_confs(), nk);
         let iou = options.iou().unwrap_or(0.45);
         let classes_excluded = options.classes_excluded().to_vec();
         let classes_retained = options.classes_retained().to_vec();
-        let find_contours = options.find_contours();
         let mut info = format!(
-            "YOLO Version: {}, Task: {:?}, Category Count: {}, Keypoint Count: {}",
+            "YOLO Version: {}, Task: {:?}, Category Count: {}, Keypoint Count: {}, TopK: {}",
             version.map_or("Unknown".into(), |x| x.to_string()),
             task,
             nc,
             nk,
+            topk,
         );
         if !classes_excluded.is_empty() {
             info = format!("{}, classes_excluded: {:?}", info, classes_excluded);
@@ -261,15 +267,15 @@ impl YOLO {
             iou,
             nc,
             nk,
-            find_contours,
             classes_excluded,
             classes_retained,
             processor,
             ts,
+            topk,
         })
     }
 
-    fn preprocess(&mut self, xs: &[DynamicImage]) -> Result<Xs> {
+    fn preprocess(&mut self, xs: &[Image]) -> Result<Xs> {
         let x = self.processor.process_images(xs)?;
 
         Ok(x.into())
@@ -279,7 +285,7 @@ impl YOLO {
         self.engine.run(xs)
     }
 
-    pub fn forward(&mut self, xs: &[DynamicImage]) -> Result<Ys> {
+    pub fn forward(&mut self, xs: &[Image]) -> Result<Vec<Y>> {
         let ys = elapsed!("preprocess", self.ts, { self.preprocess(xs)? });
         let ys = elapsed!("inference", self.ts, { self.inference(ys)? });
         let ys = elapsed!("postprocess", self.ts, { self.postprocess(ys)? });
@@ -291,7 +297,7 @@ impl YOLO {
         self.ts.summary();
     }
 
-    fn postprocess(&self, xs: Xs) -> Result<Ys> {
+    fn postprocess(&self, xs: Xs) -> Result<Vec<Y>> {
         let protos = if xs.len() == 2 { Some(&xs[1]) } else { None };
         let ys: Vec<Y> = xs[0]
             .axis_iter(Axis(0))
@@ -320,16 +326,21 @@ impl YOLO {
                     } else {
                         slice_clss.into_owned()
                     };
-                    let probs = Prob::default()
-                        .with_probs(&x.into_raw_vec_and_offset().0)
-                        .with_names(&self.names.iter().map(|x| x.as_str()).collect::<Vec<_>>());
+                    let probs = Prob::new_probs(
+                        &x.into_raw_vec_and_offset().0,
+                        Some(&self.names.iter().map(|x| x.as_str()).collect::<Vec<_>>()),
+                        self.topk,
+                    );
 
-                    return Some(y.with_probs(probs));
+                    return Some(y.with_probs(&probs));
                 }
 
                 // Original image size
-                let (image_height, image_width) = self.processor.image0s_size[idx];
-                let ratio = self.processor.scale_factors_hw[idx][0];
+                let (image_height, image_width) = (
+                    self.processor.images_transform_info[idx].height_src,
+                    self.processor.images_transform_info[idx].width_src,
+                );
+                let ratio = self.processor.images_transform_info[idx].height_scale;
 
                 // Other tasks
                 let (y_bboxes, y_mbrs) = slice_bboxes?
@@ -428,25 +439,19 @@ impl YOLO {
                                     (h, w, radians + std::f32::consts::PI / 2.)
                                 };
                                 let radians = radians % std::f32::consts::PI;
-                                let mbr = Mbr::from_cxcywhr(
-                                    cx as f64,
-                                    cy as f64,
-                                    w as f64,
-                                    h as f64,
-                                    radians as f64,
-                                )
-                                .with_confidence(confidence)
-                                .with_id(class_id as isize)
-                                .with_name(&self.names[class_id]);
+                                let mbr = Obb::from_cxcywhr(cx, cy, w, h, radians)
+                                    .with_confidence(confidence)
+                                    .with_id(class_id)
+                                    .with_name(&self.names[class_id]);
 
                                 (None, Some(mbr))
                             }
                             None => {
-                                let bbox = Bbox::default()
+                                let bbox = Hbb::default()
                                     .with_xywh(x, y, w, h)
                                     .with_confidence(confidence)
-                                    .with_id(class_id as isize)
-                                    .with_id_born(i as isize)
+                                    .with_id(class_id)
+                                    .with_uid(i)
                                     .with_name(&self.names[class_id]);
 
                                 (Some(bbox), None)
@@ -457,34 +462,34 @@ impl YOLO {
                     })
                     .collect::<(Vec<_>, Vec<_>)>();
 
-                let y_bboxes: Vec<Bbox> = y_bboxes.into_iter().flatten().collect();
-                let y_mbrs: Vec<Mbr> = y_mbrs.into_iter().flatten().collect();
+                let mut y_bboxes: Vec<Hbb> = y_bboxes.into_iter().flatten().collect();
+                let mut y_mbrs: Vec<Obb> = y_mbrs.into_iter().flatten().collect();
 
                 // Mbrs
                 if !y_mbrs.is_empty() {
-                    y = y.with_mbrs(&y_mbrs);
                     if self.layout.apply_nms {
-                        y = y.apply_nms(self.iou);
+                        y_mbrs.apply_nms_inplace(self.iou);
                     }
+                    y = y.with_obbs(&y_mbrs);
                     return Some(y);
                 }
 
                 // Bboxes
                 if !y_bboxes.is_empty() {
-                    y = y.with_bboxes(&y_bboxes);
                     if self.layout.apply_nms {
-                        y = y.apply_nms(self.iou);
+                        y_bboxes.apply_nms_inplace(self.iou);
                     }
+                    y = y.with_hbbs(&y_bboxes);
                 }
 
                 // KeypointsDetection
                 if let Some(pred_kpts) = slice_kpts {
                     let kpt_step = self.layout.kpt_step().unwrap_or(3);
-                    if let Some(bboxes) = y.bboxes() {
-                        let y_kpts = bboxes
+                    if let Some(hbbs) = y.hbbs() {
+                        let y_kpts = hbbs
                             .into_par_iter()
                             .filter_map(|bbox| {
-                                let pred = pred_kpts.slice(s![bbox.id_born(), ..]);
+                                let pred = pred_kpts.slice(s![bbox.uid(), ..]);
                                 let kpts = (0..self.nk)
                                     .into_par_iter()
                                     .map(|i| {
@@ -495,7 +500,7 @@ impl YOLO {
                                             Keypoint::default()
                                         } else {
                                             Keypoint::default()
-                                                .with_id(i as isize)
+                                                .with_id(i)
                                                 .with_confidence(kconf)
                                                 .with_xy(
                                                     kx.max(0.0f32).min(image_width as f32),
@@ -508,17 +513,17 @@ impl YOLO {
                                 Some(kpts)
                             })
                             .collect::<Vec<_>>();
-                        y = y.with_keypoints(&y_kpts);
+                        y = y.with_keypointss(&y_kpts);
                     }
                 }
 
                 // InstanceSegmentation
                 if let Some(coefs) = slice_coefs {
-                    if let Some(bboxes) = y.bboxes() {
-                        let (y_polygons, y_masks) = bboxes
+                    if let Some(hbbs) = y.hbbs() {
+                        let y_masks = hbbs
                             .into_par_iter()
                             .filter_map(|bbox| {
-                                let coefs = coefs.slice(s![bbox.id_born(), ..]).to_vec();
+                                let coefs = coefs.slice(s![bbox.uid(), ..]).to_vec();
                                 let proto = protos.as_ref()?.slice(s![idx, .., .., ..]);
                                 let (nm, mh, mw) = proto.dim();
 
@@ -561,39 +566,19 @@ impl YOLO {
                                     }
                                 }
 
-                                // Find contours
-                                let polygons = if self.find_contours {
-                                    let contours: Vec<imageproc::contours::Contour<i32>> =
-                                        imageproc::contours::find_contours_with_threshold(&mask, 220);
-                                    contours
-                                        .into_par_iter()
-                                        .map(|x| {
-                                            let mut polygon = Polygon::default()
-                                                .with_id(bbox.id())
-                                                .with_points_imageproc(&x.points)
-                                                .verify();
-                                            if let Some(name) = bbox.name() {
-                                                polygon = polygon.with_name(name);
-                                            }
-                                            polygon
-                                        })
-                                        .max_by(|x, y| x.area().total_cmp(&y.area()))?
-                                } else {
-                                    Polygon::default()
-                                };
-
-                                let mut mask = Mask::default().with_mask(mask).with_id(bbox.id());
+                                let mut mask = Mask::default().with_mask(mask);
+                                if let Some(id) = bbox.id() {
+                                    mask = mask.with_id(id);
+                                }
+                              
                                 if let Some(name) = bbox.name() {
                                     mask = mask.with_name(name);
                                 }
 
-                                Some((polygons, mask))
+                                Some(mask)
                             })
-                            .collect::<(Vec<_>, Vec<_>)>();
+                            .collect::<Vec<_>>();
 
-                        if !y_polygons.is_empty() {
-                            y = y.with_polygons(&y_polygons);
-                        }
                         if !y_masks.is_empty() {
                             y = y.with_masks(&y_masks);
                         }
@@ -604,7 +589,8 @@ impl YOLO {
             })
             .collect();
 
-        Ok(ys.into())
+        Ok(ys)
+        // Ok(ys.into())
     }
 
     fn fetch_names_from_onnx(engine: &Engine) -> Option<Vec<String>> {

@@ -1,8 +1,7 @@
 use aksr::Builder;
 use anyhow::Result;
-use image::DynamicImage;
 
-use crate::{elapsed, Engine, Options, Processor, Scale, Ts, Xs, X};
+use crate::{elapsed, Engine, Image, Options, Processor, Scale, Ts, Xs, X};
 
 #[derive(Builder, Debug)]
 pub struct DINOv2 {
@@ -48,7 +47,7 @@ impl DINOv2 {
         })
     }
 
-    fn preprocess(&mut self, xs: &[DynamicImage]) -> Result<Xs> {
+    fn preprocess(&mut self, xs: &[Image]) -> Result<Xs> {
         let x = self.processor.process_images(xs)?;
 
         Ok(x.into())
@@ -58,7 +57,7 @@ impl DINOv2 {
         self.engine.run(xs)
     }
 
-    pub fn encode_images(&mut self, xs: &[DynamicImage]) -> Result<X> {
+    pub fn encode_images(&mut self, xs: &[Image]) -> Result<X> {
         let xs = elapsed!("visual-preprocess", self.ts, { self.preprocess(xs)? });
         let xs = elapsed!("visual-inference", self.ts, { self.inference(xs)? });
         let x = elapsed!("visual-postprocess", self.ts, { xs[0].to_owned() });

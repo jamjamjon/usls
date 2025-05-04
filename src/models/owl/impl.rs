@@ -1,10 +1,9 @@
 use aksr::Builder;
 use anyhow::Result;
-use image::DynamicImage;
 use ndarray::{s, Axis};
 use rayon::prelude::*;
 
-use crate::{elapsed, Bbox, DynConf, Engine, Options, Processor, Ts, Xs, Ys, X, Y};
+use crate::{elapsed, DynConf, Engine, Hbb, Image, Options, Processor, Ts, Xs, X, Y};
 
 #[derive(Debug, Builder)]
 pub struct OWLv2 {
@@ -78,7 +77,7 @@ impl OWLv2 {
         })
     }
 
-    fn preprocess(&mut self, xs: &[DynamicImage]) -> Result<Xs> {
+    fn preprocess(&mut self, xs: &[Image]) -> Result<Xs> {
         let image_embeddings = self.processor.process_images(xs)?;
         let xs = Xs::from(vec![
             self.input_ids.clone(),
@@ -93,7 +92,7 @@ impl OWLv2 {
         self.engine.run(xs)
     }
 
-    pub fn forward(&mut self, xs: &[DynamicImage]) -> Result<Ys> {
+    pub fn forward(&mut self, xs: &[Image]) -> Result<Vec<Y>> {
         let ys = elapsed!("preprocess", self.ts, { self.preprocess(xs)? });
         let ys = elapsed!("inference", self.ts, { self.inference(ys)? });
         let ys = elapsed!("postprocess", self.ts, { self.postprocess(ys)? });
@@ -101,16 +100,20 @@ impl OWLv2 {
         Ok(ys)
     }
 
-    fn postprocess(&mut self, xs: Xs) -> Result<Ys> {
+    fn postprocess(&mut self, xs: Xs) -> Result<Vec<Y>> {
         let ys: Vec<Y> = xs[0]
             .axis_iter(Axis(0))
             .into_par_iter()
             .zip(xs[1].axis_iter(Axis(0)).into_par_iter())
             .enumerate()
             .filter_map(|(idx, (clss, bboxes))| {
-                let (image_height, image_width) = self.processor.image0s_size[idx];
+                let (image_height, image_width) = (
+                    self.processor.images_transform_info[idx].height_src,
+                    self.processor.images_transform_info[idx].width_src,
+                );
+
                 let ratio = image_height.max(image_width) as f32;
-                let y_bboxes: Vec<Bbox> = clss
+                let y_bboxes: Vec<Hbb> = clss
                     .axis_iter(Axis(0))
                     .into_par_iter()
                     .enumerate()
@@ -134,20 +137,20 @@ impl OWLv2 {
                         );
 
                         Some(
-                            Bbox::default()
+                            Hbb::default()
                                 .with_xywh(x, y, w, h)
                                 .with_confidence(confidence)
-                                .with_id(class_id as isize)
+                                .with_id(class_id)
                                 .with_name(&self.names[class_id]),
                         )
                     })
                     .collect();
 
-                Some(Y::default().with_bboxes(&y_bboxes))
+                Some(Y::default().with_hbbs(&y_bboxes))
             })
             .collect();
 
-        Ok(ys.into())
+        Ok(ys)
     }
 
     pub fn summary(&mut self) {

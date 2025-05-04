@@ -1,8 +1,9 @@
 use anyhow::Result;
-use usls::{models::DepthPro, Annotator, DataLoader, Options};
+use usls::DataLoader;
+use usls::{models::DepthPro, Annotator, Options, Style};
 
 #[derive(argh::FromArgs)]
-/// BLIP Example
+/// Example
 struct Args {
     /// device
     #[argh(option, default = "String::from(\"cpu:0\")")]
@@ -11,10 +12,6 @@ struct Args {
     /// dtype
     #[argh(option, default = "String::from(\"q4f16\")")]
     dtype: String,
-
-    /// source image
-    #[argh(option, default = "String::from(\"images/street.jpg\")")]
-    source: String,
 }
 
 fn main() -> Result<()> {
@@ -33,16 +30,23 @@ fn main() -> Result<()> {
     let mut model = DepthPro::new(options)?;
 
     // load
-    let x = [DataLoader::try_read(&args.source)?];
+    let xs = DataLoader::try_read_n(&["images/street.jpg"])?;
 
     // run
-    let y = model.forward(&x)?;
+    let ys = model.forward(&xs)?;
 
     // annotate
-    let annotator = Annotator::default()
-        .with_colormap("Turbo")
-        .with_saveout(model.spec());
-    annotator.annotate(&x, &y);
+    let annotator =
+        Annotator::default().with_mask_style(Style::mask().with_colormap256("turbo".into()));
+    for (x, y) in xs.iter().zip(ys.iter()) {
+        annotator.annotate(x, y)?.save(format!(
+            "{}.jpg",
+            usls::Dir::Current
+                .base_dir_with_subs(&["runs", model.spec()])?
+                .join(usls::timestamp(None))
+                .display(),
+        ))?;
+    }
 
     Ok(())
 }
