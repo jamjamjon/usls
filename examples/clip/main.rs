@@ -1,5 +1,5 @@
 use anyhow::Result;
-use usls::{models::Clip, DataLoader, Ops, Options};
+use usls::{models::CLIP, CLIPConfig, DataLoader, Ops};
 
 #[derive(argh::FromArgs)]
 /// CLIP Example
@@ -7,6 +7,10 @@ struct Args {
     /// device
     #[argh(option, default = "String::from(\"cpu:0\")")]
     device: String,
+
+    /// dtype
+    #[argh(option, default = "String::from(\"auto\")")]
+    dtype: String,
 }
 
 fn main() -> Result<()> {
@@ -17,15 +21,21 @@ fn main() -> Result<()> {
 
     let args: Args = argh::from_env();
     // build model
-    let options_visual = Options::jina_clip_v1_visual()
-        // clip_vit_b32_visual()
-        .with_model_device(args.device.as_str().try_into()?)
-        .commit()?;
-    let options_textual = Options::jina_clip_v1_textual()
-        // clip_vit_b32_textual()
-        .with_model_device(args.device.as_str().try_into()?)
-        .commit()?;
-    let mut model = Clip::new(options_visual, options_textual)?;
+    // let options_visual = Options::jina_clip_v1_visual()
+    //     // clip_vit_b32_visual()
+    //     .with_model_device(args.device.as_str().try_into()?)
+    //     .commit()?;
+    // let options_textual = Options::jina_clip_v1_textual()
+    //     // clip_vit_b32_textual()
+    //     .with_model_device(args.device.as_str().try_into()?)
+    //     .commit()?;
+    // let mut model = CLIP::new(options_visual, options_textual)?;
+    let config = CLIPConfig::jina_clip_v1()
+        .with_visual_dtype(args.dtype.as_str().try_into()?)
+        .with_textual_dtype(args.dtype.as_str().try_into()?)
+        .with_visual_device(args.device.as_str().try_into()?)
+        .with_textual_device(args.device.as_str().try_into()?);
+    let mut model = CLIP::new(config)?;
 
     // texts
     let texts = vec![
@@ -65,6 +75,8 @@ fn main() -> Result<()> {
             );
         }
     }
+
+    model.summary();
 
     Ok(())
 }

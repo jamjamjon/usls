@@ -1,4 +1,4 @@
-use usls::{models::ImageClassifier, Annotator, DataLoader, Options};
+use usls::{models::ImageClassifier, Annotator, DataLoader, ImageClassificationConfig, Options};
 
 #[derive(argh::FromArgs)]
 /// Example
@@ -36,20 +36,28 @@ fn main() -> anyhow::Result<()> {
     let args: Args = argh::from_env();
 
     // build model
-    let options = match args.model.to_lowercase().as_str() {
-        "beit" => Options::beit_base(),
-        "convnext" => Options::convnext_v2_atto(),
-        "deit" => Options::deit_tiny_distill(),
-        "fastvit" => Options::fastvit_t8_distill(),
-        "mobileone" => Options::mobileone_s0(),
+    let config = match args.model.to_lowercase().as_str() {
+        "beit" => ImageClassificationConfig::beit_base(),
+        "convnext" => ImageClassificationConfig::convnext_v2_atto(),
+        "deit" => ImageClassificationConfig::deit_tiny_distill(),
+        "fastvit" => ImageClassificationConfig::fastvit_t8_distill(),
+        "mobileone" => ImageClassificationConfig::mobileone_s0(),
         _ => anyhow::bail!("Unsupported model: {}", args.model),
-    };
+    }
+    .with_model_dtype(args.dtype.as_str().try_into()?)
+    .with_model_device(args.device.as_str().try_into()?);
 
-    let options = options
-        .with_model_dtype(args.dtype.as_str().try_into()?)
-        .with_model_device(args.device.as_str().try_into()?)
-        .commit()?;
-    let mut model = ImageClassifier::try_from(options)?;
+    // let options = options
+    //     .with_model_dtype(args.dtype.as_str().try_into()?)
+    //     .with_model_device(args.device.as_str().try_into()?)
+    //     .commit()?;
+    let mut model = ImageClassifier::try_from(config)?;
+    // let config = match &args.model {
+    //     Some(m) => DBConfig::default().with_model_file(m),
+    //     None => DBConfig::ppocr_det_v4_ch().with_model_dtype(args.dtype.as_str().try_into()?),
+    // }
+    // .with_model_device(args.device.as_str().try_into()?);
+    // let mut model = DB::new(config)?;
 
     // load images
     let xs = DataLoader::try_read_n(&args.source)?;

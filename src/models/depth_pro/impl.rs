@@ -76,12 +76,13 @@ impl DepthPro {
                 false,
                 "Bilinear",
             )?;
-            let luma: image::ImageBuffer<image::Luma<_>, Vec<_>> =
-                match image::ImageBuffer::from_raw(w1 as _, h1 as _, luma) {
-                    None => continue,
-                    Some(x) => x,
-                };
-            ys.push(Y::default().with_masks(&[Mask::default().with_mask(luma)]));
+            // let luma: image::ImageBuffer<image::Luma<_>, Vec<_>> =
+            //     match image::ImageBuffer::from_raw(w1 as _, h1 as _, luma) {
+            //         None => continue,
+            //         Some(x) => x,
+            //     };
+            // ys.push(Y::default().with_masks(&[Mask::default().with_mask(luma)]));
+            ys.push(Y::default().with_masks(&[Mask::new(&luma, w1, h1)?]));
         }
 
         Ok(ys)

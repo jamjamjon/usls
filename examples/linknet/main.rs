@@ -1,6 +1,6 @@
 use anyhow::Result;
 use usls::DataLoader;
-use usls::{models::DB, Annotator, Options, Scale, Style};
+use usls::{models::DB, Annotator, DBConfig, Scale, Style};
 
 #[derive(argh::FromArgs)]
 /// Example
@@ -27,18 +27,23 @@ fn main() -> Result<()> {
     let args: Args = argh::from_env();
 
     // build model
-    let options = match args.scale.as_str().try_into()? {
-        Scale::T => Options::linknet_r18(),
-        Scale::S => Options::linknet_r34(),
-        Scale::B => Options::linknet_r50(),
+    let config = match args.scale.as_str().try_into()? {
+        Scale::T => DBConfig::linknet_r18(),
+        Scale::S => DBConfig::linknet_r34(),
+        Scale::B => DBConfig::linknet_r50(),
         _ => unimplemented!("Unsupported model scale: {:?}. Try b, s, t.", args.scale),
-    };
-    let mut model = DB::new(
-        options
-            .with_model_dtype(args.dtype.as_str().try_into()?)
-            .with_model_device(args.device.as_str().try_into()?)
-            .commit()?,
-    )?;
+    }
+    .with_model_dtype(args.dtype.as_str().try_into()?)
+    .with_model_device(args.device.as_str().try_into()?);
+    let mut model = DB::new(config)?;
+
+    //  // build model
+    //  let config = match &args.model {
+    //     Some(m) => DBConfig::default().with_model_file(m),
+    //     None => DBConfig::ppocr_det_v4_ch().with_model_dtype(args.dtype.as_str().try_into()?),
+    // }
+    // .with_model_device(args.device.as_str().try_into()?);
+    // let mut model = DB::new(config)?;
 
     // load image
     let xs = DataLoader::try_read_n(&[

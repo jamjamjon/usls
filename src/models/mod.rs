@@ -56,3 +56,76 @@ pub use svtr::*;
 pub use trocr::*;
 pub use yolo::*;
 pub use yolop::*;
+
+#[derive(aksr::Builder, Debug, Clone)]
+pub struct ObjectDetectionConfig {
+    pub model: crate::ModelConfig,
+    pub processor: crate::ProcessorConfig,
+    pub class_names: Vec<String>,
+    pub text_names: Vec<String>,
+    pub class_confs: Vec<f32>,
+    pub text_confs: Vec<f32>,
+    pub apply_nms: bool,
+}
+
+impl Default for ObjectDetectionConfig {
+    fn default() -> Self {
+        Self {
+            model: crate::ModelConfig::default()
+                .with_ixx(0, 0, 1.into())
+                .with_ixx(0, 1, 3.into())
+                .with_ixx(0, 2, 640.into())
+                .with_ixx(0, 3, 640.into()),
+            processor: crate::ProcessorConfig::default()
+                .with_resize_mode(crate::ResizeMode::FitAdaptive)
+                .with_resize_filter("CatmullRom"),
+            class_confs: vec![0.2f32],
+            class_names: vec![],
+            text_names: vec![],
+            text_confs: vec![0.2f32],
+            apply_nms: false,
+        }
+    }
+}
+
+use crate::{impl_model_config_methods, impl_process_config_methods};
+
+impl_model_config_methods!(ObjectDetectionConfig, model);
+impl_process_config_methods!(ObjectDetectionConfig, processor);
+
+#[derive(aksr::Builder, Debug, Clone)]
+pub struct KeypointDetectionConfig {
+    pub model: crate::ModelConfig,
+    pub processor: crate::ProcessorConfig,
+    pub class_names: Vec<String>,
+    pub class_confs: Vec<f32>,
+    pub keypoint_confs: Vec<f32>,
+    pub keypoint_names: Vec<String>,
+    #[args(aka = "nk")]
+    pub num_keypoints: Option<usize>,
+    pub apply_nms: bool,
+}
+
+impl Default for KeypointDetectionConfig {
+    fn default() -> Self {
+        Self {
+            model: crate::ModelConfig::default()
+                .with_ixx(0, 0, 1.into())
+                .with_ixx(0, 1, 3.into())
+                .with_ixx(0, 2, 640.into())
+                .with_ixx(0, 3, 640.into()),
+            processor: crate::ProcessorConfig::default()
+                .with_resize_mode(crate::ResizeMode::FitAdaptive)
+                .with_resize_filter("CatmullRom"),
+            class_confs: vec![0.2f32],
+            class_names: vec![],
+            keypoint_confs: vec![0.5f32],
+            keypoint_names: vec![],
+            num_keypoints: None,
+            apply_nms: false,
+        }
+    }
+}
+
+impl_model_config_methods!(KeypointDetectionConfig, model);
+impl_process_config_methods!(KeypointDetectionConfig, processor);

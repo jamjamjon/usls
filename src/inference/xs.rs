@@ -11,8 +11,8 @@ pub struct Xs {
     map: HashMap<String, X>,
     names: Vec<String>,
     // TODO: move to Processor
-    pub images: Vec<Vec<DynamicImage>>,
-    pub texts: Vec<Vec<DynamicImage>>,
+    // pub images: Vec<Vec<DynamicImage>>,
+    // pub texts: Vec<Vec<DynamicImage>>,
 }
 
 impl From<X> for Xs {

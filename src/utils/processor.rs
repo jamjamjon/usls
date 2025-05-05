@@ -5,12 +5,12 @@ use rayon::prelude::*;
 use std::sync::Mutex;
 use tokenizers::{Encoding, Tokenizer};
 
-use crate::{Image, ImageTransformInfo, LogitsSampler, ResizeMode, X};
+use crate::{Hub, Image, ImageTransformInfo, LogitsSampler, ProcessorConfig, ResizeMode, X};
 
 #[derive(Builder, Debug, Clone)]
 pub struct Processor {
-    pub image_width: u32,  // target image width
-    pub image_height: u32, // target image height
+    pub image_width: u32,
+    pub image_height: u32,
     pub images_transform_info: Vec<ImageTransformInfo>,
     pub resize_mode: ResizeMode,
     pub resize_filter: &'static str,
@@ -22,7 +22,7 @@ pub struct Processor {
     pub tokenizer: Option<Tokenizer>,
     pub vocab: Vec<String>,
     pub unsigned: bool,
-    pub logits_sampler: Option<LogitsSampler>,
+    pub logits_sampler: Option<LogitsSampler>, // TODO: not just for language models, but for vision models. Provide Topk, TopP, BeamSearch, ArgMax, ArgMix, etc.
 }
 
 impl Default for Processor {
@@ -47,6 +47,52 @@ impl Default for Processor {
 }
 
 impl Processor {
+    pub fn try_from_config(config: ProcessorConfig) -> Result<Self> {
+        let logits_sampler = LogitsSampler::new()
+            .with_temperature(config.temperature)
+            .with_topp(config.topp);
+
+        // try to build tokenizer
+        // let tokenizer = match self.model_kind {
+        //     Some(Kind::Language) | Some(Kind::VisionLanguage) => Some(self.try_build_tokenizer()?),
+        //     _ => None,
+        // };
+        let tokenizer = config.try_build_tokenizer()?;
+
+        // try to build vocab from `vocab.txt`
+        let vocab: Vec<String> = match &config.vocab_txt {
+            Some(x) => {
+                let file = if !std::path::PathBuf::from(&x).exists() {
+                    Hub::default().try_fetch(x)?
+                } else {
+                    x.to_string()
+                };
+                std::fs::read_to_string(file)?
+                    .lines()
+                    .map(|line| line.to_string())
+                    .collect()
+            }
+            None => vec![],
+        };
+
+        Ok(Processor {
+            image_width: config.image_width.unwrap_or_default(),
+            image_height: config.image_height.unwrap_or_default(),
+            resize_mode: config.resize_mode.clone(),
+            resize_filter: config.resize_filter.unwrap_or("Bilinear"),
+            padding_value: config.padding_value,
+            do_normalize: config.normalize,
+            image_mean: config.image_mean.clone(),
+            image_std: config.image_std.clone(),
+            nchw: config.nchw,
+            unsigned: config.unsigned,
+            tokenizer,
+            vocab,
+            logits_sampler: Some(logits_sampler),
+            ..Default::default()
+        })
+    }
+
     pub fn reset_image0_status(&mut self) {
         self.images_transform_info.clear();
     }

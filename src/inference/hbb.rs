@@ -1,6 +1,6 @@
 use aksr::Builder;
 
-use crate::{InstanceMeta, Keypoint, Style};
+use crate::{impl_meta_methods, InstanceMeta, Keypoint, Style};
 
 #[derive(Builder, Clone, Default)]
 pub struct Hbb {
@@ -79,44 +79,6 @@ impl From<Hbb> for (f32, f32, f32, f32) {
 impl From<Hbb> for [f32; 4] {
     fn from(Hbb { x, y, w, h, .. }: Hbb) -> Self {
         [x, y, w, h]
-    }
-}
-
-impl Hbb {
-    pub fn with_uid(mut self, uid: usize) -> Self {
-        self.meta = self.meta.with_uid(uid);
-        self
-    }
-
-    pub fn with_id(mut self, id: usize) -> Self {
-        self.meta = self.meta.with_id(id);
-        self
-    }
-
-    pub fn with_name(mut self, name: &str) -> Self {
-        self.meta = self.meta.with_name(name);
-        self
-    }
-
-    pub fn with_confidence(mut self, confidence: f32) -> Self {
-        self.meta = self.meta.with_confidence(confidence);
-        self
-    }
-
-    pub fn uid(&self) -> usize {
-        self.meta.uid()
-    }
-
-    pub fn name(&self) -> Option<&str> {
-        self.meta.name()
-    }
-
-    pub fn confidence(&self) -> Option<f32> {
-        self.meta.confidence()
-    }
-
-    pub fn id(&self) -> Option<usize> {
-        self.meta.id()
     }
 }
 
@@ -258,6 +220,7 @@ impl Hbb {
         // Display?
         todo!()
     }
+    impl_meta_methods!();
 }
 
 #[cfg(test)]

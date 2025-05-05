@@ -1,3 +1,24 @@
+pub const NAMES_PICODET_LAYOUT_17: [&str; 17] = [
+    "paragraph_title",
+    "image",
+    "text",
+    "number",
+    "abstract",
+    "content",
+    "figure_title",
+    "formula",
+    "table",
+    "table_title",
+    "reference",
+    "doc_title",
+    "footnote",
+    "header",
+    "algorithm",
+    "footer",
+    "seal",
+];
+pub const NAMES_PICODET_LAYOUT_3: [&str; 3] = ["image", "table", "seal"];
+pub const NAMES_PICODET_LAYOUT_5: [&str; 5] = ["Text", "Title", "List", "Table", "Figure"];
 pub const NAMES_COCO_KEYPOINTS_17: [&str; 17] = [
     "nose",
     "left_eye",

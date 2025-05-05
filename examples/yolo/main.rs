@@ -215,11 +215,13 @@ fn main() -> Result<()> {
     }
 
     // build model
+    let options = options.with_model_file("../yolov8n.onnx");
     let mut model = YOLO::try_from(options.commit()?)?;
 
     // build dataloader
     let dl = DataLoader::new(&args.source)?
-        .with_batch(model.batch() as _)
+        // .with_batch(model.batch() as _)
+        .with_batch(1)
         .build()?;
 
     // build annotator

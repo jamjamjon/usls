@@ -54,6 +54,27 @@ pub struct OnnxIo {
     pub proto: onnx::ModelProto,
 }
 
+impl TryFrom<crate::ModelConfig> for Engine {
+    type Error = anyhow::Error;
+    fn try_from(config: crate::ModelConfig) -> Result<Self, Self::Error> {
+        // commit and download model
+        let config = config.commit()?;
+
+        // build engine
+        let engine = Self {
+            file: config.file,
+            spec: config.spec,
+            device: config.device,
+            trt_fp16: config.trt_fp16,
+            iiixs: config.iiixs,
+            num_dry_run: config.num_dry_run,
+            graph_opt_level: config.ort_graph_opt_level,
+            ..Default::default()
+        };
+        engine.build()
+    }
+}
+
 #[derive(Debug, Builder)]
 pub struct Engine {
     pub file: String,
@@ -164,6 +185,7 @@ impl Engine {
         Ok(self)
     }
 
+    // TODO: return Self
     pub fn dry_run(&mut self) -> Result<()> {
         if self.num_dry_run > 0 {
             // pb

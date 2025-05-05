@@ -4,7 +4,7 @@ use geo::{
     Point, Simplify,
 };
 
-use crate::{Hbb, InstanceMeta, Mask, Obb, Style};
+use crate::{impl_meta_methods, Hbb, InstanceMeta, Mask, Obb, Style};
 
 /// Polygon.
 #[derive(Builder, Clone)]
@@ -244,41 +244,5 @@ impl Polygon {
         let mut seen = std::collections::HashSet::new();
         xs.retain(|point| seen.insert((point.x() as i32, point.y() as i32)));
     }
-}
-
-impl Polygon {
-    pub fn with_uid(mut self, uid: usize) -> Self {
-        self.meta = self.meta.with_uid(uid);
-        self
-    }
-    pub fn with_id(mut self, id: usize) -> Self {
-        self.meta = self.meta.with_id(id);
-        self
-    }
-
-    pub fn with_name(mut self, name: &str) -> Self {
-        self.meta = self.meta.with_name(name);
-        self
-    }
-
-    pub fn with_confidence(mut self, confidence: f32) -> Self {
-        self.meta = self.meta.with_confidence(confidence);
-        self
-    }
-
-    pub fn uid(&self) -> usize {
-        self.meta.uid()
-    }
-
-    pub fn name(&self) -> Option<&str> {
-        self.meta.name()
-    }
-
-    pub fn confidence(&self) -> Option<f32> {
-        self.meta.confidence()
-    }
-
-    pub fn id(&self) -> Option<usize> {
-        self.meta.id()
-    }
+    impl_meta_methods!();
 }

@@ -4,8 +4,8 @@ use ndarray::Axis;
 use rayon::prelude::*;
 
 use crate::{
-    elapsed, impl_model_config_methods, impl_process_config_methods, DynConf, Engine, Image, Prob,
-    Processor, Ts, Xs, Y,
+    elapsed, impl_model_config_methods, impl_process_config_methods, DynConf, Engine, Image,
+    Options, Prob, Processor, Ts, Xs, Y,
 };
 
 #[derive(Debug, Builder)]
@@ -23,12 +23,11 @@ pub struct ImageClassifier {
     spec: String,
 }
 
-impl TryFrom<ImageClassificationConfig> for ImageClassifier {
+impl TryFrom<Options> for ImageClassifier {
     type Error = anyhow::Error;
 
-    fn try_from(config: ImageClassificationConfig) -> Result<Self, Self::Error> {
-        // let engine = config.to_engine()?;
-        let engine = Engine::try_from(config.model)?;
+    fn try_from(options: Options) -> Result<Self, Self::Error> {
+        let engine = options.to_engine()?;
         let spec = engine.spec().to_string();
         let (batch, height, width, ts) = (
             engine.batch().opt(),
@@ -36,14 +35,11 @@ impl TryFrom<ImageClassificationConfig> for ImageClassifier {
             engine.try_width().unwrap_or(&224.into()).opt(),
             engine.ts().clone(),
         );
-        // let processor = config
-        //     .to_processor()?
-        //     .with_image_width(width as _)
-        //     .with_image_height(height as _);
-        let processor = Processor::try_from_config(config.processor)?
+        let processor = options
+            .to_processor()?
             .with_image_width(width as _)
             .with_image_height(height as _);
-        let (nc, names) = match (config.nc, config.class_names) {
+        let (nc, names) = match (options.nc(), options.class_names()) {
             (Some(nc), Some(names)) => {
                 if nc != names.len() {
                     anyhow::bail!(
@@ -63,8 +59,8 @@ impl TryFrom<ImageClassificationConfig> for ImageClassifier {
                 anyhow::bail!("Neither class names nor class numbers were specified.");
             }
         };
-        let confs = DynConf::new(&config.class_confs, nc);
-        let apply_softmax = config.apply_softmax.unwrap_or_default();
+        let confs = DynConf::new(options.class_confs(), nc);
+        let apply_softmax = options.apply_softmax.unwrap_or_default();
 
         Ok(Self {
             engine,
@@ -136,10 +132,9 @@ pub struct ImageClassificationConfig {
     pub model: crate::ModelConfig,
     pub processor: crate::ProcessorConfig,
     pub class_confs: Vec<f32>,
-    pub class_names: Option<Vec<String>>, // TODO: just use Vec
-    pub apply_softmax: Option<bool>,
+    pub class_names: Vec<String>,
+    pub apply_softmax: bool,
     pub topk: usize,
-    pub nc: Option<usize>,
 }
 
 impl Default for ImageClassificationConfig {
@@ -156,10 +151,9 @@ impl Default for ImageClassificationConfig {
                 .with_image_mean(&[0.48145466, 0.4578275, 0.40821073])
                 .with_image_std(&[0.26862954, 0.2613026, 0.2757771]),
             class_confs: vec![0.3f32],
-            class_names: None,
-            apply_softmax: None,
+            class_names: vec![],
+            apply_softmax: false,
             topk: 5,
-            nc: None,
         }
     }
 }

@@ -12,16 +12,4 @@ impl crate::Options {
             .with_resize_mode(crate::ResizeMode::FitExact)
             .with_normalize(true)
     }
-
-    // pub fn depth_pro_q4f16() -> Self {
-    //     Self::depth_pro().with_model_file("q4f16.onnx")
-    // }
-
-    // pub fn depth_pro_fp16() -> Self {
-    //     Self::depth_pro().with_model_file("fp16.onnx")
-    // }
-
-    // pub fn depth_pro_bnb4() -> Self {
-    //     Self::depth_pro().with_model_file("bnb4.onnx")
-    // }
 }

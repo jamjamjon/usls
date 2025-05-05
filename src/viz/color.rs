@@ -212,7 +212,7 @@ impl Color {
     }
 }
 
-const PALETTE_BASE: [u32; 39] = [
+const PALETTE_BASE: [u32; 38] = [
     0x00ff7fff, // SpringGreen
     0xff69b4ff, // HotPink
     0xff6347ff, // Tomato
@@ -242,7 +242,6 @@ const PALETTE_BASE: [u32; 39] = [
     0x2f4f4fff, // DarkSlateGray
     0x8b4513ff, // SaddleBrown
     0xffb6c1ff, // LightPink
-    0x000000ff, // Black
     0xffffffff, // White
     0xff4500ff, // OrangeRed
     0x4682b4ff, // SteelBlue

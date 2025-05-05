@@ -1,5 +1,5 @@
 use anyhow::Result;
-use usls::{models::DB, Annotator, DataLoader, Options, Style};
+use usls::{models::DB, Annotator, DBConfig, DataLoader, Style};
 
 #[derive(argh::FromArgs)]
 /// Example
@@ -41,15 +41,12 @@ fn main() -> Result<()> {
     let args: Args = argh::from_env();
 
     // build model
-    let options = match &args.model {
-        Some(m) => Options::db().with_model_file(m),
-        None => Options::ppocr_det_v4_ch().with_model_dtype(args.dtype.as_str().try_into()?),
-    };
-    let mut model = DB::new(
-        options
-            .with_model_device(args.device.as_str().try_into()?)
-            .commit()?,
-    )?;
+    let config = match &args.model {
+        Some(m) => DBConfig::default().with_model_file(m),
+        None => DBConfig::ppocr_det_v4_ch().with_model_dtype(args.dtype.as_str().try_into()?),
+    }
+    .with_model_device(args.device.as_str().try_into()?);
+    let mut model = DB::new(config)?;
 
     // load image
     let xs = DataLoader::try_read_n(&[
