@@ -19,7 +19,7 @@ impl crate::Options {
     pub fn rfdetr_base() -> Self {
         Self::rfdetr().with_model_file("base.onnx")
     }
-    
+
     pub fn rfdetr_large() -> Self {
         Self::rfdetr().with_model_file("large.onnx")
     }

@@ -1,6 +1,6 @@
 use aksr::Builder;
 
-use crate::{Hbb, InstanceMeta, Keypoint, Polygon, Style};
+use crate::{impl_meta_methods, Hbb, InstanceMeta, Keypoint, Polygon, Style};
 
 #[derive(Builder, Default, Clone, PartialEq)]
 pub struct Obb {
@@ -48,6 +48,7 @@ impl From<Obb> for [[f32; 2]; 4] {
 }
 
 impl Obb {
+    impl_meta_methods!();
     /// Build from (cx, cy, width, height, degrees)
     pub fn from_cxcywhd(cx: f32, cy: f32, w: f32, h: f32, d: f32) -> Self {
         Self::from_cxcywhr(cx, cy, w, h, d.to_radians())
@@ -139,43 +140,6 @@ impl Obb {
 
     pub fn hbb() -> Hbb {
         todo!()
-    }
-}
-
-impl Obb {
-    pub fn with_uid(mut self, uid: usize) -> Self {
-        self.meta = self.meta.with_uid(uid);
-        self
-    }
-    pub fn with_id(mut self, id: usize) -> Self {
-        self.meta = self.meta.with_id(id);
-        self
-    }
-
-    pub fn with_name(mut self, name: &str) -> Self {
-        self.meta = self.meta.with_name(name);
-        self
-    }
-
-    pub fn with_confidence(mut self, confidence: f32) -> Self {
-        self.meta = self.meta.with_confidence(confidence);
-        self
-    }
-
-    pub fn uid(&self) -> usize {
-        self.meta.uid()
-    }
-
-    pub fn name(&self) -> Option<&str> {
-        self.meta.name()
-    }
-
-    pub fn confidence(&self) -> Option<f32> {
-        self.meta.confidence()
-    }
-
-    pub fn id(&self) -> Option<usize> {
-        self.meta.id()
     }
 }
 

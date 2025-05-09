@@ -3,7 +3,7 @@ use anyhow::Result;
 use image::GrayImage;
 use rayon::prelude::*;
 
-use crate::{InstanceMeta, Polygon, Style};
+use crate::{impl_meta_methods, InstanceMeta, Polygon, Style};
 
 /// Mask: Gray Image.
 #[derive(Builder, Default, Clone)]
@@ -35,6 +35,7 @@ impl PartialEq for Mask {
 }
 
 impl Mask {
+    impl_meta_methods!();
     pub fn new(u8s: &[u8], width: u32, height: u32) -> Result<Self> {
         let mask: image::ImageBuffer<image::Luma<_>, Vec<_>> =
             image::ImageBuffer::from_raw(width, height, u8s.to_vec())
@@ -101,42 +102,5 @@ impl Mask {
             .collect();
 
         polygons
-    }
-}
-
-impl Mask {
-    pub fn with_uid(mut self, uid: usize) -> Self {
-        self.meta = self.meta.with_uid(uid);
-        self
-    }
-    pub fn with_id(mut self, id: usize) -> Self {
-        self.meta = self.meta.with_id(id);
-        self
-    }
-
-    pub fn with_name(mut self, name: &str) -> Self {
-        self.meta = self.meta.with_name(name);
-        self
-    }
-
-    pub fn with_confidence(mut self, confidence: f32) -> Self {
-        self.meta = self.meta.with_confidence(confidence);
-        self
-    }
-
-    pub fn uid(&self) -> usize {
-        self.meta.uid()
-    }
-
-    pub fn name(&self) -> Option<&str> {
-        self.meta.name()
-    }
-
-    pub fn confidence(&self) -> Option<f32> {
-        self.meta.confidence()
-    }
-
-    pub fn id(&self) -> Option<usize> {
-        self.meta.id()
     }
 }
