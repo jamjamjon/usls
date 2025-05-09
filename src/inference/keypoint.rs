@@ -1,7 +1,7 @@
 use aksr::Builder;
 use std::ops::{Add, Div, Mul, Sub};
 
-use crate::{InstanceMeta, Style};
+use crate::{impl_meta_methods, InstanceMeta, Style};
 
 /// Represents a keypoint in a 2D space with optional metadata.
 #[derive(Builder, Default, Clone)]
@@ -69,44 +69,8 @@ impl From<Keypoint> for [f32; 2] {
 }
 
 impl Keypoint {
-    pub fn with_uid(mut self, uid: usize) -> Self {
-        self.meta = self.meta.with_uid(uid);
-        self
-    }
+    impl_meta_methods!();
 
-    pub fn with_id(mut self, id: usize) -> Self {
-        self.meta = self.meta.with_id(id);
-        self
-    }
-
-    pub fn with_name(mut self, name: &str) -> Self {
-        self.meta = self.meta.with_name(name);
-        self
-    }
-
-    pub fn with_confidence(mut self, confidence: f32) -> Self {
-        self.meta = self.meta.with_confidence(confidence);
-        self
-    }
-
-    pub fn uid(&self) -> usize {
-        self.meta.uid()
-    }
-
-    pub fn name(&self) -> Option<&str> {
-        self.meta.name()
-    }
-
-    pub fn confidence(&self) -> Option<f32> {
-        self.meta.confidence()
-    }
-
-    pub fn id(&self) -> Option<usize> {
-        self.meta.id()
-    }
-}
-
-impl Keypoint {
     pub fn new(x: f32, y: f32) -> Self {
         Self {
             x,
