@@ -1,4 +1,7 @@
-use crate::{models::YOLOPredsFormat, Options, ResizeMode, Scale, Task, NAMES_COCO_KEYPOINTS_17};
+use crate::{
+    models::YOLOPredsFormat, Options, ResizeMode, Scale, Task, NAMES_COCO_KEYPOINTS_17,
+    NAMES_YOLO_DOCLAYOUT_10,
+};
 
 impl Options {
     pub fn yolo() -> Self {
@@ -19,18 +22,7 @@ impl Options {
             .with_model_ixx(0, 2, (640, 1024, 1024).into())
             .with_model_ixx(0, 3, (640, 1024, 1024).into())
             .with_class_confs(&[0.4])
-            .with_class_names(&[
-                "title",
-                "plain text",
-                "abandon",
-                "figure",
-                "figure_caption",
-                "table",
-                "table_caption",
-                "table_footnote",
-                "isolate_formula",
-                "formula_caption",
-            ])
+            .with_class_names(&NAMES_YOLO_DOCLAYOUT_10)
     }
 
     pub fn yolo_classify() -> Self {
@@ -196,5 +188,47 @@ impl Options {
         Self::yolo()
             .with_model_version(11.into())
             .with_model_scale(Scale::X)
+    }
+
+    pub fn yoloe_v8s_seg_pf() -> Self {
+        Self::yolo()
+            .with_model_version(8.into())
+            .with_model_scale(Scale::S)
+            .with_model_file("yoloe-v8s-seg-pf.onnx")
+    }
+
+    pub fn yoloe_v8m_seg_pf() -> Self {
+        Self::yolo()
+            .with_model_version(8.into())
+            .with_model_scale(Scale::M)
+            .with_model_file("yoloe-v8m-seg-pf.onnx")
+    }
+
+    pub fn yoloe_v8l_seg_pf() -> Self {
+        Self::yolo()
+            .with_model_version(8.into())
+            .with_model_scale(Scale::L)
+            .with_model_file("yoloe-v8l-seg-pf.onnx")
+    }
+
+    pub fn yoloe_11s_seg_pf() -> Self {
+        Self::yolo()
+            .with_model_version(11.into())
+            .with_model_scale(Scale::S)
+            .with_model_file("yoloe-11s-seg-pf.onnx")
+    }
+
+    pub fn yoloe_11m_seg_pf() -> Self {
+        Self::yolo()
+            .with_model_version(11.into())
+            .with_model_scale(Scale::M)
+            .with_model_file("yoloe-v8m-seg-pf.onnx")
+    }
+
+    pub fn yoloe_11l_seg_pf() -> Self {
+        Self::yolo()
+            .with_model_version(11.into())
+            .with_model_scale(Scale::L)
+            .with_model_file("yoloe-11l-seg-pf.onnx")
     }
 }

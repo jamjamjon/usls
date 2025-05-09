@@ -1,4 +1,7 @@
-use crate::{ResizeMode, NAMES_COCO_80};
+use crate::{
+    ResizeMode, NAMES_COCO_80, NAMES_PICODET_LAYOUT_17, NAMES_PICODET_LAYOUT_3,
+    NAMES_PICODET_LAYOUT_5,
+};
 
 /// Model configuration for `PicoDet`
 impl crate::Options {
@@ -26,36 +29,18 @@ impl crate::Options {
     pub fn picodet_layout_1x() -> Self {
         Self::picodet()
             .with_model_file("layout-1x.onnx")
-            .with_class_names(&["Text", "Title", "List", "Table", "Figure"])
+            .with_class_names(&NAMES_PICODET_LAYOUT_5)
     }
 
     pub fn picodet_l_layout_3cls() -> Self {
         Self::picodet()
             .with_model_file("l-layout-3cls.onnx")
-            .with_class_names(&["image", "table", "seal"])
+            .with_class_names(&NAMES_PICODET_LAYOUT_3)
     }
 
     pub fn picodet_l_layout_17cls() -> Self {
         Self::picodet()
             .with_model_file("l-layout-17cls.onnx")
-            .with_class_names(&[
-                "paragraph_title",
-                "image",
-                "text",
-                "number",
-                "abstract",
-                "content",
-                "figure_title",
-                "formula",
-                "table",
-                "table_title",
-                "reference",
-                "doc_title",
-                "footnote",
-                "header",
-                "algorithm",
-                "footer",
-                "seal",
-            ])
+            .with_class_names(&NAMES_PICODET_LAYOUT_17)
     }
 }
