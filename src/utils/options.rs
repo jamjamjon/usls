@@ -27,6 +27,14 @@ pub struct Options {
     pub trt_fp16: bool,
     pub profile: bool,
 
+    // models
+    pub model_encoder_file: Option<String>,
+    pub model_decoder_file: Option<String>,
+    pub visual_encoder_file: Option<String>,
+    pub visual_decoder_file: Option<String>,
+    pub textual_encoder_file: Option<String>,
+    pub textual_decoder_file: Option<String>,
+
     // Processor configs
     #[args(except(setter))]
     pub image_width: u32,
@@ -113,8 +121,8 @@ pub struct Options {
     pub binary_thresh: Option<f32>,
 
     // For SAM
-    pub sam_kind: Option<SamKind>,
-    pub low_res_mask: Option<bool>,
+    pub sam_kind: Option<SamKind>,  // TODO: remove
+    pub low_res_mask: Option<bool>, // TODO: remove
 
     // Others
     pub ort_graph_opt_level: Option<u8>,
@@ -203,6 +211,12 @@ impl Default for Options {
             topk_2: None,
             topk_3: None,
             ort_graph_opt_level: None,
+            model_encoder_file: None,
+            model_decoder_file: None,
+            visual_encoder_file: None,
+            visual_decoder_file: None,
+            textual_encoder_file: None,
+            textual_decoder_file: None,
         }
     }
 }

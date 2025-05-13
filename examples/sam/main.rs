@@ -16,7 +16,7 @@ struct Args {
     scale: String,
 
     /// SAM kind
-    #[argh(option, default = "String::from(\"sam\")")]
+    #[argh(option, default = "String::from(\"samhq\")")]
     kind: String,
 }
 
@@ -69,9 +69,19 @@ fn main() -> Result<()> {
     // Prompt
     let prompts = vec![
         SamPrompt::default()
-            // .with_postive_point(500., 375.), // postive point
-            // .with_negative_point(774., 366.),   // negative point
-            .with_bbox(215., 297., 643., 459.), // bbox
+            // //  # demo: point + point
+            // .with_positive_point(500., 375.) // mid window
+            // .with_positive_point(1125., 625.), // car door
+            // // # demo: bbox
+            // .with_xyxy(425., 600., 700., 875.), // left wheel
+            // // Note: When specifying multiple boxes for multiple objects, only the last box is supported; all previous boxes will be ignored.
+            // .with_xyxy(75., 275., 1725., 850.)
+            // .with_xyxy(425., 600., 700., 875.)
+            // .with_xyxy(1240., 675., 1400., 750.)
+            // .with_xyxy(1375., 550., 1650., 800.)
+            // # demo: bbox + negative point
+            .with_xyxy(425., 600., 700., 875.) // left wheel
+            .with_negative_point(575., 750.), // tire
     ];
 
     // Run & Annotate

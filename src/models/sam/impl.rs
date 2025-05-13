@@ -1,16 +1,17 @@
 use aksr::Builder;
 use anyhow::Result;
-use ndarray::{s, Array, Axis};
+use ndarray::{s, Axis};
 use rand::prelude::*;
 
 use crate::{
-    elapsed, DynConf, Engine, Image, Mask, Ops, Options, Polygon, Processor, Ts, Xs, X, Y,
+    elapsed, DynConf, Engine, Image, Mask, Ops, Options, Polygon, Processor, SamPrompt, Ts, Xs, X,
+    Y,
 };
 
 #[derive(Debug, Clone)]
 pub enum SamKind {
     Sam,
-    Sam2,
+    Sam2, // 2.0
     MobileSam,
     SamHq,
     EdgeSam,
@@ -28,54 +29,6 @@ impl TryFrom<&str> for SamKind {
             "edgesam" | "edge-sam" => Ok(Self::EdgeSam),
             x => anyhow::bail!("Unsupported SamKind: {}", x),
         }
-    }
-}
-
-#[derive(Debug, Default, Clone)]
-pub struct SamPrompt {
-    points: Vec<f32>,
-    labels: Vec<f32>,
-}
-
-impl SamPrompt {
-    pub fn everything() -> Self {
-        todo!()
-    }
-
-    pub fn with_postive_point(mut self, x: f32, y: f32) -> Self {
-        self.points.extend_from_slice(&[x, y]);
-        self.labels.push(1.);
-        self
-    }
-
-    pub fn with_negative_point(mut self, x: f32, y: f32) -> Self {
-        self.points.extend_from_slice(&[x, y]);
-        self.labels.push(0.);
-        self
-    }
-
-    pub fn with_bbox(mut self, x: f32, y: f32, x2: f32, y2: f32) -> Self {
-        self.points.extend_from_slice(&[x, y, x2, y2]);
-        self.labels.extend_from_slice(&[2., 3.]);
-        self
-    }
-
-    pub fn point_coords(&self, r: f32) -> Result<X> {
-        let point_coords = Array::from_shape_vec((1, self.num_points(), 2), self.points.clone())?
-            .into_dyn()
-            .into_owned();
-        Ok(X::from(point_coords * r))
-    }
-
-    pub fn point_labels(&self) -> Result<X> {
-        let point_labels = Array::from_shape_vec((1, self.num_points()), self.labels.clone())?
-            .into_dyn()
-            .into_owned();
-        Ok(X::from(point_labels))
-    }
-
-    pub fn num_points(&self) -> usize {
-        self.points.len() / 2
     }
 }
 
@@ -167,14 +120,28 @@ impl SAM {
             );
             let ratio = self.processor.images_transform_info[idx].height_scale;
 
+            let (mut point_coords, mut point_labels) = (
+                prompts[idx].point_coords(ratio)?,
+                prompts[idx].point_labels()?,
+            );
+
+            if point_coords.shape()[0] != 1 {
+                point_coords = X::from(point_coords.slice(s![-1, .., ..]).to_owned().into_dyn())
+                    .insert_axis(0)?;
+            }
+            if point_labels.shape()[0] != 1 {
+                point_labels = X::from(point_labels.slice(s![-1, ..,]).to_owned().into_dyn())
+                    .insert_axis(0)?;
+            }
+
             let args = match self.kind {
                 SamKind::Sam | SamKind::MobileSam => {
                     vec![
                         X::from(image_embedding.into_dyn().into_owned())
                             .insert_axis(0)?
                             .repeat(0, self.batch)?, // image_embedding
-                        prompts[idx].point_coords(ratio)?, // point_coords
-                        prompts[idx].point_labels()?,      // point_labels
+                        point_coords,
+                        point_labels,
                         X::zeros(&[1, 1, self.height_low_res() as _, self.width_low_res() as _]), // mask_input,
                         X::zeros(&[1]), // has_mask_input
                         X::from(vec![image_height as _, image_width as _]), // orig_im_size
@@ -189,8 +156,8 @@ impl SAM {
                             .insert_axis(0)?
                             .insert_axis(0)?
                             .repeat(0, self.batch)?, // intern_embedding
-                        prompts[idx].point_coords(ratio)?, // point_coords
-                        prompts[idx].point_labels()?,      // point_labels
+                        point_coords,
+                        point_labels,
                         X::zeros(&[1, 1, self.height_low_res() as _, self.width_low_res() as _]), // mask_input
                         X::zeros(&[1]), // has_mask_input
                         X::from(vec![image_height as _, image_width as _]), // orig_im_size
@@ -201,8 +168,8 @@ impl SAM {
                         X::from(image_embedding.into_dyn().into_owned())
                             .insert_axis(0)?
                             .repeat(0, self.batch)?,
-                        prompts[idx].point_coords(ratio)?,
-                        prompts[idx].point_labels()?,
+                        point_coords,
+                        point_labels,
                     ]
                 }
                 SamKind::Sam2 => {
@@ -228,11 +195,11 @@ impl SAM {
                         )
                         .insert_axis(0)?
                         .repeat(0, self.batch)?,
-                        prompts[idx].point_coords(ratio)?,
-                        prompts[idx].point_labels()?,
-                        X::zeros(&[1, 1, self.height_low_res() as _, self.width_low_res() as _]), // mask_input
-                        X::zeros(&[1]), // has_mask_input
-                        X::from(vec![image_height as _, image_width as _]), // orig_im_size
+                        point_coords,
+                        point_labels,
+                        X::zeros(&[1, 1, self.height_low_res() as _, self.width_low_res() as _]),
+                        X::zeros(&[1]),
+                        X::from(vec![image_height as _, image_width as _]),
                     ]
                 }
             };
