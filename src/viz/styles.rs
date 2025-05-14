@@ -16,6 +16,8 @@ pub struct Style {
     thickness_threshold: f32,         // For Hbb
     draw_mask_polygons: bool,         // For Masks
     draw_mask_polygon_largest: bool,  // For Masks
+    draw_mask_hbbs: bool,             // For Masks
+    draw_mask_obbs: bool,             // For Masks
     text_loc: TextLoc,                // For ALL
     color: StyleColors,               // For ALL
     palette: Vec<Color>,              // For ALL
@@ -41,6 +43,8 @@ impl Default for Style {
             color_fill_alpha: None,
             draw_mask_polygons: false,
             draw_mask_polygon_largest: false,
+            draw_mask_hbbs: false,
+            draw_mask_obbs: false,
             radius: 3,
             text_x_pos: 0.05,
             text_y_pos: 0.05,

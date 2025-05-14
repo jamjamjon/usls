@@ -89,9 +89,26 @@ impl Drawable for Vec<Mask> {
                     polygon.draw(ctx, canvas)?;
                 }
             }
+
             if style.draw_mask_polygons() {
                 for polygon in mask.polygons() {
                     polygon.draw(ctx, canvas)?;
+                }
+            }
+
+            if style.draw_mask_hbbs() {
+                if let Some(polygon) = mask.polygon() {
+                    if let Some(hbb) = polygon.hbb() {
+                        hbb.draw(ctx, canvas)?;
+                    }
+                }
+            }
+
+            if style.draw_mask_obbs() {
+                if let Some(polygon) = mask.polygon() {
+                    if let Some(obb) = polygon.obb() {
+                        obb.draw(ctx, canvas)?;
+                    }
                 }
             }
 
@@ -137,6 +154,22 @@ impl Drawable for Mask {
         if style.draw_mask_polygons() {
             for polygon in self.polygons() {
                 polygon.draw(ctx, canvas)?;
+            }
+        }
+
+        if style.draw_mask_hbbs() {
+            if let Some(polygon) = self.polygon() {
+                if let Some(hbb) = polygon.hbb() {
+                    hbb.draw(ctx, canvas)?;
+                }
+            }
+        }
+
+        if style.draw_mask_obbs() {
+            if let Some(polygon) = self.polygon() {
+                if let Some(obb) = polygon.obb() {
+                    obb.draw(ctx, canvas)?;
+                }
             }
         }
 

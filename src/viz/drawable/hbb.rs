@@ -34,7 +34,10 @@ impl Drawable for Hbb {
             imageproc::drawing::draw_filled_rect_mut(
                 &mut overlay,
                 imageproc::rect::Rect::at(self.xmin().round() as i32, self.ymin().round() as i32)
-                    .of_size(self.width().round() as u32, self.height().round() as u32),
+                    .of_size(
+                        (self.width().round() as u32).max(1),
+                        (self.height().round() as u32).max(1),
+                    ),
                 Rgba(style.color().fill.unwrap().into()),
             );
             image::imageops::overlay(canvas, &overlay, 0, 0);
@@ -43,7 +46,7 @@ impl Drawable for Hbb {
         if style.draw_outline() {
             let short_side_threshold =
                 self.width().min(self.height()) * style.thickness_threshold();
-            let thickness = style.thickness().min(short_side_threshold as usize);
+            let thickness = style.thickness().min(short_side_threshold as usize).max(1);
             for i in 0..thickness {
                 imageproc::drawing::draw_hollow_rect_mut(
                     canvas,
@@ -52,8 +55,8 @@ impl Drawable for Hbb {
                         (self.ymin().round() as i32) - (i as i32),
                     )
                     .of_size(
-                        (self.width().round() as u32) + (2 * i as u32),
-                        (self.height().round() as u32) + (2 * i as u32),
+                        ((self.width().round() as u32) + (2 * i as u32)).max(1),
+                        ((self.height().round() as u32) + (2 * i as u32)).max(1),
                     ),
                     Rgba(style.color().outline.unwrap().into()),
                 );
@@ -78,7 +81,7 @@ impl Drawable for Hbb {
         if style.draw_text() {
             let short_side_threshold =
                 self.width().min(self.height()) * style.thickness_threshold();
-            let thickness = style.thickness().min(short_side_threshold as usize);
+            let thickness = style.thickness().min(short_side_threshold as usize).max(1);
 
             let label = self.meta().label(
                 style.id(),
