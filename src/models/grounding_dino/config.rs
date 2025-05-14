@@ -19,4 +19,8 @@ impl crate::Options {
     pub fn grounding_dino_tiny() -> Self {
         Self::grounding_dino().with_model_file("swint-ogc.onnx")
     }
+
+    pub fn grounding_dino_base() -> Self {
+        Self::grounding_dino().with_model_file("swinb-cogcoor.onnx")
+    }
 }

@@ -123,12 +123,23 @@ impl Polygon {
     pub fn hbb(&self) -> Option<Hbb> {
         use geo::BoundingRect;
         self.polygon.bounding_rect().map(|x| {
-            Hbb::default().with_xyxy(
+            let mut hbb = Hbb::default().with_xyxy(
                 x.min().x as f32,
                 x.min().y as f32,
                 x.max().x as f32,
                 x.max().y as f32,
-            )
+            );
+            if let Some(id) = self.id() {
+                hbb = hbb.with_id(id);
+            }
+            if let Some(name) = self.name() {
+                hbb = hbb.with_name(name);
+            }
+            if let Some(confidence) = self.confidence() {
+                hbb = hbb.with_confidence(confidence);
+            }
+
+            hbb
         })
     }
 
@@ -138,11 +149,22 @@ impl Polygon {
             let xy4 = x
                 .exterior()
                 .coords()
-                // .iter()
                 .map(|c| [c.x as f32, c.y as f32])
                 .collect::<Vec<_>>();
 
-            Obb::from(xy4)
+            let mut obb = Obb::from(xy4);
+
+            if let Some(id) = self.id() {
+                obb = obb.with_id(id);
+            }
+            if let Some(name) = self.name() {
+                obb = obb.with_name(name);
+            }
+            if let Some(confidence) = self.confidence() {
+                obb = obb.with_confidence(confidence);
+            }
+
+            obb
         })
     }
 

@@ -39,15 +39,11 @@ fn main() -> Result<()> {
     let xs = DataLoader::try_read_n(&["./assets/bus.jpg"])?;
 
     // build annotator
-    let annotator = Annotator::default()
-        .with_polygon_style(
-            Style::polygon()
-                .with_visible(true)
-                .with_text_visible(true)
-                .show_id(true)
-                .show_name(true),
-        )
-        .with_mask_style(Style::mask().with_draw_mask_polygon_largest(true));
+    let annotator = Annotator::default().with_mask_style(
+        Style::mask()
+            .with_draw_mask_polygon_largest(true)
+            .with_draw_mask_hbbs(true),
+    );
 
     // run & annotate
     let ys_det = yolo.forward(&xs)?;

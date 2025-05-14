@@ -1,11 +1,10 @@
 use aksr::Builder;
 use anyhow::Result;
-use ndarray::Axis;
 
 use crate::{elapsed, Engine, Image, Mask, Ops, Options, Processor, Ts, Xs, Y};
 
 #[derive(Builder, Debug)]
-pub struct DepthPro {
+pub struct RMBG {
     engine: Engine,
     height: usize,
     width: usize,
@@ -15,14 +14,14 @@ pub struct DepthPro {
     processor: Processor,
 }
 
-impl DepthPro {
+impl RMBG {
     pub fn new(options: Options) -> Result<Self> {
         let engine = options.to_engine()?;
         let spec = engine.spec().to_string();
         let (batch, height, width, ts) = (
             engine.batch().opt(),
-            engine.try_height().unwrap_or(&512.into()).opt(),
-            engine.try_width().unwrap_or(&512.into()).opt(),
+            engine.try_height().unwrap_or(&1024.into()).opt(),
+            engine.try_width().unwrap_or(&1024.into()).opt(),
             engine.ts().clone(),
         );
         let processor = options
@@ -49,12 +48,22 @@ impl DepthPro {
         self.engine.run(xs)
     }
 
-    fn postprocess(&mut self, xs: Xs) -> Result<Vec<Y>> {
-        let (predicted_depth, _focallength_px) = (&xs["predicted_depth"], &xs["focallength_px"]);
-        let predicted_depth = predicted_depth.mapv(|x| 1. / x);
+    pub fn forward(&mut self, xs: &[Image]) -> Result<Vec<Y>> {
+        let ys = elapsed!("preprocess", self.ts, { self.preprocess(xs)? });
+        let ys = elapsed!("inference", self.ts, { self.inference(ys)? });
+        let ys = elapsed!("postprocess", self.ts, { self.postprocess(ys)? });
 
+        Ok(ys)
+    }
+
+    pub fn summary(&mut self) {
+        self.ts.summary();
+    }
+
+    fn postprocess(&mut self, xs: Xs) -> Result<Vec<Y>> {
         let mut ys: Vec<Y> = Vec::new();
-        for (idx, luma) in predicted_depth.axis_iter(Axis(0)).enumerate() {
+        for (idx, luma) in xs[0].axis_iter(ndarray::Axis(0)).enumerate() {
+            // image size
             let (h1, w1) = (
                 self.processor.images_transform_info[idx].height_src,
                 self.processor.images_transform_info[idx].width_src,
@@ -69,8 +78,8 @@ impl DepthPro {
 
             let luma = Ops::resize_luma8_u8(
                 &v,
-                self.width as _,
-                self.height as _,
+                self.width() as _,
+                self.height() as _,
                 w1 as _,
                 h1 as _,
                 false,
@@ -80,17 +89,5 @@ impl DepthPro {
         }
 
         Ok(ys)
-    }
-
-    pub fn forward(&mut self, xs: &[Image]) -> Result<Vec<Y>> {
-        let ys = elapsed!("preprocess", self.ts, { self.preprocess(xs)? });
-        let ys = elapsed!("inference", self.ts, { self.inference(ys)? });
-        let ys = elapsed!("postprocess", self.ts, { self.postprocess(ys)? });
-
-        Ok(ys)
-    }
-
-    pub fn summary(&mut self) {
-        self.ts.summary();
     }
 }
