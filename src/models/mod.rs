@@ -1,4 +1,5 @@
 mod beit;
+mod ben2;
 mod blip;
 mod clip;
 mod convnext;
