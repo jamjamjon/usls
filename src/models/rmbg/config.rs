@@ -1,4 +1,4 @@
-/// Model configuration for `RMBG-2.0`
+/// Model configuration for `RMBG`
 impl crate::Options {
     pub fn rmbg() -> Self {
         Self::default()
