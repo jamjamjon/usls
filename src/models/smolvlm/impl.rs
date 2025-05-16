@@ -3,15 +3,13 @@ use anyhow::Result;
 use image::GenericImageView;
 use ndarray::s;
 
-use crate::{
-    models::BaseModelTextual, Engine, Image, LogitsSampler, Options, Processor, Scale, Ts, Xs, X, Y,
-};
+use crate::{Engine, Image, LogitsSampler, ModelConfig, Processor, Scale, Ts, Xs, X, Y};
 
 #[derive(Debug, Builder)]
 pub struct SmolVLM {
-    vision: VisionEncoder,
-    text_embed: BaseModelTextual,
-    decoder: BaseModelTextual,
+    vision: Engine,
+    text_embed: Engine,
+    decoder: Engine,
     scale: Scale,
     image_token: String,
     global_img_token: String,
@@ -25,17 +23,20 @@ pub struct SmolVLM {
     num_hidden_layers: usize,
     head_dim: usize,
     num_key_value_heads: usize,
+    num_patch: usize,
+    batch: usize,
+    width: usize,
+    height: usize,
+    processor: Processor,
+    ts: Ts,
 }
 
 impl SmolVLM {
-    pub fn new(
-        options_vision_encoder: Options,
-        options_text_embed: Options,
-        options_decode: Options,
-    ) -> Result<Self> {
-        let vision = VisionEncoder::new(options_vision_encoder)?;
-        let text_embed = BaseModelTextual::new(options_text_embed)?;
-        let decoder = BaseModelTextual::new(options_decode)?;
+    pub fn new(config: ModelConfig) -> Result<Self> {
+        let vision = Engine::try_from_config(&config.visual)?;
+        let text_embed = Engine::try_from_config(&config.textual)?;
+        let decoder = Engine::try_from_config(&config.textual_decoder_merged)?;
+
         let fake_image_token = "<fake_token_around_image>".to_string();
         let image_token = "<image>".to_string();
         let global_img_token = "<global-img>".to_string();
@@ -45,12 +46,23 @@ impl SmolVLM {
         let image_token_id = 49190;
         let image_seq_len = 64;
         let max_length = 1024;
-        let (num_hidden_layers, head_dim, num_key_value_heads) = match decoder.scale() {
+        let (num_hidden_layers, head_dim, num_key_value_heads) = match &config.scale {
             Some(Scale::Million(256.)) => (30, 64, 3),
             Some(Scale::Million(500.)) => (32, 64, 5),
             _ => unimplemented!(),
         };
-        let scale = (*decoder.scale().unwrap()).clone();
+        let scale = config.scale.clone().unwrap();
+
+        let (batch, num_patch, height, width, ts) = (
+            vision.batch().opt(),
+            vision.inputs_minoptmax()[0][1].opt(),
+            vision.inputs_minoptmax()[0][3].opt(),
+            vision.inputs_minoptmax()[0][4].opt(),
+            vision.ts.clone(),
+        );
+        let processor = Processor::try_from_config(&config.processor)?
+            .with_image_width(width as _)
+            .with_image_height(height as _);
 
         Ok(Self {
             vision,
@@ -69,6 +81,12 @@ impl SmolVLM {
             bos_token,
             eos_token,
             image_seq_len,
+            batch,
+            num_patch,
+            height,
+            width,
+            ts,
+            processor,
         })
     }
 
@@ -86,13 +104,13 @@ impl SmolVLM {
         let bs = 1; // TODO
 
         // patches and pixel_attention_mask
-        let (patches, nw_nh) = self.vision.process_one(image)?;
+        let (patches, nw_nh) = self.process_one(image)?;
         let dims = patches.dims();
         let pixel_attention_mask = X::ones(&[dims[0], dims[1], dims[3], dims[4]]);
 
         // input ids
         let prompt = self.image_prompt_string(nw_nh, text);
-        let mut input_ids: Vec<f32> = self.text_embed.processor().encode_text_ids(&prompt, true)?;
+        let mut input_ids: Vec<f32> = self.processor.encode_text_ids(&prompt, true)?;
 
         // position ids
         let mut position_ids = X::from(
@@ -114,12 +132,11 @@ impl SmolVLM {
         for ii in 0..self.max_length {
             // inputs embeds
             let input_ids_x = X::from(input_ids.clone()).insert_axis(0)?;
-            let mut inputs_embeds =
-                self.text_embed.inference(input_ids_x.clone().into())?[0].clone();
+            let mut inputs_embeds = self.text_embed.run(input_ids_x.clone().into())?[0].clone();
 
             // encode image and merge
             if ii == 0 {
-                let image_features = self.vision.inference(Xs::from(vec![
+                let image_features = self.vision.run(Xs::from(vec![
                     patches.clone(),
                     pixel_attention_mask.clone(),
                 ]))?[0]
@@ -152,7 +169,7 @@ impl SmolVLM {
             }
 
             // decode
-            let decoder_outputs = self.decoder.inference(xs.into())?;
+            let decoder_outputs = self.decoder.run(xs.into())?;
             let logits = &decoder_outputs[0];
             past_key_values = (1..decoder_outputs.len())
                 .step_by(2)
@@ -186,10 +203,7 @@ impl SmolVLM {
         }
 
         // decode tokens
-        let text = self
-            .text_embed
-            .processor()
-            .decode_tokens(&token_ids, true)?;
+        let text = self.processor.decode_tokens(&token_ids, true)?;
 
         Ok(text)
     }
@@ -233,44 +247,6 @@ impl SmolVLM {
             }
         }
     }
-}
-
-#[derive(Debug, Builder)]
-pub struct VisionEncoder {
-    engine: Engine,
-    num_patch: usize,
-    batch: usize,
-    width: usize,
-    height: usize,
-    processor: Processor,
-    ts: Ts,
-}
-
-impl VisionEncoder {
-    pub fn new(options: Options) -> Result<Self> {
-        let engine = options.to_engine()?;
-        let (batch, num_patch, height, width, ts) = (
-            engine.batch().opt(),
-            engine.inputs_minoptmax()[0][1].opt(),
-            engine.inputs_minoptmax()[0][3].opt(),
-            engine.inputs_minoptmax()[0][4].opt(),
-            engine.ts.clone(),
-        );
-        let processor = options
-            .to_processor()?
-            .with_image_width(width as _)
-            .with_image_height(height as _);
-
-        Ok(Self {
-            engine,
-            num_patch,
-            batch,
-            width,
-            height,
-            processor,
-            ts,
-        })
-    }
 
     fn create_patches(image: &Image, patch_size: (u32, u32)) -> (Vec<Image>, (u32, u32)) {
         let mut patches = vec![];
@@ -305,10 +281,6 @@ impl VisionEncoder {
         patches.push(image.clone());
 
         (patches, (nw, nh))
-    }
-
-    pub fn inference(&mut self, xs: Xs) -> Result<Xs> {
-        self.engine.run(xs)
     }
 
     pub fn process_one(&mut self, x: &Image) -> Result<(X, (u32, u32))> {

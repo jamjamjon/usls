@@ -1,7 +1,7 @@
 ## Quick Start
 
 ```shell
-cargo run -r -F cuda --example florence2 -- --device cuda --scale base --dtype fp16
+cargo run -r -F cuda --example florence2 -- --device cuda --dtype fp16
 ```
 
 

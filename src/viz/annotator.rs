@@ -4,7 +4,7 @@ use anyhow::Result;
 use crate::{DrawContext, Drawable, Image, Style, TextRenderer};
 
 /// Annotator provides configuration for drawing annotations on images,
-/// including styles, color palettes, and text rendering options.
+/// including styles, color palettes, and text rendering config.
 #[derive(Clone, Builder)]
 pub struct Annotator {
     prob_style: Option<Style>,

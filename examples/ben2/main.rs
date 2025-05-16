@@ -1,4 +1,4 @@
-use usls::{models::RMBG, Annotator, DataLoader, Options};
+use usls::{models::RMBG, Annotator, DataLoader, ModelConfig};
 
 #[derive(argh::FromArgs)]
 /// Example
@@ -20,11 +20,11 @@ fn main() -> anyhow::Result<()> {
     let args: Args = argh::from_env();
 
     // build model
-    let options = Options::ben2_base()
+    let config = ModelConfig::ben2_base()
         .with_model_dtype(args.dtype.as_str().try_into()?)
         .with_model_device(args.device.as_str().try_into()?)
         .commit()?;
-    let mut model = RMBG::new(options)?;
+    let mut model = RMBG::new(config)?;
 
     // load image
     let xs = DataLoader::try_read_n(&["./assets/cat.png"])?;

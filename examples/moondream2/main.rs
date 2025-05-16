@@ -1,5 +1,5 @@
 use anyhow::Result;
-use usls::{models::Moondream2, Annotator, DataLoader, Options, Scale, Task};
+use usls::{models::Moondream2, Annotator, DataLoader, ModelConfig, Scale, Task};
 
 #[derive(argh::FromArgs)]
 /// Example
@@ -39,81 +39,16 @@ fn main() -> Result<()> {
     let args: Args = argh::from_env();
 
     // build model
-    let (
-        options_vision_encoder,
-        options_vision_projection,
-        options_text_decoder,
-        options_text_encoder,
-        options_coord_decoder,
-        options_coord_encoder,
-        options_size_decoder,
-        options_size_encoder,
-    ) = match args.scale.as_str().try_into()? {
-        Scale::Billion(2.) => (
-            Options::moondream2_2b_vision_encoder(),
-            Options::moondream2_2b_vision_projection(),
-            Options::moondream2_2b_text_decoder(),
-            Options::moondream2_2b_text_encoder(),
-            Options::moondream2_2b_coord_decoder(),
-            Options::moondream2_2b_coord_encoder(),
-            Options::moondream2_2b_size_decoder(),
-            Options::moondream2_2b_size_encoder(),
-        ),
-        Scale::Billion(0.5) => (
-            Options::moondream2_0_5b_vision_encoder(),
-            Options::moondream2_0_5b_vision_projection(),
-            Options::moondream2_0_5b_text_decoder(),
-            Options::moondream2_0_5b_text_encoder(),
-            Options::moondream2_0_5b_coord_decoder(),
-            Options::moondream2_0_5b_coord_encoder(),
-            Options::moondream2_0_5b_size_decoder(),
-            Options::moondream2_0_5b_size_encoder(),
-        ),
+    let config = match args.scale.as_str().try_into()? {
+        Scale::Billion(0.5) => ModelConfig::moondream2_0_5b(),
+        Scale::Billion(2.) => ModelConfig::moondream2_2b(),
         _ => unimplemented!(),
-    };
+    }
+    .with_dtype_all(args.dtype.as_str().try_into()?)
+    .with_device_all(args.device.as_str().try_into()?)
+    .commit()?;
 
-    let mut model = Moondream2::new(
-        options_vision_encoder
-            .with_model_dtype(args.dtype.as_str().try_into()?)
-            .with_model_device(args.device.as_str().try_into()?)
-            .commit()?,
-        options_vision_projection
-            .with_model_dtype(args.dtype.as_str().try_into()?)
-            .with_model_device(args.device.as_str().try_into()?)
-            .commit()?,
-        options_text_encoder
-            .with_model_dtype(args.dtype.as_str().try_into()?)
-            .with_model_device(args.device.as_str().try_into()?)
-            .commit()?,
-        options_text_decoder
-            .with_model_dtype(args.dtype.as_str().try_into()?)
-            .with_model_device(args.device.as_str().try_into()?)
-            .commit()?,
-        Some(
-            options_coord_encoder
-                .with_model_dtype(args.dtype.as_str().try_into()?)
-                .with_model_device(args.device.as_str().try_into()?)
-                .commit()?,
-        ),
-        Some(
-            options_coord_decoder
-                .with_model_dtype(args.dtype.as_str().try_into()?)
-                .with_model_device(args.device.as_str().try_into()?)
-                .commit()?,
-        ),
-        Some(
-            options_size_encoder
-                .with_model_dtype(args.dtype.as_str().try_into()?)
-                .with_model_device(args.device.as_str().try_into()?)
-                .commit()?,
-        ),
-        Some(
-            options_size_decoder
-                .with_model_dtype(args.dtype.as_str().try_into()?)
-                .with_model_device(args.device.as_str().try_into()?)
-                .commit()?,
-        ),
-    )?;
+    let mut model = Moondream2::new(config)?;
 
     // load images
     let xs = DataLoader::try_read_n(&args.source)?;
@@ -142,13 +77,6 @@ fn main() -> Result<()> {
         }
         Task::OpenSetDetection(_) | Task::OpenSetKeypointsDetection(_) => {
             println!("{:?}", ys);
-            // let annotator = Annotator::default()
-            //     .with_bboxes_thickness(4)
-            //     .without_bboxes_conf(true)
-            //     .with_keypoints_radius(6)
-            //     .with_keypoints_name(true)
-            //     .with_saveout("moondream2");
-            // annotator.annotate(&xs, &ys);
 
             // annotate
             let annotator = Annotator::default()

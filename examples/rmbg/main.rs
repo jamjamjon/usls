@@ -1,10 +1,10 @@
-use usls::{models::RMBG, Annotator, DataLoader, Options};
+use usls::{models::RMBG, Annotator, DataLoader, ModelConfig};
 
 #[derive(argh::FromArgs)]
 /// Example
 struct Args {
     /// dtype
-    #[argh(option, default = "String::from(\"auto\")")]
+    #[argh(option, default = "String::from(\"fp16\")")]
     dtype: String,
 
     /// device
@@ -23,18 +23,18 @@ fn main() -> anyhow::Result<()> {
         .init();
     let args: Args = argh::from_env();
 
-    let options = match args.ver {
-        1.4 => Options::rmbg1_4(),
-        2.0 => Options::rmbg2_0(),
+    let config = match args.ver {
+        1.4 => ModelConfig::rmbg1_4(),
+        2.0 => ModelConfig::rmbg2_0(),
         _ => unreachable!("Unsupported version"),
     };
 
     // build model
-    let options = options
+    let config = config
         .with_model_dtype(args.dtype.as_str().try_into()?)
         .with_model_device(args.device.as_str().try_into()?)
         .commit()?;
-    let mut model = RMBG::new(options)?;
+    let mut model = RMBG::new(config)?;
 
     // load image
     let xs = DataLoader::try_read_n(&["./assets/cat.png"])?;

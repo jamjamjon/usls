@@ -4,7 +4,7 @@ use ndarray::{s, Array2, Axis};
 use rayon::prelude::*;
 use std::fmt::Write;
 
-use crate::{elapsed, DynConf, Engine, Hbb, Image, Options, Processor, Ts, Xs, X, Y};
+use crate::{elapsed, DynConf, Engine, Hbb, Image, ModelConfig, Processor, Ts, Xs, X, Y};
 
 #[derive(Builder, Debug)]
 pub struct GroundingDINO {
@@ -24,8 +24,8 @@ pub struct GroundingDINO {
 }
 
 impl GroundingDINO {
-    pub fn new(options: Options) -> Result<Self> {
-        let engine = options.to_engine()?;
+    pub fn new(config: ModelConfig) -> Result<Self> {
+        let engine = Engine::try_from_config(&config.model)?;
         let spec = engine.spec().to_string();
         let (batch, height, width, ts) = (
             engine.batch().opt(),
@@ -33,11 +33,8 @@ impl GroundingDINO {
             engine.try_width().unwrap_or(&1200.into()).opt(),
             engine.ts().clone(),
         );
-        let processor = options
-            .to_processor()?
-            .with_image_width(width as _)
-            .with_image_height(height as _);
-        let class_names = options
+
+        let class_names = config
             .text_names
             .as_ref()
             .and_then(|v| {
@@ -48,16 +45,20 @@ impl GroundingDINO {
                     .collect();
                 (!v.is_empty()).then_some(v)
             })
-            .ok_or_else(|| anyhow::anyhow!("No valid class names were provided in the options. Ensure the 'text_names' field is non-empty and contains valid class names."))?;
+            .ok_or_else(|| anyhow::anyhow!("No valid class names were provided in the config. Ensure the 'text_names' field is non-empty and contains valid class names."))?;
         let text_prompt = class_names.iter().fold(String::new(), |mut acc, text| {
             write!(&mut acc, "{}.", text).unwrap();
             acc
         });
+
+        let confs_visual = DynConf::new(config.class_confs(), class_names.len());
+        let confs_textual = DynConf::new(config.text_confs(), class_names.len());
+        let processor = Processor::try_from_config(&config.processor)?
+            .with_image_width(width as _)
+            .with_image_height(height as _);
         let token_ids = processor.encode_text_ids(&text_prompt, true)?;
         let tokens = processor.encode_text_tokens(&text_prompt, true)?;
         let class_ids_map = Self::process_class_ids(&tokens);
-        let confs_visual = DynConf::new(options.class_confs(), class_names.len());
-        let confs_textual = DynConf::new(options.text_confs(), class_names.len());
 
         Ok(Self {
             engine,

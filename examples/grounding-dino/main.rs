@@ -1,11 +1,11 @@
 use anyhow::Result;
-use usls::{models::GroundingDINO, Annotator, DataLoader, Options};
+use usls::{models::GroundingDINO, Annotator, DataLoader, ModelConfig};
 
 #[derive(argh::FromArgs)]
 /// Example
 struct Args {
     /// dtype
-    #[argh(option, default = "String::from(\"auto\")")]
+    #[argh(option, default = "String::from(\"fp16\")")]
     dtype: String,
 
     /// device
@@ -45,7 +45,7 @@ fn main() -> Result<()> {
 
     let args: Args = argh::from_env();
 
-    let options = Options::grounding_dino_tiny()
+    let config = ModelConfig::grounding_dino_tiny()
         .with_model_dtype(args.dtype.as_str().try_into()?)
         .with_model_device(args.device.as_str().try_into()?)
         .with_text_names(&args.labels.iter().map(|x| x.as_str()).collect::<Vec<_>>())
@@ -53,7 +53,7 @@ fn main() -> Result<()> {
         .with_text_confs(&[0.25])
         .commit()?;
 
-    let mut model = GroundingDINO::new(options)?;
+    let mut model = GroundingDINO::new(config)?;
 
     // load images
     let xs = DataLoader::try_read_n(&args.source)?;

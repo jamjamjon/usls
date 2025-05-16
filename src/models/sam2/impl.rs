@@ -3,7 +3,7 @@ use anyhow::Result;
 use ndarray::{s, Axis};
 
 use crate::{
-    elapsed, DynConf, Engine, Image, Mask, Ops, Options, Processor, SamPrompt, Ts, Xs, X, Y,
+    elapsed, DynConf, Engine, Image, Mask, ModelConfig, Ops, Processor, SamPrompt, Ts, Xs, X, Y,
 };
 
 #[derive(Builder, Debug)]
@@ -20,9 +20,9 @@ pub struct SAM2 {
 }
 
 impl SAM2 {
-    pub fn new(options_encoder: Options, options_decoder: Options) -> Result<Self> {
-        let encoder = options_encoder.to_engine()?;
-        let decoder = options_decoder.to_engine()?;
+    pub fn new(config: ModelConfig) -> Result<Self> {
+        let encoder = Engine::try_from_config(&config.encoder)?;
+        let decoder = Engine::try_from_config(&config.decoder)?;
         let (batch, height, width) = (
             encoder.batch().opt(),
             encoder.try_height().unwrap_or(&1024.into()).opt(),
@@ -30,11 +30,11 @@ impl SAM2 {
         );
         let ts = Ts::merge(&[encoder.ts(), decoder.ts()]);
         let spec = encoder.spec().to_owned();
-        let processor = options_encoder
-            .to_processor()?
+
+        let conf = DynConf::new(config.class_confs(), 1);
+        let processor = Processor::try_from_config(&config.processor)?
             .with_image_width(width as _)
             .with_image_height(height as _);
-        let conf = DynConf::new(options_encoder.class_confs(), 1);
 
         Ok(Self {
             encoder,

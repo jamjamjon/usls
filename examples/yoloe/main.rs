@@ -1,5 +1,5 @@
 use anyhow::Result;
-use usls::{models::YOLO, Annotator, DataLoader, Options, Style};
+use usls::{models::YOLO, Annotator, DataLoader, ModelConfig, Style};
 
 #[derive(argh::FromArgs)]
 /// Example
@@ -21,8 +21,8 @@ fn main() -> Result<()> {
 
     let args: Args = argh::from_env();
 
-    // options
-    let options = Options::yoloe_v8s_seg_pf()
+    // config
+    let config = ModelConfig::yoloe_v8s_seg_pf()
         // yoloe_v8m_seg_pf()
         // yoloe_v8l_seg_pf()
         // yoloe_11s_seg_pf()
@@ -31,7 +31,7 @@ fn main() -> Result<()> {
         .with_model_dtype(args.dtype.as_str().try_into()?)
         .with_model_device(args.device.as_str().try_into()?)
         .commit()?;
-    let mut model = YOLO::new(options)?;
+    let mut model = YOLO::new(config)?;
 
     // load
     let xs = DataLoader::try_read_n(&["./assets/bus.jpg"])?;

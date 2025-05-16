@@ -1,4 +1,4 @@
-use usls::{models::ImageClassifier, Annotator, DataLoader, Options};
+use usls::{models::ImageClassifier, Annotator, DataLoader, ModelConfig};
 
 #[derive(argh::FromArgs)]
 /// Example
@@ -36,20 +36,20 @@ fn main() -> anyhow::Result<()> {
     let args: Args = argh::from_env();
 
     // build model
-    let options = match args.model.to_lowercase().as_str() {
-        "beit" => Options::beit_base(),
-        "convnext" => Options::convnext_v2_atto(),
-        "deit" => Options::deit_tiny_distill(),
-        "fastvit" => Options::fastvit_t8_distill(),
-        "mobileone" => Options::mobileone_s0(),
+    let config = match args.model.to_lowercase().as_str() {
+        "beit" => ModelConfig::beit_base(),
+        "convnext" => ModelConfig::convnext_v2_atto(),
+        "deit" => ModelConfig::deit_tiny_distill(),
+        "fastvit" => ModelConfig::fastvit_t8_distill(),
+        "mobileone" => ModelConfig::mobileone_s0(),
         _ => anyhow::bail!("Unsupported model: {}", args.model),
     };
 
-    let options = options
+    let config = config
         .with_model_dtype(args.dtype.as_str().try_into()?)
         .with_model_device(args.device.as_str().try_into()?)
         .commit()?;
-    let mut model = ImageClassifier::try_from(options)?;
+    let mut model = ImageClassifier::try_from(config)?;
 
     // load images
     let xs = DataLoader::try_read_n(&args.source)?;

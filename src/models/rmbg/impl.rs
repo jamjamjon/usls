@@ -1,7 +1,7 @@
 use aksr::Builder;
 use anyhow::Result;
 
-use crate::{elapsed, Engine, Image, Mask, Ops, Options, Processor, Ts, Xs, Y};
+use crate::{elapsed, Engine, Image, Mask, ModelConfig, Ops, Processor, Ts, Xs, Y};
 
 #[derive(Builder, Debug)]
 pub struct RMBG {
@@ -15,8 +15,8 @@ pub struct RMBG {
 }
 
 impl RMBG {
-    pub fn new(options: Options) -> Result<Self> {
-        let engine = options.to_engine()?;
+    pub fn new(config: ModelConfig) -> Result<Self> {
+        let engine = Engine::try_from_config(&config.model)?;
         let spec = engine.spec().to_string();
         let (batch, height, width, ts) = (
             engine.batch().opt(),
@@ -24,8 +24,7 @@ impl RMBG {
             engine.try_width().unwrap_or(&1024.into()).opt(),
             engine.ts().clone(),
         );
-        let processor = options
-            .to_processor()?
+        let processor = Processor::try_from_config(&config.processor)?
             .with_image_width(width as _)
             .with_image_height(height as _);
 
@@ -63,7 +62,6 @@ impl RMBG {
     fn postprocess(&mut self, xs: Xs) -> Result<Vec<Y>> {
         let mut ys: Vec<Y> = Vec::new();
         for (idx, luma) in xs[0].axis_iter(ndarray::Axis(0)).enumerate() {
-            // image size
             let (h1, w1) = (
                 self.processor.images_transform_info[idx].height_src,
                 self.processor.images_transform_info[idx].width_src,

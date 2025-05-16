@@ -1,6 +1,6 @@
 ## Quick Start
 
 ```shell
-cargo run -r --example yoloe 
+cargo run -r -F cuda --example yoloe -- --device cuda
 ```
 

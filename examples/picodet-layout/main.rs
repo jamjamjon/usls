@@ -1,6 +1,6 @@
 use anyhow::Result;
 use usls::DataLoader;
-use usls::{models::PicoDet, Annotator, Options};
+use usls::{models::PicoDet, Annotator, ModelConfig};
 
 fn main() -> Result<()> {
     tracing_subscriber::fmt()
@@ -8,12 +8,11 @@ fn main() -> Result<()> {
         .with_timer(tracing_subscriber::fmt::time::ChronoLocal::rfc_3339())
         .init();
 
-    // options
-    let options = Options::picodet_layout_1x()
-        // picodet_l_layout_3cls()
-        // picodet_l_layout_17cls()
-        .commit()?;
-    let mut model = PicoDet::new(options)?;
+    // config
+    let config = ModelConfig::picodet_layout_1x().commit()?;
+    // picodet_l_layout_3cls()
+    // picodet_l_layout_17cls()
+    let mut model = PicoDet::new(config)?;
 
     // load
     let xs = DataLoader::try_read_n(&["images/academic.jpg"])?;

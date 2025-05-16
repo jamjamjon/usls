@@ -1,6 +1,6 @@
 use anyhow::Result;
 use usls::DataLoader;
-use usls::{models::DB, Annotator, Options, Scale, Style};
+use usls::{models::DB, Annotator, ModelConfig, Scale, Style};
 
 #[derive(argh::FromArgs)]
 /// Example
@@ -27,14 +27,14 @@ fn main() -> Result<()> {
     let args: Args = argh::from_env();
 
     // build model
-    let options = match args.scale.as_str().try_into()? {
-        Scale::T => Options::linknet_r18(),
-        Scale::S => Options::linknet_r34(),
-        Scale::B => Options::linknet_r50(),
+    let config = match args.scale.as_str().try_into()? {
+        Scale::T => ModelConfig::linknet_r18(),
+        Scale::S => ModelConfig::linknet_r34(),
+        Scale::B => ModelConfig::linknet_r50(),
         _ => unimplemented!("Unsupported model scale: {:?}. Try b, s, t.", args.scale),
     };
     let mut model = DB::new(
-        options
+        config
             .with_model_dtype(args.dtype.as_str().try_into()?)
             .with_model_device(args.device.as_str().try_into()?)
             .commit()?,

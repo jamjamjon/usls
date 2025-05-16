@@ -3,7 +3,7 @@ use anyhow::Result;
 use ndarray::{s, Axis};
 use rayon::prelude::*;
 
-use crate::{elapsed, DynConf, Engine, Hbb, Image, Options, Processor, Ts, Xs, Y};
+use crate::{elapsed, DynConf, Engine, Hbb, Image, ModelConfig, Processor, Ts, Xs, Y};
 
 #[derive(Debug, Builder)]
 pub struct RFDETR {
@@ -19,8 +19,8 @@ pub struct RFDETR {
 }
 
 impl RFDETR {
-    pub fn new(options: Options) -> Result<Self> {
-        let engine = options.to_engine()?;
+    pub fn new(config: ModelConfig) -> Result<Self> {
+        let engine = Engine::try_from_config(&config.model)?;
         let (batch, height, width, ts) = (
             engine.batch().opt(),
             engine.try_height().unwrap_or(&560.into()).opt(),
@@ -28,16 +28,16 @@ impl RFDETR {
             engine.ts.clone(),
         );
         let spec = engine.spec().to_owned();
-        let processor = options
-            .to_processor()?
-            .with_image_width(width as _)
-            .with_image_height(height as _);
-        let names = options
+        let names: Vec<String> = config
             .class_names()
             .expect("No class names specified.")
-            .to_vec();
-        let confs = DynConf::new(options.class_confs(), names.len());
-
+            .iter()
+            .map(|x| x.to_string())
+            .collect();
+        let confs = DynConf::new(config.class_confs(), names.len());
+        let processor = Processor::try_from_config(&config.processor)?
+            .with_image_width(width as _)
+            .with_image_height(height as _);
         Ok(Self {
             engine,
             height,

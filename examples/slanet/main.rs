@@ -1,5 +1,5 @@
 use anyhow::Result;
-use usls::{models::SLANet, Annotator, Color, DataLoader, Options};
+use usls::{models::SLANet, Annotator, Color, DataLoader, ModelConfig};
 
 #[derive(argh::FromArgs)]
 /// Example
@@ -26,11 +26,11 @@ fn main() -> Result<()> {
     let args: Args = argh::from_env();
 
     // build model
-    let options = Options::slanet_lcnet_v2_mobile_ch()
+    let config = ModelConfig::slanet_lcnet_v2_mobile_ch()
         .with_model_device(args.device.as_str().try_into()?)
         .with_model_dtype(args.dtype.as_str().try_into()?)
         .commit()?;
-    let mut model = SLANet::new(options)?;
+    let mut model = SLANet::new(config)?;
 
     // load
     let xs = DataLoader::try_read_n(&[args.source])?;

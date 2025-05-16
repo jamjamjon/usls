@@ -3,7 +3,7 @@ use anyhow::Result;
 use ndarray::Axis;
 use rayon::prelude::*;
 
-use crate::{elapsed, DynConf, Engine, Hbb, Image, Options, Processor, Ts, Xs, X, Y};
+use crate::{elapsed, DynConf, Engine, Hbb, Image, ModelConfig, Processor, Ts, Xs, X, Y};
 
 #[derive(Debug, Builder)]
 pub struct PicoDet {
@@ -19,8 +19,8 @@ pub struct PicoDet {
 }
 
 impl PicoDet {
-    pub fn new(options: Options) -> Result<Self> {
-        let engine = options.to_engine()?;
+    pub fn new(config: ModelConfig) -> Result<Self> {
+        let engine = Engine::try_from_config(&config.model)?;
         let (batch, height, width, ts) = (
             engine.batch().opt(),
             engine.try_height().unwrap_or(&640.into()).opt(),
@@ -28,15 +28,14 @@ impl PicoDet {
             engine.ts.clone(),
         );
         let spec = engine.spec().to_owned();
-        let processor = options
-            .to_processor()?
-            .with_image_width(width as _)
-            .with_image_height(height as _);
-        let names = options
+        let names = config
             .class_names()
             .expect("No class names are specified.")
             .to_vec();
-        let confs = DynConf::new(options.class_confs(), names.len());
+        let confs = DynConf::new(config.class_confs(), names.len());
+        let processor = Processor::try_from_config(&config.processor)?
+            .with_image_width(width as _)
+            .with_image_height(height as _);
 
         Ok(Self {
             engine,

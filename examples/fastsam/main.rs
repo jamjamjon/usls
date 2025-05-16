@@ -1,5 +1,5 @@
 use anyhow::Result;
-use usls::{models::YOLO, Annotator, DataLoader, Options};
+use usls::{models::YOLO, Annotator, DataLoader, ModelConfig};
 
 #[derive(argh::FromArgs)]
 /// Example
@@ -22,7 +22,7 @@ fn main() -> Result<()> {
     let args: Args = argh::from_env();
 
     // build model
-    let config = Options::fastsam_s()
+    let config = ModelConfig::fastsam_s()
         .with_model_dtype(args.dtype.as_str().try_into()?)
         .with_model_device(args.device.as_str().try_into()?)
         .commit()?;

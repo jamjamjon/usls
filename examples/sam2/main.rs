@@ -1,7 +1,7 @@
 use anyhow::Result;
 use usls::{
     models::{SamPrompt, SAM2},
-    Annotator, DataLoader, Options, Scale,
+    Annotator, DataLoader, ModelConfig, Scale,
 };
 
 #[derive(argh::FromArgs)]
@@ -25,33 +25,16 @@ fn main() -> Result<()> {
     let args: Args = argh::from_env();
 
     // Build model
-    let (options_encoder, options_decoder) = match args.scale.as_str().try_into()? {
-        Scale::T => (
-            Options::sam2_1_tiny_encoder(),
-            Options::sam2_1_tiny_decoder(),
-        ),
-        Scale::S => (
-            Options::sam2_1_small_encoder(),
-            Options::sam2_1_small_decoder(),
-        ),
-        Scale::B => (
-            Options::sam2_1_base_plus_encoder(),
-            Options::sam2_1_base_plus_decoder(),
-        ),
-        Scale::L => (
-            Options::sam2_1_large_encoder(),
-            Options::sam2_1_large_decoder(),
-        ),
+    let config = match args.scale.as_str().try_into()? {
+        Scale::T => ModelConfig::sam2_1_tiny(),
+        Scale::S => ModelConfig::sam2_1_small(),
+        Scale::B => ModelConfig::sam2_1_base_plus(),
+        Scale::L => ModelConfig::sam2_1_large(),
         _ => unimplemented!("Unsupported model scale: {:?}. Try b, s, t, l.", args.scale),
-    };
-
-    let options_encoder = options_encoder
-        .with_model_device(args.device.as_str().try_into()?)
-        .commit()?;
-    let options_decoder = options_decoder
-        .with_model_device(args.device.as_str().try_into()?)
-        .commit()?;
-    let mut model = SAM2::new(options_encoder, options_decoder)?;
+    }
+    .with_device_all(args.device.as_str().try_into()?)
+    .commit()?;
+    let mut model = SAM2::new(config)?;
 
     // Load image
     let xs = DataLoader::try_read_n(&["images/truck.jpg"])?;

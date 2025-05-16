@@ -3,7 +3,7 @@ use anyhow::Result;
 use ndarray::{s, Axis};
 use rayon::prelude::*;
 
-use crate::{elapsed, DynConf, Engine, Hbb, Image, Options, Processor, Ts, Xs, X, Y};
+use crate::{elapsed, DynConf, Engine, Hbb, Image, ModelConfig, Processor, Ts, Xs, X, Y};
 
 #[derive(Debug, Builder)]
 pub struct RTDETR {
@@ -19,8 +19,8 @@ pub struct RTDETR {
 }
 
 impl RTDETR {
-    pub fn new(options: Options) -> Result<Self> {
-        let engine = options.to_engine()?;
+    pub fn new(config: ModelConfig) -> Result<Self> {
+        let engine = Engine::try_from_config(&config.model)?;
         let (batch, height, width, ts) = (
             engine.batch().opt(),
             engine.try_height().unwrap_or(&640.into()).opt(),
@@ -28,15 +28,16 @@ impl RTDETR {
             engine.ts.clone(),
         );
         let spec = engine.spec().to_owned();
-        let processor = options
-            .to_processor()?
-            .with_image_width(width as _)
-            .with_image_height(height as _);
-        let names = options
+        let names: Vec<String> = config
             .class_names()
             .expect("No class names specified.")
-            .to_vec();
-        let confs = DynConf::new(options.class_confs(), names.len());
+            .iter()
+            .map(|x| x.to_string())
+            .collect();
+        let confs = DynConf::new(config.class_confs(), names.len());
+        let processor = Processor::try_from_config(&config.processor)?
+            .with_image_width(width as _)
+            .with_image_height(height as _);
 
         Ok(Self {
             engine,
@@ -87,7 +88,6 @@ impl RTDETR {
             .enumerate()
             .filter_map(|(idx, ((labels, boxes), scores))| {
                 let ratio = self.processor.images_transform_info[idx].height_scale;
-
                 let mut y_bboxes = Vec::new();
                 for (i, &score) in scores.iter().enumerate() {
                     let class_id = labels[i] as usize;
@@ -102,7 +102,6 @@ impl RTDETR {
                         xyxy[2] / ratio,
                         xyxy[3] / ratio,
                     );
-
                     y_bboxes.push(
                         Hbb::default()
                             .with_xyxy(x1.max(0.0f32), y1.max(0.0f32), x2, y2)

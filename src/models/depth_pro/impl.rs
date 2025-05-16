@@ -2,7 +2,7 @@ use aksr::Builder;
 use anyhow::Result;
 use ndarray::Axis;
 
-use crate::{elapsed, Engine, Image, Mask, Ops, Options, Processor, Ts, Xs, Y};
+use crate::{elapsed, Engine, Image, Mask, ModelConfig, Ops, Processor, Ts, Xs, Y};
 
 #[derive(Builder, Debug)]
 pub struct DepthPro {
@@ -16,8 +16,8 @@ pub struct DepthPro {
 }
 
 impl DepthPro {
-    pub fn new(options: Options) -> Result<Self> {
-        let engine = options.to_engine()?;
+    pub fn new(config: ModelConfig) -> Result<Self> {
+        let engine = Engine::try_from_config(&config.model)?;
         let spec = engine.spec().to_string();
         let (batch, height, width, ts) = (
             engine.batch().opt(),
@@ -25,8 +25,7 @@ impl DepthPro {
             engine.try_width().unwrap_or(&512.into()).opt(),
             engine.ts().clone(),
         );
-        let processor = options
-            .to_processor()?
+        let processor = Processor::try_from_config(&config.processor)?
             .with_image_width(width as _)
             .with_image_height(height as _);
 

@@ -54,7 +54,7 @@ cargo run -r --example yolo -- --ver 8 --task obb --scale n --image-width 1024 -
 cargo run -r --example yolo -- --ver 11 --task obb --scale n --image-width 1024 --image-height 1024 --source images/dota.png  # YOLOv11-Obb
 ```
 
-**`cargo run -r --example yolo -- --help` for more options**
+**`cargo run -r --example yolo -- --help` for more config**
 
 ## Other YOLOv8 Solution Models
 

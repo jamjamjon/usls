@@ -1,7 +1,7 @@
 use anyhow::Result;
 use usls::{
     models::{SamKind, SamPrompt, SAM},
-    Annotator, DataLoader, Options, Scale,
+    Annotator, DataLoader, ModelConfig, Scale,
 };
 
 #[derive(argh::FromArgs)]
@@ -28,40 +28,22 @@ fn main() -> Result<()> {
 
     let args: Args = argh::from_env();
     // Build model
-    let (options_encoder, options_decoder) = match args.kind.as_str().try_into()? {
-        SamKind::Sam => (
-            Options::sam_v1_base_encoder(),
-            Options::sam_v1_base_decoder(),
-        ),
+    let config = match args.kind.as_str().try_into()? {
+        SamKind::Sam => ModelConfig::sam_v1_base(),
         SamKind::Sam2 => match args.scale.as_str().try_into()? {
-            Scale::T => (Options::sam2_tiny_encoder(), Options::sam2_tiny_decoder()),
-            Scale::S => (Options::sam2_small_encoder(), Options::sam2_small_decoder()),
-            Scale::B => (
-                Options::sam2_base_plus_encoder(),
-                Options::sam2_base_plus_decoder(),
-            ),
+            Scale::T => ModelConfig::sam2_tiny(),
+            Scale::S => ModelConfig::sam2_small(),
+            Scale::B => ModelConfig::sam2_base_plus(),
             _ => unimplemented!("Unsupported model scale: {:?}. Try b, s, t.", args.scale),
         },
+        SamKind::MobileSam => ModelConfig::mobile_sam_tiny(),
+        SamKind::SamHq => ModelConfig::sam_hq_tiny(),
+        SamKind::EdgeSam => ModelConfig::edge_sam_3x(),
+    }
+    .with_device_all(args.device.as_str().try_into()?)
+    .commit()?;
 
-        SamKind::MobileSam => (
-            Options::mobile_sam_tiny_encoder(),
-            Options::mobile_sam_tiny_decoder(),
-        ),
-        SamKind::SamHq => (
-            Options::sam_hq_tiny_encoder(),
-            Options::sam_hq_tiny_decoder(),
-        ),
-        SamKind::EdgeSam => (
-            Options::edge_sam_3x_encoder(),
-            Options::edge_sam_3x_decoder(),
-        ),
-    };
-
-    let options_encoder = options_encoder
-        .with_model_device(args.device.as_str().try_into()?)
-        .commit()?;
-    let options_decoder = options_decoder.commit()?;
-    let mut model = SAM::new(options_encoder, options_decoder)?;
+    let mut model = SAM::new(config)?;
 
     // Load image
     let xs = DataLoader::try_read_n(&["images/truck.jpg"])?;

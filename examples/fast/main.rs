@@ -1,5 +1,5 @@
 use anyhow::Result;
-use usls::{models::DB, Annotator, DataLoader, Options, Scale, Style};
+use usls::{models::DB, Annotator, DataLoader, ModelConfig, Scale, Style};
 
 #[derive(argh::FromArgs)]
 /// Example
@@ -26,16 +26,16 @@ fn main() -> Result<()> {
     let args: Args = argh::from_env();
 
     // build model
-    let options = match args.scale.as_str().try_into()? {
-        Scale::T => Options::fast_tiny(),
-        Scale::S => Options::fast_small(),
-        Scale::B => Options::fast_base(),
+    let config = match args.scale.as_str().try_into()? {
+        Scale::T => ModelConfig::fast_tiny(),
+        Scale::S => ModelConfig::fast_small(),
+        Scale::B => ModelConfig::fast_base(),
         _ => unimplemented!("Unsupported model scale: {:?}. Try b, s, t.", args.scale),
     };
     let mut model = DB::new(
-        options
-            .with_model_dtype(args.dtype.as_str().try_into()?)
-            .with_model_device(args.device.as_str().try_into()?)
+        config
+            .with_dtype_all(args.dtype.as_str().try_into()?)
+            .with_device_all(args.device.as_str().try_into()?)
             .commit()?,
     )?;
 

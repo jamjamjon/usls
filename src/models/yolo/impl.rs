@@ -8,8 +8,8 @@ use regex::Regex;
 use crate::{
     elapsed,
     models::{BoxType, YOLOPredsFormat},
-    DynConf, Engine, Hbb, Image, Keypoint, Mask, NmsOps, Obb, Ops, Options, Prob, Processor, Task,
-    Ts, Version, Xs, Y,
+    DynConf, Engine, Hbb, Image, Keypoint, Mask, ModelConfig, NmsOps, Obb, Ops, Prob, Processor,
+    Task, Ts, Version, Xs, Y,
 };
 
 #[derive(Debug, Builder)]
@@ -36,17 +36,18 @@ pub struct YOLO {
     topk: usize,
 }
 
-impl TryFrom<Options> for YOLO {
+impl TryFrom<ModelConfig> for YOLO {
     type Error = anyhow::Error;
 
-    fn try_from(options: Options) -> Result<Self, Self::Error> {
-        Self::new(options)
+    fn try_from(config: ModelConfig) -> Result<Self, Self::Error> {
+        Self::new(config)
     }
 }
 
 impl YOLO {
-    pub fn new(options: Options) -> Result<Self> {
-        let engine = options.to_engine()?;
+    pub fn new(config: ModelConfig) -> Result<Self> {
+        let engine = Engine::try_from_config(&config.model)?;
+
         let (batch, height, width, ts, spec) = (
             engine.batch().opt(),
             engine.try_height().unwrap_or(&640.into()).opt(),
@@ -54,11 +55,8 @@ impl YOLO {
             engine.ts.clone(),
             engine.spec().to_owned(),
         );
-        let processor = options
-            .to_processor()?
-            .with_image_width(width as _)
-            .with_image_height(height as _);
-        let task: Option<Task> = match &options.model_task {
+
+        let task: Option<Task> = match &config.task {
             Some(task) => Some(task.clone()),
             None => match engine.try_fetch("task") {
                 Some(x) => match x.as_str() {
@@ -77,8 +75,8 @@ impl YOLO {
         };
 
         // Task & layout
-        let version = options.model_version;
-        let (layout, task) = match &options.yolo_preds_format {
+        let version = config.version;
+        let (layout, task) = match &config.yolo_preds_format {
             // customized
             Some(layout) => {
                 // check task
@@ -172,7 +170,7 @@ impl YOLO {
 
         // Class names
         let names: Option<Vec<String>> = match Self::fetch_names_from_onnx(&engine) {
-            Some(names_parsed) => match &options.class_names {
+            Some(names_parsed) => match &config.class_names {
                 Some(names) => {
                     if names.len() == names_parsed.len() {
                         // prioritize user-defined
@@ -188,25 +186,25 @@ impl YOLO {
                 }
                 None => Some(names_parsed),
             },
-            None => options.class_names.clone(),
+            None => config.class_names.clone(),
         };
 
         // Class names & Number of class
-        let (nc, names) = match (options.nc(), names) {
+        let (nc, names) = match (config.nc(), names) {
             (_, Some(names)) => (names.len(), names.to_vec()),
             (Some(nc), None) => (nc, Self::n2s(nc)),
             (None, None) => {
                 anyhow::bail!(
                     "Neither class names nor the number of classes were specified. \
-                    \nConsider specify them with `Options::default().with_nc()` or `Options::default().with_class_names()`"
+                    \nConsider specify them with `ModelConfig::default().with_nc()` or `ModelConfig::default().with_class_names()`"
                 );
             }
         };
 
         // Keypoint names & Number of keypoints
         let (nk, names_kpt) = if let Task::KeypointsDetection = task {
-            let nk = Self::fetch_nk_from_onnx(&engine).or(options.nk());
-            match (&options.keypoint_names, nk) {
+            let nk = Self::fetch_nk_from_onnx(&engine).or(config.nk());
+            match (&config.keypoint_names, nk) {
                 (Some(names), Some(nk)) => {
                     if names.len() != nk {
                         anyhow::bail!(
@@ -221,7 +219,7 @@ impl YOLO {
                 (None, Some(nk)) => (nk, Self::n2s(nk)),
                 (None, None) => anyhow::bail!(
                     "Neither keypoint names nor the number of keypoints were specified when doing `KeypointsDetection` task. \
-                    \nConsider specify them with `Options::default().with_nk()` or `Options::default().with_keypoint_names()`"
+                    \nConsider specify them with `ModelConfig::default().with_nk()` or `ModelConfig::default().with_keypoint_names()`"
                 ),
             }
         } else {
@@ -229,12 +227,12 @@ impl YOLO {
         };
 
         // Attributes
-        let topk = options.topk().unwrap_or(5);
-        let confs = DynConf::new(options.class_confs(), nc);
-        let kconfs = DynConf::new(options.keypoint_confs(), nk);
-        let iou = options.iou().unwrap_or(0.45);
-        let classes_excluded = options.classes_excluded().to_vec();
-        let classes_retained = options.classes_retained().to_vec();
+        let topk = config.topk().unwrap_or(5);
+        let confs = DynConf::new(config.class_confs(), nc);
+        let kconfs = DynConf::new(config.keypoint_confs(), nk);
+        let iou = config.iou().unwrap_or(0.45);
+        let classes_excluded = config.classes_excluded().to_vec();
+        let classes_retained = config.classes_retained().to_vec();
         let mut info = format!(
             "YOLO Version: {}, Task: {:?}, Category Count: {}, Keypoint Count: {}, TopK: {}",
             version.map_or("Unknown".into(), |x| x.to_string()),
@@ -249,6 +247,10 @@ impl YOLO {
         if !classes_retained.is_empty() {
             info = format!("{}, classes_retained: {:?}", info, classes_retained);
         }
+        let processor = Processor::try_from_config(&config.processor)?
+            .with_image_width(width as _)
+            .with_image_height(height as _);
+
         info!("{}", info);
 
         Ok(Self {

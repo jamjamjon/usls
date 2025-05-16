@@ -1,7 +1,7 @@
 use anyhow::Result;
 use usls::{
-    models::YOLO, Annotator, DataLoader, Options, Style, NAMES_COCO_80, NAMES_COCO_KEYPOINTS_17,
-    NAMES_IMAGENET_1K, SKELETON_COCO_19, SKELETON_COLOR_COCO_19,
+    models::YOLO, Annotator, DataLoader, ModelConfig, Style, NAMES_COCO_80,
+    NAMES_COCO_KEYPOINTS_17, NAMES_IMAGENET_1K, SKELETON_COCO_19, SKELETON_COLOR_COCO_19,
 };
 
 #[derive(argh::FromArgs, Debug)]
@@ -132,14 +132,15 @@ fn main() -> Result<()> {
 
     let args: Args = argh::from_env();
 
-    let mut options = Options::yolo()
+    let mut config = ModelConfig::yolo()
         .with_model_file(&args.model.unwrap_or_default())
-        .with_model_task(args.task.as_str().try_into()?)
-        .with_model_version(args.ver.try_into()?)
-        .with_model_scale(args.scale.as_str().try_into()?)
+        .with_task(args.task.as_str().try_into()?)
+        .with_version(args.ver.try_into()?)
+        .with_scale(args.scale.as_str().try_into()?)
         .with_model_dtype(args.dtype.as_str().try_into()?)
         .with_model_device(args.device.as_str().try_into()?)
-        .with_trt_fp16(args.trt_fp16)
+        // .with_trt_fp16(args.trt_fp16)
+        .with_model_trt_fp16(args.trt_fp16)
         .with_model_ixx(
             0,
             0,
@@ -175,27 +176,27 @@ fn main() -> Result<()> {
         .exclude_classes(&args.exclude_classes);
 
     if args.use_coco_80_classes {
-        options = options.with_class_names(&NAMES_COCO_80);
+        config = config.with_class_names(&NAMES_COCO_80);
     }
 
     if args.use_coco_17_keypoints_classes {
-        options = options.with_keypoint_names(&NAMES_COCO_KEYPOINTS_17);
+        config = config.with_keypoint_names(&NAMES_COCO_KEYPOINTS_17);
     }
 
     if args.use_imagenet_1k_classes {
-        options = options.with_class_names(&NAMES_IMAGENET_1K);
+        config = config.with_class_names(&NAMES_IMAGENET_1K);
     }
 
     if let Some(nc) = args.num_classes {
-        options = options.with_nc(nc);
+        config = config.with_nc(nc);
     }
 
     if let Some(nk) = args.num_keypoints {
-        options = options.with_nk(nk);
+        config = config.with_nk(nk);
     }
 
     if !args.class_names.is_empty() {
-        options = options.with_class_names(
+        config = config.with_class_names(
             &args
                 .class_names
                 .iter()
@@ -205,7 +206,7 @@ fn main() -> Result<()> {
     }
 
     if !args.keypoint_names.is_empty() {
-        options = options.with_keypoint_names(
+        config = config.with_keypoint_names(
             &args
                 .keypoint_names
                 .iter()
@@ -215,7 +216,7 @@ fn main() -> Result<()> {
     }
 
     // build model
-    let mut model = YOLO::try_from(options.commit()?)?;
+    let mut model = YOLO::try_from(config.auto_yolo_model_file().commit()?)?;
 
     // build dataloader
     let dl = DataLoader::new(&args.source)?

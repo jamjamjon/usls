@@ -1,5 +1,5 @@
 use anyhow::Result;
-use usls::{models::SVTR, DataLoader, Options};
+use usls::{models::SVTR, DataLoader, ModelConfig};
 
 #[derive(argh::FromArgs)]
 /// Example
@@ -22,13 +22,13 @@ fn main() -> Result<()> {
     let args: Args = argh::from_env();
 
     // build model
-    let options = Options::ppocr_rec_v4_ch()
+    let config = ModelConfig::ppocr_rec_v4_ch()
         // ppocr_rec_v4_en()
         // repsvtr_ch()
         .with_model_device(args.device.as_str().try_into()?)
         .with_model_dtype(args.dtype.as_str().try_into()?)
         .commit()?;
-    let mut model = SVTR::new(options)?;
+    let mut model = SVTR::new(config)?;
 
     // load images
     let dl = DataLoader::new("./examples/svtr/images")?

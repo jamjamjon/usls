@@ -4,7 +4,8 @@ use ndarray::Axis;
 use rayon::prelude::*;
 
 use crate::{
-    elapsed, DynConf, Engine, Hbb, Image, Mask, Obb, Ops, Options, Polygon, Processor, Ts, Xs, Y,
+    elapsed, DynConf, Engine, Hbb, Image, Mask, ModelConfig, Obb, Ops, Polygon, Processor, Ts, Xs,
+    Y,
 };
 
 #[derive(Debug, Builder)]
@@ -24,8 +25,8 @@ pub struct DB {
 }
 
 impl DB {
-    pub fn new(options: Options) -> Result<Self> {
-        let engine = options.to_engine()?;
+    pub fn new(config: ModelConfig) -> Result<Self> {
+        let engine = Engine::try_from_config(&config.model)?;
         let (batch, height, width, ts, spec) = (
             engine.batch().opt(),
             engine.try_height().unwrap_or(&960.into()).opt(),
@@ -33,15 +34,14 @@ impl DB {
             engine.ts.clone(),
             engine.spec().to_owned(),
         );
-        let processor = options
-            .to_processor()?
+        let processor = Processor::try_from_config(&config.processor)?
             .with_image_width(width as _)
             .with_image_height(height as _);
-        let confs = DynConf::new(options.class_confs(), 1);
-        let binary_thresh = options.binary_thresh().unwrap_or(0.2);
-        let unclip_ratio = options.unclip_ratio().unwrap_or(1.5);
-        let min_width = options.min_width().unwrap_or(12.0);
-        let min_height = options.min_height().unwrap_or(5.0);
+        let confs = DynConf::new(config.class_confs(), 1);
+        let binary_thresh = config.db_binary_thresh().unwrap_or(0.2);
+        let unclip_ratio = config.db_unclip_ratio().unwrap_or(1.5);
+        let min_width = config.min_width().unwrap_or(12.0);
+        let min_height = config.min_height().unwrap_or(5.0);
 
         Ok(Self {
             engine,

@@ -3,7 +3,7 @@ use anyhow::Result;
 use ndarray::Axis;
 use rayon::prelude::*;
 
-use crate::{elapsed, DynConf, Engine, Image, Options, Prob, Processor, Ts, Xs, Y};
+use crate::{elapsed, DynConf, Engine, Image, ModelConfig, Prob, Processor, Ts, Xs, Y};
 
 #[derive(Debug, Builder)]
 pub struct ImageClassifier {
@@ -20,11 +20,12 @@ pub struct ImageClassifier {
     spec: String,
 }
 
-impl TryFrom<Options> for ImageClassifier {
+impl TryFrom<ModelConfig> for ImageClassifier {
     type Error = anyhow::Error;
 
-    fn try_from(options: Options) -> Result<Self, Self::Error> {
-        let engine = options.to_engine()?;
+    fn try_from(config: ModelConfig) -> Result<Self, Self::Error> {
+        let engine = Engine::try_from_config(&config.model)?;
+
         let spec = engine.spec().to_string();
         let (batch, height, width, ts) = (
             engine.batch().opt(),
@@ -32,11 +33,8 @@ impl TryFrom<Options> for ImageClassifier {
             engine.try_width().unwrap_or(&224.into()).opt(),
             engine.ts().clone(),
         );
-        let processor = options
-            .to_processor()?
-            .with_image_width(width as _)
-            .with_image_height(height as _);
-        let (nc, names) = match (options.nc(), options.class_names()) {
+
+        let (nc, names) = match (config.nc(), config.class_names()) {
             (Some(nc), Some(names)) => {
                 if nc != names.len() {
                     anyhow::bail!(
@@ -56,8 +54,11 @@ impl TryFrom<Options> for ImageClassifier {
                 anyhow::bail!("Neither class names nor class numbers were specified.");
             }
         };
-        let confs = DynConf::new(options.class_confs(), nc);
-        let apply_softmax = options.apply_softmax.unwrap_or_default();
+        let confs = DynConf::new(config.class_confs(), nc);
+        let apply_softmax = config.apply_softmax.unwrap_or_default();
+        let processor = Processor::try_from_config(&config.processor)?
+            .with_image_width(width as _)
+            .with_image_height(height as _);
 
         Ok(Self {
             engine,
