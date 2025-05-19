@@ -11,7 +11,7 @@ pub struct Sapiens {
     width: usize,
     batch: usize,
     task: Task,
-    names_body: Option<Vec<String>>,
+    names_body: Vec<String>,
     ts: Ts,
     processor: Processor,
     spec: String,
@@ -27,7 +27,6 @@ impl Sapiens {
             engine.try_width().unwrap_or(&768.into()).opt(),
             engine.ts().clone(),
         );
-
         let task = config.task.expect("No sapiens task specified.");
         let names_body = config.class_names;
         let processor = Processor::try_from_config(&config.processor)?
@@ -124,8 +123,8 @@ impl Sapiens {
                 if let Some(polygon) = mask.polygon() {
                     y_polygons.push(polygon);
                 }
-                if let Some(names_body) = &self.names_body {
-                    mask = mask.with_name(&names_body[*i]);
+                if !self.names_body.is_empty() {
+                    mask = mask.with_name(&self.names_body[*i]);
                 }
                 y_masks.push(mask);
             }

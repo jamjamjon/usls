@@ -28,7 +28,6 @@ fn main() -> Result<()> {
         .with_scale(Scale::N)
         .with_version(8.into())
         .with_model_device(args.device.as_str().try_into()?)
-        .auto_yolo_model_file()
         .commit()?;
     let mut yolo = YOLO::new(options_yolo)?;
 

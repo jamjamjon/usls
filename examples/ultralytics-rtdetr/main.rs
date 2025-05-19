@@ -22,7 +22,7 @@ fn main() -> Result<()> {
     let args: Args = argh::from_env();
 
     // build model
-    let config = ModelConfig::yolo_v8_rtdetr_l()
+    let config = ModelConfig::ultralytics_rtdetr_l()
         .with_model_dtype(args.dtype.as_str().try_into()?)
         .with_model_device(args.device.as_str().try_into()?)
         .commit()?;
@@ -41,7 +41,7 @@ fn main() -> Result<()> {
         annotator.annotate(x, y)?.save(format!(
             "{}.jpg",
             usls::Dir::Current
-                .base_dir_with_subs(&["runs", "YOLOv8-RT-DETR"])?
+                .base_dir_with_subs(&["runs", "ultralytics-RTDETR"])?
                 .join(usls::timestamp(None))
                 .display(),
         ))?;

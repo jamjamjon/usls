@@ -29,7 +29,6 @@ impl YOLOPv2 {
             engine.try_width().unwrap_or(&512.into()).opt(),
             engine.ts().clone(),
         );
-
         let confs = DynConf::new(config.class_confs(), 80);
         let iou = config.iou.unwrap_or(0.45f32);
         let processor = Processor::try_from_config(&config.processor)?

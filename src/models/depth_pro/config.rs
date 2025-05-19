@@ -11,5 +11,6 @@ impl crate::ModelConfig {
             .with_image_std(&[0.5, 0.5, 0.5])
             .with_resize_mode(crate::ResizeMode::FitExact)
             .with_normalize(true)
+            .with_model_file("model.onnx")
     }
 }

@@ -13,6 +13,7 @@ impl crate::ModelConfig {
             .with_image_std(&[0.229, 0.224, 0.225])
             .with_normalize(true)
             .with_apply_softmax(true)
+            .with_topk(5)
             .with_class_names(&NAMES_IMAGENET_1K)
     }
 

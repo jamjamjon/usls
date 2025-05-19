@@ -34,17 +34,14 @@ impl Florence2 {
         let encoder = Engine::try_from_config(&config.textual_encoder)?;
         let decoder = Engine::try_from_config(&config.textual_decoder)?;
         let decoder_merged = Engine::try_from_config(&config.textual_decoder_merged)?;
-
         let (batch, height, width) = (
             vision_encoder.batch().opt(),
             vision_encoder.try_height().unwrap_or(&1024.into()).opt(),
             vision_encoder.try_width().unwrap_or(&1024.into()).opt(),
         );
-
         let processor = Processor::try_from_config(&config.processor)?
             .with_image_width(width as _)
             .with_image_height(height as _);
-
         let quantizer = Quantizer::default();
         let ts = Ts::merge(&[
             vision_encoder.ts(),

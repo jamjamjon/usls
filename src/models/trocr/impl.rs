@@ -65,7 +65,6 @@ impl TrOCR {
             Some(Scale::B) => 12,
             _ => unimplemented!(),
         };
-
         let processor = Processor::try_from_config(&config.processor)?
             .with_image_width(width as _)
             .with_image_height(height as _);

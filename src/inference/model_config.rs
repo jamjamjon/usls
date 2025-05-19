@@ -37,9 +37,9 @@ pub struct ModelConfig {
     pub processor: ProcessorConfig,
 
     // Others
-    pub class_names: Option<Vec<String>>, // TODO: remove Option
-    pub keypoint_names: Option<Vec<String>>, // TODO: remove Option
-    pub text_names: Option<Vec<String>>,  // TODO: remove Option
+    pub class_names: Vec<String>,
+    pub keypoint_names: Vec<String>,
+    pub text_names: Vec<String>,
     pub class_confs: Vec<f32>,
     pub keypoint_confs: Vec<f32>,
     pub text_confs: Vec<f32>,
@@ -68,9 +68,9 @@ pub struct ModelConfig {
 impl Default for ModelConfig {
     fn default() -> Self {
         Self {
-            class_names: None,
-            keypoint_names: None,
-            text_names: None,
+            class_names: vec![],
+            keypoint_names: vec![],
+            text_names: vec![],
             class_confs: vec![0.25f32],
             keypoint_confs: vec![0.3f32],
             text_confs: vec![0.25f32],
@@ -130,11 +130,29 @@ impl ModelConfig {
     }
 
     pub fn commit(mut self) -> anyhow::Result<Self> {
+        // special case for yolo
+        if self.name == "yolo" && self.model.file.is_empty() {
+            // version-scale-task
+            let mut y = String::new();
+            if let Some(x) = self.version() {
+                y.push_str(&x.to_string());
+            }
+            if let Some(x) = self.scale() {
+                y.push_str(&format!("-{}", x));
+            }
+            if let Some(x) = self.task() {
+                y.push_str(&format!("-{}", x.yolo_str()));
+            }
+            y.push_str(".onnx");
+            self.model.file = y;
+        }
+
         fn try_commit(name: &str, mut m: EngineConfig) -> anyhow::Result<EngineConfig> {
             if !m.file.is_empty() {
                 m = m.try_commit(name)?;
                 return Ok(m);
             }
+
             Ok(m)
         }
 

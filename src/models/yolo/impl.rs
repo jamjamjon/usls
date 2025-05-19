@@ -28,12 +28,12 @@ pub struct YOLO {
     confs: DynConf,
     kconfs: DynConf,
     iou: f32,
+    topk: usize,
     processor: Processor,
     ts: Ts,
     spec: String,
     classes_excluded: Vec<usize>,
     classes_retained: Vec<usize>,
-    topk: usize,
 }
 
 impl TryFrom<ModelConfig> for YOLO {
@@ -47,7 +47,6 @@ impl TryFrom<ModelConfig> for YOLO {
 impl YOLO {
     pub fn new(config: ModelConfig) -> Result<Self> {
         let engine = Engine::try_from_config(&config.model)?;
-
         let (batch, height, width, ts, spec) = (
             engine.batch().opt(),
             engine.try_height().unwrap_or(&640.into()).opt(),
@@ -55,7 +54,6 @@ impl YOLO {
             engine.ts.clone(),
             engine.spec().to_owned(),
         );
-
         let task: Option<Task> = match &config.task {
             Some(task) => Some(task.clone()),
             None => match engine.try_fetch("task") {
@@ -128,9 +126,10 @@ impl YOLO {
                         (Task::InstanceSegmentation, Version(5, 0, _)) => {
                             YOLOPredsFormat::n_a_cxcywh_confclss_coefs()
                         }
-                        (Task::InstanceSegmentation, Version(8, 0, _) | Version(11, 0, _)) => {
-                            YOLOPredsFormat::n_cxcywh_clss_coefs_a()
-                        }
+                        (
+                            Task::InstanceSegmentation,
+                            Version(8, 0, _) | Version(9, 0, _) | Version(11, 0, _),
+                        ) => YOLOPredsFormat::n_cxcywh_clss_coefs_a(),
                         (Task::OrientedObjectDetection, Version(8, 0, _) | Version(11, 0, _)) => {
                             YOLOPredsFormat::n_cxcywh_clss_r_a()
                         }
@@ -169,61 +168,69 @@ impl YOLO {
         };
 
         // Class names
-        let names: Option<Vec<String>> = match Self::fetch_names_from_onnx(&engine) {
-            Some(names_parsed) => match &config.class_names {
-                Some(names) => {
-                    if names.len() == names_parsed.len() {
-                        // prioritize user-defined
-                        Some(names.clone())
-                    } else {
-                        // Fail to override
-                        anyhow::bail!(
-                            "The lengths of parsed class names: {} and user-defined class names: {} do not match.",
-                            names_parsed.len(),
-                            names.len(),
-                        )
-                    }
+        let names_parsed = Self::fetch_names_from_onnx(&engine);
+        let names_customized = config.class_names.to_vec();
+        let names: Vec<_> = match (names_parsed, names_customized.is_empty()) {
+            (None, true) => vec![],
+            (None, false) => names_customized,
+            (Some(names_parsed), true) => names_parsed,
+            (Some(names_parsed), false) => {
+                if names_parsed.len() == names_customized.len() {
+                    names_customized // prioritize user-defined
+                } else {
+                    anyhow::bail!(
+                        "The lengths of parsed class names: {} and user-defined class names: {} do not match.",
+                        names_parsed.len(),
+                        names_customized.len(),
+                    );
                 }
-                None => Some(names_parsed),
-            },
-            None => config.class_names.clone(),
-        };
-
-        // Class names & Number of class
-        let (nc, names) = match (config.nc(), names) {
-            (_, Some(names)) => (names.len(), names.to_vec()),
-            (Some(nc), None) => (nc, Self::n2s(nc)),
-            (None, None) => {
-                anyhow::bail!(
-                    "Neither class names nor the number of classes were specified. \
-                    \nConsider specify them with `ModelConfig::default().with_nc()` or `ModelConfig::default().with_class_names()`"
-                );
             }
         };
 
+        // Class names & Number of class
+        let nc = match config.nc() {
+            None => names.len(),
+            Some(n) => {
+                if names.len() != n {
+                    anyhow::bail!(
+                        "The lengths of class names: {} and user-defined num_classes: {} do not match.",
+                        names.len(),
+                        n,
+                    )
+                }
+                n
+            }
+        };
+        if nc == 0 && names.is_empty() {
+            anyhow::bail!(
+                    "Neither class names nor the number of classes were specified. \
+                    \nConsider specify them with `ModelConfig::default().with_nc()` or `ModelConfig::default().with_class_names()`"
+                );
+        }
+
         // Keypoint names & Number of keypoints
-        let (nk, names_kpt) = if let Task::KeypointsDetection = task {
-            let nk = Self::fetch_nk_from_onnx(&engine).or(config.nk());
-            match (&config.keypoint_names, nk) {
-                (Some(names), Some(nk)) => {
-                    if names.len() != nk {
+        let names_kpt = config.keypoint_names.to_vec();
+        let nk = if let Task::KeypointsDetection = task {
+            match (names_kpt.is_empty(),  Self::fetch_nk_from_onnx(&engine).or(config.nk())) {
+                (false, Some(nk)) => {
+                    if names_kpt.len() != nk {
                         anyhow::bail!(
-                            "The lengths of user-defined keypoint names: {} and nk parsed: {} do not match.",
-                            names.len(),
+                            "The lengths of user-defined keypoint class names: {} and num_keypoints: {} do not match.",
+                            names_kpt.len(),
                             nk,
                         );
                     }
-                    (nk, names.clone())
-                }
-                (Some(names), None) => (names.len(), names.clone()),
-                (None, Some(nk)) => (nk, Self::n2s(nk)),
-                (None, None) => anyhow::bail!(
+                  nk
+                },
+                (false, None) => names_kpt.len(),
+                (true, Some(nk)) => nk,
+                (true, None) => anyhow::bail!(
                     "Neither keypoint names nor the number of keypoints were specified when doing `KeypointsDetection` task. \
                     \nConsider specify them with `ModelConfig::default().with_nk()` or `ModelConfig::default().with_keypoint_names()`"
                 ),
             }
         } else {
-            (0, vec![])
+            0
         };
 
         // Attributes
@@ -295,12 +302,8 @@ impl YOLO {
         Ok(ys)
     }
 
-    pub fn summary(&mut self) {
-        self.ts.summary();
-    }
-
     fn postprocess(&self, xs: Xs) -> Result<Vec<Y>> {
-        let protos = if xs.len() == 2 { Some(&xs[1]) } else { None };
+        // let protos = if xs.len() == 2 { Some(&xs[1]) } else { None };
         let ys: Vec<Y> = xs[0]
             .axis_iter(Axis(0))
             .into_par_iter()
@@ -345,11 +348,11 @@ impl YOLO {
                 let ratio = self.processor.images_transform_info[idx].height_scale;
 
                 // Other tasks
-                let (y_bboxes, y_mbrs) = slice_bboxes?
+                let (y_hbbs, y_obbs) = slice_bboxes?
                     .axis_iter(Axis(0))
                     .into_par_iter()
                     .enumerate()
-                    .filter_map(|(i, bbox)| {
+                    .filter_map(|(i, hbb)| {
                         // confidence & class_id
                         let (class_id, confidence) = match &slice_id {
                             Some(ids) => (ids[[i, 0]] as _, slice_clss[[i, 0]] as _),
@@ -389,50 +392,50 @@ impl YOLO {
                         }
 
                         // Bboxes
-                        let bbox = bbox.mapv(|x| x / ratio);
-                        let bbox = if self.layout.is_bbox_normalized {
+                        let hbb = hbb.mapv(|x| x / ratio);
+                        let hbb = if self.layout.is_bbox_normalized {
                             (
-                                bbox[0] * self.width() as f32,
-                                bbox[1] * self.height() as f32,
-                                bbox[2] * self.width() as f32,
-                                bbox[3] * self.height() as f32,
+                                hbb[0] * self.width() as f32,
+                                hbb[1] * self.height() as f32,
+                                hbb[2] * self.width() as f32,
+                                hbb[3] * self.height() as f32,
                             )
                         } else {
-                            (bbox[0], bbox[1], bbox[2], bbox[3])
+                            (hbb[0], hbb[1], hbb[2], hbb[3])
                         };
                         let (cx, cy, x, y, w, h) = match self.layout.box_type()? {
                             BoxType::Cxcywh => {
-                                let (cx, cy, w, h) = bbox;
+                                let (cx, cy, w, h) = hbb;
                                 let x = (cx - w / 2.).max(0.);
                                 let y = (cy - h / 2.).max(0.);
                                 (cx, cy, x, y, w, h)
                             }
                             BoxType::Xyxy => {
-                                let (x, y, x2, y2) = bbox;
+                                let (x, y, x2, y2) = hbb;
                                 let (w, h) = (x2 - x, y2 - y);
                                 let (cx, cy) = ((x + x2) / 2., (y + y2) / 2.);
                                 (cx, cy, x, y, w, h)
                             }
                             BoxType::Xywh => {
-                                let (x, y, w, h) = bbox;
+                                let (x, y, w, h) = hbb;
                                 let (cx, cy) = (x + w / 2., y + h / 2.);
                                 (cx, cy, x, y, w, h)
                             }
                             BoxType::Cxcyxy => {
-                                let (cx, cy, x2, y2) = bbox;
+                                let (cx, cy, x2, y2) = hbb;
                                 let (w, h) = ((x2 - cx) * 2., (y2 - cy) * 2.);
                                 let x = (x2 - w).max(0.);
                                 let y = (y2 - h).max(0.);
                                 (cx, cy, x, y, w, h)
                             }
                             BoxType::XyCxcy => {
-                                let (x, y, cx, cy) = bbox;
+                                let (x, y, cx, cy) = hbb;
                                 let (w, h) = ((cx - x) * 2., (cy - y) * 2.);
                                 (cx, cy, x, y, w, h)
                             }
                         };
 
-                        let (y_bbox, y_mbr) = match &slice_radians {
+                        let (y_hbb, y_obb) = match &slice_radians {
                             Some(slice_radians) => {
                                 let radians = slice_radians[[i, 0]];
                                 let (w, h, radians) = if w > h {
@@ -441,47 +444,51 @@ impl YOLO {
                                     (h, w, radians + std::f32::consts::PI / 2.)
                                 };
                                 let radians = radians % std::f32::consts::PI;
-                                let mbr = Obb::from_cxcywhr(cx, cy, w, h, radians)
+                                let mut obb = Obb::from_cxcywhr(cx, cy, w, h, radians)
                                     .with_confidence(confidence)
-                                    .with_id(class_id)
-                                    .with_name(&self.names[class_id]);
+                                    .with_id(class_id);
+                                if !self.names.is_empty() {
+                                    obb = obb.with_name(&self.names[class_id]);
+                                }
 
-                                (None, Some(mbr))
+                                (None, Some(obb))
                             }
                             None => {
-                                let bbox = Hbb::default()
+                                let mut hbb = Hbb::default()
                                     .with_xywh(x, y, w, h)
                                     .with_confidence(confidence)
                                     .with_id(class_id)
-                                    .with_uid(i)
-                                    .with_name(&self.names[class_id]);
+                                    .with_uid(i);
+                                if !self.names.is_empty() {
+                                    hbb = hbb.with_name(&self.names[class_id]);
+                                }
 
-                                (Some(bbox), None)
+                                (Some(hbb), None)
                             }
                         };
 
-                        Some((y_bbox, y_mbr))
+                        Some((y_hbb, y_obb))
                     })
                     .collect::<(Vec<_>, Vec<_>)>();
 
-                let mut y_bboxes: Vec<Hbb> = y_bboxes.into_iter().flatten().collect();
-                let mut y_mbrs: Vec<Obb> = y_mbrs.into_iter().flatten().collect();
+                let mut y_hbbs: Vec<Hbb> = y_hbbs.into_iter().flatten().collect();
+                let mut y_obbs: Vec<Obb> = y_obbs.into_iter().flatten().collect();
 
                 // Mbrs
-                if !y_mbrs.is_empty() {
+                if !y_obbs.is_empty() {
                     if self.layout.apply_nms {
-                        y_mbrs.apply_nms_inplace(self.iou);
+                        y_obbs.apply_nms_inplace(self.iou);
                     }
-                    y = y.with_obbs(&y_mbrs);
+                    y = y.with_obbs(&y_obbs);
                     return Some(y);
                 }
 
                 // Bboxes
-                if !y_bboxes.is_empty() {
+                if !y_hbbs.is_empty() {
                     if self.layout.apply_nms {
-                        y_bboxes.apply_nms_inplace(self.iou);
+                        y_hbbs.apply_nms_inplace(self.iou);
                     }
-                    y = y.with_hbbs(&y_bboxes);
+                    y = y.with_hbbs(&y_hbbs);
                 }
 
                 // KeypointsDetection
@@ -490,8 +497,8 @@ impl YOLO {
                     if let Some(hbbs) = y.hbbs() {
                         let y_kpts = hbbs
                             .into_par_iter()
-                            .filter_map(|bbox| {
-                                let pred = pred_kpts.slice(s![bbox.uid(), ..]);
+                            .filter_map(|hbb| {
+                                let pred = pred_kpts.slice(s![hbb.uid(), ..]);
                                 let kpts = (0..self.nk)
                                     .into_par_iter()
                                     .map(|i| {
@@ -501,14 +508,17 @@ impl YOLO {
                                         if kconf < self.kconfs[i] {
                                             Keypoint::default()
                                         } else {
-                                            Keypoint::default()
+                                            let mut kpt = Keypoint::default()
                                                 .with_id(i)
                                                 .with_confidence(kconf)
                                                 .with_xy(
                                                     kx.max(0.0f32).min(image_width as f32),
                                                     ky.max(0.0f32).min(image_height as f32),
-                                                )
-                                                .with_name(&self.names_kpt[i])
+                                                );
+                                            if !self.names_kpt.is_empty() {
+                                                kpt = kpt.with_name(&self.names_kpt[i]);
+                                            }
+                                            kpt
                                         }
                                     })
                                     .collect::<Vec<_>>();
@@ -522,11 +532,12 @@ impl YOLO {
                 // InstanceSegmentation
                 if let Some(coefs) = slice_coefs {
                     if let Some(hbbs) = y.hbbs() {
+                        let protos = &xs[1];
                         let y_masks = hbbs
                             .into_par_iter()
-                            .filter_map(|bbox| {
-                                let coefs = coefs.slice(s![bbox.uid(), ..]).to_vec();
-                                let proto = protos.as_ref()?.slice(s![idx, .., .., ..]);
+                            .filter_map(|hbb| {
+                                let coefs = coefs.slice(s![hbb.uid(), ..]).to_vec();
+                                let proto = protos.slice(s![idx, .., .., ..]);
                                 let (nm, mh, mw) = proto.dim();
 
                                 // coefs * proto => mask
@@ -553,9 +564,9 @@ impl YOLO {
                                         mask,
                                     )?;
                                 let (xmin, ymin, xmax, ymax) =
-                                    (bbox.xmin(), bbox.ymin(), bbox.xmax(), bbox.ymax());
+                                    (hbb.xmin(), hbb.ymin(), hbb.xmax(), hbb.ymax());
 
-                                // Using bbox to crop the mask
+                                // Using hbb to crop the mask
                                 for (y, row) in mask.enumerate_rows_mut() {
                                     for (x, _, pixel) in row {
                                         if x < xmin as _
@@ -569,10 +580,10 @@ impl YOLO {
                                 }
 
                                 let mut mask = Mask::default().with_mask(mask);
-                                if let Some(id) = bbox.id() {
+                                if let Some(id) = hbb.id() {
                                     mask = mask.with_id(id);
                                 }
-                                if let Some(name) = bbox.name() {
+                                if let Some(name) = hbb.name() {
                                     mask = mask.with_name(name);
                                 }
 
@@ -613,7 +624,7 @@ impl YOLO {
             .and_then(|m| m.as_str().parse::<usize>().ok())
     }
 
-    fn n2s(n: usize) -> Vec<String> {
-        (0..n).map(|x| format!("# {}", x)).collect::<Vec<String>>()
+    pub fn summary(&mut self) {
+        self.ts.summary();
     }
 }

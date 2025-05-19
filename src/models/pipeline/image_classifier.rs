@@ -3,7 +3,7 @@ use anyhow::Result;
 use ndarray::Axis;
 use rayon::prelude::*;
 
-use crate::{elapsed, DynConf, Engine, Image, ModelConfig, Prob, Processor, Ts, Xs, Y};
+use crate::{elapsed, Engine, Image, ModelConfig, Prob, Processor, Ts, Xs, Y};
 
 #[derive(Debug, Builder)]
 pub struct ImageClassifier {
@@ -12,20 +12,24 @@ pub struct ImageClassifier {
     width: usize,
     batch: usize,
     apply_softmax: bool,
-    ts: Ts,
     processor: Processor,
-    confs: DynConf,
-    nc: usize,
     names: Vec<String>,
     spec: String,
+    topk: usize,
+    ts: Ts,
 }
 
 impl TryFrom<ModelConfig> for ImageClassifier {
     type Error = anyhow::Error;
 
     fn try_from(config: ModelConfig) -> Result<Self, Self::Error> {
-        let engine = Engine::try_from_config(&config.model)?;
+        Self::new(config)
+    }
+}
 
+impl ImageClassifier {
+    pub fn new(config: ModelConfig) -> Result<Self> {
+        let engine = Engine::try_from_config(&config.model)?;
         let spec = engine.spec().to_string();
         let (batch, height, width, ts) = (
             engine.batch().opt(),
@@ -33,29 +37,9 @@ impl TryFrom<ModelConfig> for ImageClassifier {
             engine.try_width().unwrap_or(&224.into()).opt(),
             engine.ts().clone(),
         );
-
-        let (nc, names) = match (config.nc(), config.class_names()) {
-            (Some(nc), Some(names)) => {
-                if nc != names.len() {
-                    anyhow::bail!(
-                        "The length of the input class names: {} is inconsistent with the number of classes: {}.",
-                        names.len(),
-                        nc
-                    );
-                }
-                (nc, names.to_vec())
-            }
-            (Some(nc), None) => (
-                nc,
-                (0..nc).map(|x| format!("# {}", x)).collect::<Vec<String>>(),
-            ),
-            (None, Some(names)) => (names.len(), names.to_vec()),
-            (None, None) => {
-                anyhow::bail!("Neither class names nor class numbers were specified.");
-            }
-        };
-        let confs = DynConf::new(config.class_confs(), nc);
+        let names = config.class_names.to_vec();
         let apply_softmax = config.apply_softmax.unwrap_or_default();
+        let topk = config.topk.unwrap_or(5);
         let processor = Processor::try_from_config(&config.processor)?
             .with_image_width(width as _)
             .with_image_height(height as _);
@@ -65,18 +49,15 @@ impl TryFrom<ModelConfig> for ImageClassifier {
             height,
             width,
             batch,
-            nc,
             ts,
             spec,
             processor,
-            confs,
             names,
             apply_softmax,
+            topk,
         })
     }
-}
 
-impl ImageClassifier {
     pub fn summary(&mut self) {
         self.ts.summary();
     }
@@ -114,7 +95,7 @@ impl ImageClassifier {
                 let probs = Prob::new_probs(
                     &logits.into_raw_vec_and_offset().0,
                     Some(&self.names.iter().map(|x| x.as_str()).collect::<Vec<_>>()),
-                    3,
+                    self.topk,
                 );
 
                 Some(Y::default().with_probs(&probs))

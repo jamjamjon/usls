@@ -36,7 +36,6 @@ impl SmolVLM {
         let vision = Engine::try_from_config(&config.visual)?;
         let text_embed = Engine::try_from_config(&config.textual)?;
         let decoder = Engine::try_from_config(&config.textual_decoder_merged)?;
-
         let fake_image_token = "<fake_token_around_image>".to_string();
         let image_token = "<image>".to_string();
         let global_img_token = "<global-img>".to_string();
@@ -52,7 +51,6 @@ impl SmolVLM {
             _ => unimplemented!(),
         };
         let scale = config.scale.clone().unwrap();
-
         let (batch, num_patch, height, width, ts) = (
             vision.batch().opt(),
             vision.inputs_minoptmax()[0][1].opt(),

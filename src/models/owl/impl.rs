@@ -31,12 +31,12 @@ impl OWLv2 {
             engine.ts.clone(),
         );
         let spec = engine.spec().to_owned();
-        let names: Vec<String> = config
-            .class_names()
-            .expect("No class names specified.")
-            .iter()
-            .map(|x| x.to_string())
-            .collect();
+        let names: Vec<String> = config.text_names().to_vec();
+        if names.is_empty() {
+            anyhow::bail!(
+                "No valid class names were provided in the config. Ensure the 'text_names' field is non-empty and contains valid class names."
+            );
+        }
         let names_with_prompt: Vec<String> =
             names.iter().map(|x| format!("a photo of {}", x)).collect();
         let n = names.len();

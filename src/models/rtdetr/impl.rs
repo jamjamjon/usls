@@ -28,12 +28,7 @@ impl RTDETR {
             engine.ts.clone(),
         );
         let spec = engine.spec().to_owned();
-        let names: Vec<String> = config
-            .class_names()
-            .expect("No class names specified.")
-            .iter()
-            .map(|x| x.to_string())
-            .collect();
+        let names: Vec<String> = config.class_names().to_vec();
         let confs = DynConf::new(config.class_confs(), names.len());
         let processor = Processor::try_from_config(&config.processor)?
             .with_image_width(width as _)
@@ -94,7 +89,6 @@ impl RTDETR {
                     if score < self.confs[class_id] {
                         continue;
                     }
-
                     let xyxy = boxes.slice(s![i, ..]);
                     let (x1, y1, x2, y2) = (
                         xyxy[0] / ratio,
@@ -102,13 +96,14 @@ impl RTDETR {
                         xyxy[2] / ratio,
                         xyxy[3] / ratio,
                     );
-                    y_bboxes.push(
-                        Hbb::default()
-                            .with_xyxy(x1.max(0.0f32), y1.max(0.0f32), x2, y2)
-                            .with_confidence(score)
-                            .with_id(class_id)
-                            .with_name(&self.names[class_id]),
-                    );
+                    let mut hbb = Hbb::default()
+                        .with_xyxy(x1.max(0.0f32), y1.max(0.0f32), x2, y2)
+                        .with_confidence(score)
+                        .with_id(class_id);
+                    if !self.names.is_empty() {
+                        hbb = hbb.with_name(&self.names[class_id]);
+                    }
+                    y_bboxes.push(hbb);
                 }
 
                 let mut y = Y::default();

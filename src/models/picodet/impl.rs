@@ -28,10 +28,7 @@ impl PicoDet {
             engine.ts.clone(),
         );
         let spec = engine.spec().to_owned();
-        let names = config
-            .class_names()
-            .expect("No class names are specified.")
-            .to_vec();
+        let names: Vec<String> = config.class_names().to_vec();
         let confs = DynConf::new(config.class_confs(), names.len());
         let processor = Processor::try_from_config(&config.processor)?
             .with_image_width(width as _)
@@ -94,14 +91,15 @@ impl PicoDet {
                     return None;
                 }
                 let (x1, y1, x2, y2) = (pred[2], pred[3], pred[4], pred[5]);
+                let mut hbb = Hbb::default()
+                    .with_xyxy(x1.max(0.0f32), y1.max(0.0f32), x2, y2)
+                    .with_confidence(confidence)
+                    .with_id(class_id);
+                if !self.names.is_empty() {
+                    hbb = hbb.with_name(&self.names[class_id]);
+                }
 
-                Some(
-                    Hbb::default()
-                        .with_xyxy(x1.max(0.0f32), y1.max(0.0f32), x2, y2)
-                        .with_confidence(confidence)
-                        .with_id(class_id)
-                        .with_name(&self.names[class_id]),
-                )
+                Some(hbb)
             })
             .collect();
 

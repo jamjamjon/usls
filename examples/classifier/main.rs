@@ -12,7 +12,7 @@ struct Args {
     device: String,
 
     /// model name
-    #[argh(option, default = "String::from(\"beit\")")]
+    #[argh(option, default = "String::from(\"mobileone\")")]
     model: String,
 
     /// source image

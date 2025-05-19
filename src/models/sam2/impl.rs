@@ -30,7 +30,6 @@ impl SAM2 {
         );
         let ts = Ts::merge(&[encoder.ts(), decoder.ts()]);
         let spec = encoder.spec().to_owned();
-
         let conf = DynConf::new(config.class_confs(), 1);
         let processor = Processor::try_from_config(&config.processor)?
             .with_image_width(width as _)

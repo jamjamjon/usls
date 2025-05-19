@@ -33,24 +33,21 @@ impl GroundingDINO {
             engine.try_width().unwrap_or(&1200.into()).opt(),
             engine.ts().clone(),
         );
-
-        let class_names = config
+        let class_names: Vec<_> = config
             .text_names
-            .as_ref()
-            .and_then(|v| {
-                let v: Vec<_> = v
-                    .iter()
-                    .map(|s| s.trim().to_ascii_lowercase())
-                    .filter(|s| !s.is_empty())
-                    .collect();
-                (!v.is_empty()).then_some(v)
-            })
-            .ok_or_else(|| anyhow::anyhow!("No valid class names were provided in the config. Ensure the 'text_names' field is non-empty and contains valid class names."))?;
+            .iter()
+            .map(|s| s.trim().to_ascii_lowercase())
+            .filter(|s| !s.is_empty())
+            .collect();
+        if class_names.is_empty() {
+            anyhow::bail!(
+                "No valid class names were provided in the config. Ensure the 'text_names' field is non-empty and contains valid class names."
+            );
+        }
         let text_prompt = class_names.iter().fold(String::new(), |mut acc, text| {
             write!(&mut acc, "{}.", text).unwrap();
             acc
         });
-
         let confs_visual = DynConf::new(config.class_confs(), class_names.len());
         let confs_textual = DynConf::new(config.text_confs(), class_names.len());
         let processor = Processor::try_from_config(&config.processor)?

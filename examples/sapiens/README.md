@@ -1,7 +1,7 @@
 ## Quick Start
 
 ```shell
-cargo run -r -F cuda --example sapiens -- --device cuda 
+cargo run -r -F cuda --example sapiens -- --device cuda
 ```
 
 ## Results

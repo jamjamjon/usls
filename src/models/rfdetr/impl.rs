@@ -28,12 +28,7 @@ impl RFDETR {
             engine.ts.clone(),
         );
         let spec = engine.spec().to_owned();
-        let names: Vec<String> = config
-            .class_names()
-            .expect("No class names specified.")
-            .iter()
-            .map(|x| x.to_string())
-            .collect();
+        let names: Vec<String> = config.class_names().to_vec();
         let confs = DynConf::new(config.class_confs(), names.len());
         let processor = Processor::try_from_config(&config.processor)?
             .with_image_width(width as _)
@@ -107,14 +102,15 @@ impl RFDETR {
                         let y = cy - h / 2.;
                         let x = x.max(0.0).min(image_width as _);
                         let y = y.max(0.0).min(image_height as _);
+                        let mut hbb = Hbb::default()
+                            .with_xywh(x, y, w, h)
+                            .with_confidence(conf)
+                            .with_id(class_id as _);
+                        if !self.names.is_empty() {
+                            hbb = hbb.with_name(&self.names[class_id]);
+                        }
 
-                        Some(
-                            Hbb::default()
-                                .with_xywh(x, y, w, h)
-                                .with_confidence(conf)
-                                .with_id(class_id as _)
-                                .with_name(&self.names[class_id]),
-                        )
+                        Some(hbb)
                     })
                     .collect();
 

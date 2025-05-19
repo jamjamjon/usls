@@ -40,7 +40,6 @@ impl BaseModelVisual {
         let processor = Processor::try_from_config(&config.processor)?
             .with_image_width(width as _)
             .with_image_height(height as _);
-
         let device = config.model.device;
         let task = config.task;
         let scale = config.scale;

@@ -36,7 +36,6 @@ fn main() -> Result<()> {
     }
     .with_device_all(args.device.as_str().try_into()?)
     .commit()?;
-
     let mut model = SmolVLM::new(config)?;
 
     // load images

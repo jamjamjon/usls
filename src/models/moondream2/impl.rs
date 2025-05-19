@@ -299,6 +299,7 @@ impl Moondream2 {
                     cy * image_height as f32,
                 ))
                 .with_id(0)
+                .with_confidence(1.)
                 .with_name(object)]);
 
                 // keep?

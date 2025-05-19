@@ -15,7 +15,7 @@ impl crate::ModelConfig {
             .with_scale(crate::Scale::Million(256.))
             .with_visual_file("256m-vision-encoder.onnx")
             .with_textual_file("256m-embed-tokens.onnx")
-            .with_textual_decoder_file("256m-decoder-model-merged.onnx")
+            .with_textual_decoder_merged_file("256m-decoder-model-merged.onnx")
     }
 
     pub fn smolvlm_500m() -> Self {
@@ -23,6 +23,6 @@ impl crate::ModelConfig {
             .with_scale(crate::Scale::Million(500.))
             .with_visual_file("500m-vision-encoder.onnx")
             .with_textual_file("500m-embed-tokens.onnx")
-            .with_textual_decoder_file("500m-decoder-model-merged.onnx")
+            .with_textual_decoder_merged_file("500m-decoder-model-merged.onnx")
     }
 }

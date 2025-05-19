@@ -27,6 +27,7 @@ fn main() -> Result<()> {
         .with_model_dtype(args.dtype.as_str().try_into()?)
         .with_model_device(args.device.as_str().try_into()?)
         .commit()?;
+
     let mut model = DepthPro::new(config)?;
 
     // load

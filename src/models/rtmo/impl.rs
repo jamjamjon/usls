@@ -27,7 +27,6 @@ impl RTMO {
             engine.try_width().unwrap_or(&512.into()).opt(),
             engine.ts().clone(),
         );
-
         let nk = config.nk().unwrap_or(17);
         let confs = DynConf::new(config.class_confs(), 1);
         let kconfs = DynConf::new(config.keypoint_confs(), nk);

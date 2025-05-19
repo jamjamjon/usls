@@ -45,7 +45,7 @@ fn main() -> Result<()> {
         annotator.annotate(x, y)?.save(format!(
             "{}.jpg",
             usls::Dir::Current
-                .base_dir_with_subs(&["runs", "FastSAM"])?
+                .base_dir_with_subs(&["runs", model.spec()])?
                 .join(usls::timestamp(None))
                 .display(),
         ))?;
