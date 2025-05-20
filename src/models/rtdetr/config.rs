@@ -1,15 +1,15 @@
 use crate::NAMES_COCO_80;
 
 /// Model configuration for `RT-DETR`
-impl crate::Options {
+impl crate::Config {
     pub fn rtdetr() -> Self {
         Self::default()
-            .with_model_name("rtdetr")
-            .with_batch_size(1)
+            .with_name("rtdetr")
+            .with_model_ixx(0, 0, 1.into())
+            .with_model_ixx(0, 1, 3.into())
             .with_model_ixx(0, 2, 640.into())
             .with_model_ixx(0, 3, 640.into())
             .with_resize_mode(crate::ResizeMode::FitAdaptive)
-            .with_normalize(true)
             .with_class_confs(&[0.5])
             .with_class_names(&NAMES_COCO_80)
     }

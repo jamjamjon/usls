@@ -1,5 +1,5 @@
 use anyhow::Result;
-use usls::{models::RFDETR, Annotator, DataLoader, Options};
+use usls::{models::RFDETR, Annotator, Config, DataLoader};
 
 fn main() -> Result<()> {
     tracing_subscriber::fmt()
@@ -7,9 +7,8 @@ fn main() -> Result<()> {
         .with_timer(tracing_subscriber::fmt::time::ChronoLocal::rfc_3339())
         .init();
 
-    // options
-    let options = Options::rfdetr_base().commit()?;
-    let mut model = RFDETR::new(options)?;
+    // config
+    let mut model = RFDETR::new(Config::rfdetr_base().commit()?)?;
 
     // load
     let xs = DataLoader::try_read_n(&["./assets/bus.jpg"])?;

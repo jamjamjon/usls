@@ -3,7 +3,7 @@ use anyhow::Result;
 use ndarray::{s, Axis};
 use rayon::prelude::*;
 
-use crate::{elapsed, DynConf, Engine, Hbb, Image, Options, Processor, Ts, Xs, Y};
+use crate::{elapsed, Config, DynConf, Engine, Hbb, Image, Processor, Ts, Xs, Y};
 
 #[derive(Debug, Builder)]
 pub struct RFDETR {
@@ -19,8 +19,8 @@ pub struct RFDETR {
 }
 
 impl RFDETR {
-    pub fn new(options: Options) -> Result<Self> {
-        let engine = options.to_engine()?;
+    pub fn new(config: Config) -> Result<Self> {
+        let engine = Engine::try_from_config(&config.model)?;
         let (batch, height, width, ts) = (
             engine.batch().opt(),
             engine.try_height().unwrap_or(&560.into()).opt(),
@@ -28,16 +28,11 @@ impl RFDETR {
             engine.ts.clone(),
         );
         let spec = engine.spec().to_owned();
-        let processor = options
-            .to_processor()?
+        let names: Vec<String> = config.class_names().to_vec();
+        let confs = DynConf::new(config.class_confs(), names.len());
+        let processor = Processor::try_from_config(&config.processor)?
             .with_image_width(width as _)
             .with_image_height(height as _);
-        let names = options
-            .class_names()
-            .expect("No class names specified.")
-            .to_vec();
-        let confs = DynConf::new(options.class_confs(), names.len());
-
         Ok(Self {
             engine,
             height,
@@ -107,14 +102,15 @@ impl RFDETR {
                         let y = cy - h / 2.;
                         let x = x.max(0.0).min(image_width as _);
                         let y = y.max(0.0).min(image_height as _);
+                        let mut hbb = Hbb::default()
+                            .with_xywh(x, y, w, h)
+                            .with_confidence(conf)
+                            .with_id(class_id as _);
+                        if !self.names.is_empty() {
+                            hbb = hbb.with_name(&self.names[class_id]);
+                        }
 
-                        Some(
-                            Hbb::default()
-                                .with_xywh(x, y, w, h)
-                                .with_confidence(conf)
-                                .with_id(class_id as _)
-                                .with_name(&self.names[class_id]),
-                        )
+                        Some(hbb)
                     })
                     .collect();
 

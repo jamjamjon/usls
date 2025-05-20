@@ -1,4 +1,4 @@
-use usls::{models::Blip, DataLoader, Options};
+use usls::{models::Blip, Config, DataLoader};
 
 #[derive(argh::FromArgs)]
 /// BLIP Example
@@ -20,13 +20,10 @@ fn main() -> anyhow::Result<()> {
     let args: Args = argh::from_env();
 
     // build model
-    let options_visual = Options::blip_v1_base_caption_visual()
-        .with_model_device(args.device.as_str().try_into()?)
+    let config = Config::blip_v1_base_caption()
+        .with_device_all(args.device.as_str().try_into()?)
         .commit()?;
-    let options_textual = Options::blip_v1_base_caption_textual()
-        .with_model_device(args.device.as_str().try_into()?)
-        .commit()?;
-    let mut model = Blip::new(options_visual, options_textual)?;
+    let mut model = Blip::new(config)?;
 
     // image caption
     let xs = DataLoader::try_read_n(&args.source)?;

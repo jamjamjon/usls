@@ -3,7 +3,7 @@ use anyhow::Result;
 use ndarray::{s, Array, Axis, IxDyn};
 
 use crate::{
-    elapsed, DynConf, Engine, Hbb, Image, NmsOps, Ops, Options, Polygon, Processor, Ts, Xs, Y,
+    elapsed, Config, DynConf, Engine, Hbb, Image, NmsOps, Ops, Polygon, Processor, Ts, Xs, Y,
 };
 
 #[derive(Builder, Debug)]
@@ -20,8 +20,8 @@ pub struct YOLOPv2 {
 }
 
 impl YOLOPv2 {
-    pub fn new(options: Options) -> Result<Self> {
-        let engine = options.to_engine()?;
+    pub fn new(config: Config) -> Result<Self> {
+        let engine = Engine::try_from_config(&config.model)?;
         let spec = engine.spec().to_string();
         let (batch, height, width, ts) = (
             engine.batch().opt(),
@@ -29,13 +29,11 @@ impl YOLOPv2 {
             engine.try_width().unwrap_or(&512.into()).opt(),
             engine.ts().clone(),
         );
-        let processor = options
-            .to_processor()?
+        let confs = DynConf::new(config.class_confs(), 80);
+        let iou = config.iou.unwrap_or(0.45f32);
+        let processor = Processor::try_from_config(&config.processor)?
             .with_image_width(width as _)
             .with_image_height(height as _);
-
-        let confs = DynConf::new(options.class_confs(), 80);
-        let iou = options.iou.unwrap_or(0.45f32);
 
         Ok(Self {
             engine,

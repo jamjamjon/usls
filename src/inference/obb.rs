@@ -13,7 +13,7 @@ pub struct Obb {
 impl std::fmt::Debug for Obb {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Obb")
-            .field("uid", &self.meta.uid())
+            .field("vertices", &self.vertices)
             .field("id", &self.meta.id())
             .field("name", &self.meta.name())
             .field("confidence", &self.meta.confidence())

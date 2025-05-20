@@ -2,7 +2,7 @@ use aksr::Builder;
 use anyhow::Result;
 use ndarray::{s, Array2, Axis};
 
-use crate::{elapsed, Engine, Image, Mask, Ops, Options, Polygon, Processor, Task, Ts, Xs, Y};
+use crate::{elapsed, Config, Engine, Image, Mask, Ops, Polygon, Processor, Task, Ts, Xs, Y};
 
 #[derive(Builder, Debug)]
 pub struct Sapiens {
@@ -11,15 +11,15 @@ pub struct Sapiens {
     width: usize,
     batch: usize,
     task: Task,
-    names_body: Option<Vec<String>>,
+    names_body: Vec<String>,
     ts: Ts,
     processor: Processor,
     spec: String,
 }
 
 impl Sapiens {
-    pub fn new(options: Options) -> Result<Self> {
-        let engine = options.to_engine()?;
+    pub fn new(config: Config) -> Result<Self> {
+        let engine = Engine::try_from_config(&config.model)?;
         let spec = engine.spec().to_string();
         let (batch, height, width, ts) = (
             engine.batch().opt(),
@@ -27,12 +27,11 @@ impl Sapiens {
             engine.try_width().unwrap_or(&768.into()).opt(),
             engine.ts().clone(),
         );
-        let processor = options
-            .to_processor()?
+        let task = config.task.expect("No sapiens task specified.");
+        let names_body = config.class_names;
+        let processor = Processor::try_from_config(&config.processor)?
             .with_image_width(width as _)
             .with_image_height(height as _);
-        let task = options.model_task.expect("No sapiens task specified.");
-        let names_body = options.class_names;
 
         Ok(Self {
             engine,
@@ -124,8 +123,8 @@ impl Sapiens {
                 if let Some(polygon) = mask.polygon() {
                     y_polygons.push(polygon);
                 }
-                if let Some(names_body) = &self.names_body {
-                    mask = mask.with_name(&names_body[*i]);
+                if !self.names_body.is_empty() {
+                    mask = mask.with_name(&self.names_body[*i]);
                 }
                 y_masks.push(mask);
             }

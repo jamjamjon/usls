@@ -3,7 +3,7 @@ use anyhow::Result;
 use ndarray::Axis;
 use rayon::prelude::*;
 
-use crate::{elapsed, DynConf, Engine, Image, Options, Processor, Ts, Xs, Y};
+use crate::{elapsed, Config, DynConf, Engine, Image, Processor, Ts, Xs, Y};
 
 #[derive(Builder, Debug)]
 pub struct SVTR {
@@ -18,18 +18,17 @@ pub struct SVTR {
 }
 
 impl SVTR {
-    pub fn new(options: Options) -> Result<Self> {
-        let engine = options.to_engine()?;
+    pub fn new(config: Config) -> Result<Self> {
+        let engine = Engine::try_from_config(&config.model)?;
         let (batch, height, width, ts) = (
             engine.batch().opt(),
             engine.try_height().unwrap_or(&960.into()).opt(),
             engine.try_width().unwrap_or(&960.into()).opt(),
             engine.ts.clone(),
         );
-        let spec = options.model_spec().to_string();
-        let confs = DynConf::new(options.class_confs(), 1);
-        let processor = options
-            .to_processor()?
+        let spec = config.model.spec.to_string();
+        let confs = DynConf::new(config.class_confs(), 1);
+        let processor = Processor::try_from_config(&config.processor)?
             .with_image_width(width as _)
             .with_image_height(height as _);
         if processor.vocab().is_empty() {

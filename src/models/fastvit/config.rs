@@ -1,10 +1,10 @@
 use crate::NAMES_IMAGENET_1K;
 
 /// Model configuration for `FastViT`
-impl crate::Options {
+impl crate::Config {
     pub fn fastvit() -> Self {
         Self::default()
-            .with_model_name("fastvit")
+            .with_name("fastvit")
             .with_model_ixx(0, 0, 1.into())
             .with_model_ixx(0, 1, 3.into())
             .with_model_ixx(0, 2, 224.into())

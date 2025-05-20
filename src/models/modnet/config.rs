@@ -1,8 +1,8 @@
 /// Model configuration for `MODNet`
-impl crate::Options {
+impl crate::Config {
     pub fn modnet() -> Self {
         Self::default()
-            .with_model_name("modnet")
+            .with_name("modnet")
             .with_model_ixx(0, 0, 1.into())
             .with_model_ixx(0, 2, (416, 512, 800).into())
             .with_model_ixx(0, 3, (416, 512, 800).into())

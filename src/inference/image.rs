@@ -308,12 +308,12 @@ impl Image {
             ));
         }
 
-        let (mut resizer, options) = build_resizer_filter(filter)?;
+        let (mut resizer, config) = build_resizer_filter(filter)?;
         let x: DynamicImage = self.to_dyn();
 
         if let ResizeMode::FitExact = mode {
             let mut dst = FImage::new(tw, th, PixelType::U8x3);
-            resizer.resize(&x, &mut dst, &options)?;
+            resizer.resize(&x, &mut dst, &config)?;
             trans_info = trans_info
                 .with_height_scale(th as f32 / h0 as f32)
                 .with_width_scale(tw as f32 / w0 as f32);
@@ -362,7 +362,7 @@ impl Image {
             };
 
             let mut dst_cropped = CroppedImageMut::new(&mut dst, l, t, w, h)?;
-            resizer.resize(&x, &mut dst_cropped, &options)?;
+            resizer.resize(&x, &mut dst_cropped, &config)?;
 
             Ok((Self::from_u8s(&dst.into_vec(), tw, th)?, trans_info))
         }

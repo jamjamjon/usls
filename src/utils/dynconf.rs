@@ -6,7 +6,13 @@ pub struct DynConf(Vec<f32>);
 
 impl Default for DynConf {
     fn default() -> Self {
-        Self(vec![0.4f32])
+        Self(vec![0.3f32])
+    }
+}
+
+impl From<f32> for DynConf {
+    fn from(conf: f32) -> Self {
+        Self(vec![conf])
     }
 }
 

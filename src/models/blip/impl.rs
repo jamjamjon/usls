@@ -2,26 +2,34 @@ use aksr::Builder;
 use anyhow::Result;
 use ndarray::{s, Axis};
 
-use crate::{
-    elapsed,
-    models::{BaseModelTextual, BaseModelVisual},
-    Image, LogitsSampler, Options, Ts, Xs, X, Y,
-};
+use crate::{elapsed, Config, Engine, Image, LogitsSampler, Processor, Ts, Xs, X, Y};
 
 #[derive(Debug, Builder)]
 pub struct Blip {
-    visual: BaseModelVisual,
-    textual: BaseModelTextual,
-    ts: Ts,
+    visual: Engine,
+    textual: Engine,
+    batch: usize,
+    height: usize,
+    width: usize,
+    processor: Processor,
     max_length: usize,
     eos_token_id: u32,
+    ts: Ts,
 }
 
 impl Blip {
-    pub fn new(options_visual: Options, options_textual: Options) -> Result<Self> {
-        let visual = BaseModelVisual::new(options_visual)?;
-        let textual = BaseModelTextual::new(options_textual)?;
-        let ts = Ts::merge(&[visual.engine().ts(), textual.engine().ts()]);
+    pub fn new(config: Config) -> Result<Self> {
+        let visual = Engine::try_from_config(&config.visual)?;
+        let textual = Engine::try_from_config(&config.textual)?;
+        let (batch, height, width) = (
+            visual.batch().opt(),
+            visual.try_height().unwrap_or(&384.into()).opt(),
+            visual.try_width().unwrap_or(&384.into()).opt(),
+        );
+        let ts = Ts::merge(&[visual.ts(), textual.ts()]);
+        let processor = Processor::try_from_config(&config.processor)?
+            .with_image_width(width as _)
+            .with_image_height(height as _);
         let max_length = 512;
         let eos_token_id = 102;
 
@@ -31,17 +39,24 @@ impl Blip {
             ts,
             max_length,
             eos_token_id,
+            batch,
+            height,
+            width,
+            processor,
         })
     }
 
     pub fn encode_images(&mut self, xs: &[Image]) -> Result<X> {
-        self.visual.encode(xs)
+        let ys = self.processor.process_images(xs)?;
+        self.batch = xs.len(); // update
+        let ys = self.visual.run(ys.into())?;
+
+        Ok(ys[0].to_owned())
     }
 
     pub fn encode_texts(&mut self, text: Option<&str>) -> Result<Vec<Vec<f32>>> {
         let input_ids = self
-            .textual
-            .processor()
+            .processor
             .encode_text_ids(text.unwrap_or_default(), false)?;
         Ok(vec![input_ids.clone(); self.batch()])
     }
@@ -70,11 +85,11 @@ impl Blip {
             let input_ids_attn_mask = X::ones(input_ids_nd.dims());
 
             // decode
-            let outputs = self.textual.inference(Xs::from(vec![
+            let outputs = self.textual.run(Xs::from(vec![
                 input_ids_nd,
                 input_ids_attn_mask,
                 image_embeds.clone(),
-                X::ones(&[self.visual().batch(), image_embeds.dims()[1]]), // image_embeds_attn_mask
+                X::ones(&[self.batch(), image_embeds.dims()[1]]),
             ]))?;
 
             // decode each token for each batch
@@ -102,7 +117,7 @@ impl Blip {
         }
 
         // batch decode
-        let texts = self.textual.processor().decode_tokens_batch(
+        let texts = self.processor.decode_tokens_batch(
             &token_ids
                 .into_iter()
                 .map(|v| v.into_iter().map(|x| x as u32).collect::<Vec<_>>())
@@ -114,16 +129,11 @@ impl Blip {
             .into_iter()
             .map(|x| Y::default().with_texts(&[&x]))
             .collect::<Vec<_>>();
-        // .into();
 
         Ok(ys)
     }
 
     pub fn summary(&mut self) {
         self.ts.summary();
-    }
-
-    pub fn batch(&self) -> usize {
-        self.visual.batch() as _
     }
 }

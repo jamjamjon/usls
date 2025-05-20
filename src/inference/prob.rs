@@ -31,7 +31,7 @@ impl Prob {
                     .with_confidence(confidence);
 
                 if let Some(names) = names {
-                    if id < names.len() {
+                    if !names.is_empty() {
                         meta = meta.with_name(names[id]);
                     }
                 }

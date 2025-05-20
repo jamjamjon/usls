@@ -1,7 +1,7 @@
 /// Model configuration for `d_fine`
-impl crate::Options {
+impl crate::Config {
     pub fn d_fine() -> Self {
-        Self::rtdetr().with_model_name("d-fine")
+        Self::rtdetr().with_name("d-fine")
     }
 
     pub fn d_fine_n_coco() -> Self {

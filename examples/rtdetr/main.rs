@@ -1,5 +1,5 @@
 use anyhow::Result;
-use usls::{models::RTDETR, Annotator, DataLoader, Options};
+use usls::{models::RTDETR, Annotator, Config, DataLoader};
 
 fn main() -> Result<()> {
     tracing_subscriber::fmt()
@@ -7,15 +7,14 @@ fn main() -> Result<()> {
         .with_timer(tracing_subscriber::fmt::time::ChronoLocal::rfc_3339())
         .init();
 
-    // options
-    let options = Options::rtdetr_v2_s_coco()
-        // rtdetr_v1_r18vd_coco()
-        // rtdetr_v2_ms_coco()
-        // rtdetr_v2_m_coco()
-        // rtdetr_v2_l_coco()
-        // rtdetr_v2_x_coco()
-        .commit()?;
-    let mut model = RTDETR::new(options)?;
+    // config
+    let config = Config::rtdetr_v2_s_coco().commit()?;
+    // rtdetr_v1_r18vd_coco()
+    // rtdetr_v2_ms_coco()
+    // rtdetr_v2_m_coco()
+    // rtdetr_v2_l_coco()
+    // rtdetr_v2_x_coco()
+    let mut model = RTDETR::new(config)?;
 
     // load
     let xs = DataLoader::try_read_n(&["./assets/bus.jpg"])?;

@@ -1,14 +1,12 @@
 /// Model configuration for `YOLOP`
-impl crate::Options {
+impl crate::Config {
     pub fn yolop() -> Self {
         Self::default()
-            .with_model_name("yolop")
+            .with_name("yolop")
             .with_model_ixx(0, 0, 1.into())
             .with_model_ixx(0, 2, 640.into())
             .with_model_ixx(0, 3, 640.into())
             .with_resize_mode(crate::ResizeMode::FitAdaptive)
-            .with_resize_filter("Bilinear")
-            .with_normalize(true)
             .with_class_confs(&[0.3])
     }
 

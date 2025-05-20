@@ -27,8 +27,7 @@ impl Default for Polygon {
 impl std::fmt::Debug for Polygon {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Polygon")
-            .field("count", &self.count())
-            .field("uid", &self.meta.uid())
+            .field("n_points", &self.count())
             .field("id", &self.meta.id())
             .field("name", &self.meta.name())
             .field("confidence", &self.meta.confidence())

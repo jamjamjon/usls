@@ -1,5 +1,5 @@
 use anyhow::Result;
-use usls::{models::Sapiens, Annotator, DataLoader, Options};
+use usls::{models::Sapiens, Annotator, Config, DataLoader};
 
 #[derive(argh::FromArgs)]
 /// Example
@@ -17,10 +17,10 @@ fn main() -> Result<()> {
 
     let args: Args = argh::from_env();
     // build
-    let options = Options::sapiens_seg_0_3b()
+    let config = Config::sapiens_seg_0_3b()
         .with_model_device(args.device.as_str().try_into()?)
         .commit()?;
-    let mut model = Sapiens::new(options)?;
+    let mut model = Sapiens::new(config)?;
 
     // load
     let xs = DataLoader::try_read_n(&["images/paul-george.jpg"])?;

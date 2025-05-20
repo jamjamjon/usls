@@ -367,14 +367,14 @@ impl DataLoader {
     fn load_image_paths_from_folder(source: &str, exts: &[&str]) -> Result<Vec<PathBuf>> {
         let source_path = Path::new(source);
         let mut paths: Vec<PathBuf> = Vec::new();
-        let options = MatchOptions {
+        let config = MatchOptions {
             case_sensitive: false,
             require_literal_separator: false,
             require_literal_leading_dot: false,
         };
         for ext in exts.iter() {
             let pattern = source_path.join(format!("*.{}", ext));
-            let paths_: Vec<PathBuf> = glob_with(pattern.to_str().unwrap(), options)?
+            let paths_: Vec<PathBuf> = glob_with(pattern.to_str().unwrap(), config)?
                 .filter_map(|entry| entry.ok())
                 .collect();
             paths.extend(paths_);
@@ -393,12 +393,12 @@ impl DataLoader {
     }
 
     fn glob(pattern: &str, sort: bool, case_sensitive: bool) -> anyhow::Result<Vec<PathBuf>> {
-        let options = MatchOptions {
+        let config = MatchOptions {
             case_sensitive,
             require_literal_separator: false,
             require_literal_leading_dot: false,
         };
-        let mut paths: Vec<PathBuf> = glob_with(pattern, options)?
+        let mut paths: Vec<PathBuf> = glob_with(pattern, config)?
             .filter_map(|entry| entry.ok())
             .collect();
 
@@ -479,7 +479,7 @@ impl DataLoader {
         self
     }
 
-    pub fn with_batch_size(mut self, x: usize) -> Self {
+    pub fn with_batch_size_all(mut self, x: usize) -> Self {
         self.batch_size = x;
         self
     }

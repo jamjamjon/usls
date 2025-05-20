@@ -1,11 +1,10 @@
 /// Model configuration for `OWLv2`
-impl crate::Options {
+impl crate::Config {
     pub fn owlv2() -> Self {
         Self::default()
-            .with_model_name("owlv2")
-            .with_model_kind(crate::Kind::VisionLanguage)
+            .with_name("owlv2")
             // 1st & 3rd: text
-            .with_model_ixx(0, 0, (1, 1, 1).into()) // TODO
+            .with_model_ixx(0, 0, (1, 1, 1).into())
             .with_model_ixx(0, 1, 1.into())
             .with_model_ixx(2, 0, (1, 1, 1).into())
             .with_model_ixx(2, 1, 1.into())
@@ -21,6 +20,7 @@ impl crate::Options {
             .with_normalize(true)
             .with_class_confs(&[0.1])
             .with_model_num_dry_run(0)
+            .with_tokenizer_file("owlv2/tokenizer.json")
     }
 
     pub fn owlv2_base() -> Self {

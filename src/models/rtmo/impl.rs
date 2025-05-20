@@ -2,7 +2,7 @@ use aksr::Builder;
 use anyhow::Result;
 use ndarray::Axis;
 
-use crate::{elapsed, DynConf, Engine, Hbb, Image, Keypoint, Options, Processor, Ts, Xs, Y};
+use crate::{elapsed, Config, DynConf, Engine, Hbb, Image, Keypoint, Processor, Ts, Xs, Y};
 
 #[derive(Builder, Debug)]
 pub struct RTMO {
@@ -18,8 +18,8 @@ pub struct RTMO {
 }
 
 impl RTMO {
-    pub fn new(options: Options) -> Result<Self> {
-        let engine = options.to_engine()?;
+    pub fn new(config: Config) -> Result<Self> {
+        let engine = Engine::try_from_config(&config.model)?;
         let spec = engine.spec().to_string();
         let (batch, height, width, ts) = (
             engine.batch().opt(),
@@ -27,14 +27,12 @@ impl RTMO {
             engine.try_width().unwrap_or(&512.into()).opt(),
             engine.ts().clone(),
         );
-        let processor = options
-            .to_processor()?
+        let nk = config.nk().unwrap_or(17);
+        let confs = DynConf::new(config.class_confs(), 1);
+        let kconfs = DynConf::new(config.keypoint_confs(), nk);
+        let processor = Processor::try_from_config(&config.processor)?
             .with_image_width(width as _)
             .with_image_height(height as _);
-
-        let nk = options.nk().unwrap_or(17);
-        let confs = DynConf::new(options.class_confs(), 1);
-        let kconfs = DynConf::new(options.keypoint_confs(), nk);
 
         Ok(Self {
             engine,

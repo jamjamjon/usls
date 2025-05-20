@@ -1,6 +1,6 @@
 use anyhow::Result;
 use usls::DataLoader;
-use usls::{models::DepthPro, Annotator, Options, Style};
+use usls::{models::DepthPro, Annotator, Config, Style};
 
 #[derive(argh::FromArgs)]
 /// Example
@@ -23,11 +23,12 @@ fn main() -> Result<()> {
     let args: Args = argh::from_env();
 
     // model
-    let options = Options::depth_pro()
+    let config = Config::depth_pro()
         .with_model_dtype(args.dtype.as_str().try_into()?)
         .with_model_device(args.device.as_str().try_into()?)
         .commit()?;
-    let mut model = DepthPro::new(options)?;
+
+    let mut model = DepthPro::new(config)?;
 
     // load
     let xs = DataLoader::try_read_n(&["images/street.jpg"])?;

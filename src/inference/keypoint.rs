@@ -22,7 +22,6 @@ impl std::fmt::Debug for Keypoint {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Keypoint")
             .field("xy", &[self.x, self.y])
-            .field("uid", &self.meta.uid())
             .field("id", &self.meta.id())
             .field("name", &self.meta.name())
             .field("confidence", &self.meta.confidence())

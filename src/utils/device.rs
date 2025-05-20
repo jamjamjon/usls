@@ -1,16 +1,20 @@
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Device {
-    Auto(usize),
     Cpu(usize),
     Cuda(usize),
     TensorRT(usize),
     CoreML(usize),
 }
 
+impl Default for Device {
+    fn default() -> Self {
+        Self::Cpu(0)
+    }
+}
+
 impl std::fmt::Display for Device {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         let x = match self {
-            Self::Auto(i) => format!("auto:{}", i),
             Self::Cpu(i) => format!("cpu:{}", i),
             Self::Cuda(i) => format!("cuda:{}", i),
             Self::CoreML(i) => format!("mps:{}", i),
@@ -47,7 +51,6 @@ impl TryFrom<&str> for Device {
 impl Device {
     pub fn id(&self) -> usize {
         match self {
-            Device::Auto(i) => *i,
             Device::Cpu(i) => *i,
             Device::Cuda(i) => *i,
             Device::TensorRT(i) => *i,

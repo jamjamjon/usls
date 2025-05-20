@@ -267,12 +267,12 @@ impl Ops<'_> {
             PixelType::F32,
         )?;
         let mut dst = Image::new(w1 as _, h1 as _, src.pixel_type());
-        let (mut resizer, mut options) = Self::build_resizer_filter(filter)?;
+        let (mut resizer, mut config) = Self::build_resizer_filter(filter)?;
         if crop_src {
             let (_, w, h) = Self::scale_wh(w1 as _, h1 as _, w0 as _, h0 as _);
-            options = options.crop(0., 0., w.into(), h.into());
+            config = config.crop(0., 0., w.into(), h.into());
         };
-        resizer.resize(&src, &mut dst, &options)?;
+        resizer.resize(&src, &mut dst, &config)?;
 
         // u8 -> f32
         Self::u8_slice_to_f32(&dst.into_vec())
@@ -317,12 +317,12 @@ impl Ops<'_> {
     ) -> Result<Vec<u8>> {
         let src = Image::from_vec_u8(w0 as _, h0 as _, v.to_vec(), PixelType::U8)?;
         let mut dst = Image::new(w1 as _, h1 as _, src.pixel_type());
-        let (mut resizer, mut options) = Self::build_resizer_filter(filter)?;
+        let (mut resizer, mut config) = Self::build_resizer_filter(filter)?;
         if crop_src {
             let (_, w, h) = Self::scale_wh(w1 as _, h1 as _, w0 as _, h0 as _);
-            options = options.crop(0., 0., w.into(), h.into());
+            config = config.crop(0., 0., w.into(), h.into());
         };
-        resizer.resize(&src, &mut dst, &options)?;
+        resizer.resize(&src, &mut dst, &config)?;
         Ok(dst.into_vec())
     }
 
@@ -348,13 +348,13 @@ impl Ops<'_> {
         th: u32,
         tw: u32,
         resizer: &mut Resizer,
-        options: &ResizeOptions,
+        config: &ResizeOptions,
     ) -> Result<Array<f32, IxDyn>> {
         let buffer = if x.dimensions() == (tw, th) {
             x.to_rgb8().into_raw()
         } else {
             let mut dst = Image::new(tw, th, PixelType::U8x3);
-            resizer.resize(x, &mut dst, options)?;
+            resizer.resize(x, &mut dst, config)?;
             dst.into_vec()
         };
         let y = Array::from_shape_vec((th as usize, tw as usize, 3), buffer)?
@@ -370,9 +370,9 @@ impl Ops<'_> {
         filter: &str,
     ) -> Result<Array<f32, IxDyn>> {
         let mut ys = Array::ones((xs.len(), th as usize, tw as usize, 3)).into_dyn();
-        let (mut resizer, options) = Self::build_resizer_filter(filter)?;
+        let (mut resizer, config) = Self::build_resizer_filter(filter)?;
         for (idx, x) in xs.iter().enumerate() {
-            let y = Self::resize_rgb(x, th, tw, &mut resizer, &options)?;
+            let y = Self::resize_rgb(x, th, tw, &mut resizer, &config)?;
             ys.slice_mut(s![idx, .., .., ..]).assign(&y);
         }
         Ok(ys)
@@ -387,7 +387,7 @@ impl Ops<'_> {
         resize_by: &str,
         center: bool,
         resizer: &mut Resizer,
-        options: &ResizeOptions,
+        config: &ResizeOptions,
     ) -> Result<Array<f32, IxDyn>> {
         let (w0, h0) = x.dimensions();
         let buffer = if w0 == tw && h0 == th {
@@ -403,7 +403,7 @@ impl Ops<'_> {
                 }
                 "height" => (th * w0 / h0, th),
                 "width" => (tw, tw * h0 / w0),
-                _ => anyhow::bail!("ModelConfig for `letterbox`: width, height, auto"),
+                _ => anyhow::bail!("ORTConfig for `letterbox`: width, height, auto"),
             };
 
             let mut dst = Image::from_vec_u8(
@@ -422,7 +422,7 @@ impl Ops<'_> {
                 (0, 0)
             };
             let mut dst_cropped = CroppedImageMut::new(&mut dst, l, t, w, h)?;
-            resizer.resize(x, &mut dst_cropped, options)?;
+            resizer.resize(x, &mut dst_cropped, config)?;
             dst.into_vec()
         };
         let y = Array::from_shape_vec((th as usize, tw as usize, 3), buffer)?
@@ -441,9 +441,9 @@ impl Ops<'_> {
         center: bool,
     ) -> Result<Array<f32, IxDyn>> {
         let mut ys = Array::ones((xs.len(), th as usize, tw as usize, 3)).into_dyn();
-        let (mut resizer, options) = Self::build_resizer_filter(filter)?;
+        let (mut resizer, config) = Self::build_resizer_filter(filter)?;
         for (idx, x) in xs.iter().enumerate() {
-            let y = Self::letterbox_rgb(x, th, tw, bg, resize_by, center, &mut resizer, &options)?;
+            let y = Self::letterbox_rgb(x, th, tw, bg, resize_by, center, &mut resizer, &config)?;
             ys.slice_mut(s![idx, .., .., ..]).assign(&y);
         }
         Ok(ys)

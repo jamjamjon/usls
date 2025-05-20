@@ -20,7 +20,6 @@ impl std::fmt::Debug for Mask {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Mask")
             .field("dimensions", &self.dimensions())
-            .field("uid", &self.meta.uid())
             .field("id", &self.meta.id())
             .field("name", &self.meta.name())
             .field("confidence", &self.meta.confidence())

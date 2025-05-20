@@ -1,7 +1,7 @@
 use anyhow::Result;
 use usls::{
     models::{SamPrompt, SAM2, YOLO},
-    Annotator, DataLoader, Options, Scale, Style,
+    Annotator, Config, DataLoader, Scale, Style,
 };
 
 #[derive(argh::FromArgs)]
@@ -21,16 +21,12 @@ fn main() -> Result<()> {
     let args: Args = argh::from_env();
 
     // build SAM
-    let (options_encoder, options_decoder) = (
-        Options::sam2_1_tiny_encoder().commit()?,
-        Options::sam2_1_tiny_decoder().commit()?,
-    );
-    let mut sam = SAM2::new(options_encoder, options_decoder)?;
+    let mut sam = SAM2::new(Config::sam2_1_tiny().commit()?)?;
 
     // build YOLOv8
-    let options_yolo = Options::yolo_detect()
-        .with_model_scale(Scale::N)
-        .with_model_version(8.into())
+    let options_yolo = Config::yolo_detect()
+        .with_scale(Scale::N)
+        .with_version(8.into())
         .with_model_device(args.device.as_str().try_into()?)
         .commit()?;
     let mut yolo = YOLO::new(options_yolo)?;

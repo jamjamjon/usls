@@ -17,7 +17,9 @@ impl std::fmt::Debug for Hbb {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Hbb")
             .field("xyxy", &[self.x, self.y, self.xmax(), self.ymax()])
-            .field("meta", &self.meta)
+            .field("id", &self.meta.id())
+            .field("name", &self.meta.name())
+            .field("confidence", &self.meta.confidence())
             .finish()
     }
 }

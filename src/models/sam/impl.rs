@@ -4,8 +4,7 @@ use ndarray::{s, Axis};
 use rand::prelude::*;
 
 use crate::{
-    elapsed, DynConf, Engine, Image, Mask, Ops, Options, Polygon, Processor, SamPrompt, Ts, Xs, X,
-    Y,
+    elapsed, Config, DynConf, Engine, Image, Mask, Ops, Polygon, Processor, SamPrompt, Ts, Xs, X, Y,
 };
 
 #[derive(Debug, Clone)]
@@ -49,9 +48,10 @@ pub struct SAM {
 }
 
 impl SAM {
-    pub fn new(options_encoder: Options, options_decoder: Options) -> Result<Self> {
-        let encoder = options_encoder.to_engine()?;
-        let decoder = options_decoder.to_engine()?;
+    pub fn new(config: Config) -> Result<Self> {
+        let encoder = Engine::try_from_config(&config.encoder)?;
+        let decoder = Engine::try_from_config(&config.decoder)?;
+
         let (batch, height, width) = (
             encoder.batch().opt(),
             encoder.try_height().unwrap_or(&1024.into()).opt(),
@@ -60,23 +60,22 @@ impl SAM {
         let ts = Ts::merge(&[encoder.ts(), decoder.ts()]);
         let spec = encoder.spec().to_owned();
 
-        let processor = options_encoder
-            .to_processor()?
-            .with_image_width(width as _)
-            .with_image_height(height as _);
-
-        let conf = DynConf::new(options_encoder.class_confs(), 1);
-        let find_contours = options_encoder.find_contours;
-        let kind = match options_encoder.sam_kind {
+        let conf = DynConf::new(config.class_confs(), 1);
+        let find_contours = config.find_contours;
+        let kind = match config.sam_kind {
             Some(x) => x,
             None => anyhow::bail!("Error: no clear `SamKind` specified."),
         };
         let use_low_res_mask = match kind {
             SamKind::Sam | SamKind::MobileSam | SamKind::SamHq => {
-                options_encoder.low_res_mask.unwrap_or(false)
+                config.sam_low_res_mask.unwrap_or(false)
             }
             SamKind::EdgeSam | SamKind::Sam2 => true,
         };
+
+        let processor = Processor::try_from_config(&config.processor)?
+            .with_image_width(width as _)
+            .with_image_height(height as _);
 
         Ok(Self {
             encoder,

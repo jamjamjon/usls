@@ -1,8 +1,8 @@
 /// Model configuration for [LinkNet: Exploiting Encoder Representations for Efficient Semantic Segmentation](https://arxiv.org/abs/1707.03718)
-impl crate::Options {
+impl crate::Config {
     pub fn linknet() -> Self {
         Self::fast()
-            .with_model_name("linknet")
+            .with_name("linknet")
             .with_image_mean(&[0.798, 0.785, 0.772])
             .with_image_std(&[0.264, 0.2749, 0.287])
     }

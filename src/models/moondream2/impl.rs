@@ -5,66 +5,57 @@ use ndarray::{s, Array, Array2, Array3, Axis, IxDyn};
 use ndarray_npy::ReadNpyExt;
 
 use crate::{
-    BaseModelTextual, DType, Engine, Hbb, Hub, Image, Keypoint, LogitsSampler, Options, Processor,
-    Scale, Task, Ts, Xs, X, Y,
+    Config, DType, Engine, Hbb, Hub, Image, Keypoint, LogitsSampler, Processor, Scale, Task, Xs, X,
+    Y,
 };
 
 #[derive(Builder, Debug)]
 pub struct Moondream2 {
-    vision_encoder: VisionEncoder,
-    vision_projection: VisionProjection,
-    pub text_decoder: BaseModelTextual,
-    text_encoder: BaseModelTextual,
-    coord_decoder: Option<BaseModelTextual>,
-    coord_encoder: Option<BaseModelTextual>,
-    size_decoder: Option<BaseModelTextual>,
-    size_encoder: Option<BaseModelTextual>,
+    vision_encoder: Engine,
+    vision_projection: Engine,
+    text_decoder: Engine,
+    text_encoder: Engine,
+    coord_decoder: Option<Engine>,
+    coord_encoder: Option<Engine>,
+    size_decoder: Option<Engine>,
+    size_encoder: Option<Engine>,
     initial_kv_cache: X, // TODO: use f16
     scale: Scale,
     dtype: DType,
     max_length: usize,
     eos_token_id: u32,
     max_objects: usize,
+    num_patch: usize,
+    patch_size: usize,
+    processor: Processor,
+    seq_len: usize,
 }
 
 impl Moondream2 {
-    // TODO
-    #[allow(clippy::too_many_arguments)]
-    pub fn new(
-        options_vision_encoder: Options,
-        options_vision_projection: Options,
-        options_text_encoder: Options,
-        options_text_decoder: Options,
-        options_coord_encoder: Option<Options>,
-        options_coord_decoder: Option<Options>,
-        options_size_encoder: Option<Options>,
-        options_size_decoder: Option<Options>,
-    ) -> Result<Self> {
+    pub fn new(config: Config) -> Result<Self> {
         let max_length = 2048;
         let max_objects = 50;
         let eos_token_id = 50256;
-        let dtype = options_vision_encoder.model_dtype;
-        let scale = options_vision_encoder
-            .model_scale
-            .clone()
-            .unwrap_or(Scale::Billion(0.5));
+        let dtype = config.visual_encoder.dtype;
+        let scale = config.scale.clone().unwrap_or(Scale::Billion(0.5));
         let initial_kv_cache: X = KVCache::new(&scale, &dtype)?.0.into();
-        let vision_encoder = VisionEncoder::new(options_vision_encoder)?;
-        let vision_projection = VisionProjection::new(options_vision_projection)?;
-        let text_decoder = BaseModelTextual::new(options_text_decoder)?;
-        let text_encoder = BaseModelTextual::new(options_text_encoder)?;
-        let coord_decoder = options_coord_decoder
-            .map(BaseModelTextual::new)
-            .transpose()?;
-        let coord_encoder = options_coord_encoder
-            .map(BaseModelTextual::new)
-            .transpose()?;
-        let size_decoder = options_size_decoder
-            .map(BaseModelTextual::new)
-            .transpose()?;
-        let size_encoder = options_size_encoder
-            .map(BaseModelTextual::new)
-            .transpose()?;
+        let vision_encoder = Engine::try_from_config(&config.visual_encoder)?;
+        let vision_projection = Engine::try_from_config(&config.visual_projection)?;
+        let text_decoder = Engine::try_from_config(&config.textual_decoder)?;
+        let text_encoder = Engine::try_from_config(&config.textual_encoder)?;
+        let coord_decoder = Engine::try_from_config(&config.coord_decoder).ok();
+        let coord_encoder = Engine::try_from_config(&config.coord_encoder).ok();
+        let size_decoder = Engine::try_from_config(&config.size_decoder).ok();
+        let size_encoder = Engine::try_from_config(&config.size_encoder).ok();
+        let (num_patch, patch_size, _ts) = (
+            vision_encoder.batch().opt(),
+            vision_encoder.try_height().unwrap_or(&378.into()).opt(),
+            vision_encoder.ts.clone(),
+        );
+        let seq_len = vision_projection.inputs_minoptmax[0][1].opt();
+        let processor = Processor::try_from_config(&config.processor)?
+            .with_image_width(patch_size as _)
+            .with_image_height(patch_size as _);
 
         Ok(Self {
             vision_encoder,
@@ -81,12 +72,16 @@ impl Moondream2 {
             eos_token_id,
             scale,
             dtype,
+            num_patch,
+            patch_size,
+            processor,
+            seq_len,
         })
     }
 
     pub fn encode_image(&mut self, x: &Image) -> Result<X> {
-        let patches_emb = self.vision_encoder.encode(x)?.clone().insert_axis(0)?;
-        let image_embedding = self.vision_projection.inference(patches_emb.into())?[0].to_owned();
+        let patches_emb = self.encode(x)?.clone().insert_axis(0)?;
+        let image_embedding = self.vision_projection.run(patches_emb.into())?[0].to_owned();
 
         Ok(image_embedding)
     }
@@ -119,12 +114,7 @@ impl Moondream2 {
             Task::Vqa(query) => {
                 let input_ids: Vec<_> = [198., 198., 24361., 25.]
                     .iter()
-                    .chain(
-                        &self
-                            .text_encoder
-                            .processor()
-                            .encode_text_ids(query, false)?,
-                    )
+                    .chain(&self.processor.encode_text_ids(query, false)?)
                     .chain(&[198., 198., 33706., 25.])
                     .cloned()
                     .collect();
@@ -139,8 +129,7 @@ impl Moondream2 {
                     .iter()
                     .chain(
                         &self
-                            .text_encoder
-                            .processor()
+                            .processor
                             .encode_text_ids(&format!(" {}", object), false)?,
                     )
                     .chain(&[628.])
@@ -156,8 +145,7 @@ impl Moondream2 {
                     .iter()
                     .chain(
                         &self
-                            .text_encoder
-                            .processor()
+                            .processor
                             .encode_text_ids(&format!(" {}", object), false)?,
                     )
                     .chain(&[628.])
@@ -174,10 +162,10 @@ impl Moondream2 {
 
     fn generate_text(&mut self, input_ids: &[f32], kv_cache: Array<f32, IxDyn>) -> Result<String> {
         let input_ids = X::from(input_ids.to_vec()).insert_axis(0)?;
-        let mut input_embeds = self.text_encoder.inference(Xs::from(input_ids))?[0].to_owned();
+        let mut input_embeds = self.text_encoder.run(Xs::from(input_ids))?[0].to_owned();
         let logits_sampler = LogitsSampler::new();
         let mut token_ids: Vec<u32> = Vec::new();
-        let mut pos = self.vision_projection.seq_len() + self.initial_kv_cache.shape()[4];
+        let mut pos = self.seq_len + self.initial_kv_cache.shape()[4];
         let mut inc = input_embeds.shape()[1];
         let mut kv_cache = kv_cache.clone();
 
@@ -192,7 +180,7 @@ impl Moondream2 {
                     .into_dyn()
                     .into(),
             ]);
-            let decoder_outputs = self.text_decoder.inference(input)?;
+            let decoder_outputs = self.text_decoder.run(input)?;
 
             // update
             let logits = &decoder_outputs["logits"];
@@ -221,13 +209,10 @@ impl Moondream2 {
 
             // encode
             let next_tokens = X::from(vec![token_id as f32]).insert_axis(1)?;
-            input_embeds = self.text_encoder.inference(Xs::from(next_tokens))?[0].to_owned();
+            input_embeds = self.text_encoder.run(Xs::from(next_tokens))?[0].to_owned();
         }
 
-        let text = self
-            .text_encoder
-            .processor()
-            .decode_tokens(&token_ids, true)?;
+        let text = self.processor.decode_tokens(&token_ids, true)?;
 
         Ok(text)
     }
@@ -242,16 +227,16 @@ impl Moondream2 {
         let mut y_bboxes: Vec<Hbb> = Vec::new();
         let mut y_kpts: Vec<Vec<Keypoint>> = Vec::new();
         let (image_height, image_width) = (
-            self.vision_encoder.processor.images_transform_info[0].height_src,
-            self.vision_encoder.processor.images_transform_info[0].width_src,
+            self.processor.images_transform_info[0].height_src,
+            self.processor.images_transform_info[0].width_src,
         );
 
-        let mut pos = self.vision_projection.seq_len() + self.initial_kv_cache.shape()[4];
+        let mut pos = self.seq_len + self.initial_kv_cache.shape()[4];
         let logits_sampler = LogitsSampler::new();
 
         // initial input_embeds
         let input_ids = X::from(input_ids.to_vec()).insert_axis(0)?;
-        let mut hidden = self.text_encoder.inference(Xs::from(input_ids))?[0].to_owned();
+        let mut hidden = self.text_encoder.run(Xs::from(input_ids))?[0].to_owned();
         let mut kv_cache = kv_cache;
 
         // generate
@@ -273,12 +258,7 @@ impl Moondream2 {
 
             // cx
             let input: X = hidden.slice(s![0, -1, ..]).into_owned().into_dyn().into();
-            let cx = self
-                .coord_decoder
-                .as_mut()
-                .unwrap()
-                .inference(Xs::from(input))?[0]
-                .clone(); // [1024]
+            let cx = self.coord_decoder.as_mut().unwrap().run(Xs::from(input))?[0].clone(); // [1024]
             let ratio = cx.shape()[0] as f32;
             let cx = logits_sampler
                 .decode(cx.as_slice().context("Failed to get slice for `cx`")?)?
@@ -288,7 +268,7 @@ impl Moondream2 {
                 .coord_encoder
                 .as_mut()
                 .unwrap()
-                .inference(Xs::from(X::from(vec![cx])))?[0]
+                .run(Xs::from(X::from(vec![cx])))?[0]
                 .clone()
                 .insert_axis(0)?
                 .insert_axis(0)?;
@@ -296,12 +276,7 @@ impl Moondream2 {
             // cy
             let _logits = self.run_decoder(&mut hidden, &mut kv_cache, &mut pos)?;
             let input: X = hidden.slice(s![0, -1, ..]).into_owned().into_dyn().into();
-            let cy = self
-                .coord_decoder
-                .as_mut()
-                .unwrap()
-                .inference(Xs::from(input))?[0]
-                .clone();
+            let cy = self.coord_decoder.as_mut().unwrap().run(Xs::from(input))?[0].clone();
             let ratio = cy.shape()[0] as f32;
 
             let cy = logits_sampler
@@ -313,7 +288,7 @@ impl Moondream2 {
                 .coord_encoder
                 .as_mut()
                 .unwrap()
-                .inference(Xs::from(X::from(vec![cy])))?[0]
+                .run(Xs::from(X::from(vec![cy])))?[0]
                 .clone()
                 .insert_axis(0)?
                 .insert_axis(0)?;
@@ -324,6 +299,7 @@ impl Moondream2 {
                     cy * image_height as f32,
                 ))
                 .with_id(0)
+                .with_confidence(1.)
                 .with_name(object)]);
 
                 // keep?
@@ -334,12 +310,7 @@ impl Moondream2 {
                 // wh
                 let _logits = self.run_decoder(&mut hidden, &mut kv_cache, &mut pos)?;
                 let input: X = hidden.slice(s![0, -1, ..]).into_owned().into_dyn().into();
-                let size = self
-                    .size_decoder
-                    .as_mut()
-                    .unwrap()
-                    .inference(Xs::from(input))?[0]
-                    .clone(); // [2, 1024]
+                let size = self.size_decoder.as_mut().unwrap().run(Xs::from(input))?[0].clone(); // [2, 1024]
 
                 let ratio = size.shape()[1] as f32;
                 let w = logits_sampler.decode(
@@ -361,7 +332,7 @@ impl Moondream2 {
                     .size_encoder
                     .as_mut()
                     .unwrap()
-                    .inference(Xs::from(X::from(vec![w, h])))?[0]
+                    .run(Xs::from(X::from(vec![w, h])))?[0]
                     .clone()
                     .insert_axis(0)?
                     .insert_axis(0)?; // [1024]
@@ -392,7 +363,7 @@ impl Moondream2 {
     }
 
     fn prepare_kv_cache(&mut self, image_embedding: &X) -> Result<Array<f32, IxDyn>> {
-        let kv_cache_new = self.text_decoder.inference(Xs::from(vec![
+        let kv_cache_new = self.text_decoder.run(Xs::from(vec![
             image_embedding.clone(),
             self.initial_kv_cache.clone(),
         ]))?["new_kv_cache"]
@@ -421,7 +392,7 @@ impl Moondream2 {
         kv_cache: &mut Array<f32, IxDyn>,
         pos: &mut usize,
     ) -> Result<X> {
-        let decoder_outputs = self.text_decoder.inference(Xs::from(vec![
+        let decoder_outputs = self.text_decoder.run(Xs::from(vec![
             input_embeds.clone(),
             kv_cache
                 .slice(s![.., .., .., .., ..*pos, ..])
@@ -441,38 +412,6 @@ impl Moondream2 {
         *input_embeds = hidden.to_owned();
 
         Ok(decoder_outputs["logits"].to_owned())
-    }
-}
-
-#[derive(Debug, Builder)]
-pub struct VisionEncoder {
-    engine: Engine,
-    num_patch: usize,
-    patch_size: usize,
-    processor: Processor,
-    ts: Ts,
-}
-
-impl VisionEncoder {
-    pub fn new(options: Options) -> Result<Self> {
-        let engine = options.to_engine()?;
-        let (num_patch, patch_size, ts) = (
-            engine.batch().opt(),
-            engine.try_height().unwrap_or(&378.into()).opt(),
-            engine.ts.clone(),
-        );
-        let processor = options
-            .to_processor()?
-            .with_image_width(patch_size as _)
-            .with_image_height(patch_size as _);
-
-        Ok(Self {
-            engine,
-            patch_size,
-            num_patch,
-            processor,
-            ts,
-        })
     }
 
     fn create_patches(image: &Image, image_patch_size: usize) -> (Vec<Image>, (u32, u32)) {
@@ -515,10 +454,6 @@ impl VisionEncoder {
         (patches, selected_template)
     }
 
-    pub fn inference(&mut self, xs: Xs) -> Result<Xs> {
-        self.engine.run(xs)
-    }
-
     pub fn encode(&mut self, x: &Image) -> Result<X> {
         let (patches, selected_template) = Self::create_patches(x, self.patch_size);
         let patches = self.processor.process_images(&patches)?;
@@ -526,7 +461,7 @@ impl VisionEncoder {
             (selected_template.0 as usize),
             (selected_template.1 as usize),
         );
-        let patch_emb = self.inference(patches.clone().into())?[0].clone();
+        let patch_emb = self.vision_encoder.run(patches.clone().into())?[0].clone();
         let patch_emb = patch_emb.clone().0.into_dimensionality::<ndarray::Ix3>()?;
         let patch_emb = Self::process_patch_emb(patch_emb, template)?;
         let patch_emb = X::from(patch_emb.into_dyn()); // TODO .insert_axis(x),
@@ -605,30 +540,6 @@ impl VisionEncoder {
         }
 
         output
-    }
-}
-
-#[derive(Debug, Builder)]
-pub struct VisionProjection {
-    engine: Engine,
-    seq_len: usize,
-    ts: Ts,
-}
-
-impl VisionProjection {
-    pub fn new(options: Options) -> Result<Self> {
-        let engine = options.to_engine()?;
-        let (seq_len, ts) = (engine.inputs_minoptmax[0][1].opt(), engine.ts.clone());
-
-        Ok(Self {
-            engine,
-            seq_len,
-            ts,
-        })
-    }
-
-    pub fn inference(&mut self, xs: Xs) -> Result<Xs> {
-        self.engine.run(xs)
     }
 }
 

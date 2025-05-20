@@ -1,5 +1,5 @@
 use anyhow::Result;
-use usls::{models::SmolVLM, DataLoader, Options, Scale};
+use usls::{models::SmolVLM, Config, DataLoader, Scale};
 
 #[derive(argh::FromArgs)]
 /// Example
@@ -29,32 +29,14 @@ fn main() -> Result<()> {
     let args: Args = argh::from_env();
 
     // build model
-    let (options_vision_encoder, options_text_embed, options_decode) =
-        match args.scale.as_str().try_into()? {
-            Scale::Million(256.) => (
-                Options::smolvlm_vision_256m(),
-                Options::smolvlm_text_embed_256m(),
-                Options::smolvlm_decoder_256m(),
-            ),
-            Scale::Million(500.) => (
-                Options::smolvlm_vision_500m(),
-                Options::smolvlm_text_embed_500m(),
-                Options::smolvlm_decoder_500m(),
-            ),
-            _ => unimplemented!(),
-        };
-
-    let mut model = SmolVLM::new(
-        options_vision_encoder
-            .with_model_device(args.device.as_str().try_into()?)
-            .commit()?,
-        options_text_embed
-            .with_model_device(args.device.as_str().try_into()?)
-            .commit()?,
-        options_decode
-            .with_model_device(args.device.as_str().try_into()?)
-            .commit()?,
-    )?;
+    let config = match args.scale.as_str().try_into()? {
+        Scale::Million(256.) => Config::smolvlm_256m(),
+        Scale::Million(500.) => Config::smolvlm_500m(),
+        _ => unimplemented!(),
+    }
+    .with_device_all(args.device.as_str().try_into()?)
+    .commit()?;
+    let mut model = SmolVLM::new(config)?;
 
     // load images
     let xs = DataLoader::try_read_n(&args.source)?;

@@ -1,7 +1,7 @@
 /// Model configuration for `DEIM`
-impl crate::Options {
+impl crate::Config {
     pub fn deim() -> Self {
-        Self::d_fine().with_model_name("deim")
+        Self::d_fine().with_name("deim")
     }
 
     pub fn deim_dfine_s_coco() -> Self {

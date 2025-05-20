@@ -1,8 +1,8 @@
 /// Model configuration for [FAST: Faster Arbitrarily-Shaped Text Detector with Minimalist Kernel Representation](https://github.com/czczup/FAST)
-impl crate::Options {
+impl crate::Config {
     pub fn fast() -> Self {
         Self::db()
-            .with_model_name("fast")
+            .with_name("fast")
             .with_image_mean(&[0.798, 0.785, 0.772])
             .with_image_std(&[0.264, 0.2749, 0.287])
     }

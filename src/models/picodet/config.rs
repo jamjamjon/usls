@@ -4,11 +4,11 @@ use crate::{
 };
 
 /// Model configuration for `PicoDet`
-impl crate::Options {
+impl crate::Config {
     pub fn picodet() -> Self {
         Self::default()
-            .with_model_name("picodet")
-            .with_batch_size(1) // TODO: ONNX model's batch size seems always = 1
+            .with_name("picodet")
+            .with_batch_size_all(1) // TODO: ONNX model's batch size seems always = 1
             .with_model_ixx(0, 2, 640.into())
             .with_model_ixx(0, 3, 640.into())
             .with_model_ixx(1, 0, (1, 1, 8).into())

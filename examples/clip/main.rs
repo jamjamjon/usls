@@ -1,5 +1,5 @@
 use anyhow::Result;
-use usls::{models::Clip, DataLoader, Ops, Options};
+use usls::{models::Clip, Config, DataLoader, Ops};
 
 #[derive(argh::FromArgs)]
 /// CLIP Example
@@ -14,18 +14,13 @@ fn main() -> Result<()> {
         .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
         .with_timer(tracing_subscriber::fmt::time::ChronoLocal::rfc_3339())
         .init();
-
     let args: Args = argh::from_env();
+
     // build model
-    let options_visual = Options::jina_clip_v1_visual()
-        // clip_vit_b32_visual()
-        .with_model_device(args.device.as_str().try_into()?)
+    let config = Config::jina_clip_v1()
+        .with_device_all(args.device.as_str().try_into()?)
         .commit()?;
-    let options_textual = Options::jina_clip_v1_textual()
-        // clip_vit_b32_textual()
-        .with_model_device(args.device.as_str().try_into()?)
-        .commit()?;
-    let mut model = Clip::new(options_visual, options_textual)?;
+    let mut model = Clip::new(config)?;
 
     // texts
     let texts = vec![
