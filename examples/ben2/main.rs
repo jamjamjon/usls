@@ -1,4 +1,4 @@
-use usls::{models::RMBG, Annotator, DataLoader, ModelConfig};
+use usls::{models::RMBG, Annotator, Config, DataLoader};
 
 #[derive(argh::FromArgs)]
 /// Example
@@ -20,7 +20,7 @@ fn main() -> anyhow::Result<()> {
     let args: Args = argh::from_env();
 
     // build model
-    let config = ModelConfig::ben2_base()
+    let config = Config::ben2_base()
         .with_model_dtype(args.dtype.as_str().try_into()?)
         .with_model_device(args.device.as_str().try_into()?)
         .commit()?;

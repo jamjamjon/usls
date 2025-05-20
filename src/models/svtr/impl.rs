@@ -3,7 +3,7 @@ use anyhow::Result;
 use ndarray::Axis;
 use rayon::prelude::*;
 
-use crate::{elapsed, DynConf, Engine, Image, ModelConfig, Processor, Ts, Xs, Y};
+use crate::{elapsed, Config, DynConf, Engine, Image, Processor, Ts, Xs, Y};
 
 #[derive(Builder, Debug)]
 pub struct SVTR {
@@ -18,7 +18,7 @@ pub struct SVTR {
 }
 
 impl SVTR {
-    pub fn new(config: ModelConfig) -> Result<Self> {
+    pub fn new(config: Config) -> Result<Self> {
         let engine = Engine::try_from_config(&config.model)?;
         let (batch, height, width, ts) = (
             engine.batch().opt(),

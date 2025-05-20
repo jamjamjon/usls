@@ -4,7 +4,7 @@ use crate::{
 };
 
 /// Model configuration for `PicoDet`
-impl crate::ModelConfig {
+impl crate::Config {
     pub fn picodet() -> Self {
         Self::default()
             .with_name("picodet")

@@ -1,5 +1,5 @@
 /// Model configuration for `SmolVLM`
-impl crate::ModelConfig {
+impl crate::Config {
     pub fn smolvlm() -> Self {
         Self::default()
             .with_name("smolvlm")

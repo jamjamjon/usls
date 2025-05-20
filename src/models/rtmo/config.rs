@@ -1,5 +1,5 @@
 /// Model configuration for `RTMO`
-impl crate::ModelConfig {
+impl crate::Config {
     pub fn rtmo() -> Self {
         Self::default()
             .with_name("rtmo")

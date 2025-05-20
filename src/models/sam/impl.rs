@@ -4,8 +4,7 @@ use ndarray::{s, Axis};
 use rand::prelude::*;
 
 use crate::{
-    elapsed, DynConf, Engine, Image, Mask, ModelConfig, Ops, Polygon, Processor, SamPrompt, Ts, Xs,
-    X, Y,
+    elapsed, Config, DynConf, Engine, Image, Mask, Ops, Polygon, Processor, SamPrompt, Ts, Xs, X, Y,
 };
 
 #[derive(Debug, Clone)]
@@ -49,7 +48,7 @@ pub struct SAM {
 }
 
 impl SAM {
-    pub fn new(config: ModelConfig) -> Result<Self> {
+    pub fn new(config: Config) -> Result<Self> {
         let encoder = Engine::try_from_config(&config.encoder)?;
         let decoder = Engine::try_from_config(&config.decoder)?;
 

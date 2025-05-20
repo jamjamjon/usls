@@ -1,7 +1,7 @@
 use crate::NAMES_IMAGENET_1K;
 
 /// Model configuration for `MobileOne`
-impl crate::ModelConfig {
+impl crate::Config {
     pub fn mobileone() -> Self {
         Self::default()
             .with_name("mobileone")

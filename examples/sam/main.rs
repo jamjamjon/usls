@@ -1,7 +1,7 @@
 use anyhow::Result;
 use usls::{
     models::{SamKind, SamPrompt, SAM},
-    Annotator, DataLoader, ModelConfig, Scale,
+    Annotator, Config, DataLoader, Scale,
 };
 
 #[derive(argh::FromArgs)]
@@ -29,16 +29,16 @@ fn main() -> Result<()> {
     let args: Args = argh::from_env();
     // Build model
     let config = match args.kind.as_str().try_into()? {
-        SamKind::Sam => ModelConfig::sam_v1_base(),
+        SamKind::Sam => Config::sam_v1_base(),
         SamKind::Sam2 => match args.scale.as_str().try_into()? {
-            Scale::T => ModelConfig::sam2_tiny(),
-            Scale::S => ModelConfig::sam2_small(),
-            Scale::B => ModelConfig::sam2_base_plus(),
+            Scale::T => Config::sam2_tiny(),
+            Scale::S => Config::sam2_small(),
+            Scale::B => Config::sam2_base_plus(),
             _ => unimplemented!("Unsupported model scale: {:?}. Try b, s, t.", args.scale),
         },
-        SamKind::MobileSam => ModelConfig::mobile_sam_tiny(),
-        SamKind::SamHq => ModelConfig::sam_hq_tiny(),
-        SamKind::EdgeSam => ModelConfig::edge_sam_3x(),
+        SamKind::MobileSam => Config::mobile_sam_tiny(),
+        SamKind::SamHq => Config::sam_hq_tiny(),
+        SamKind::EdgeSam => Config::edge_sam_3x(),
     }
     .with_device_all(args.device.as_str().try_into()?)
     .commit()?;

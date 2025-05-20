@@ -1,5 +1,5 @@
 /// Model configuration for [DB](https://github.com/MhLiao/DB) and [PaddleOCR-Det](https://github.com/PaddlePaddle/PaddleOCR)
-impl crate::ModelConfig {
+impl crate::Config {
     pub fn db() -> Self {
         Self::default()
             .with_name("db")

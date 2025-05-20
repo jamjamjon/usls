@@ -3,7 +3,7 @@ use anyhow::Result;
 use ndarray::Axis;
 use rayon::prelude::*;
 
-use crate::{elapsed, Engine, Image, ModelConfig, Prob, Processor, Ts, Xs, Y};
+use crate::{elapsed, Config, Engine, Image, Prob, Processor, Ts, Xs, Y};
 
 #[derive(Debug, Builder)]
 pub struct ImageClassifier {
@@ -19,16 +19,16 @@ pub struct ImageClassifier {
     ts: Ts,
 }
 
-impl TryFrom<ModelConfig> for ImageClassifier {
+impl TryFrom<Config> for ImageClassifier {
     type Error = anyhow::Error;
 
-    fn try_from(config: ModelConfig) -> Result<Self, Self::Error> {
+    fn try_from(config: Config) -> Result<Self, Self::Error> {
         Self::new(config)
     }
 }
 
 impl ImageClassifier {
-    pub fn new(config: ModelConfig) -> Result<Self> {
+    pub fn new(config: Config) -> Result<Self> {
         let engine = Engine::try_from_config(&config.model)?;
         let spec = engine.spec().to_string();
         let (batch, height, width, ts) = (

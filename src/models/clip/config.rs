@@ -1,5 +1,5 @@
 /// Model configuration for `CLIP`
-impl crate::ModelConfig {
+impl crate::Config {
     pub fn clip() -> Self {
         Self::default()
             .with_name("clip")

@@ -1,5 +1,5 @@
 /// Model configuration for `MODNet`
-impl crate::ModelConfig {
+impl crate::Config {
     pub fn modnet() -> Self {
         Self::default()
             .with_name("modnet")

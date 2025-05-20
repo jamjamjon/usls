@@ -1,7 +1,7 @@
-use crate::ModelConfig;
+use crate::Config;
 
 /// Model configuration for `SAM2.1`
-impl ModelConfig {
+impl Config {
     pub fn sam2_1_tiny() -> Self {
         Self::sam()
             .with_encoder_file("sam2.1-hiera-tiny-encoder.onnx")

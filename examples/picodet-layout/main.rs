@@ -1,6 +1,6 @@
 use anyhow::Result;
 use usls::DataLoader;
-use usls::{models::PicoDet, Annotator, ModelConfig};
+use usls::{models::PicoDet, Annotator, Config};
 
 fn main() -> Result<()> {
     tracing_subscriber::fmt()
@@ -9,7 +9,7 @@ fn main() -> Result<()> {
         .init();
 
     // config
-    let config = ModelConfig::picodet_layout_1x().commit()?;
+    let config = Config::picodet_layout_1x().commit()?;
     // picodet_l_layout_3cls()
     // picodet_l_layout_17cls()
     let mut model = PicoDet::new(config)?;

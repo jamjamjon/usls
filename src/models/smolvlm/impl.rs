@@ -3,7 +3,7 @@ use anyhow::Result;
 use image::GenericImageView;
 use ndarray::s;
 
-use crate::{Engine, Image, LogitsSampler, ModelConfig, Processor, Scale, Ts, Xs, X, Y};
+use crate::{Config, Engine, Image, LogitsSampler, Processor, Scale, Ts, Xs, X, Y};
 
 #[derive(Debug, Builder)]
 pub struct SmolVLM {
@@ -32,7 +32,7 @@ pub struct SmolVLM {
 }
 
 impl SmolVLM {
-    pub fn new(config: ModelConfig) -> Result<Self> {
+    pub fn new(config: Config) -> Result<Self> {
         let vision = Engine::try_from_config(&config.visual)?;
         let text_embed = Engine::try_from_config(&config.textual)?;
         let decoder = Engine::try_from_config(&config.textual_decoder_merged)?;

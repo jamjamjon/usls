@@ -2,7 +2,7 @@ use aksr::Builder;
 use anyhow::Result;
 use ndarray::{s, Array2, Axis};
 
-use crate::{elapsed, Engine, Image, Mask, ModelConfig, Ops, Polygon, Processor, Task, Ts, Xs, Y};
+use crate::{elapsed, Config, Engine, Image, Mask, Ops, Polygon, Processor, Task, Ts, Xs, Y};
 
 #[derive(Builder, Debug)]
 pub struct Sapiens {
@@ -18,7 +18,7 @@ pub struct Sapiens {
 }
 
 impl Sapiens {
-    pub fn new(config: ModelConfig) -> Result<Self> {
+    pub fn new(config: Config) -> Result<Self> {
         let engine = Engine::try_from_config(&config.model)?;
         let spec = engine.spec().to_string();
         let (batch, height, width, ts) = (

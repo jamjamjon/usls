@@ -1,5 +1,5 @@
 use anyhow::Result;
-use usls::{models::DB, Annotator, DataLoader, ModelConfig, Style};
+use usls::{models::DB, Annotator, Config, DataLoader, Style};
 
 #[derive(argh::FromArgs)]
 /// Example
@@ -42,8 +42,8 @@ fn main() -> Result<()> {
 
     // build model
     let config = match &args.model {
-        Some(m) => ModelConfig::db().with_model_file(m),
-        None => ModelConfig::ppocr_det_v4_ch().with_model_dtype(args.dtype.as_str().try_into()?),
+        Some(m) => Config::db().with_model_file(m),
+        None => Config::ppocr_det_v4_ch().with_model_dtype(args.dtype.as_str().try_into()?),
     }
     .with_device_all(args.device.as_str().try_into()?)
     .commit()?;

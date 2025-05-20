@@ -1,7 +1,7 @@
 use aksr::Builder;
 use anyhow::Result;
 
-use crate::{elapsed, Engine, Image, ModelConfig, Processor, Scale, Ts, Xs, X};
+use crate::{elapsed, Config, Engine, Image, Processor, Scale, Ts, Xs, X};
 
 #[derive(Builder, Debug)]
 pub struct DINOv2 {
@@ -15,7 +15,7 @@ pub struct DINOv2 {
 }
 
 impl DINOv2 {
-    pub fn new(config: ModelConfig) -> Result<Self> {
+    pub fn new(config: Config) -> Result<Self> {
         let engine = Engine::try_from_config(&config.model)?;
         let (batch, height, width, ts) = (
             engine.batch().opt(),

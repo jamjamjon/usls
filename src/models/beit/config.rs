@@ -1,5 +1,5 @@
 /// Model configuration for `BEiT`
-impl crate::ModelConfig {
+impl crate::Config {
     pub fn beit() -> Self {
         Self::default()
             .with_name("beit")

@@ -1,5 +1,5 @@
 use anyhow::Result;
-use usls::{models::RTDETR, Annotator, DataLoader, ModelConfig};
+use usls::{models::RTDETR, Annotator, Config, DataLoader};
 
 fn main() -> Result<()> {
     tracing_subscriber::fmt()
@@ -8,7 +8,7 @@ fn main() -> Result<()> {
         .init();
 
     // config
-    let mut model = RTDETR::new(ModelConfig::d_fine_n_coco().commit()?)?;
+    let mut model = RTDETR::new(Config::d_fine_n_coco().commit()?)?;
 
     // load
     let xs = DataLoader::try_read_n(&["./assets/bus.jpg"])?;

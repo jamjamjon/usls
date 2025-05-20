@@ -1,6 +1,6 @@
 use usls::{
     models::{TrOCR, TrOCRKind},
-    DataLoader, ModelConfig, Scale,
+    Config, DataLoader, Scale,
 };
 
 #[derive(argh::FromArgs)]
@@ -40,12 +40,12 @@ fn main() -> anyhow::Result<()> {
     // build model
     let config = match args.scale.as_str().try_into()? {
         Scale::S => match args.kind.as_str().try_into()? {
-            TrOCRKind::Printed => ModelConfig::trocr_small_printed(),
-            TrOCRKind::HandWritten => ModelConfig::trocr_small_handwritten(),
+            TrOCRKind::Printed => Config::trocr_small_printed(),
+            TrOCRKind::HandWritten => Config::trocr_small_handwritten(),
         },
         Scale::B => match args.kind.as_str().try_into()? {
-            TrOCRKind::Printed => ModelConfig::trocr_base_printed(),
-            TrOCRKind::HandWritten => ModelConfig::trocr_base_handwritten(),
+            TrOCRKind::Printed => Config::trocr_base_printed(),
+            TrOCRKind::HandWritten => Config::trocr_base_handwritten(),
         },
         x => anyhow::bail!("Unsupported TrOCR scale: {:?}", x),
     }

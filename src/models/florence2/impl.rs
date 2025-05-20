@@ -4,7 +4,7 @@ use ndarray::{s, Axis};
 use rayon::prelude::*;
 
 use crate::{
-    elapsed, models::Quantizer, Engine, Hbb, Image, LogitsSampler, ModelConfig, Polygon, Processor,
+    elapsed, models::Quantizer, Config, Engine, Hbb, Image, LogitsSampler, Polygon, Processor,
     Scale, Task, Ts, Xs, X, Y,
 };
 
@@ -28,7 +28,7 @@ pub struct Florence2 {
 }
 
 impl Florence2 {
-    pub fn new(config: ModelConfig) -> Result<Self> {
+    pub fn new(config: Config) -> Result<Self> {
         let vision_encoder = Engine::try_from_config(&config.visual)?;
         let text_embed = Engine::try_from_config(&config.textual)?;
         let encoder = Engine::try_from_config(&config.textual_encoder)?;

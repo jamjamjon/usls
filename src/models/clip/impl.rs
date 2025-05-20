@@ -2,7 +2,7 @@ use aksr::Builder;
 use anyhow::Result;
 use ndarray::Array2;
 
-use crate::{elapsed, Engine, Image, ModelConfig, Processor, Ts, X};
+use crate::{elapsed, Config, Engine, Image, Processor, Ts, X};
 
 #[derive(Debug, Builder)]
 pub struct Clip {
@@ -16,7 +16,7 @@ pub struct Clip {
 }
 
 impl Clip {
-    pub fn new(config: ModelConfig) -> Result<Self> {
+    pub fn new(config: Config) -> Result<Self> {
         let visual = Engine::try_from_config(&config.visual)?;
         let textual = Engine::try_from_config(&config.textual)?;
         let (batch, height, width) = (

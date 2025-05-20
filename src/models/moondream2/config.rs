@@ -1,5 +1,5 @@
 /// Model configuration for `moondream2`
-impl crate::ModelConfig {
+impl crate::Config {
     pub fn moondream2() -> Self {
         Self::default()
             .with_name("moondream2")

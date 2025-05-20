@@ -1,5 +1,5 @@
 use anyhow::Result;
-use usls::{models::DB, Annotator, DataLoader, ModelConfig, Scale, Style};
+use usls::{models::DB, Annotator, Config, DataLoader, Scale, Style};
 
 #[derive(argh::FromArgs)]
 /// Example
@@ -27,9 +27,9 @@ fn main() -> Result<()> {
 
     // build model
     let config = match args.scale.as_str().try_into()? {
-        Scale::T => ModelConfig::fast_tiny(),
-        Scale::S => ModelConfig::fast_small(),
-        Scale::B => ModelConfig::fast_base(),
+        Scale::T => Config::fast_tiny(),
+        Scale::S => Config::fast_small(),
+        Scale::B => Config::fast_base(),
         _ => unimplemented!("Unsupported model scale: {:?}. Try b, s, t.", args.scale),
     };
     let mut model = DB::new(

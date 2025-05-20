@@ -5,8 +5,8 @@ use ndarray::{s, Array, Array2, Array3, Axis, IxDyn};
 use ndarray_npy::ReadNpyExt;
 
 use crate::{
-    DType, Engine, Hbb, Hub, Image, Keypoint, LogitsSampler, ModelConfig, Processor, Scale, Task,
-    Xs, X, Y,
+    Config, DType, Engine, Hbb, Hub, Image, Keypoint, LogitsSampler, Processor, Scale, Task, Xs, X,
+    Y,
 };
 
 #[derive(Builder, Debug)]
@@ -32,7 +32,7 @@ pub struct Moondream2 {
 }
 
 impl Moondream2 {
-    pub fn new(config: ModelConfig) -> Result<Self> {
+    pub fn new(config: Config) -> Result<Self> {
         let max_length = 2048;
         let max_objects = 50;
         let eos_token_id = 50256;

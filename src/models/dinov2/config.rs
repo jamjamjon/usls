@@ -1,5 +1,5 @@
 /// Model configuration for `DINOv2`
-impl crate::ModelConfig {
+impl crate::Config {
     pub fn dinov2() -> Self {
         Self::default()
             .with_name("dinov2")

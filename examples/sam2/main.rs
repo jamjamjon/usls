@@ -1,7 +1,7 @@
 use anyhow::Result;
 use usls::{
     models::{SamPrompt, SAM2},
-    Annotator, DataLoader, ModelConfig, Scale,
+    Annotator, Config, DataLoader, Scale,
 };
 
 #[derive(argh::FromArgs)]
@@ -26,10 +26,10 @@ fn main() -> Result<()> {
 
     // Build model
     let config = match args.scale.as_str().try_into()? {
-        Scale::T => ModelConfig::sam2_1_tiny(),
-        Scale::S => ModelConfig::sam2_1_small(),
-        Scale::B => ModelConfig::sam2_1_base_plus(),
-        Scale::L => ModelConfig::sam2_1_large(),
+        Scale::T => Config::sam2_1_tiny(),
+        Scale::S => Config::sam2_1_small(),
+        Scale::B => Config::sam2_1_base_plus(),
+        Scale::L => Config::sam2_1_large(),
         _ => unimplemented!("Unsupported model scale: {:?}. Try b, s, t, l.", args.scale),
     }
     .with_device_all(args.device.as_str().try_into()?)

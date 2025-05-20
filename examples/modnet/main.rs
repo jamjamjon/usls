@@ -1,4 +1,4 @@
-use usls::{models::MODNet, Annotator, DataLoader, ModelConfig};
+use usls::{models::MODNet, Annotator, Config, DataLoader};
 
 fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt()
@@ -7,7 +7,7 @@ fn main() -> anyhow::Result<()> {
         .init();
 
     // build model
-    let mut model = MODNet::new(ModelConfig::modnet_photographic().commit()?)?;
+    let mut model = MODNet::new(Config::modnet_photographic().commit()?)?;
 
     // load image
     let xs = DataLoader::try_read_n(&["images/liuyifei.png"])?;

@@ -1,5 +1,5 @@
 use anyhow::Result;
-use usls::{models::YOLO, Annotator, DataLoader, ModelConfig, Style};
+use usls::{models::YOLO, Annotator, Config, DataLoader, Style};
 
 #[derive(argh::FromArgs)]
 /// Example
@@ -22,7 +22,7 @@ fn main() -> Result<()> {
     let args: Args = argh::from_env();
 
     // config
-    let config = ModelConfig::yoloe_v8s_seg_pf()
+    let config = Config::yoloe_v8s_seg_pf()
         // yoloe_v8m_seg_pf()
         // yoloe_v8l_seg_pf()
         // yoloe_11s_seg_pf()

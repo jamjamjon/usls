@@ -1,5 +1,5 @@
 /// Model configuration for `SLANet`
-impl crate::ModelConfig {
+impl crate::Config {
     pub fn slanet() -> Self {
         Self::default()
             .with_name("slanet")

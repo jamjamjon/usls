@@ -1,5 +1,5 @@
 /// Model configuration for `DepthAnything`
-impl crate::ModelConfig {
+impl crate::Config {
     pub fn depth_anything() -> Self {
         Self::default()
             .with_name("depth-anything")

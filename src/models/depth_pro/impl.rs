@@ -2,7 +2,7 @@ use aksr::Builder;
 use anyhow::Result;
 use ndarray::Axis;
 
-use crate::{elapsed, Engine, Image, Mask, ModelConfig, Ops, Processor, Ts, Xs, Y};
+use crate::{elapsed, Config, Engine, Image, Mask, Ops, Processor, Ts, Xs, Y};
 
 #[derive(Builder, Debug)]
 pub struct DepthPro {
@@ -16,7 +16,7 @@ pub struct DepthPro {
 }
 
 impl DepthPro {
-    pub fn new(config: ModelConfig) -> Result<Self> {
+    pub fn new(config: Config) -> Result<Self> {
         let engine = Engine::try_from_config(&config.model)?;
         let spec = engine.spec().to_string();
         let (batch, height, width, ts) = (

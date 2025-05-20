@@ -4,8 +4,7 @@ use ndarray::Axis;
 use rayon::prelude::*;
 
 use crate::{
-    elapsed, DynConf, Engine, Hbb, Image, Mask, ModelConfig, Obb, Ops, Polygon, Processor, Ts, Xs,
-    Y,
+    elapsed, Config, DynConf, Engine, Hbb, Image, Mask, Obb, Ops, Polygon, Processor, Ts, Xs, Y,
 };
 
 #[derive(Debug, Builder)]
@@ -25,7 +24,7 @@ pub struct DB {
 }
 
 impl DB {
-    pub fn new(config: ModelConfig) -> Result<Self> {
+    pub fn new(config: Config) -> Result<Self> {
         let engine = Engine::try_from_config(&config.model)?;
         let (batch, height, width, ts, spec) = (
             engine.batch().opt(),

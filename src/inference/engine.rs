@@ -13,8 +13,8 @@ use prost::Message;
 use std::collections::HashSet;
 
 use crate::{
-    build_progress_bar, elapsed, human_bytes_binary, onnx, DType, Device, EngineConfig, Iiix,
-    MinOptMax, Ops, Ts, Xs, PROGRESS_BAR_STYLE_CYAN_2, PROGRESS_BAR_STYLE_FINISH, X,
+    build_progress_bar, elapsed, human_bytes_binary, onnx, DType, Device, Iiix, MinOptMax,
+    ORTConfig, Ops, Ts, Xs, PROGRESS_BAR_STYLE_CYAN_2, PROGRESS_BAR_STYLE_FINISH, X,
 };
 
 impl From<TensorElementType> for DType {
@@ -93,7 +93,7 @@ impl Default for Engine {
 }
 
 impl Engine {
-    pub fn try_from_config(config: &EngineConfig) -> Result<Self> {
+    pub fn try_from_config(config: &ORTConfig) -> Result<Self> {
         Self {
             file: config.file.clone(),
             spec: config.spec.clone(),
@@ -101,7 +101,7 @@ impl Engine {
             device: config.device,
             trt_fp16: config.trt_fp16,
             num_dry_run: config.num_dry_run,
-            graph_opt_level: config.ort_graph_opt_level,
+            graph_opt_level: config.graph_opt_level,
             ..Default::default()
         }
         .build()

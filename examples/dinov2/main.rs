@@ -1,5 +1,5 @@
 use anyhow::Result;
-use usls::{models::DINOv2, DataLoader, ModelConfig};
+use usls::{models::DINOv2, Config, DataLoader};
 
 fn main() -> Result<()> {
     tracing_subscriber::fmt()
@@ -11,7 +11,7 @@ fn main() -> Result<()> {
     let xs = DataLoader::try_read_n(&["./assets/bus.jpg", "./assets/bus.jpg"])?;
 
     // model
-    let config = ModelConfig::dinov2_small()
+    let config = Config::dinov2_small()
         .with_batch_size_all(xs.len())
         .commit()?;
     let mut model = DINOv2::new(config)?;

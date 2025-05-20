@@ -1,5 +1,5 @@
 /// Model configuration for `SVTR`
-impl crate::ModelConfig {
+impl crate::Config {
     pub fn svtr() -> Self {
         Self::default()
             .with_name("svtr")

@@ -1,7 +1,7 @@
 use crate::Scale;
 
 /// Model configuration for `TrOCR`
-impl crate::ModelConfig {
+impl crate::Config {
     pub fn trocr() -> Self {
         Self::default()
             .with_name("trocr")

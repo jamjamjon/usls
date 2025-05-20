@@ -3,19 +3,34 @@ use anyhow::Result;
 
 use crate::{try_fetch_file_stem, DType, Device, Hub, Iiix, MinOptMax};
 
-#[derive(Builder, Debug, Clone, Default)]
-pub struct EngineConfig {
+#[derive(Builder, Debug, Clone)]
+pub struct ORTConfig {
     pub file: String,
     pub device: Device,
     pub iiixs: Vec<Iiix>,
     pub num_dry_run: usize,
     pub trt_fp16: bool,
-    pub ort_graph_opt_level: Option<u8>,
+    pub graph_opt_level: Option<u8>,
     pub spec: String, // TODO: move out
     pub dtype: DType, // For dynamically loading the model
 }
 
-impl EngineConfig {
+impl Default for ORTConfig {
+    fn default() -> Self {
+        Self {
+            file: Default::default(),
+            device: Default::default(),
+            iiixs: Default::default(),
+            graph_opt_level: Default::default(),
+            spec: Default::default(),
+            dtype: Default::default(),
+            num_dry_run: 3,
+            trt_fp16: true,
+        }
+    }
+}
+
+impl ORTConfig {
     pub fn try_commit(mut self, name: &str) -> Result<Self> {
         // Identify the local model or fetch the remote model
         if std::path::PathBuf::from(&self.file).exists() {
@@ -65,7 +80,7 @@ impl EngineConfig {
     }
 }
 
-impl EngineConfig {
+impl ORTConfig {
     pub fn with_ixx(mut self, i: usize, ii: usize, x: MinOptMax) -> Self {
         self.iiixs.push(Iiix::from((i, ii, x)));
         self
@@ -78,7 +93,7 @@ impl EngineConfig {
 }
 
 #[macro_export]
-macro_rules! impl_model_config_methods {
+macro_rules! impl_ort_config_methods {
     ($ty:ty, $field:ident) => {
         impl $ty {
             paste::paste! {

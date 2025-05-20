@@ -403,7 +403,7 @@ impl Ops<'_> {
                 }
                 "height" => (th * w0 / h0, th),
                 "width" => (tw, tw * h0 / w0),
-                _ => anyhow::bail!("EngineConfig for `letterbox`: width, height, auto"),
+                _ => anyhow::bail!("ORTConfig for `letterbox`: width, height, auto"),
             };
 
             let mut dst = Image::from_vec_u8(

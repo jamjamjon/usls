@@ -1,5 +1,5 @@
 use anyhow::Result;
-use usls::{models::DepthAnything, Annotator, DataLoader, ModelConfig, Style};
+use usls::{models::DepthAnything, Annotator, Config, DataLoader, Style};
 
 fn main() -> Result<()> {
     tracing_subscriber::fmt()
@@ -8,7 +8,7 @@ fn main() -> Result<()> {
         .init();
 
     // build model
-    let mut model = DepthAnything::new(ModelConfig::depth_anything_v2_small().commit()?)?;
+    let mut model = DepthAnything::new(Config::depth_anything_v2_small().commit()?)?;
 
     // load
     let xs = DataLoader::try_read_n(&["images/street.jpg"])?;

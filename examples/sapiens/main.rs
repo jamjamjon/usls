@@ -1,5 +1,5 @@
 use anyhow::Result;
-use usls::{models::Sapiens, Annotator, DataLoader, ModelConfig};
+use usls::{models::Sapiens, Annotator, Config, DataLoader};
 
 #[derive(argh::FromArgs)]
 /// Example
@@ -17,7 +17,7 @@ fn main() -> Result<()> {
 
     let args: Args = argh::from_env();
     // build
-    let config = ModelConfig::sapiens_seg_0_3b()
+    let config = Config::sapiens_seg_0_3b()
         .with_model_device(args.device.as_str().try_into()?)
         .commit()?;
     let mut model = Sapiens::new(config)?;

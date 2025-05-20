@@ -1,5 +1,5 @@
 /// Model configuration for [FAST: Faster Arbitrarily-Shaped Text Detector with Minimalist Kernel Representation](https://github.com/czczup/FAST)
-impl crate::ModelConfig {
+impl crate::Config {
     pub fn fast() -> Self {
         Self::db()
             .with_name("fast")

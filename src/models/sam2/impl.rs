@@ -3,7 +3,7 @@ use anyhow::Result;
 use ndarray::{s, Axis};
 
 use crate::{
-    elapsed, DynConf, Engine, Image, Mask, ModelConfig, Ops, Processor, SamPrompt, Ts, Xs, X, Y,
+    elapsed, Config, DynConf, Engine, Image, Mask, Ops, Processor, SamPrompt, Ts, Xs, X, Y,
 };
 
 #[derive(Builder, Debug)]
@@ -20,7 +20,7 @@ pub struct SAM2 {
 }
 
 impl SAM2 {
-    pub fn new(config: ModelConfig) -> Result<Self> {
+    pub fn new(config: Config) -> Result<Self> {
         let encoder = Engine::try_from_config(&config.encoder)?;
         let decoder = Engine::try_from_config(&config.decoder)?;
         let (batch, height, width) = (

@@ -1,4 +1,4 @@
-use usls::{models::Blip, DataLoader, ModelConfig};
+use usls::{models::Blip, Config, DataLoader};
 
 #[derive(argh::FromArgs)]
 /// BLIP Example
@@ -20,7 +20,7 @@ fn main() -> anyhow::Result<()> {
     let args: Args = argh::from_env();
 
     // build model
-    let config = ModelConfig::blip_v1_base_caption()
+    let config = Config::blip_v1_base_caption()
         .with_device_all(args.device.as_str().try_into()?)
         .commit()?;
     let mut model = Blip::new(config)?;

@@ -1,5 +1,5 @@
 /// Model configuration for [LinkNet: Exploiting Encoder Representations for Efficient Semantic Segmentation](https://arxiv.org/abs/1707.03718)
-impl crate::ModelConfig {
+impl crate::Config {
     pub fn linknet() -> Self {
         Self::fast()
             .with_name("linknet")

@@ -1,7 +1,7 @@
-use crate::{models::SamKind, ModelConfig};
+use crate::{models::SamKind, Config};
 
 /// Model configuration for `Segment Anything Model`
-impl ModelConfig {
+impl Config {
     pub fn sam() -> Self {
         Self::default()
             .with_name("sam")

@@ -3,7 +3,7 @@ use anyhow::Result;
 use ndarray::{s, Array, Axis, IxDyn};
 
 use crate::{
-    elapsed, DynConf, Engine, Hbb, Image, ModelConfig, NmsOps, Ops, Polygon, Processor, Ts, Xs, Y,
+    elapsed, Config, DynConf, Engine, Hbb, Image, NmsOps, Ops, Polygon, Processor, Ts, Xs, Y,
 };
 
 #[derive(Builder, Debug)]
@@ -20,7 +20,7 @@ pub struct YOLOPv2 {
 }
 
 impl YOLOPv2 {
-    pub fn new(config: ModelConfig) -> Result<Self> {
+    pub fn new(config: Config) -> Result<Self> {
         let engine = Engine::try_from_config(&config.model)?;
         let spec = engine.spec().to_string();
         let (batch, height, width, ts) = (

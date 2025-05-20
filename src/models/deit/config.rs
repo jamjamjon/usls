@@ -1,7 +1,7 @@
 use crate::NAMES_IMAGENET_1K;
 
 /// Model configuration for `DeiT`
-impl crate::ModelConfig {
+impl crate::Config {
     pub fn deit() -> Self {
         Self::default()
             .with_name("deit")

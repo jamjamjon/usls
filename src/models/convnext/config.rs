@@ -1,7 +1,7 @@
 use crate::NAMES_IMAGENET_1K;
 
 /// Model configuration for `ConvNeXt`
-impl crate::ModelConfig {
+impl crate::Config {
     pub fn convnext() -> Self {
         Self::default()
             .with_name("convnext")

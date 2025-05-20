@@ -1,4 +1,4 @@
-use usls::{models::RMBG, Annotator, DataLoader, ModelConfig};
+use usls::{models::RMBG, Annotator, Config, DataLoader};
 
 #[derive(argh::FromArgs)]
 /// Example
@@ -24,8 +24,8 @@ fn main() -> anyhow::Result<()> {
     let args: Args = argh::from_env();
 
     let config = match args.ver {
-        1.4 => ModelConfig::rmbg1_4(),
-        2.0 => ModelConfig::rmbg2_0(),
+        1.4 => Config::rmbg1_4(),
+        2.0 => Config::rmbg2_0(),
         _ => unreachable!("Unsupported version"),
     };
 

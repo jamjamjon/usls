@@ -151,7 +151,7 @@ impl ProcessorConfig {
 }
 
 #[macro_export]
-macro_rules! impl_process_config_methods {
+macro_rules! impl_processor_config_methods {
     ($ty:ty, $field:ident) => {
         impl $ty {
             pub fn with_image_width(mut self, image_width: u32) -> Self {

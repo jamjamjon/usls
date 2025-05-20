@@ -1,4 +1,4 @@
-use usls::{models::ImageClassifier, Annotator, DataLoader, ModelConfig};
+use usls::{models::ImageClassifier, Annotator, Config, DataLoader};
 
 #[derive(argh::FromArgs)]
 /// Example
@@ -37,11 +37,11 @@ fn main() -> anyhow::Result<()> {
 
     // build model
     let config = match args.model.to_lowercase().as_str() {
-        "beit" => ModelConfig::beit_base(),
-        "convnext" => ModelConfig::convnext_v2_atto(),
-        "deit" => ModelConfig::deit_tiny_distill(),
-        "fastvit" => ModelConfig::fastvit_t8_distill(),
-        "mobileone" => ModelConfig::mobileone_s0(),
+        "beit" => Config::beit_base(),
+        "convnext" => Config::convnext_v2_atto(),
+        "deit" => Config::deit_tiny_distill(),
+        "fastvit" => Config::fastvit_t8_distill(),
+        "mobileone" => Config::mobileone_s0(),
         _ => anyhow::bail!("Unsupported model: {}", args.model),
     };
 

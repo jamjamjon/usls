@@ -1,5 +1,5 @@
 /// Model configuration for `DEIM`
-impl crate::ModelConfig {
+impl crate::Config {
     pub fn deim() -> Self {
         Self::d_fine().with_name("deim")
     }

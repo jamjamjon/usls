@@ -1,5 +1,5 @@
 use anyhow::Result;
-use usls::{models::YOLOPv2, Annotator, DataLoader, ModelConfig};
+use usls::{models::YOLOPv2, Annotator, Config, DataLoader};
 
 fn main() -> Result<()> {
     tracing_subscriber::fmt()
@@ -8,7 +8,7 @@ fn main() -> Result<()> {
         .init();
 
     // build model
-    let mut model = YOLOPv2::new(ModelConfig::yolop_v2_480x800().commit()?)?;
+    let mut model = YOLOPv2::new(Config::yolop_v2_480x800().commit()?)?;
 
     // load image
     let xs = DataLoader::try_read_n(&["images/car-view.jpg"])?;

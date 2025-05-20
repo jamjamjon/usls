@@ -1,5 +1,5 @@
 use anyhow::Result;
-use usls::{models::GroundingDINO, Annotator, DataLoader, ModelConfig};
+use usls::{models::GroundingDINO, Annotator, Config, DataLoader};
 
 #[derive(argh::FromArgs)]
 /// Example
@@ -45,7 +45,7 @@ fn main() -> Result<()> {
 
     let args: Args = argh::from_env();
 
-    let config = ModelConfig::grounding_dino_tiny()
+    let config = Config::grounding_dino_tiny()
         .with_model_dtype(args.dtype.as_str().try_into()?)
         .with_model_device(args.device.as_str().try_into()?)
         .with_text_names(&args.labels.iter().map(|x| x.as_str()).collect::<Vec<_>>())

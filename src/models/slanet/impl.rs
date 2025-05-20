@@ -2,7 +2,7 @@ use aksr::Builder;
 use anyhow::Result;
 use ndarray::{s, Axis};
 
-use crate::{elapsed, models::BaseModelVisual, Image, Keypoint, ModelConfig, Ts, Xs, Y};
+use crate::{elapsed, models::BaseModelVisual, Config, Image, Keypoint, Ts, Xs, Y};
 
 #[derive(Builder, Debug)]
 pub struct SLANet {
@@ -19,7 +19,7 @@ impl SLANet {
         self.ts.summary();
     }
 
-    pub fn new(config: ModelConfig) -> Result<Self> {
+    pub fn new(config: Config) -> Result<Self> {
         let base = BaseModelVisual::new(config)?;
         let spec = base.engine().spec().to_owned();
         let sos = 0;

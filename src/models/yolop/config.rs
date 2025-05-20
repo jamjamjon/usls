@@ -1,5 +1,5 @@
 /// Model configuration for `YOLOP`
-impl crate::ModelConfig {
+impl crate::Config {
     pub fn yolop() -> Self {
         Self::default()
             .with_name("yolop")

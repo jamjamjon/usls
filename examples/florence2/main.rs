@@ -1,5 +1,5 @@
 use anyhow::Result;
-use usls::{models::Florence2, Annotator, DataLoader, ModelConfig, Style, Task};
+use usls::{models::Florence2, Annotator, Config, DataLoader, Style, Task};
 
 #[derive(argh::FromArgs)]
 /// Example
@@ -25,7 +25,7 @@ fn main() -> Result<()> {
     let xs = DataLoader::try_read_n(&["images/green-car.jpg", "assets/bus.jpg"])?;
 
     // build model
-    let config = ModelConfig::florence2_base()
+    let config = Config::florence2_base()
         .with_dtype_all(args.dtype.as_str().try_into()?)
         .with_device_all(args.device.as_str().try_into()?)
         .with_batch_size_all(xs.len())

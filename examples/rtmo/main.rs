@@ -1,5 +1,5 @@
 use anyhow::Result;
-use usls::{models::RTMO, Annotator, DataLoader, ModelConfig, Style, SKELETON_COCO_19};
+use usls::{models::RTMO, Annotator, Config, DataLoader, Style, SKELETON_COCO_19};
 
 fn main() -> Result<()> {
     tracing_subscriber::fmt()
@@ -8,7 +8,7 @@ fn main() -> Result<()> {
         .init();
 
     // build model
-    let mut model = RTMO::new(ModelConfig::rtmo_s().commit()?)?;
+    let mut model = RTMO::new(Config::rtmo_s().commit()?)?;
 
     // load image
     let xs = DataLoader::try_read_n(&["./assets/bus.jpg"])?;

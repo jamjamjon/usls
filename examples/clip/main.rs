@@ -1,5 +1,5 @@
 use anyhow::Result;
-use usls::{models::Clip, DataLoader, ModelConfig, Ops};
+use usls::{models::Clip, Config, DataLoader, Ops};
 
 #[derive(argh::FromArgs)]
 /// CLIP Example
@@ -17,7 +17,7 @@ fn main() -> Result<()> {
     let args: Args = argh::from_env();
 
     // build model
-    let config = ModelConfig::jina_clip_v1()
+    let config = Config::jina_clip_v1()
         .with_device_all(args.device.as_str().try_into()?)
         .commit()?;
     let mut model = Clip::new(config)?;

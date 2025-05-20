@@ -1,7 +1,7 @@
 use anyhow::Result;
 use usls::{
-    models::YOLO, Annotator, DataLoader, ModelConfig, Style, NAMES_COCO_80,
-    NAMES_COCO_KEYPOINTS_17, NAMES_IMAGENET_1K, SKELETON_COCO_19, SKELETON_COLOR_COCO_19,
+    models::YOLO, Annotator, Config, DataLoader, Style, NAMES_COCO_80, NAMES_COCO_KEYPOINTS_17,
+    NAMES_IMAGENET_1K, SKELETON_COCO_19, SKELETON_COLOR_COCO_19,
 };
 
 #[derive(argh::FromArgs, Debug)]
@@ -130,7 +130,7 @@ fn main() -> Result<()> {
         .with_timer(tracing_subscriber::fmt::time::ChronoLocal::rfc_3339())
         .init();
     let args: Args = argh::from_env();
-    let mut config = ModelConfig::yolo()
+    let mut config = Config::yolo()
         .with_model_file(&args.model.unwrap_or_default())
         .with_task(args.task.as_str().try_into()?)
         .with_version(args.ver.try_into()?)
@@ -170,7 +170,8 @@ fn main() -> Result<()> {
         })
         .with_topk(args.topk)
         .retain_classes(&args.retain_classes)
-        .exclude_classes(&args.exclude_classes);
+        .exclude_classes(&args.exclude_classes)
+        .with_model_num_dry_run(2);
     if args.use_coco_80_classes {
         config = config.with_class_names(&NAMES_COCO_80);
     }

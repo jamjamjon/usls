@@ -1,5 +1,5 @@
 /// Model configuration for `Florence2`
-impl crate::ModelConfig {
+impl crate::Config {
     pub fn florence2() -> Self {
         Self::default()
             .with_name("florence2")

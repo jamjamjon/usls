@@ -1,5 +1,5 @@
 use anyhow::Result;
-use usls::{models::SVTR, DataLoader, ModelConfig};
+use usls::{models::SVTR, Config, DataLoader};
 
 #[derive(argh::FromArgs)]
 /// Example
@@ -22,7 +22,7 @@ fn main() -> Result<()> {
     let args: Args = argh::from_env();
 
     // build model
-    let config = ModelConfig::ppocr_rec_v4_ch()
+    let config = Config::ppocr_rec_v4_ch()
         // ppocr_rec_v4_en()
         // repsvtr_ch()
         .with_model_device(args.device.as_str().try_into()?)

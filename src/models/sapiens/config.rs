@@ -1,7 +1,7 @@
 use crate::NAMES_BODY_PARTS_28;
 
 /// Model configuration for `Sapiens`
-impl crate::ModelConfig {
+impl crate::Config {
     pub fn sapiens() -> Self {
         Self::default()
             .with_name("sapiens")

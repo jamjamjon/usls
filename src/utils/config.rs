@@ -1,14 +1,14 @@
 use aksr::Builder;
 
 use crate::{
-    impl_model_config_methods, impl_process_config_methods,
+    impl_ort_config_methods, impl_processor_config_methods,
     models::{SamKind, YOLOPredsFormat},
-    EngineConfig, ProcessorConfig, Scale, Task, Version,
+    ORTConfig, ProcessorConfig, Scale, Task, Version,
 };
 
-/// ModelConfig for building models and inference
+/// Config for building models and inference
 #[derive(Builder, Debug, Clone)]
-pub struct ModelConfig {
+pub struct Config {
     // Basics
     pub name: &'static str,
     pub version: Option<Version>,
@@ -16,22 +16,22 @@ pub struct ModelConfig {
     pub scale: Option<Scale>,
 
     // Engines
-    pub model: EngineConfig,
-    pub visual: EngineConfig,
-    pub textual: EngineConfig,
-    pub encoder: EngineConfig,
-    pub decoder: EngineConfig,
-    pub visual_encoder: EngineConfig,
-    pub textual_encoder: EngineConfig,
-    pub visual_decoder: EngineConfig,
-    pub textual_decoder: EngineConfig,
-    pub textual_decoder_merged: EngineConfig,
-    pub size_encoder: EngineConfig,
-    pub size_decoder: EngineConfig,
-    pub coord_encoder: EngineConfig,
-    pub coord_decoder: EngineConfig,
-    pub visual_projection: EngineConfig,
-    pub textual_projection: EngineConfig,
+    pub model: ORTConfig,
+    pub visual: ORTConfig,
+    pub textual: ORTConfig,
+    pub encoder: ORTConfig,
+    pub decoder: ORTConfig,
+    pub visual_encoder: ORTConfig,
+    pub textual_encoder: ORTConfig,
+    pub visual_decoder: ORTConfig,
+    pub textual_decoder: ORTConfig,
+    pub textual_decoder_merged: ORTConfig,
+    pub size_encoder: ORTConfig,
+    pub size_decoder: ORTConfig,
+    pub coord_encoder: ORTConfig,
+    pub coord_decoder: ORTConfig,
+    pub visual_projection: ORTConfig,
+    pub textual_projection: ORTConfig,
 
     // Processor
     pub processor: ProcessorConfig,
@@ -65,7 +65,7 @@ pub struct ModelConfig {
     pub sam_low_res_mask: Option<bool>,
 }
 
-impl Default for ModelConfig {
+impl Default for Config {
     fn default() -> Self {
         Self {
             class_names: vec![],
@@ -116,7 +116,7 @@ impl Default for ModelConfig {
     }
 }
 
-impl ModelConfig {
+impl Config {
     pub fn exclude_classes(mut self, xs: &[usize]) -> Self {
         self.classes_retained.clear();
         self.classes_excluded.extend_from_slice(xs);
@@ -147,7 +147,7 @@ impl ModelConfig {
             self.model.file = y;
         }
 
-        fn try_commit(name: &str, mut m: EngineConfig) -> anyhow::Result<EngineConfig> {
+        fn try_commit(name: &str, mut m: ORTConfig) -> anyhow::Result<ORTConfig> {
             if !m.file.is_empty() {
                 m = m.try_commit(name)?;
                 return Ok(m);
@@ -174,6 +174,27 @@ impl ModelConfig {
         self.textual_projection = try_commit(self.name, self.textual_projection)?;
 
         Ok(self)
+    }
+
+    pub fn with_num_dry_run_all(mut self, x: usize) -> Self {
+        self.visual = self.visual.with_num_dry_run(x);
+        self.textual = self.textual.with_num_dry_run(x);
+        self.model = self.model.with_num_dry_run(x);
+        self.encoder = self.encoder.with_num_dry_run(x);
+        self.decoder = self.decoder.with_num_dry_run(x);
+        self.visual_encoder = self.visual_encoder.with_num_dry_run(x);
+        self.textual_encoder = self.textual_encoder.with_num_dry_run(x);
+        self.visual_decoder = self.visual_decoder.with_num_dry_run(x);
+        self.textual_decoder = self.textual_decoder.with_num_dry_run(x);
+        self.textual_decoder_merged = self.textual_decoder_merged.with_num_dry_run(x);
+        self.size_encoder = self.size_encoder.with_num_dry_run(x);
+        self.size_decoder = self.size_decoder.with_num_dry_run(x);
+        self.coord_encoder = self.coord_encoder.with_num_dry_run(x);
+        self.coord_decoder = self.coord_decoder.with_num_dry_run(x);
+        self.visual_projection = self.visual_projection.with_num_dry_run(x);
+        self.textual_projection = self.textual_projection.with_num_dry_run(x);
+
+        self
     }
 
     pub fn with_batch_size_all(mut self, batch_size: usize) -> Self {
@@ -242,20 +263,20 @@ impl ModelConfig {
     }
 }
 
-impl_model_config_methods!(ModelConfig, model);
-impl_model_config_methods!(ModelConfig, visual);
-impl_model_config_methods!(ModelConfig, textual);
-impl_model_config_methods!(ModelConfig, encoder);
-impl_model_config_methods!(ModelConfig, decoder);
-impl_model_config_methods!(ModelConfig, visual_encoder);
-impl_model_config_methods!(ModelConfig, textual_encoder);
-impl_model_config_methods!(ModelConfig, visual_decoder);
-impl_model_config_methods!(ModelConfig, textual_decoder);
-impl_model_config_methods!(ModelConfig, textual_decoder_merged);
-impl_model_config_methods!(ModelConfig, size_encoder);
-impl_model_config_methods!(ModelConfig, size_decoder);
-impl_model_config_methods!(ModelConfig, coord_encoder);
-impl_model_config_methods!(ModelConfig, coord_decoder);
-impl_model_config_methods!(ModelConfig, visual_projection);
-impl_model_config_methods!(ModelConfig, textual_projection);
-impl_process_config_methods!(ModelConfig, processor);
+impl_ort_config_methods!(Config, model);
+impl_ort_config_methods!(Config, visual);
+impl_ort_config_methods!(Config, textual);
+impl_ort_config_methods!(Config, encoder);
+impl_ort_config_methods!(Config, decoder);
+impl_ort_config_methods!(Config, visual_encoder);
+impl_ort_config_methods!(Config, textual_encoder);
+impl_ort_config_methods!(Config, visual_decoder);
+impl_ort_config_methods!(Config, textual_decoder);
+impl_ort_config_methods!(Config, textual_decoder_merged);
+impl_ort_config_methods!(Config, size_encoder);
+impl_ort_config_methods!(Config, size_decoder);
+impl_ort_config_methods!(Config, coord_encoder);
+impl_ort_config_methods!(Config, coord_decoder);
+impl_ort_config_methods!(Config, visual_projection);
+impl_ort_config_methods!(Config, textual_projection);
+impl_processor_config_methods!(Config, processor);

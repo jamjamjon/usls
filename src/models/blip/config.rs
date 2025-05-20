@@ -1,5 +1,5 @@
 /// Model configuration for `BLIP`
-impl crate::ModelConfig {
+impl crate::Config {
     #[allow(clippy::excessive_precision)]
     pub fn blip() -> Self {
         Self::default()

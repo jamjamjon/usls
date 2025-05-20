@@ -1,10 +1,10 @@
 use crate::{
-    models::YOLOPredsFormat, ModelConfig, ResizeMode, Scale, Task, NAMES_COCO_80,
+    models::YOLOPredsFormat, Config, ResizeMode, Scale, Task, NAMES_COCO_80,
     NAMES_COCO_KEYPOINTS_17, NAMES_DOTA_V1_15, NAMES_IMAGENET_1K, NAMES_YOLOE_4585,
     NAMES_YOLO_DOCLAYOUT_10,
 };
 
-impl ModelConfig {
+impl Config {
     pub fn yolo() -> Self {
         Self::default()
             .with_name("yolo")

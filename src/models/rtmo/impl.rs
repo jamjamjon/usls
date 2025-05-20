@@ -2,7 +2,7 @@ use aksr::Builder;
 use anyhow::Result;
 use ndarray::Axis;
 
-use crate::{elapsed, DynConf, Engine, Hbb, Image, Keypoint, ModelConfig, Processor, Ts, Xs, Y};
+use crate::{elapsed, Config, DynConf, Engine, Hbb, Image, Keypoint, Processor, Ts, Xs, Y};
 
 #[derive(Builder, Debug)]
 pub struct RTMO {
@@ -18,7 +18,7 @@ pub struct RTMO {
 }
 
 impl RTMO {
-    pub fn new(config: ModelConfig) -> Result<Self> {
+    pub fn new(config: Config) -> Result<Self> {
         let engine = Engine::try_from_config(&config.model)?;
         let spec = engine.spec().to_string();
         let (batch, height, width, ts) = (

@@ -1,6 +1,6 @@
 use anyhow::Result;
 use usls::DataLoader;
-use usls::{models::DepthPro, Annotator, ModelConfig, Style};
+use usls::{models::DepthPro, Annotator, Config, Style};
 
 #[derive(argh::FromArgs)]
 /// Example
@@ -23,7 +23,7 @@ fn main() -> Result<()> {
     let args: Args = argh::from_env();
 
     // model
-    let config = ModelConfig::depth_pro()
+    let config = Config::depth_pro()
         .with_model_dtype(args.dtype.as_str().try_into()?)
         .with_model_device(args.device.as_str().try_into()?)
         .commit()?;

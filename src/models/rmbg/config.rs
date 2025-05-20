@@ -1,5 +1,5 @@
 /// Model configuration for `RMBG`
-impl crate::ModelConfig {
+impl crate::Config {
     pub fn rmbg() -> Self {
         Self::default()
             .with_name("rmbg")

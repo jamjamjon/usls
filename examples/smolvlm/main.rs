@@ -1,5 +1,5 @@
 use anyhow::Result;
-use usls::{models::SmolVLM, DataLoader, ModelConfig, Scale};
+use usls::{models::SmolVLM, Config, DataLoader, Scale};
 
 #[derive(argh::FromArgs)]
 /// Example
@@ -30,8 +30,8 @@ fn main() -> Result<()> {
 
     // build model
     let config = match args.scale.as_str().try_into()? {
-        Scale::Million(256.) => ModelConfig::smolvlm_256m(),
-        Scale::Million(500.) => ModelConfig::smolvlm_500m(),
+        Scale::Million(256.) => Config::smolvlm_256m(),
+        Scale::Million(500.) => Config::smolvlm_500m(),
         _ => unimplemented!(),
     }
     .with_device_all(args.device.as_str().try_into()?)

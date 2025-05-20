@@ -1,7 +1,7 @@
 use crate::NAMES_COCO_80;
 
 /// Model configuration for `RT-DETR`
-impl crate::ModelConfig {
+impl crate::Config {
     pub fn rtdetr() -> Self {
         Self::default()
             .with_name("rtdetr")

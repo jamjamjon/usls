@@ -1,3 +1,4 @@
+mod config;
 mod device;
 mod dtype;
 mod dynconf;
@@ -6,6 +7,7 @@ mod logits_sampler;
 mod min_opt_max;
 mod names;
 mod ops;
+mod ort_config;
 mod processor;
 mod processor_config;
 mod retry;
@@ -15,6 +17,7 @@ mod traits;
 mod ts;
 mod version;
 
+pub use config::*;
 pub use device::Device;
 pub use dtype::DType;
 pub use dynconf::DynConf;
@@ -23,6 +26,7 @@ pub use logits_sampler::LogitsSampler;
 pub use min_opt_max::MinOptMax;
 pub use names::*;
 pub use ops::*;
+pub use ort_config::ORTConfig;
 pub use processor::*;
 pub use processor_config::ProcessorConfig;
 pub use scale::Scale;

@@ -4,7 +4,7 @@ use ndarray::{s, Array2, Axis};
 use rayon::prelude::*;
 use std::fmt::Write;
 
-use crate::{elapsed, DynConf, Engine, Hbb, Image, ModelConfig, Processor, Ts, Xs, X, Y};
+use crate::{elapsed, Config, DynConf, Engine, Hbb, Image, Processor, Ts, Xs, X, Y};
 
 #[derive(Builder, Debug)]
 pub struct GroundingDINO {
@@ -24,7 +24,7 @@ pub struct GroundingDINO {
 }
 
 impl GroundingDINO {
-    pub fn new(config: ModelConfig) -> Result<Self> {
+    pub fn new(config: Config) -> Result<Self> {
         let engine = Engine::try_from_config(&config.model)?;
         let spec = engine.spec().to_string();
         let (batch, height, width, ts) = (

@@ -1,6 +1,6 @@
 use anyhow::Result;
 use usls::DataLoader;
-use usls::{models::OWLv2, Annotator, ModelConfig};
+use usls::{models::OWLv2, Annotator, Config};
 
 #[derive(argh::FromArgs)]
 /// Example
@@ -47,7 +47,7 @@ fn main() -> Result<()> {
     let args: Args = argh::from_env();
 
     // config
-    let config = ModelConfig::owlv2_base_ensemble()
+    let config = Config::owlv2_base_ensemble()
         // owlv2_base()
         .with_model_dtype(args.dtype.as_str().try_into()?)
         .with_model_device(args.device.as_str().try_into()?)

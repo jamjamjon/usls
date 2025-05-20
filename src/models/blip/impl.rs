@@ -2,7 +2,7 @@ use aksr::Builder;
 use anyhow::Result;
 use ndarray::{s, Axis};
 
-use crate::{elapsed, Engine, Image, LogitsSampler, ModelConfig, Processor, Ts, Xs, X, Y};
+use crate::{elapsed, Config, Engine, Image, LogitsSampler, Processor, Ts, Xs, X, Y};
 
 #[derive(Debug, Builder)]
 pub struct Blip {
@@ -18,7 +18,7 @@ pub struct Blip {
 }
 
 impl Blip {
-    pub fn new(config: ModelConfig) -> Result<Self> {
+    pub fn new(config: Config) -> Result<Self> {
         let visual = Engine::try_from_config(&config.visual)?;
         let textual = Engine::try_from_config(&config.textual)?;
         let (batch, height, width) = (

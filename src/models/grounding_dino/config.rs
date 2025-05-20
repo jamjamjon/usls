@@ -1,5 +1,5 @@
 /// Model configuration for `GroundingDino`
-impl crate::ModelConfig {
+impl crate::Config {
     pub fn grounding_dino() -> Self {
         Self::default()
             .with_name("grounding-dino")

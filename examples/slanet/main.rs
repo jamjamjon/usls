@@ -1,5 +1,5 @@
 use anyhow::Result;
-use usls::{models::SLANet, Annotator, Color, DataLoader, ModelConfig};
+use usls::{models::SLANet, Annotator, Color, Config, DataLoader};
 
 #[derive(argh::FromArgs)]
 /// Example
@@ -26,7 +26,7 @@ fn main() -> Result<()> {
     let args: Args = argh::from_env();
 
     // build model
-    let config = ModelConfig::slanet_lcnet_v2_mobile_ch()
+    let config = Config::slanet_lcnet_v2_mobile_ch()
         .with_model_device(args.device.as_str().try_into()?)
         .with_model_dtype(args.dtype.as_str().try_into()?)
         .commit()?;

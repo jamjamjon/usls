@@ -1,5 +1,5 @@
 /// Model configuration for `OWLv2`
-impl crate::ModelConfig {
+impl crate::Config {
     pub fn owlv2() -> Self {
         Self::default()
             .with_name("owlv2")

@@ -3,7 +3,7 @@ use anyhow::Result;
 use ndarray::{s, Axis};
 use rayon::prelude::*;
 
-use crate::{elapsed, DynConf, Engine, Hbb, Image, ModelConfig, Processor, Ts, Xs, Y};
+use crate::{elapsed, Config, DynConf, Engine, Hbb, Image, Processor, Ts, Xs, Y};
 
 #[derive(Debug, Builder)]
 pub struct RFDETR {
@@ -19,7 +19,7 @@ pub struct RFDETR {
 }
 
 impl RFDETR {
-    pub fn new(config: ModelConfig) -> Result<Self> {
+    pub fn new(config: Config) -> Result<Self> {
         let engine = Engine::try_from_config(&config.model)?;
         let (batch, height, width, ts) = (
             engine.batch().opt(),

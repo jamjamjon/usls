@@ -1,5 +1,5 @@
 /// Model configuration for `d_fine`
-impl crate::ModelConfig {
+impl crate::Config {
     pub fn d_fine() -> Self {
         Self::rtdetr().with_name("d-fine")
     }

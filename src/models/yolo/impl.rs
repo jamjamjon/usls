@@ -8,8 +8,8 @@ use regex::Regex;
 use crate::{
     elapsed,
     models::{BoxType, YOLOPredsFormat},
-    DynConf, Engine, Hbb, Image, Keypoint, Mask, ModelConfig, NmsOps, Obb, Ops, Prob, Processor,
-    Task, Ts, Version, Xs, Y,
+    Config, DynConf, Engine, Hbb, Image, Keypoint, Mask, NmsOps, Obb, Ops, Prob, Processor, Task,
+    Ts, Version, Xs, Y,
 };
 
 #[derive(Debug, Builder)]
@@ -36,16 +36,16 @@ pub struct YOLO {
     classes_retained: Vec<usize>,
 }
 
-impl TryFrom<ModelConfig> for YOLO {
+impl TryFrom<Config> for YOLO {
     type Error = anyhow::Error;
 
-    fn try_from(config: ModelConfig) -> Result<Self, Self::Error> {
+    fn try_from(config: Config) -> Result<Self, Self::Error> {
         Self::new(config)
     }
 }
 
 impl YOLO {
-    pub fn new(config: ModelConfig) -> Result<Self> {
+    pub fn new(config: Config) -> Result<Self> {
         let engine = Engine::try_from_config(&config.model)?;
         let (batch, height, width, ts, spec) = (
             engine.batch().opt(),
@@ -204,7 +204,7 @@ impl YOLO {
         if nc == 0 && names.is_empty() {
             anyhow::bail!(
                     "Neither class names nor the number of classes were specified. \
-                    \nConsider specify them with `ModelConfig::default().with_nc()` or `ModelConfig::default().with_class_names()`"
+                    \nConsider specify them with `Config::default().with_nc()` or `Config::default().with_class_names()`"
                 );
         }
 
@@ -226,7 +226,7 @@ impl YOLO {
                 (true, Some(nk)) => nk,
                 (true, None) => anyhow::bail!(
                     "Neither keypoint names nor the number of keypoints were specified when doing `KeypointsDetection` task. \
-                    \nConsider specify them with `ModelConfig::default().with_nk()` or `ModelConfig::default().with_keypoint_names()`"
+                    \nConsider specify them with `Config::default().with_nk()` or `Config::default().with_keypoint_names()`"
                 ),
             }
         } else {

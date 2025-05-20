@@ -1,5 +1,5 @@
 use anyhow::Result;
-use usls::{models::Moondream2, Annotator, DataLoader, ModelConfig, Scale, Task};
+use usls::{models::Moondream2, Annotator, Config, DataLoader, Scale, Task};
 
 #[derive(argh::FromArgs)]
 /// Example
@@ -40,8 +40,8 @@ fn main() -> Result<()> {
 
     // build model
     let config = match args.scale.as_str().try_into()? {
-        Scale::Billion(0.5) => ModelConfig::moondream2_0_5b(),
-        Scale::Billion(2.) => ModelConfig::moondream2_2b(),
+        Scale::Billion(0.5) => Config::moondream2_0_5b(),
+        Scale::Billion(2.) => Config::moondream2_2b(),
         _ => unimplemented!(),
     }
     .with_dtype_all(args.dtype.as_str().try_into()?)

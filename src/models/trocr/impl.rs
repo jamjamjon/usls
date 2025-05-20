@@ -3,7 +3,7 @@ use anyhow::Result;
 use ndarray::{s, Axis};
 use rayon::prelude::*;
 
-use crate::{elapsed, Engine, Image, LogitsSampler, ModelConfig, Processor, Scale, Ts, Xs, X, Y};
+use crate::{elapsed, Config, Engine, Image, LogitsSampler, Processor, Scale, Ts, Xs, X, Y};
 
 #[derive(Debug, Copy, Clone)]
 pub enum TrOCRKind {
@@ -40,7 +40,7 @@ pub struct TrOCR {
 }
 
 impl TrOCR {
-    pub fn new(config: ModelConfig) -> Result<Self> {
+    pub fn new(config: Config) -> Result<Self> {
         let encoder = Engine::try_from_config(&config.visual)?;
         let decoder = Engine::try_from_config(&config.textual_decoder)?;
         let decoder_merged = Engine::try_from_config(&config.textual_decoder_merged)?;

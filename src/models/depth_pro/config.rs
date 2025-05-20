@@ -1,5 +1,5 @@
 /// Model configuration for `DepthPro`
-impl crate::ModelConfig {
+impl crate::Config {
     pub fn depth_pro() -> Self {
         Self::default()
             .with_name("depth-pro")

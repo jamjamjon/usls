@@ -1,5 +1,5 @@
 use anyhow::Result;
-use usls::{models::RTDETR, Annotator, DataLoader, ModelConfig};
+use usls::{models::RTDETR, Annotator, Config, DataLoader};
 
 fn main() -> Result<()> {
     tracing_subscriber::fmt()
@@ -8,7 +8,7 @@ fn main() -> Result<()> {
         .init();
 
     // config
-    let config = ModelConfig::rtdetr_v2_s_coco().commit()?;
+    let config = Config::rtdetr_v2_s_coco().commit()?;
     // rtdetr_v1_r18vd_coco()
     // rtdetr_v2_ms_coco()
     // rtdetr_v2_m_coco()

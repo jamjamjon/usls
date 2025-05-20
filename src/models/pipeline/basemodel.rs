@@ -2,7 +2,7 @@ use aksr::Builder;
 use anyhow::Result;
 
 use crate::{
-    elapsed, DType, Device, Engine, Image, ModelConfig, Processor, Scale, Task, Ts, Version, Xs, X,
+    elapsed, Config, DType, Device, Engine, Image, Processor, Scale, Task, Ts, Version, Xs, X,
 };
 
 #[derive(Debug, Builder)]
@@ -27,7 +27,7 @@ impl BaseModelVisual {
         self.ts.summary();
     }
 
-    pub fn new(config: ModelConfig) -> Result<Self> {
+    pub fn new(config: Config) -> Result<Self> {
         let engine = Engine::try_from_config(&config.model)?;
         let err_msg = "You need to specify the image height and image width for visual model.";
         let (batch, height, width, ts, spec) = (
@@ -103,7 +103,7 @@ impl BaseModelTextual {
         self.ts.summary();
     }
 
-    pub fn new(config: ModelConfig) -> Result<Self> {
+    pub fn new(config: Config) -> Result<Self> {
         let engine = Engine::try_from_config(&config.model)?;
         let (batch, ts, spec) = (
             engine.batch().opt(),
