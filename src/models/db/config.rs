@@ -29,6 +29,14 @@ impl crate::Config {
         Self::db().with_model_file("ppocr-v4-server-ch.onnx")
     }
 
+    pub fn ppocr_det_v5_mobile() -> Self {
+        Self::db().with_model_file("ppocr-v5-mobile.onnx")
+    }
+
+    pub fn ppocr_det_v5_server() -> Self {
+        Self::db().with_model_file("ppocr-v5-server.onnx")
+    }
+
     pub fn db2() -> Self {
         Self::db()
             .with_image_mean(&[0.798, 0.785, 0.772])

@@ -56,4 +56,16 @@ impl crate::Config {
     pub fn svtr_v2_student_ch() -> Self {
         Self::svtr_ch().with_model_file("v2-distill-student-ch.onnx")
     }
+
+    fn ppocr_rec_v5() -> Self {
+        Self::svtr().with_vocab_txt("svtr/ppocrv5_dict.txt")
+    }
+
+    pub fn ppocr_rec_v5_mobile() -> Self {
+        Self::ppocr_rec_v5().with_model_file("ppocr-v5-mobile.onnx")
+    }
+
+    pub fn ppocr_rec_v5_server() -> Self {
+        Self::ppocr_rec_v5().with_model_file("ppocr-v5-server.onnx")
+    }
 }
