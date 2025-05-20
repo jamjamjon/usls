@@ -197,8 +197,9 @@ impl Hub {
 
             pack = pack.with_url(s).with_tag(&tag_).with_file_name(&file_name_);
             if let Some(n) = retry!(self.max_attempts, Self::fetch_get_response(s))?
-                .header("Content-Length")
-                .and_then(|s| s.parse::<u64>().ok())
+                .headers()
+                .get(http::header::CONTENT_LENGTH)
+                .and_then(|v| v.to_str().ok()?.parse::<u64>().ok())
             {
                 pack = pack.with_file_size(n);
             }
@@ -242,14 +243,20 @@ impl Hub {
                             } else {
                                 for f_ in release.assets.iter() {
                                     if f_.name.as_str() == file_name_ {
-                                        pack = pack.with_url(&f_.browser_download_url).with_tag(tag_).with_file_name(file_name_).with_file_size(f_.size);
+                                        pack = pack
+                                            .with_url(&f_.browser_download_url)
+                                            .with_tag(tag_)
+                                            .with_file_name(file_name_)
+                                            .with_file_size(f_.size);
                                         break;
                                     }
                                 }
                             }
                         }
 
-                        self.to.crate_dir_default_with_subs(&[tag_])?.join(file_name_)
+                        self.to
+                            .crate_dir_default_with_subs(&[tag_])?
+                            .join(file_name_)
                     }
                 }
                 _ => anyhow::bail!(
@@ -265,7 +272,8 @@ impl Hub {
             if saveout.is_file() {
                 match pack.file_size {
                     None => {
-                        log::warn!("Failed to retrieve the remote file size. \
+                        log::warn!(
+                            "Failed to retrieve the remote file size. \
                             Download will be skipped, which may cause issues. \
                             Please verify your network connection or ensure the local file is valid and complete."
                         );
@@ -315,7 +323,8 @@ impl Hub {
     fn fetch_and_cache_releases(url: &str, cache_path: &Path) -> Result<String> {
         let response = retry!(3, Self::fetch_get_response(url))?;
         let body = response
-            .into_string()
+            .into_body()
+            .read_to_string()
             .context("Failed to read response body")?;
 
         // Ensure cache directory exists
@@ -392,17 +401,18 @@ impl Hub {
     ) -> Result<()> {
         let resp = Self::fetch_get_response(src)?;
         let ntotal = resp
-            .header("Content-Length")
-            .and_then(|s| s.parse::<u64>().ok())
+            .headers()
+            .get(http::header::CONTENT_LENGTH)
+            .and_then(|v| v.to_str().ok()?.parse::<u64>().ok())
             .context("Content-Length header is missing or invalid")?;
         let pb = crate::build_progress_bar(
             ntotal,
             "Fetching",
             Some(message.unwrap_or_default()),
-            "{prefix:.cyan.bold} {msg} |{bar}| ({percent_precise}%, {binary_bytes}/{binary_total_bytes}, {binary_bytes_per_sec})"
+            "{prefix:.cyan.bold} {msg} |{bar}| ({percent_precise}%, {binary_bytes}/{binary_total_bytes}, {binary_bytes_per_sec})",
         )?;
 
-        let mut reader = resp.into_reader();
+        let mut reader = resp.into_body().into_reader();
         let mut buffer = [0; 2048];
         let mut downloaded_bytes = 0usize;
         let mut file = std::fs::File::create(&dst)
@@ -433,8 +443,12 @@ impl Hub {
         Ok(())
     }
 
-    fn fetch_get_response(url: &str) -> anyhow::Result<ureq::Response> {
-        let agent = ureq::AgentBuilder::new().try_proxy_from_env(true).build();
+    fn fetch_get_response(url: &str) -> anyhow::Result<http::Response<ureq::Body>> {
+        let config = ureq::Agent::config_builder()
+            .proxy(ureq::Proxy::try_from_env())
+            .build();
+        let agent = ureq::Agent::new_with_config(config);
+
         let response = agent
             .get(url)
             .call()

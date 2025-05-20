@@ -126,11 +126,11 @@ fn format_bytes_internal(
 }
 
 pub fn generate_random_string(length: usize) -> String {
-    use rand::{distributions::Alphanumeric, thread_rng, Rng};
+    use rand::{distr::Alphanumeric, rng, Rng};
     if length == 0 {
         return String::new();
     }
-    let rng = thread_rng();
+    let rng = rng();
     let mut result = String::with_capacity(length);
     result.extend(rng.sample_iter(&Alphanumeric).take(length).map(char::from));
     result
