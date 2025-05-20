@@ -165,13 +165,13 @@ impl Color {
     }
 
     pub fn palette_rand(n: usize) -> Vec<Self> {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let xs: Vec<(u8, u8, u8)> = (0..n)
             .map(|_| {
                 (
-                    rng.gen_range(0..=255),
-                    rng.gen_range(0..=255),
-                    rng.gen_range(0..=255),
+                    rng.random_range(0..=255),
+                    rng.random_range(0..=255),
+                    rng.random_range(0..=255),
                 )
             })
             .collect();

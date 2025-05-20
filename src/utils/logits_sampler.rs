@@ -1,5 +1,5 @@
 use anyhow::Result;
-use rand::distributions::{Distribution, WeightedIndex};
+use rand::distr::{Distribution, weighted::WeightedIndex};
 
 #[derive(Debug, Clone)]
 pub struct LogitsSampler {
@@ -76,7 +76,7 @@ impl LogitsSampler {
         let choices: Vec<usize> = candidates.iter().map(|&(idx, _)| idx).collect();
         let probs: Vec<f32> = candidates.iter().map(|&(_, prob)| prob).collect();
         let dist = WeightedIndex::new(probs)?;
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let token_id = choices[dist.sample(&mut rng)];
         Ok(token_id as u32)
     }

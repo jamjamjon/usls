@@ -1,7 +1,7 @@
 use aksr::Builder;
 use anyhow::Result;
 use ndarray::{s, Axis};
-use rand::prelude::*;
+use rand::{prelude::*, rng};
 
 use crate::{
     elapsed, Config, DynConf, Engine, Image, Mask, Ops, Polygon, Processor, SamPrompt, Ts, Xs, X, Y,
@@ -259,8 +259,8 @@ impl SAM {
                 };
 
                 // contours
-                let mut rng = thread_rng();
-                let id = rng.gen_range(0..20);
+                let mut rng = rng();
+                let id = rng.random_range(0..20);
                 let mask = Mask::new(&luma, image_width, image_height)?.with_id(id);
                 if self.find_contours {
                     for polygon in mask.polygons().into_iter() {
