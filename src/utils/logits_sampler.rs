@@ -1,5 +1,5 @@
 use anyhow::Result;
-use rand::distr::{Distribution, weighted::WeightedIndex};
+use rand::distr::{weighted::WeightedIndex, Distribution};
 
 #[derive(Debug, Clone)]
 pub struct LogitsSampler {

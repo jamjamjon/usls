@@ -126,7 +126,7 @@ fn format_bytes_internal(
 }
 
 pub fn generate_random_string(length: usize) -> String {
-    use rand::{Rng, distr::Alphanumeric, rng};
+    use rand::{distr::Alphanumeric, rng, Rng};
     if length == 0 {
         return String::new();
     }

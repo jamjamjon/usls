@@ -7,7 +7,7 @@ use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-use crate::{Dir, retry};
+use crate::{retry, Dir};
 
 /// Represents a downloadable asset in a release
 #[derive(Clone, Debug, Serialize, Deserialize)]
