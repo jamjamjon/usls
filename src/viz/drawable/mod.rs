@@ -86,6 +86,45 @@ impl Drawable for Y {
     }
 }
 
+impl<T> Drawable for Vec<T>
+where
+    [T]: Drawable,
+{
+    fn get_local_style(&self) -> Option<&Style> {
+        self.as_slice().get_local_style()
+    }
+
+    fn get_global_style<'a>(&self, ctx: &'a DrawContext) -> Option<&'a Style> {
+        self.as_slice().get_global_style(ctx)
+    }
+
+    fn get_id(&self) -> Option<usize> {
+        self.as_slice().get_id()
+    }
+
+    fn draw_shapes_with_style(
+        &self,
+        ctx: &DrawContext,
+        canvas: &mut image::RgbaImage,
+        style: &Style,
+    ) -> anyhow::Result<()> {
+        self.as_slice().draw_shapes_with_style(ctx, canvas, style)
+    }
+
+    fn draw_texts_with_style(
+        &self,
+        ctx: &DrawContext,
+        canvas: &mut image::RgbaImage,
+        style: &Style,
+    ) -> anyhow::Result<()> {
+        self.as_slice().draw_texts_with_style(ctx, canvas, style)
+    }
+
+    fn draw(&self, ctx: &DrawContext, canvas: &mut image::RgbaImage) -> anyhow::Result<()> {
+        self.as_slice().draw(ctx, canvas)
+    }
+}
+
 // impl<T: Drawable> Drawable for Vec<T> {
 //     fn draw_shapes(&self, ctx: &DrawContext, canvas: &mut image::RgbaImage) ->  anyhow::Result<()> {
 //         self.iter().try_for_each(|x| x.draw_shapes(ctx, canvas))

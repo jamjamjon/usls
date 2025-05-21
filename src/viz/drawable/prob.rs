@@ -4,7 +4,7 @@ use image::RgbaImage;
 
 use crate::{DrawContext, Prob, Style, TextLoc};
 
-impl Drawable for Vec<Prob> {
+impl Drawable for [Prob] {
     fn draw_texts_with_style(
         &self,
         ctx: &DrawContext,

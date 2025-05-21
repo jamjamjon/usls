@@ -4,7 +4,7 @@ use image::{Rgba, RgbaImage};
 
 use crate::{DrawContext, Hbb, Style, TextLoc};
 
-impl Drawable for Vec<Hbb> {
+impl Drawable for [Hbb] {
     fn draw(&self, ctx: &DrawContext, canvas: &mut RgbaImage) -> Result<()> {
         self.iter().try_for_each(|x| x.draw(ctx, canvas))
     }

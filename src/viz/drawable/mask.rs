@@ -70,7 +70,7 @@ fn draw_masks(
     Ok(())
 }
 
-impl Drawable for Vec<Mask> {
+impl Drawable for [Mask] {
     fn get_global_style<'a>(&self, ctx: &'a DrawContext) -> Option<&'a Style> {
         ctx.mask_style
     }
