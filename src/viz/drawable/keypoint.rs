@@ -91,7 +91,7 @@ impl Drawable for Keypoint {
     }
 }
 
-impl Drawable for Vec<Keypoint> {
+impl Drawable for [Keypoint] {
     fn draw(&self, ctx: &DrawContext, canvas: &mut RgbaImage) -> Result<()> {
         let nk = self.len();
         if nk > 0 {
@@ -137,7 +137,7 @@ impl Drawable for Vec<Keypoint> {
     }
 }
 
-impl Drawable for Vec<Vec<Keypoint>> {
+impl Drawable for [Vec<Keypoint>] {
     fn draw(&self, ctx: &DrawContext, canvas: &mut RgbaImage) -> Result<()> {
         self.iter().try_for_each(|x| x.draw(ctx, canvas))
     }

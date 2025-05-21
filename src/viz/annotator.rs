@@ -31,7 +31,10 @@ impl Default for Annotator {
 }
 
 impl Annotator {
-    pub fn annotate<T: Drawable>(&self, image: &Image, drawable: &T) -> Result<Image> {
+    pub fn annotate<T>(&self, image: &Image, drawable: &T) -> Result<Image>
+    where
+        T: Drawable + ?Sized,
+    {
         let ctx = DrawContext {
             text_renderer: &self.text_renderer,
             prob_style: self.prob_style.as_ref(),

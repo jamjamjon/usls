@@ -4,7 +4,7 @@ use image::{Rgba, RgbaImage};
 
 use crate::{DrawContext, Polygon, Style, TextLoc};
 
-impl Drawable for Vec<Polygon> {
+impl Drawable for [Polygon] {
     fn draw(&self, ctx: &DrawContext, canvas: &mut RgbaImage) -> Result<()> {
         self.iter().try_for_each(|x| x.draw(ctx, canvas))
     }
