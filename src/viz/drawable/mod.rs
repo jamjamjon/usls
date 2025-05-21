@@ -61,25 +61,25 @@ pub trait Drawable {
 impl Drawable for Y {
     fn draw(&self, ctx: &DrawContext, canvas: &mut image::RgbaImage) -> anyhow::Result<()> {
         if let Some(probs) = self.probs() {
-            probs.to_vec().draw(ctx, canvas)?;
+            probs.draw(ctx, canvas)?;
         }
         if let Some(polygons) = self.polygons() {
-            polygons.iter().try_for_each(|x| x.draw(ctx, canvas))?;
+            polygons.draw(ctx, canvas)?;
         }
         if let Some(hbbs) = self.hbbs() {
-            hbbs.iter().try_for_each(|x| x.draw(ctx, canvas))?;
+            hbbs.draw(ctx, canvas)?;
         }
         if let Some(obbs) = self.obbs() {
-            obbs.iter().try_for_each(|x| x.draw(ctx, canvas))?;
+            obbs.draw(ctx, canvas)?;
         }
         if let Some(keypoints) = self.keypoints() {
-            keypoints.to_vec().draw(ctx, canvas)?;
+            keypoints.draw(ctx, canvas)?;
         }
         if let Some(keypointss) = self.keypointss() {
-            keypointss.to_vec().draw(ctx, canvas)?;
+            keypointss.draw(ctx, canvas)?;
         }
         if let Some(masks) = self.masks() {
-            masks.to_vec().draw(ctx, canvas)?;
+            masks.draw(ctx, canvas)?;
         }
 
         Ok(())
