@@ -188,7 +188,7 @@ impl TrOCR {
         // to texts
         let texts = texts
             .into_par_iter()
-            .map(|x| Y::default().with_texts(&[&x]))
+            .map(|x| Y::default().with_texts(&[x.into()]))
             .collect::<Vec<_>>();
 
         Ok(texts)

@@ -92,7 +92,7 @@ impl SmolVLM {
         let mut ys: Vec<Y> = Vec::new();
         for image in images.iter() {
             let y = self.generate_one(image, text)?;
-            ys.push(Y::default().with_texts(&[&y]));
+            ys.push(Y::default().with_texts(&[y.into()]));
         }
 
         Ok(ys)

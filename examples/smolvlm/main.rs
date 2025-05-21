@@ -47,7 +47,7 @@ fn main() -> Result<()> {
     for y in ys.iter() {
         if let Some(texts) = y.texts() {
             for text in texts {
-                println!("[User]: {}\n\n[Assistant]:{}", args.prompt, text);
+                println!("[User]: {}\n\n[Assistant]:{:?}", args.prompt, text);
             }
         }
     }

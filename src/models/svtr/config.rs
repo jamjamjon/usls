@@ -6,7 +6,7 @@ impl crate::Config {
             .with_model_ixx(0, 0, (1, 1, 8).into())
             .with_model_ixx(0, 1, 3.into())
             .with_model_ixx(0, 2, 48.into())
-            .with_model_ixx(0, 3, (320, 960, 1600).into())
+            .with_model_ixx(0, 3, (320, 960, 3200).into())
             .with_resize_mode(crate::ResizeMode::FitHeight)
             .with_padding_value(0)
             .with_normalize(true)
@@ -58,7 +58,7 @@ impl crate::Config {
     }
 
     fn ppocr_rec_v5() -> Self {
-        Self::svtr().with_vocab_txt("svtr/ppocrv5_dict.txt")
+        Self::svtr().with_vocab_txt("svtr/vocab_v5_ppocr_rec.txt")
     }
 
     pub fn ppocr_rec_v5_mobile() -> Self {

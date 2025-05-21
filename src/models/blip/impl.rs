@@ -127,7 +127,7 @@ impl Blip {
 
         let ys = texts
             .into_iter()
-            .map(|x| Y::default().with_texts(&[&x]))
+            .map(|x| Y::default().with_texts(&[x.into()]))
             .collect::<Vec<_>>();
 
         Ok(ys)
