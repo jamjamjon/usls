@@ -29,6 +29,20 @@ impl crate::Config {
         Self::db().with_model_file("ppocr-v4-server-ch.onnx")
     }
 
+    fn ppocr_det_v5() -> Self {
+        Self::db()
+            .with_model_ixx(0, 2, (608, 640, 1600).into())
+            .with_model_ixx(0, 3, (608, 640, 1600).into())
+    }
+
+    pub fn ppocr_det_v5_mobile() -> Self {
+        Self::ppocr_det_v5().with_model_file("ppocr-v5-mobile.onnx")
+    }
+
+    pub fn ppocr_det_v5_server() -> Self {
+        Self::ppocr_det_v5().with_model_file("ppocr-v5-server.onnx")
+    }
+
     pub fn db2() -> Self {
         Self::db()
             .with_image_mean(&[0.798, 0.785, 0.772])

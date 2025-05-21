@@ -2,7 +2,7 @@ use aksr::Builder;
 use anyhow::Result;
 use ndarray::{s, Axis};
 
-use crate::{elapsed, models::BaseModelVisual, Config, Image, Keypoint, Ts, Xs, Y};
+use crate::{elapsed, models::BaseModelVisual, Config, Image, Keypoint, Text, Ts, Xs, Y};
 
 #[derive(Builder, Debug)]
 pub struct SLANet {
@@ -107,7 +107,11 @@ impl SLANet {
                 y_texts.extend_from_slice(&["</table>", "</body>", "</html>"]);
             }
 
-            ys.push(Y::default().with_keypointss(&y_kpts).with_texts(&y_texts));
+            ys.push(
+                Y::default()
+                    .with_keypointss(&y_kpts)
+                    .with_texts(&y_texts.into_iter().map(Text::from).collect::<Vec<_>>()),
+            );
         }
 
         Ok(ys)

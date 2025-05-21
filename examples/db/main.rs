@@ -28,9 +28,13 @@ struct Args {
     #[argh(option, default = "false")]
     show_hbbs_conf: bool,
 
-    /// show mbrs confidence
+    /// show obbs confidence
     #[argh(option, default = "false")]
     show_obbs_conf: bool,
+
+    /// show polygons confidence
+    #[argh(option, default = "false")]
+    show_polygons_conf: bool,
 }
 
 fn main() -> Result<()> {
@@ -43,7 +47,7 @@ fn main() -> Result<()> {
     // build model
     let config = match &args.model {
         Some(m) => Config::db().with_model_file(m),
-        None => Config::ppocr_det_v4_ch().with_model_dtype(args.dtype.as_str().try_into()?),
+        None => Config::ppocr_det_v5_mobile().with_model_dtype(args.dtype.as_str().try_into()?),
     }
     .with_device_all(args.device.as_str().try_into()?)
     .commit()?;
@@ -66,16 +70,16 @@ fn main() -> Result<()> {
         .with_polygon_style(
             Style::polygon()
                 .with_visible(true)
-                .with_text_visible(false)
-                .show_confidence(true)
-                .show_id(true)
-                .show_name(true)
+                .with_text_visible(true)
+                .show_confidence(args.show_polygons_conf)
+                .show_id(false)
+                .show_name(false)
                 .with_color(usls::StyleColors::default().with_outline([255, 105, 180, 255].into())),
         )
         .with_hbb_style(
             Style::hbb()
                 .with_visible(args.show_hbbs)
-                .with_text_visible(false)
+                .with_text_visible(true)
                 .with_thickness(1)
                 .show_confidence(args.show_hbbs_conf)
                 .show_id(false)
@@ -84,7 +88,7 @@ fn main() -> Result<()> {
         .with_obb_style(
             Style::obb()
                 .with_visible(args.show_obbs)
-                .with_text_visible(false)
+                .with_text_visible(true)
                 .show_confidence(args.show_obbs_conf)
                 .show_id(false)
                 .show_name(false),

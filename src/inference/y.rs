@@ -1,6 +1,6 @@
 use aksr::Builder;
 
-use crate::{Hbb, Keypoint, Mask, Obb, Polygon, Prob};
+use crate::{Hbb, Keypoint, Mask, Obb, Polygon, Prob, Text};
 
 /// Container for inference results for each image.
 ///
@@ -10,7 +10,7 @@ use crate::{Hbb, Keypoint, Mask, Obb, Polygon, Prob};
 ///
 #[derive(Builder, Clone, Default)]
 pub struct Y {
-    texts: Option<Vec<String>>,
+    texts: Option<Vec<Text>>,
     probs: Option<Vec<Prob>>,
     keypoints: Option<Vec<Keypoint>>,
     keypointss: Option<Vec<Vec<Keypoint>>>,

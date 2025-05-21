@@ -6,7 +6,7 @@ impl crate::Config {
             .with_model_ixx(0, 0, (1, 1, 8).into())
             .with_model_ixx(0, 1, 3.into())
             .with_model_ixx(0, 2, 48.into())
-            .with_model_ixx(0, 3, (320, 960, 1600).into())
+            .with_model_ixx(0, 3, (320, 960, 3200).into())
             .with_resize_mode(crate::ResizeMode::FitHeight)
             .with_padding_value(0)
             .with_normalize(true)
@@ -55,5 +55,17 @@ impl crate::Config {
 
     pub fn svtr_v2_student_ch() -> Self {
         Self::svtr_ch().with_model_file("v2-distill-student-ch.onnx")
+    }
+
+    fn ppocr_rec_v5() -> Self {
+        Self::svtr().with_vocab_txt("svtr/vocab_v5_ppocr_rec.txt")
+    }
+
+    pub fn ppocr_rec_v5_mobile() -> Self {
+        Self::ppocr_rec_v5().with_model_file("ppocr-v5-mobile.onnx")
+    }
+
+    pub fn ppocr_rec_v5_server() -> Self {
+        Self::ppocr_rec_v5().with_model_file("ppocr-v5-server.onnx")
     }
 }

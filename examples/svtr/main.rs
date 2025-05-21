@@ -11,6 +11,10 @@ struct Args {
     /// dtype
     #[argh(option, default = "String::from(\"auto\")")]
     dtype: String,
+
+    /// max text length
+    #[argh(option, default = "960")]
+    max_text_length: usize,
 }
 
 fn main() -> Result<()> {
@@ -22,9 +26,12 @@ fn main() -> Result<()> {
     let args: Args = argh::from_env();
 
     // build model
-    let config = Config::ppocr_rec_v4_ch()
+    let config = Config::ppocr_rec_v5_mobile()
+        // ppocr_rec_v5_server()
+        // ppocr_rec_v4_ch()
         // ppocr_rec_v4_en()
         // repsvtr_ch()
+        .with_model_ixx(0, 3, args.max_text_length.into())
         .with_model_device(args.device.as_str().try_into()?)
         .with_model_dtype(args.dtype.as_str().try_into()?)
         .commit()?;

@@ -3,7 +3,7 @@ use anyhow::Result;
 use ndarray::Axis;
 use rayon::prelude::*;
 
-use crate::{elapsed, Config, DynConf, Engine, Image, Processor, Ts, Xs, Y};
+use crate::{elapsed, Config, DynConf, Engine, Image, Processor, Text, Ts, Xs, Y};
 
 #[derive(Builder, Debug)]
 pub struct SVTR {
@@ -80,13 +80,14 @@ impl SVTR {
 
                 preds.dedup_by(|a, b| a.0 == b.0);
 
-                let text: String = preds
+                let (text, confs): (String, Vec<f32>) = preds
                     .into_iter()
                     .filter(|(id, &conf)| *id != 0 && conf >= self.confs[0])
-                    .map(|(id, _)| self.processor.vocab()[id].clone())
+                    .map(|(id, &conf)| (self.processor.vocab()[id].clone(), conf))
                     .collect();
 
-                Y::default().with_texts(&[&text])
+                Y::default().with_texts(&[Text::from(text)
+                    .with_confidence(confs.iter().sum::<f32>() / confs.len() as f32)])
             })
             .collect();
 

@@ -107,7 +107,7 @@ impl Moondream2 {
                     _ => vec![198., 198., 24334., 1159., 25.],
                 };
                 let text = self.generate_text(&input_ids, kv_cache)?;
-                let y = Y::default().with_texts(&[&text]);
+                let y = Y::default().with_texts(&[text.into()]);
 
                 Ok(y)
             }
@@ -120,7 +120,7 @@ impl Moondream2 {
                     .collect();
 
                 let text = self.generate_text(&input_ids, kv_cache)?;
-                let y = Y::default().with_texts(&[&text]);
+                let y = Y::default().with_texts(&[text.into()]);
 
                 Ok(y)
             }
