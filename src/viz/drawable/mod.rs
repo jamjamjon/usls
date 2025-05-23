@@ -60,8 +60,8 @@ pub trait Drawable {
 
 impl Drawable for Y {
     fn draw(&self, ctx: &DrawContext, canvas: &mut image::RgbaImage) -> anyhow::Result<()> {
-        if let Some(probs) = self.probs() {
-            probs.draw(ctx, canvas)?;
+        if let Some(masks) = self.masks() {
+            masks.draw(ctx, canvas)?;
         }
         if let Some(polygons) = self.polygons() {
             polygons.draw(ctx, canvas)?;
@@ -78,8 +78,8 @@ impl Drawable for Y {
         if let Some(keypointss) = self.keypointss() {
             keypointss.draw(ctx, canvas)?;
         }
-        if let Some(masks) = self.masks() {
-            masks.draw(ctx, canvas)?;
+        if let Some(probs) = self.probs() {
+            probs.draw(ctx, canvas)?;
         }
 
         Ok(())
