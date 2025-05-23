@@ -2,7 +2,6 @@ use anyhow::{Context, Result};
 use indicatif::ProgressStyle;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
@@ -461,9 +460,9 @@ impl Hub {
     }
 
     fn cache_file(owner: &str, repo: &str) -> String {
-        let mut hasher = Sha256::new();
-        hasher.update(format!("{}-{}", owner, repo));
-        format!(".{:x}", hasher.finalize())
+        let safe_owner = owner.replace(|c: char| !c.is_ascii_alphanumeric(), "_");
+        let safe_repo = repo.replace(|c: char| !c.is_ascii_alphanumeric(), "_");
+        format!(".releases_{}_{}.json", safe_owner, safe_repo)
     }
 
     fn get_releases(owner: &str, repo: &str, to: &Dir, ttl: &Duration) -> Result<Vec<Release>> {

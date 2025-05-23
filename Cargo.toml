@@ -32,7 +32,6 @@ natord = "1.0.9"
 geo = "0.30.0"
 chrono = "0.4.40"
 regex = "1.11.1"
-sha2 = "0.10.8"
 tempfile = "3.19.1"
 video-rs = { version = "0.10.3", features = ["ndarray"], optional = true }
 fast_image_resize = { version = "5.1.2", features = ["image"] }
