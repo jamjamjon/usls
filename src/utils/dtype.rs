@@ -20,6 +20,7 @@ pub enum DType {
     Bnb4,
     Q4,
     Q4f16,
+    Q8,
 }
 
 impl TryFrom<&str> for DType {
@@ -43,6 +44,7 @@ impl TryFrom<&str> for DType {
             "b16" | "bf16" => Ok(Self::Bf16),
             "q4f16" => Ok(Self::Q4f16),
             "q4" => Ok(Self::Q4),
+            "q8" => Ok(Self::Q8),
             "bnb4" => Ok(Self::Bnb4),
             x => anyhow::bail!("Unsupported DType: {}", x),
         }
@@ -71,6 +73,7 @@ impl std::fmt::Display for DType {
             Self::Bnb4 => "bnb4",
             Self::Q4 => "q4",
             Self::Q4f16 => "q4f16",
+            Self::Q8 => "q8",
         };
         write!(f, "{}", x)
     }

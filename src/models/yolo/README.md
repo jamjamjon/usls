@@ -15,27 +15,3 @@ The official repository can be found on:
 ## Example
 
 Refer to the [example](../../../examples/yolo)
-
-
-## TODO
-- [x] YOLOv5-det
-- [x] YOLOv5-cls
-- [x] YOLOv5-seg
-- [x] YOLOv6
-- [x] YOLOv7
-- [x] YOLOv8-det
-- [x] YOLOv8-cls
-- [x] YOLOv8-pose
-- [x] YOLOv8-seg
-- [x] YOLOv8-obb
-- [x] YOLOv8-world
-- [x] YOLOv8-rtdetr
-- [x] YOLOv9
-- [x] YOLOv10
-- [x] YOLO11-det
-- [x] YOLO11-cls
-- [x] YOLO11-pose
-- [x] YOLO11-seg
-- [x] YOLO11-obb
-- [x] FastSam
-- [ ] YOLO-NAS
