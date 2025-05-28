@@ -72,6 +72,19 @@ impl ORTConfig {
                     let stem = try_fetch_file_stem(&self.file)?;
                     self.spec = format!("{}/{}", name, stem);
                     self.file = Hub::default().try_fetch(&format!("{}/{}", name, self.file))?;
+
+                    // try fetch external data file if it exists
+                    match Hub::default().try_fetch(&format!("{}_data", self.file)) {
+                        Ok(external_data_file) => {
+                            log::debug!(
+                                "Successfully fetched external data file: {}",
+                                external_data_file
+                            );
+                        }
+                        Err(_) => {
+                            log::debug!("No external data file found for model {}", self.file);
+                        }
+                    }
                 }
             }
         }
