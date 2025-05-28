@@ -5,7 +5,7 @@ use usls::{models::GroundingDINO, Annotator, Config, DataLoader};
 /// Example
 struct Args {
     /// dtype
-    #[argh(option, default = "String::from(\"fp16\")")]
+    #[argh(option, default = "String::from(\"q8\")")]
     dtype: String,
 
     /// device
