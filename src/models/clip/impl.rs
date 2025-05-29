@@ -54,7 +54,7 @@ impl Clip {
         let xs = elapsed!("textual-preprocess", self.ts, {
             let encodings: Vec<f32> = self
                 .processor
-                .encode_texts_ids(xs, false)?
+                .encode_texts_ids(xs, true)?
                 .into_iter()
                 .flatten()
                 .collect();
@@ -62,6 +62,7 @@ impl Clip {
             let x: X = Array2::from_shape_vec((xs.len(), encodings.len() / xs.len()), encodings)?
                 .into_dyn()
                 .into();
+
             x
         });
         let xs = elapsed!("textual-inference", self.ts, {

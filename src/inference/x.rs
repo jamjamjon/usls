@@ -1,6 +1,7 @@
 use anyhow::Result;
 use image::DynamicImage;
-use ndarray::{Array, Dim, IntoDimension, IxDyn, IxDynImpl};
+use ndarray::{Array, Dim, IntoDimension, Ix2, IxDyn, IxDynImpl};
+// use std::ops::Mul;
 
 use crate::{Ops, ResizeMode};
 
@@ -64,9 +65,39 @@ impl std::ops::Deref for X {
     }
 }
 
-impl X {
-    // TODO: Add some slice and index method
+impl std::ops::Mul<f32> for X {
+    type Output = Self;
 
+    fn mul(self, other: f32) -> Self::Output {
+        Self(self.0 * other)
+    }
+}
+
+impl std::ops::Div<f32> for X {
+    type Output = Self;
+
+    fn div(self, other: f32) -> Self::Output {
+        Self(self.0 / other)
+    }
+}
+
+impl std::ops::Add<f32> for X {
+    type Output = Self;
+
+    fn add(self, other: f32) -> Self::Output {
+        Self(self.0 + other)
+    }
+}
+
+impl std::ops::Sub<f32> for X {
+    type Output = Self;
+
+    fn sub(self, other: f32) -> Self::Output {
+        Self(self.0 - other)
+    }
+}
+
+impl X {
     pub fn zeros(shape: &[usize]) -> Self {
         Self::from(Array::zeros(Dim(IxDynImpl::from(shape.to_vec()))))
     }
@@ -184,6 +215,36 @@ impl X {
 
     pub fn norm(mut self, d: usize) -> Result<Self> {
         self.0 = Ops::norm(self.0, d)?;
+        Ok(self)
+    }
+
+    pub fn dot2(&self, other: &Self) -> Result<Self> {
+        // Check dimensions
+        if self.ndim() != 2 || other.ndim() != 2 {
+            anyhow::bail!(
+                "dot2 requires 2D matrices, got {}D and {}D",
+                self.ndim(),
+                other.ndim()
+            );
+        }
+
+        let a = self.0.as_standard_layout().into_dimensionality::<Ix2>()?;
+        let b = other.0.as_standard_layout().into_dimensionality::<Ix2>()?;
+
+        // Check compatibility
+        if a.shape()[1] != b.shape()[1] {
+            anyhow::bail!(
+                "Incompatible dimensions for dot2: {:?} and {:?}",
+                a.shape(),
+                b.shape()
+            );
+        }
+
+        Ok(a.dot(&b.t()).into_dyn().into())
+    }
+
+    pub fn softmax(mut self, d: usize) -> Result<Self> {
+        self.0 = Ops::softmax(self.0, d)?;
         Ok(self)
     }
 

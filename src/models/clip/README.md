@@ -4,7 +4,11 @@ CLIP (Contrastive Language-Image Pre-Training) is a neural network trained on a 
 
 ## Official Repository
 
-The official repository can be found on: [GitHub](https://github.com/openai/CLIP)
+The official repository can be found on: 
+- [CLIP](https://github.com/openai/CLIP)
+- [jina-clip-v1](https://huggingface.co/jinaai/jina-clip-v1)
+- [jina-clip-v2](https://huggingface.co/jinaai/jina-clip-v2)
+- [mobileclip](https://github.com/apple/ml-mobileclip)
 
 
 ## Example
