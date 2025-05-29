@@ -22,7 +22,11 @@ fn main() -> Result<()> {
     let args: Args = argh::from_env();
 
     // build model
-    let config = Config::clip_vit_b16()
+    let config = Config::mobileclip_s0()
+        // mobileclip_blt()
+        // clip_vit_b16()
+        // clip_vit_l14()
+        // clip_vit_b32()
         // jina_clip_v1()
         // jina_clip_v2()
         .with_dtype_all(args.dtype.as_str().try_into()?)

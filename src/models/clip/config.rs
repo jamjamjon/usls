@@ -56,7 +56,7 @@ impl crate::Config {
     }
 
     pub fn jina_clip_v2() -> Self {
-        Self::default()
+        Self::jina_clip()
             .with_name("jina-clip-v2")
             .with_visual_ixx(0, 2, 512.into())
             .with_visual_ixx(0, 3, 512.into())
@@ -64,5 +64,48 @@ impl crate::Config {
             .with_tokenizer_config_file("jina-clip-v2/tokenizer_config.json")
             .with_special_tokens_map_file("jina-clip-v2/special_tokens_map.json")
             .with_config_file("jina-clip-v2/config.json")
+    }
+
+    pub fn mobileclip() -> Self {
+        Self::default()
+            .with_name("mobileclip")
+            .with_batch_size_all(1)
+            .with_visual_ixx(0, 1, 3.into())
+            .with_visual_ixx(0, 2, 224.into())
+            .with_visual_ixx(0, 3, 224.into())
+            .with_model_max_length(77)
+            .with_tokenizer_file("clip/tokenizer.json")
+            .with_tokenizer_config_file("clip/tokenizer_config.json")
+            .with_special_tokens_map_file("clip/special_tokens_map.json")
+    }
+
+    pub fn mobileclip_s0() -> Self {
+        Self::mobileclip()
+            .with_textual_file("s0-textual.onnx")
+            .with_visual_file("s0-visual.onnx")
+    }
+
+    pub fn mobileclip_s1() -> Self {
+        Self::mobileclip()
+            .with_textual_file("s1-textual.onnx")
+            .with_visual_file("s1-visual.onnx")
+    }
+
+    pub fn mobileclip_s2() -> Self {
+        Self::mobileclip()
+            .with_textual_file("s2-textual.onnx")
+            .with_visual_file("s2-visual.onnx")
+    }
+
+    pub fn mobileclip_b() -> Self {
+        Self::mobileclip()
+            .with_textual_file("b-textual.onnx")
+            .with_visual_file("b-visual.onnx")
+    }
+
+    pub fn mobileclip_blt() -> Self {
+        Self::mobileclip()
+            .with_textual_file("blt-textual.onnx")
+            .with_visual_file("blt-visual.onnx")
     }
 }
