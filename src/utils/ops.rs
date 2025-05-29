@@ -189,6 +189,25 @@ impl Ops<'_> {
         Ok(xs / std_)
     }
 
+    pub fn softmax(xs: Array<f32, IxDyn>, d: usize) -> Result<Array<f32, IxDyn>> {
+        if xs.shape().len() <= d {
+            anyhow::bail!(
+                "`softmax`: Specified axis {} exceeds the maximum dimension length {}.",
+                d,
+                xs.shape().len()
+            );
+        }
+        let max_vals = xs
+            .map_axis(Axis(d), |view| {
+                view.fold(f32::NEG_INFINITY, |a, &b| a.max(b))
+            })
+            .insert_axis(Axis(d));
+        let exps = (&xs - &max_vals).mapv(f32::exp);
+        let sums = exps.sum_axis(Axis(d)).insert_axis(Axis(d));
+
+        Ok(exps / sums)
+    }
+
     pub fn scale_wh(w0: f32, h0: f32, w1: f32, h1: f32) -> (f32, f32, f32) {
         let r = (w1 / w0).min(h1 / h0);
         (r, (w0 * r).round(), (h0 * r).round())
