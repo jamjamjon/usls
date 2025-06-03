@@ -38,10 +38,10 @@ fast_image_resize = { version = "5.1.2", features = ["image"] }
 ndarray-npy = "0.9.1"
 half = { version = "2.3.1" }
 prost = "0.13.5"
-ort = { version = "2.0.0-rc.9", default-features = false, optional = true, features = [
-  "ndarray",
+ort = { version = "=2.0.0-rc.10", default-features = false, optional = true, features = [
   "copy-dylibs",
   "half",
+  "std",
 ] }
 tokenizers = { version = "0.21.1" }
 paste = "1.0.15"
@@ -54,10 +54,10 @@ argh = "0.1.13"
 tracing-subscriber = { version = "0.3.18", features = ["env-filter", "chrono"] }
 
 [features]
-default = ["ort-download-binaries"]
-ort-download-binaries = ["ort", "ort/download-binaries"]
-ort-load-dynamic = ["ort", "ort/load-dynamic"]
-cuda = ["ort/cuda"]
-trt = ["ort/tensorrt"]
-mps = ["ort/coreml"]
-video = ["dep:video-rs"]
+default = [ "ort-download-binaries" ]
+video = [ "dep:video-rs" ]
+ort-download-binaries = [ "ort", "ort/download-binaries" ]
+ort-load-dynamic = [ "ort", "ort/load-dynamic" ]
+cuda = [ "ort/cuda" ]
+trt = [ "ort/tensorrt" ]
+coreml = [ "ort/coreml" ]

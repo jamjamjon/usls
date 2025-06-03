@@ -2,8 +2,8 @@
 pub enum Device {
     Cpu(usize),
     Cuda(usize),
-    TensorRT(usize),
-    CoreML(usize),
+    TensorRt(usize),
+    CoreMl(usize),
 }
 
 impl Default for Device {
@@ -15,10 +15,10 @@ impl Default for Device {
 impl std::fmt::Display for Device {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         let x = match self {
-            Self::Cpu(i) => format!("cpu:{}", i),
-            Self::Cuda(i) => format!("cuda:{}", i),
-            Self::CoreML(i) => format!("mps:{}", i),
-            Self::TensorRT(i) => format!("tensorrt:{}", i),
+            Self::Cpu(i) => format!("CPU:{}", i),
+            Self::Cuda(i) => format!("CUDA:{}(NVIDIA)", i),
+            Self::TensorRt(i) => format!("TensorRT:{}(NVIDIA)", i),
+            Self::CoreMl(i) => format!("CoreML:{}(Apple)", i),
         };
         write!(f, "{}", x)
     }
@@ -41,8 +41,9 @@ impl TryFrom<&str> for Device {
         match d.to_lowercase().as_str() {
             "cpu" => Ok(Self::Cpu(id)),
             "cuda" => Ok(Self::Cuda(id)),
-            "trt" | "tensorrt" => Ok(Self::TensorRT(id)),
-            "coreml" | "mps" => Ok(Self::CoreML(id)),
+            "trt" | "tensorrt" => Ok(Self::TensorRt(id)),
+            "coreml" | "mps" => Ok(Self::CoreMl(id)),
+
             _ => anyhow::bail!("Unsupported device str: {s:?}."),
         }
     }
@@ -51,10 +52,7 @@ impl TryFrom<&str> for Device {
 impl Device {
     pub fn id(&self) -> usize {
         match self {
-            Device::Cpu(i) => *i,
-            Device::Cuda(i) => *i,
-            Device::TensorRT(i) => *i,
-            Device::CoreML(i) => *i,
+            Self::Cpu(i) | Self::Cuda(i) | Self::TensorRt(i) | Self::CoreMl(i) => *i,
         }
     }
 }
