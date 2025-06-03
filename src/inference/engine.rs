@@ -20,10 +20,12 @@ use crate::{
 impl From<TensorElementType> for DType {
     fn from(dtype: TensorElementType) -> Self {
         match dtype {
+            TensorElementType::Int4 => Self::Int4,
             TensorElementType::Int8 => Self::Int8,
             TensorElementType::Int16 => Self::Int16,
             TensorElementType::Int32 => Self::Int32,
             TensorElementType::Int64 => Self::Int64,
+            TensorElementType::Uint4 => Self::Uint4,
             TensorElementType::Uint8 => Self::Uint8,
             TensorElementType::Uint16 => Self::Uint16,
             TensorElementType::Uint32 => Self::Uint32,
@@ -32,14 +34,19 @@ impl From<TensorElementType> for DType {
             TensorElementType::Float32 => Self::Fp32,
             TensorElementType::Float64 => Self::Fp64,
             TensorElementType::Bfloat16 => Self::Bf16,
-            TensorElementType::String => Self::String,
-            TensorElementType::Bool => Self::Bool,
+            TensorElementType::Float8E4M3FN => Self::Fp8e4m3fn,
+            TensorElementType::Float8E4M3FNUZ => Self::Fp8e4m3fnuz,
+            TensorElementType::Float8E5M2 => Self::Fp8e5m2,
+            TensorElementType::Float8E5M2FNUZ => Self::Fp8e5m2fnuz,
+            TensorElementType::Complex64 => Self::Complex64,
+            TensorElementType::Complex128 => Self::Complex128,
+            _ => todo!(),
         }
     }
 }
 
 /// A struct for tensor attrs composed of the names, the dtypes, and the dimensions.
-#[derive(Builder, Debug, Clone)]
+#[derive(Builder, Debug, Clone, Default)]
 pub struct OrtTensorAttr {
     pub names: Vec<String>,
     pub dtypes: Vec<TensorElementType>,
@@ -133,7 +140,9 @@ impl Engine {
                     let param = tensor_proto.dims.iter().product::<i64>() as usize;
                     params += param;
                     let param = Ops::make_divisible(param, byte_alignment);
-                    let n = Self::nbytes_from_onnx_dtype_id(tensor_proto.data_type as usize);
+                    let n = Self::get_ort_dtype_from_proto_dtype_id(tensor_proto.data_type)
+                        .map(|x| x.byte_size(1))
+                        .unwrap_or_default();
                     let wbmem = param * n;
                     wbmems += wbmem;
                 }
@@ -145,7 +154,10 @@ impl Engine {
                             let param = tensor.dims.iter().product::<i64>() as usize;
                             params += param;
                             let param = Ops::make_divisible(param, byte_alignment);
-                            let n = Self::nbytes_from_onnx_dtype_id(tensor.data_type as usize);
+                            let n = Self::get_ort_dtype_from_proto_dtype_id(tensor.data_type)
+                                .map(|x| x.byte_size(1))
+                                .unwrap_or_default();
+
                             let wbmem = param * n;
                             wbmems += wbmem;
                         }
@@ -211,7 +223,7 @@ impl Engine {
 
             // update
             pb.set_message(format!(
-                "{}({}) on {:?}",
+                "{}({}) on {}",
                 self.spec,
                 match self.params {
                     Some(bytes) if bytes != 0 => {
@@ -231,7 +243,7 @@ impl Engine {
 
     pub fn run(&mut self, xs: Xs) -> Result<Xs> {
         let mut ys = xs.derive();
-        if let Some(onnx) = &self.onnx {
+        if let Some(onnx) = &mut self.onnx {
             // alignment
             let xs_ = elapsed!(&format!("[{}] ort_preprocessing", self.spec), self.ts, {
                 let mut xs_ = Vec::new();
@@ -267,38 +279,22 @@ impl Engine {
 
     fn preprocess(x: &X, dtype: &TensorElementType) -> Result<DynValue> {
         let x = match dtype {
-            TensorElementType::Float32 => Value::from_array(x.view())?.into_dyn(),
-            TensorElementType::Float16 => {
-                Value::from_array(x.mapv(f16::from_f32).view())?.into_dyn()
+            TensorElementType::Float32 | TensorElementType::Float64 => {
+                Value::from_array(x.0.clone())?.into_dyn()
             }
-            TensorElementType::Float64 => Value::from_array(x.view())?.into_dyn(),
-            TensorElementType::Bfloat16 => {
-                Value::from_array(x.mapv(bf16::from_f32).view())?.into_dyn()
-            }
-            TensorElementType::Int8 => Value::from_array(x.mapv(|x_| x_ as i8).view())?.into_dyn(),
-            TensorElementType::Int16 => {
-                Value::from_array(x.mapv(|x_| x_ as i16).view())?.into_dyn()
-            }
-            TensorElementType::Int32 => {
-                Value::from_array(x.mapv(|x_| x_ as i32).view())?.into_dyn()
-            }
-            TensorElementType::Int64 => {
-                Value::from_array(x.mapv(|x_| x_ as i64).view())?.into_dyn()
-            }
-            TensorElementType::Uint8 => Value::from_array(x.mapv(|x_| x_ as u8).view())?.into_dyn(),
-            TensorElementType::Uint16 => {
-                Value::from_array(x.mapv(|x_| x_ as u16).view())?.into_dyn()
-            }
-            TensorElementType::Uint32 => {
-                Value::from_array(x.mapv(|x_| x_ as u32).view())?.into_dyn()
-            }
-            TensorElementType::Uint64 => {
-                Value::from_array(x.mapv(|x_| x_ as u64).view())?.into_dyn()
-            }
-            TensorElementType::Bool => Value::from_array(x.mapv(|x_| x_ != 0.).view())?.into_dyn(),
+            TensorElementType::Float16 => Value::from_array(x.mapv(f16::from_f32))?.into_dyn(),
+            TensorElementType::Bfloat16 => Value::from_array(x.mapv(bf16::from_f32))?.into_dyn(),
+            TensorElementType::Int8 => Value::from_array(x.mapv(|x_| x_ as i8))?.into_dyn(),
+            TensorElementType::Int16 => Value::from_array(x.mapv(|x_| x_ as i16))?.into_dyn(),
+            TensorElementType::Int32 => Value::from_array(x.mapv(|x_| x_ as i32))?.into_dyn(),
+            TensorElementType::Int64 => Value::from_array(x.mapv(|x_| x_ as i64))?.into_dyn(),
+            TensorElementType::Uint8 => Value::from_array(x.mapv(|x_| x_ as u8))?.into_dyn(),
+            TensorElementType::Uint16 => Value::from_array(x.mapv(|x_| x_ as u16))?.into_dyn(),
+            TensorElementType::Uint32 => Value::from_array(x.mapv(|x_| x_ as u32))?.into_dyn(),
+            TensorElementType::Uint64 => Value::from_array(x.mapv(|x_| x_ as u64))?.into_dyn(),
+            TensorElementType::Bool => Value::from_array(x.mapv(|x_| x_ != 0.))?.into_dyn(),
             _ => unimplemented!(),
         };
-
         Ok(x)
     }
 
@@ -307,7 +303,7 @@ impl Engine {
         where
             T: Clone + 'static + ort::tensor::PrimitiveTensorElementType,
         {
-            match x.try_extract_tensor::<T>() {
+            match x.try_extract_array::<T>() {
                 Err(err) => {
                     debug!("Failed to extract from ort outputs: {:?}. A default value has been generated.", err);
                     Array::zeros(0).into_dyn()
@@ -344,7 +340,7 @@ impl Engine {
             \nConsider enabling them by passing, e.g., `--features #FEATURE`";
 
         match self.device {
-            Device::TensorRT(id) => {
+            Device::TensorRt(id) => {
                 #[cfg(not(feature = "trt"))]
                 {
                     anyhow::bail!(feature_help
@@ -431,16 +427,28 @@ impl Engine {
                     }
                 }
             }
-            Device::CoreML(id) => {
-                #[cfg(not(feature = "mps"))]
+            Device::CoreMl(id) => {
+                #[cfg(not(feature = "coreml"))]
                 {
                     anyhow::bail!(feature_help
                         .replace("#EP", "CoreML")
-                        .replace("#FEATURE", "mps"));
+                        .replace("#FEATURE", "coreml"));
                 }
-                #[cfg(feature = "mps")]
+                #[cfg(feature = "coreml")]
                 {
-                    let ep = ort::execution_providers::CoreMLExecutionProvider::default();
+                    let ep = ort::execution_providers::CoreMLExecutionProvider::default()
+                        .with_model_cache_dir(
+                            crate::Dir::Cache
+                                .crate_dir_default_with_subs(&["coreml-cache"])?
+                                .display(),
+                        )
+                        .with_compute_units(ort::execution_providers::coreml::CoreMLComputeUnits::All)
+                        .with_static_input_shapes(false)
+                        .with_subgraphs(true)
+                        .with_model_format(ort::execution_providers::coreml::CoreMLModelFormat::MLProgram)
+                        .with_specialization_strategy(
+                            ort::execution_providers::coreml::CoreMLSpecializationStrategy::FastPrediction,
+                        );
                     match ep.is_available() {
                         Ok(true) => {
                             ep.register(&mut builder).map_err(|err| {
@@ -452,13 +460,14 @@ impl Engine {
                 }
             }
             _ => {
-                let ep = ort::execution_providers::CPUExecutionProvider::default();
+                let ep = ort::execution_providers::CPUExecutionProvider::default()
+                    .with_arena_allocator(true);
                 match ep.is_available() {
                     Ok(true) => {
                         ep.register(&mut builder)
                             .map_err(|err| anyhow::anyhow!("Failed to register Cpu: {}", err))?;
                     }
-                    _ => anyhow::bail!(compile_help.replace("#EP", "Cpu")),
+                    _ => unreachable!("CPU EP is not available. This case should ideally not be reached under normal circumstances."),
                 }
             }
         }
@@ -532,38 +541,8 @@ impl Engine {
         Ok(ys)
     }
 
-    #[allow(dead_code)]
-    fn nbytes_from_onnx_dtype_id(x: usize) -> usize {
-        match x {
-            7 | 11 | 13 => 8,     // i64, f64, u64
-            1 | 6 | 12 => 4,      // f32, i32, u32
-            10 | 16 | 5 | 4 => 2, // f16, bf16, i16, u16
-            2 | 3 | 9 => 1,       // u8, i8, bool
-            8 => 4,               // string(1~4)
-            _ => 1,               // TODO: others
-        }
-    }
-
-    #[allow(dead_code)]
-    fn nbytes_from_onnx_dtype(x: &TensorElementType) -> usize {
-        match x {
-            TensorElementType::Float64 | TensorElementType::Uint64 | TensorElementType::Int64 => 8, // i64, f64, u64
-            TensorElementType::Float32
-            | TensorElementType::Uint32
-            | TensorElementType::Int32
-            | TensorElementType::String => 4, // f32, i32, u32, string(1~4)
-            TensorElementType::Float16
-            | TensorElementType::Bfloat16
-            | TensorElementType::Int16
-            | TensorElementType::Uint16 => 2, // f16, bf16, i16, u16
-            TensorElementType::Uint8 | TensorElementType::Int8 | TensorElementType::Bool => 1, // u8, i8, bool
-        }
-    }
-
-    #[allow(dead_code)]
-    fn ort_dtype_from_onnx_dtype_id(value: i32) -> Option<TensorElementType> {
+    fn get_ort_dtype_from_proto_dtype_id(value: i32) -> Option<TensorElementType> {
         match value {
-            0 => None,
             1 => Some(TensorElementType::Float32),
             2 => Some(TensorElementType::Uint8),
             3 => Some(TensorElementType::Int8),
@@ -577,10 +556,16 @@ impl Engine {
             11 => Some(TensorElementType::Float64),
             12 => Some(TensorElementType::Uint32),
             13 => Some(TensorElementType::Uint64),
-            14 => None, // COMPLEX64
-            15 => None, // COMPLEX128
+            14 => Some(TensorElementType::Complex64),
+            15 => Some(TensorElementType::Complex128),
             16 => Some(TensorElementType::Bfloat16),
-            _ => None,
+            17 => Some(TensorElementType::Float8E4M3FN),
+            18 => Some(TensorElementType::Float8E4M3FNUZ),
+            19 => Some(TensorElementType::Float8E5M2),
+            20 => Some(TensorElementType::Float8E5M2FNUZ),
+            21 => Some(TensorElementType::Uint4),
+            22 => Some(TensorElementType::Int4),
+            _ => None, // 23: Float4e2m1, 0: Undefined
         }
     }
 
@@ -609,7 +594,7 @@ impl Engine {
                 _ => continue,
             };
             let tensor_type = tensor.elem_type;
-            let tensor_type = match Self::ort_dtype_from_onnx_dtype_id(tensor_type) {
+            let tensor_type = match Self::get_ort_dtype_from_proto_dtype_id(tensor_type) {
                 Some(dtype) => dtype,
                 None => continue,
             };
@@ -641,24 +626,6 @@ impl Engine {
             names,
         })
     }
-
-    // pub fn to_ort(&self) -> TensorElementType {
-    //     match self {
-    //         Self::Int8 => TensorElementType::Int8,
-    //         Self::Int16 => TensorElementType::Int16,
-    //         Self::Int32 => TensorElementType::Int32,
-    //         Self::Int64 => TensorElementType::Int64,
-    //         Self::Uint8 => TensorElementType::Uint8,
-    //         Self::Uint16 => TensorElementType::Uint16,
-    //         Self::Uint32 => TensorElementType::Uint32,
-    //         Self::Uint64 => TensorElementType::Uint64,
-    //         Self::Fp16 => TensorElementType::Float16,
-    //         Self::Fp32 => TensorElementType::Float32,
-    //         Self::Fp64 => TensorElementType::Float64,
-    //         Self::Bf16 => TensorElementType::Bfloat16,
-    //         _ => todo!(),
-    //     }
-    // }
 
     pub fn load_onnx<P: AsRef<std::path::Path>>(p: P) -> Result<onnx::ModelProto> {
         let f = std::fs::read(p.as_ref())?;

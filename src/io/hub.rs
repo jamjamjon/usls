@@ -88,9 +88,6 @@ pub struct Hub {
     /// Directory to store the downloaded file
     to: Dir,
 
-    /// Download timeout in seconds
-    timeout: u64,
-
     /// Time to live (cache duration)
     ttl: Duration,
 
@@ -116,7 +113,6 @@ impl Default for Hub {
             owner,
             repo,
             to,
-            timeout: 3000,
             max_attempts: 3,
             ttl: Duration::from_secs(10 * 60),
         }
@@ -195,7 +191,7 @@ impl Hub {
                 .join(&file_name_);
 
             pack = pack.with_url(s).with_tag(&tag_).with_file_name(&file_name_);
-            if let Some(n) = retry!(self.max_attempts, Self::fetch_get_response(s))?
+            if let Some(n) = retry!(self.max_attempts, self.fetch_get_response(s))?
                 .headers()
                 .get(http::header::CONTENT_LENGTH)
                 .and_then(|v| v.to_str().ok()?.parse::<u64>().ok())
@@ -208,7 +204,7 @@ impl Hub {
             // => Default hub
 
             // Fetch releases
-            let releases = match Self::get_releases(&self.owner, &self.repo, &self.to, &self.ttl) {
+            let releases = match self.get_releases(&self.owner, &self.repo, &self.to, &self.ttl) {
                 Err(err) => anyhow::bail!(
                     "Failed to download: No releases found in this repo. Error: {}",
                     err
@@ -286,7 +282,7 @@ impl Hub {
                                 self.max_attempts,
                                 1000,
                                 3000,
-                                Self::download(
+                                self.download(
                                     &pack.url,
                                     &saveout,
                                     Some(&format!("{}/{}", pack.tag, pack.file_name)),
@@ -303,7 +299,7 @@ impl Hub {
                     self.max_attempts,
                     1000,
                     3000,
-                    Self::download(
+                    self.download(
                         &pack.url,
                         &saveout,
                         Some(&format!("{}/{}", pack.tag, pack.file_name)),
@@ -319,8 +315,8 @@ impl Hub {
     }
 
     /// Fetch releases from GitHub and cache them
-    fn fetch_and_cache_releases(url: &str, cache_path: &Path) -> Result<String> {
-        let response = retry!(3, Self::fetch_get_response(url))?;
+    fn fetch_and_cache_releases(&self, url: &str, cache_path: &Path) -> Result<String> {
+        let response = retry!(self.max_attempts, self.fetch_get_response(url))?;
         let body = response
             .into_body()
             .read_to_string()
@@ -351,7 +347,7 @@ impl Hub {
     }
 
     pub fn tags(&self) -> Vec<String> {
-        Self::get_releases(&self.owner, &self.repo, &self.to, &self.ttl)
+        self.get_releases(&self.owner, &self.repo, &self.to, &self.ttl)
             .unwrap_or_default()
             .into_iter()
             .map(|x| x.tag_name)
@@ -359,7 +355,7 @@ impl Hub {
     }
 
     pub fn files(&self, tag: &str) -> Vec<String> {
-        Self::get_releases(&self.owner, &self.repo, &self.to, &self.ttl)
+        self.get_releases(&self.owner, &self.repo, &self.to, &self.ttl)
             .unwrap_or_default()
             .into_iter()
             .find(|r| r.tag_name == tag)
@@ -394,11 +390,12 @@ impl Hub {
 
     /// Download a file from a github release to a specified path with a progress bar
     pub fn download<P: AsRef<Path> + std::fmt::Debug>(
+        &self,
         src: &str,
         dst: P,
         message: Option<&str>,
     ) -> Result<()> {
-        let resp = Self::fetch_get_response(src)?;
+        let resp = self.fetch_get_response(src)?;
         let ntotal = resp
             .headers()
             .get(http::header::CONTENT_LENGTH)
@@ -412,7 +409,8 @@ impl Hub {
         )?;
 
         let mut reader = resp.into_body().into_reader();
-        let mut buffer = [0; 2048];
+        const BUFFER_SIZE: usize = 64 * 1024;
+        let mut buffer = [0; BUFFER_SIZE];
         let mut downloaded_bytes = 0usize;
         let mut file = std::fs::File::create(&dst)
             .with_context(|| format!("Failed to create destination file: {:?}", dst))?;
@@ -442,7 +440,7 @@ impl Hub {
         Ok(())
     }
 
-    fn fetch_get_response(url: &str) -> anyhow::Result<http::Response<ureq::Body>> {
+    fn fetch_get_response(&self, url: &str) -> anyhow::Result<http::Response<ureq::Body>> {
         let config = ureq::Agent::config_builder()
             .proxy(ureq::Proxy::try_from_env())
             .build();
@@ -462,10 +460,16 @@ impl Hub {
     fn cache_file(owner: &str, repo: &str) -> String {
         let safe_owner = owner.replace(|c: char| !c.is_ascii_alphanumeric(), "_");
         let safe_repo = repo.replace(|c: char| !c.is_ascii_alphanumeric(), "_");
-        format!(".releases_{}_{}.json", safe_owner, safe_repo)
+        format!(".cache-releases-{}-{}.json", safe_owner, safe_repo)
     }
 
-    fn get_releases(owner: &str, repo: &str, to: &Dir, ttl: &Duration) -> Result<Vec<Release>> {
+    fn get_releases(
+        &self,
+        owner: &str,
+        repo: &str,
+        to: &Dir,
+        ttl: &Duration,
+    ) -> Result<Vec<Release>> {
         let cache = to.crate_dir_default()?.join(Self::cache_file(owner, repo));
         let is_file_expired = Self::is_file_expired(&cache, ttl)?;
         let body = if is_file_expired {
@@ -473,7 +477,7 @@ impl Hub {
                 "https://api.github.com/repos/{}/{}/releases?per_page=100",
                 owner, repo
             );
-            Self::fetch_and_cache_releases(&gh_api_release, &cache)?
+            self.fetch_and_cache_releases(&gh_api_release, &cache)?
         } else {
             std::fs::read_to_string(&cache)?
         };
@@ -515,11 +519,6 @@ impl Hub {
 
     pub fn with_ttl(mut self, x: u64) -> Self {
         self.ttl = std::time::Duration::from_secs(x);
-        self
-    }
-
-    pub fn with_timeout(mut self, x: u64) -> Self {
-        self.timeout = x;
         self
     }
 

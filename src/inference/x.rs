@@ -1,7 +1,6 @@
 use anyhow::Result;
 use image::DynamicImage;
 use ndarray::{Array, Dim, IntoDimension, Ix2, IxDyn, IxDynImpl};
-// use std::ops::Mul;
 
 use crate::{Ops, ResizeMode};
 
