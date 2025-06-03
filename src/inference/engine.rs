@@ -141,7 +141,7 @@ impl Engine {
                     params += param;
                     let param = Ops::make_divisible(param, byte_alignment);
                     let n = Self::get_ort_dtype_from_proto_dtype_id(tensor_proto.data_type)
-                        .map(|x| x.byte_size(8))
+                        .map(|x| x.byte_size(1))
                         .unwrap_or_default();
                     let wbmem = param * n;
                     wbmems += wbmem;
@@ -155,7 +155,7 @@ impl Engine {
                             params += param;
                             let param = Ops::make_divisible(param, byte_alignment);
                             let n = Self::get_ort_dtype_from_proto_dtype_id(tensor.data_type)
-                                .map(|x| x.byte_size(8))
+                                .map(|x| x.byte_size(1))
                                 .unwrap_or_default();
 
                             let wbmem = param * n;
