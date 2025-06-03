@@ -448,9 +448,6 @@ impl Engine {
                         .with_model_format(ort::execution_providers::coreml::CoreMLModelFormat::MLProgram)
                         .with_specialization_strategy(
                             ort::execution_providers::coreml::CoreMLSpecializationStrategy::FastPrediction,
-                        )
-                        .with_specialization_strategy(
-                            ort::execution_providers::coreml::CoreMLSpecializationStrategy::FastPrediction,
                         );
                     match ep.is_available() {
                         Ok(true) => {
