@@ -66,7 +66,6 @@ pub struct Engine {
     pub file: String,
     pub spec: String,
     pub device: Device,
-    pub trt_fp16: bool,
     #[args(inc)]
     pub iiixs: Vec<Iiix>,
     #[args(aka = "parameters")]
@@ -77,7 +76,50 @@ pub struct Engine {
     pub onnx: Option<OnnxIo>,
     pub ts: Ts,
     pub num_dry_run: usize,
+
+    // global
     pub graph_opt_level: Option<u8>,
+    pub num_intra_threads: Option<usize>,
+    pub num_inter_threads: Option<usize>,
+
+    // cpu
+    pub cpu_arena_allocator: bool,
+
+    // tensorrt
+    pub tensorrt_fp16: bool,
+    pub tensorrt_engine_cache: bool,
+    pub tensorrt_timing_cache: bool,
+
+    // openvino
+    pub openvino_dynamic_shapes: bool,
+    pub openvino_opencl_throttling: bool,
+    pub openvino_qdq_optimizer: bool,
+    pub openvino_num_threads: Option<usize>,
+
+    // onednn
+    pub onednn_arena_allocator: bool,
+
+    // coreml
+    pub coreml_static_input_shapes: bool,
+    pub coreml_subgraph_running: bool,
+
+    // cann
+    pub cann_graph_inference: bool,
+    pub cann_dump_graphs: bool,
+    pub cann_dump_om_model: bool,
+
+    // nnapi
+    pub nnapi_cpu_only: bool,
+    pub nnapi_disable_cpu: bool,
+    pub nnapi_fp16: bool,
+    pub nnapi_nchw: bool,
+
+    // armnn
+    pub armnn_arena_allocator: bool,
+
+    // migraphx
+    pub migraphx_fp16: bool,
+    pub migraphx_exhaustive_tune: bool,
 }
 
 impl Default for Engine {
@@ -85,7 +127,6 @@ impl Default for Engine {
         Self {
             file: Default::default(),
             device: Device::Cpu(0),
-            trt_fp16: false,
             spec: Default::default(),
             iiixs: Default::default(),
             num_dry_run: 3,
@@ -94,7 +135,40 @@ impl Default for Engine {
             inputs_minoptmax: vec![],
             onnx: None,
             ts: Ts::default(),
+            // global
             graph_opt_level: None,
+            num_intra_threads: None,
+            num_inter_threads: None,
+            // cpu
+            cpu_arena_allocator: true,
+            // openvino
+            openvino_dynamic_shapes: true,
+            openvino_opencl_throttling: true,
+            openvino_qdq_optimizer: true,
+            openvino_num_threads: None,
+            // onednn
+            onednn_arena_allocator: true,
+            // coreml
+            coreml_static_input_shapes: false,
+            coreml_subgraph_running: true,
+            // tensorrt
+            tensorrt_fp16: true,
+            tensorrt_engine_cache: true,
+            tensorrt_timing_cache: false,
+            // cann
+            cann_graph_inference: true,
+            cann_dump_graphs: false,
+            cann_dump_om_model: false,
+            // nnapi
+            nnapi_cpu_only: false,
+            nnapi_disable_cpu: false,
+            nnapi_fp16: true,
+            nnapi_nchw: false,
+            // armnn
+            armnn_arena_allocator: true,
+            // migraphx
+            migraphx_fp16: true,
+            migraphx_exhaustive_tune: false,
         }
     }
 }
@@ -106,9 +180,40 @@ impl Engine {
             spec: config.spec.clone(),
             iiixs: config.iiixs.clone(),
             device: config.device,
-            trt_fp16: config.trt_fp16,
             num_dry_run: config.num_dry_run,
+            // global
             graph_opt_level: config.graph_opt_level,
+            num_intra_threads: config.num_intra_threads,
+            num_inter_threads: config.num_inter_threads,
+            // cpu
+            cpu_arena_allocator: config.cpu_arena_allocator,
+            // openvino
+            openvino_dynamic_shapes: config.openvino_dynamic_shapes,
+            openvino_opencl_throttling: config.openvino_opencl_throttling,
+            openvino_qdq_optimizer: config.openvino_qdq_optimizer,
+            openvino_num_threads: config.openvino_num_threads,
+            // coreml
+            coreml_static_input_shapes: config.coreml_static_input_shapes,
+            coreml_subgraph_running: config.coreml_subgraph_running,
+            // tensorrt
+            tensorrt_fp16: config.tensorrt_fp16,
+            tensorrt_engine_cache: config.tensorrt_engine_cache,
+            tensorrt_timing_cache: config.tensorrt_timing_cache,
+            // cann
+            cann_graph_inference: config.cann_graph_inference,
+            cann_dump_graphs: config.cann_dump_graphs,
+            cann_dump_om_model: config.cann_dump_om_model,
+            // nnapi
+            nnapi_cpu_only: config.nnapi_cpu_only,
+            nnapi_disable_cpu: config.nnapi_disable_cpu,
+            nnapi_fp16: config.nnapi_fp16,
+            nnapi_nchw: config.nnapi_nchw,
+            // armnn
+            armnn_arena_allocator: config.armnn_arena_allocator,
+            // migraphx
+            migraphx_fp16: config.migraphx_fp16,
+            migraphx_exhaustive_tune: config.migraphx_exhaustive_tune,
+
             ..Default::default()
         }
         .build()
@@ -338,17 +443,20 @@ impl Engine {
         let compile_help = "Please compile ONNXRuntime with #EP";
         let feature_help = "#EP EP requires the features: `#FEATURE`. \
             \nConsider enabling them by passing, e.g., `--features #FEATURE`";
+        let n_threads_available = std::thread::available_parallelism()
+            .map(|n| n.get())
+            .unwrap_or(1);
 
         match self.device {
             Device::TensorRt(id) => {
-                #[cfg(not(feature = "trt"))]
+                #[cfg(not(feature = "tensorrt"))]
                 {
                     anyhow::bail!(feature_help
                         .replace("#EP", "TensorRT")
-                        .replace("#FEATURE", "trt"));
+                        .replace("#FEATURE", "tensorrt"));
                 }
 
-                #[cfg(feature = "trt")]
+                #[cfg(feature = "tensorrt")]
                 {
                     // generate shapes
                     let mut spec_min = String::new();
@@ -379,13 +487,16 @@ impl Engine {
                         spec_max += &s_max;
                     }
 
-                    let p = crate::Dir::Cache.crate_dir_default_with_subs(&["trt-cache"])?;
                     let ep = ort::execution_providers::TensorRTExecutionProvider::default()
                         .with_device_id(id as i32)
-                        .with_fp16(self.trt_fp16)
-                        .with_engine_cache(true)
-                        .with_engine_cache_path(p.to_str().unwrap())
-                        .with_timing_cache(false)
+                        .with_fp16(self.tensorrt_fp16)
+                        .with_engine_cache(self.tensorrt_engine_cache)
+                        .with_timing_cache(self.tensorrt_timing_cache)
+                        .with_engine_cache_path(
+                            crate::Dir::Cache
+                                .crate_dir_default_with_subs(&["caches", "tensorrt"])?
+                                .display(),
+                        )
                         .with_profile_min_shapes(spec_min)
                         .with_profile_opt_shapes(spec_opt)
                         .with_profile_max_shapes(spec_max);
@@ -427,7 +538,7 @@ impl Engine {
                     }
                 }
             }
-            Device::CoreMl(id) => {
+            Device::CoreMl => {
                 #[cfg(not(feature = "coreml"))]
                 {
                     anyhow::bail!(feature_help
@@ -439,12 +550,12 @@ impl Engine {
                     let ep = ort::execution_providers::CoreMLExecutionProvider::default()
                         .with_model_cache_dir(
                             crate::Dir::Cache
-                                .crate_dir_default_with_subs(&["coreml-cache"])?
+                                .crate_dir_default_with_subs(&["caches", "coreml"])?
                                 .display(),
                         )
+                        .with_static_input_shapes(self.coreml_static_input_shapes)
+                        .with_subgraphs(self.coreml_subgraph_running)
                         .with_compute_units(ort::execution_providers::coreml::CoreMLComputeUnits::All)
-                        .with_static_input_shapes(false)
-                        .with_subgraphs(true)
                         .with_model_format(ort::execution_providers::coreml::CoreMLModelFormat::MLProgram)
                         .with_specialization_strategy(
                             ort::execution_providers::coreml::CoreMLSpecializationStrategy::FastPrediction,
@@ -459,9 +570,345 @@ impl Engine {
                     }
                 }
             }
+            Device::OpenVino(dt) => {
+                #[cfg(not(feature = "openvino"))]
+                {
+                    anyhow::bail!(feature_help
+                        .replace("#EP", "OpenVINO")
+                        .replace("#FEATURE", "openvino"));
+                }
+
+                #[cfg(feature = "openvino")]
+                {
+                    let ep = ort::execution_providers::OpenVINOExecutionProvider::default()
+                        .with_device_type(dt)
+                        .with_num_threads(self.openvino_num_threads.unwrap_or(n_threads_available))
+                        .with_dynamic_shapes(self.openvino_dynamic_shapes)
+                        .with_opencl_throttling(self.openvino_opencl_throttling)
+                        .with_qdq_optimizer(self.openvino_qdq_optimizer)
+                        .with_cache_dir(
+                            crate::Dir::Cache
+                                .crate_dir_default_with_subs(&["caches", "openvino"])?
+                                .display()
+                                .to_string(),
+                        );
+                    match ep.is_available() {
+                        Ok(true) => {
+                            ep.register(&mut builder).map_err(|err| {
+                                anyhow::anyhow!("Failed to register OpenVINO: {}", err)
+                            })?;
+                        }
+                        _ => anyhow::bail!(compile_help.replace("#EP", "OpenVINO")),
+                    }
+                }
+            }
+            Device::DirectMl(id) => {
+                #[cfg(not(feature = "directml"))]
+                {
+                    anyhow::bail!(feature_help
+                        .replace("#EP", "DirectML")
+                        .replace("#FEATURE", "directml"));
+                }
+                #[cfg(feature = "directml")]
+                {
+                    let ep = ort::execution_providers::DirectMLExecutionProvider::default()
+                        .with_device_id(id as i32);
+                    match ep.is_available() {
+                        Ok(true) => {
+                            ep.register(&mut builder).map_err(|err| {
+                                anyhow::anyhow!("Failed to register DirectML: {}", err)
+                            })?;
+                        }
+                        _ => anyhow::bail!(compile_help.replace("#EP", "DirectML")),
+                    }
+                }
+            }
+            Device::Xnnpack => {
+                #[cfg(not(feature = "xnnpack"))]
+                {
+                    anyhow::bail!(feature_help
+                        .replace("#EP", "XNNPack")
+                        .replace("#FEATURE", "xnnpack"));
+                }
+                #[cfg(feature = "xnnpack")]
+                {
+                    let ep = ort::execution_providers::XNNPACKExecutionProvider::default();
+                    match ep.is_available() {
+                        Ok(true) => {
+                            ep.register(&mut builder).map_err(|err| {
+                                anyhow::anyhow!("Failed to register XNNPack: {}", err)
+                            })?;
+                        }
+                        _ => anyhow::bail!(compile_help.replace("#EP", "XNNPack")),
+                    }
+                }
+            }
+            Device::Cann(id) => {
+                #[cfg(not(feature = "cann"))]
+                {
+                    anyhow::bail!(feature_help
+                        .replace("#EP", "CANN")
+                        .replace("#FEATURE", "cann"));
+                }
+                #[cfg(feature = "cann")]
+                {
+                    let ep = ort::execution_providers::CANNExecutionProvider::default()
+                        .with_device_id(id as i32)
+                        .with_cann_graph(self.cann_graph_inference)
+                        .with_dump_graphs(self.cann_dump_graphs)
+                        .with_dump_om_model(self.cann_dump_om_model);
+                    match ep.is_available() {
+                        Ok(true) => {
+                            ep.register(&mut builder).map_err(|err| {
+                                anyhow::anyhow!("Failed to register CANN: {}", err)
+                            })?;
+                        }
+                        _ => anyhow::bail!(compile_help.replace("#EP", "CANN")),
+                    }
+                }
+            }
+            Device::RkNpu => {
+                #[cfg(not(feature = "rknpu"))]
+                {
+                    anyhow::bail!(feature_help
+                        .replace("#EP", "RKNPU")
+                        .replace("#FEATURE", "rknpu"));
+                }
+                #[cfg(feature = "rknpu")]
+                {
+                    let ep = ort::execution_providers::RKNPUExecutionProvider::default();
+                    match ep.is_available() {
+                        Ok(true) => {
+                            ep.register(&mut builder).map_err(|err| {
+                                anyhow::anyhow!("Failed to register RKNPU: {}", err)
+                            })?;
+                        }
+                        _ => anyhow::bail!(compile_help.replace("#EP", "RKNPU")),
+                    }
+                }
+            }
+            Device::OneDnn => {
+                #[cfg(not(feature = "onednn"))]
+                {
+                    anyhow::bail!(feature_help
+                        .replace("#EP", "oneDNN")
+                        .replace("#FEATURE", "onednn"));
+                }
+                #[cfg(feature = "onednn")]
+                {
+                    let ep = ort::execution_providers::OneDNNExecutionProvider::default()
+                        .with_arena_allocator(self.onednn_arena_allocator);
+                    match ep.is_available() {
+                        Ok(true) => {
+                            ep.register(&mut builder).map_err(|err| {
+                                anyhow::anyhow!("Failed to register oneDNN: {}", err)
+                            })?;
+                        }
+                        _ => anyhow::bail!(compile_help.replace("#EP", "oneDNN")),
+                    }
+                }
+            }
+            Device::Acl => {
+                #[cfg(not(feature = "acl"))]
+                {
+                    anyhow::bail!(feature_help
+                        .replace("#EP", "ArmACL")
+                        .replace("#FEATURE", "acl"));
+                }
+                #[cfg(feature = "acl")]
+                {
+                    let ep = ort::execution_providers::ACLExecutionProvider::default()
+                        .with_fast_math(true);
+                    match ep.is_available() {
+                        Ok(true) => {
+                            ep.register(&mut builder).map_err(|err| {
+                                anyhow::anyhow!("Failed to register ArmACL: {}", err)
+                            })?;
+                        }
+                        _ => anyhow::bail!(compile_help.replace("#EP", "ArmACL")),
+                    }
+                }
+            }
+            Device::Rocm(id) => {
+                #[cfg(not(feature = "rocm"))]
+                {
+                    anyhow::bail!(feature_help
+                        .replace("#EP", "ROCm")
+                        .replace("#FEATURE", "rocm"));
+                }
+                #[cfg(feature = "rocm")]
+                {
+                    let ep = ort::execution_providers::ROCmExecutionProvider::default()
+                        .with_device_id(id as _);
+                    match ep.is_available() {
+                        Ok(true) => {
+                            ep.register(&mut builder).map_err(|err| {
+                                anyhow::anyhow!("Failed to register ROCm: {}", err)
+                            })?;
+                        }
+                        _ => anyhow::bail!(compile_help.replace("#EP", "ROCm")),
+                    }
+                }
+            }
+            Device::NnApi => {
+                #[cfg(not(feature = "nnapi"))]
+                {
+                    anyhow::bail!(feature_help
+                        .replace("#EP", "NNAPI")
+                        .replace("#FEATURE", "nnapi"));
+                }
+                #[cfg(feature = "nnapi")]
+                {
+                    let ep = ort::execution_providers::NNAPIExecutionProvider::default()
+                        .with_fp16(self.nnapi_fp16)
+                        .with_nchw(self.nnapi_nchw)
+                        .with_cpu_only(self.nnapi_cpu_only)
+                        .with_disable_cpu(self.nnapi_disable_cpu);
+                    match ep.is_available() {
+                        Ok(true) => {
+                            ep.register(&mut builder).map_err(|err| {
+                                anyhow::anyhow!("Failed to register NNAPI: {}", err)
+                            })?;
+                        }
+                        _ => anyhow::bail!(compile_help.replace("#EP", "NNAPI")),
+                    }
+                }
+            }
+            Device::ArmNn => {
+                #[cfg(not(feature = "armnn"))]
+                {
+                    anyhow::bail!(feature_help
+                        .replace("#EP", "ArmNN")
+                        .replace("#FEATURE", "armnn"));
+                }
+                #[cfg(feature = "armnn")]
+                {
+                    let ep = ort::execution_providers::ArmNNExecutionProvider::default()
+                        .with_arena_allocator(self.armnn_arena_allocator);
+                    match ep.is_available() {
+                        Ok(true) => {
+                            ep.register(&mut builder).map_err(|err| {
+                                anyhow::anyhow!("Failed to register ArmNN: {}", err)
+                            })?;
+                        }
+                        _ => anyhow::bail!(compile_help.replace("#EP", "ArmNN")),
+                    }
+                }
+            }
+            Device::Tvm => {
+                #[cfg(not(feature = "tvm"))]
+                {
+                    anyhow::bail!(feature_help
+                        .replace("#EP", "TVM")
+                        .replace("#FEATURE", "tvm"));
+                }
+                #[cfg(feature = "tvm")]
+                {
+                    let ep = ort::execution_providers::TVMExecutionProvider::default();
+                    match ep.is_available() {
+                        Ok(true) => {
+                            ep.register(&mut builder).map_err(|err| {
+                                anyhow::anyhow!("Failed to register TVM: {}", err)
+                            })?;
+                        }
+                        _ => anyhow::bail!(compile_help.replace("#EP", "TVM")),
+                    }
+                }
+            }
+            Device::Qnn(id) => {
+                #[cfg(not(feature = "qnn"))]
+                {
+                    anyhow::bail!(feature_help
+                        .replace("#EP", "QNN")
+                        .replace("#FEATURE", "qnn"));
+                }
+                #[cfg(feature = "qnn")]
+                {
+                    let ep = ort::execution_providers::QNNExecutionProvider::default()
+                        .with_device_id(id as _);
+                    match ep.is_available() {
+                        Ok(true) => {
+                            ep.register(&mut builder).map_err(|err| {
+                                anyhow::anyhow!("Failed to register QNN: {}", err)
+                            })?;
+                        }
+                        _ => anyhow::bail!(compile_help.replace("#EP", "QNN")),
+                    }
+                }
+            }
+            Device::MiGraphX(id) => {
+                #[cfg(not(feature = "migraphx"))]
+                {
+                    anyhow::bail!(feature_help
+                        .replace("#EP", "MIGraphX")
+                        .replace("#FEATURE", "migraphx"));
+                }
+                #[cfg(feature = "migraphx")]
+                {
+                    let ep = ort::execution_providers::MIGraphXExecutionProvider::default()
+                        .with_device_id(id as _)
+                        .with_fp16(self.migraphx_fp16)
+                        .with_exhaustive_tune(self.migraphx_exhaustive_tune);
+                    match ep.is_available() {
+                        Ok(true) => {
+                            ep.register(&mut builder).map_err(|err| {
+                                anyhow::anyhow!("Failed to register MIGraphX: {}", err)
+                            })?;
+                        }
+                        _ => anyhow::bail!(compile_help.replace("#EP", "MIGraphX")),
+                    }
+                }
+            }
+            Device::Vitis => {
+                #[cfg(not(feature = "vitis"))]
+                {
+                    anyhow::bail!(feature_help
+                        .replace("#EP", "VitisAI")
+                        .replace("#FEATURE", "vitis"));
+                }
+                #[cfg(feature = "vitis")]
+                {
+                    let ep = ort::execution_providers::VitisAIExecutionProvider::default()
+                        .with_cache_dir(
+                            crate::Dir::Cache
+                                .crate_dir_default_with_subs(&["caches", "vitis"])?
+                                .display()
+                                .to_string(),
+                        );
+                    match ep.is_available() {
+                        Ok(true) => {
+                            ep.register(&mut builder).map_err(|err| {
+                                anyhow::anyhow!("Failed to register VitisAI: {}", err)
+                            })?;
+                        }
+                        _ => anyhow::bail!(compile_help.replace("#EP", "VitisAI")),
+                    }
+                }
+            }
+            Device::Azure => {
+                #[cfg(not(feature = "azure"))]
+                {
+                    anyhow::bail!(feature_help
+                        .replace("#EP", "Azure")
+                        .replace("#FEATURE", "azure"));
+                }
+                #[cfg(feature = "azure")]
+                {
+                    let ep = ort::execution_providers::AzureExecutionProvider::default();
+                    match ep.is_available() {
+                        Ok(true) => {
+                            ep.register(&mut builder).map_err(|err| {
+                                anyhow::anyhow!("Failed to register Azure: {}", err)
+                            })?;
+                            builder = builder.with_extensions()?;
+                        }
+                        _ => anyhow::bail!(compile_help.replace("#EP", "Azure")),
+                    }
+                }
+            }
             _ => {
                 let ep = ort::execution_providers::CPUExecutionProvider::default()
-                    .with_arena_allocator(true);
+                    .with_arena_allocator(self.cpu_arena_allocator);
                 match ep.is_available() {
                     Ok(true) => {
                         ep.register(&mut builder)
@@ -481,7 +928,8 @@ impl Engine {
         };
         let session = builder
             .with_optimization_level(graph_opt_level)?
-            .with_intra_threads(std::thread::available_parallelism()?.get())?
+            .with_intra_threads(self.num_intra_threads.unwrap_or(n_threads_available))?
+            .with_inter_threads(self.num_inter_threads.unwrap_or(2))?
             .commit_from_file(self.file())?;
 
         Ok(session)

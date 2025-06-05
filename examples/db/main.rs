@@ -47,9 +47,9 @@ fn main() -> Result<()> {
     // build model
     let config = match &args.model {
         Some(m) => Config::db().with_model_file(m),
-        None => Config::ppocr_det_v5_mobile().with_model_dtype(args.dtype.as_str().try_into()?),
+        None => Config::ppocr_det_v5_mobile().with_model_dtype(args.dtype.parse()?),
     }
-    .with_device_all(args.device.as_str().try_into()?)
+    .with_device_all(args.device.parse()?)
     .commit()?;
     let mut model = DB::new(config)?;
 

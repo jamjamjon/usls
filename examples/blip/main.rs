@@ -21,7 +21,7 @@ fn main() -> anyhow::Result<()> {
 
     // build model
     let config = Config::blip_v1_base_caption()
-        .with_device_all(args.device.as_str().try_into()?)
+        .with_device_all(args.device.parse()?)
         .commit()?;
     let mut model = Blip::new(config)?;
 

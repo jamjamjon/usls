@@ -14,20 +14,22 @@ pub enum ColorMap256 {
     SmoothCoolWarm,
 }
 
-impl From<&str> for ColorMap256 {
-    fn from(s: &str) -> Self {
+impl std::str::FromStr for ColorMap256 {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_lowercase().as_str() {
-            "turbo" => Self::Turbo,
-            "inferno" => Self::Inferno,
-            "plasma" => Self::Plasma,
-            "viridis" => Self::Viridis,
-            "magma" => Self::Magma,
-            "bentcoolwarm" => Self::BentCoolWarm,
-            "blackbody" => Self::BlackBody,
-            "extendedkindlmann" => Self::ExtendedKindLmann,
-            "kindlmann" => Self::KindLmann,
-            "smoothcoolwarm" => Self::SmoothCoolWarm,
-            s => unimplemented!("{} is not supported for now!", s),
+            "turbo" => Ok(Self::Turbo),
+            "inferno" => Ok(Self::Inferno),
+            "plasma" => Ok(Self::Plasma),
+            "viridis" => Ok(Self::Viridis),
+            "magma" => Ok(Self::Magma),
+            "bentcoolwarm" => Ok(Self::BentCoolWarm),
+            "blackbody" => Ok(Self::BlackBody),
+            "extendedkindlmann" => Ok(Self::ExtendedKindLmann),
+            "kindlmann" => Ok(Self::KindLmann),
+            "smoothcoolwarm" => Ok(Self::SmoothCoolWarm),
+            _ => Err(anyhow::anyhow!("Unsupported colormap: {}", s)),
         }
     }
 }

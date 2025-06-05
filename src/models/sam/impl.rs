@@ -2,6 +2,7 @@ use aksr::Builder;
 use anyhow::Result;
 use ndarray::{s, Axis};
 use rand::{prelude::*, rng};
+use std::str::FromStr;
 
 use crate::{
     elapsed, Config, DynConf, Engine, Image, Mask, Ops, Polygon, Processor, SamPrompt, Ts, Xs, X, Y,
@@ -16,10 +17,10 @@ pub enum SamKind {
     EdgeSam,
 }
 
-impl TryFrom<&str> for SamKind {
-    type Error = anyhow::Error;
+impl FromStr for SamKind {
+    type Err = anyhow::Error;
 
-    fn try_from(s: &str) -> Result<Self, Self::Error> {
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_lowercase().as_str() {
             "sam" => Ok(Self::Sam),
             "sam2" => Ok(Self::Sam2),

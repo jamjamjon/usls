@@ -27,7 +27,7 @@ fn main() -> Result<()> {
     let options_yolo = Config::yolo_detect()
         .with_scale(Scale::N)
         .with_version(8.into())
-        .with_model_device(args.device.as_str().try_into()?)
+        .with_model_device(args.device.parse()?)
         .commit()?;
     let mut yolo = YOLO::new(options_yolo)?;
 

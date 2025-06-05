@@ -38,19 +38,19 @@ fn main() -> anyhow::Result<()> {
     ])?;
 
     // build model
-    let config = match args.scale.as_str().try_into()? {
-        Scale::S => match args.kind.as_str().try_into()? {
+    let config = match args.scale.parse()? {
+        Scale::S => match args.kind.parse()? {
             TrOCRKind::Printed => Config::trocr_small_printed(),
             TrOCRKind::HandWritten => Config::trocr_small_handwritten(),
         },
-        Scale::B => match args.kind.as_str().try_into()? {
+        Scale::B => match args.kind.parse()? {
             TrOCRKind::Printed => Config::trocr_base_printed(),
             TrOCRKind::HandWritten => Config::trocr_base_handwritten(),
         },
         x => anyhow::bail!("Unsupported TrOCR scale: {:?}", x),
     }
-    .with_device_all(args.device.as_str().try_into()?)
-    .with_dtype_all(args.dtype.as_str().try_into()?)
+    .with_device_all(args.device.parse()?)
+    .with_dtype_all(args.dtype.parse()?)
     .commit()?;
 
     let mut model = TrOCR::new(config)?;

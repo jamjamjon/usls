@@ -2,6 +2,7 @@ use aksr::Builder;
 use anyhow::Result;
 use ndarray::{s, Axis};
 use rayon::prelude::*;
+use std::str::FromStr;
 
 use crate::{elapsed, Config, Engine, Image, LogitsSampler, Processor, Scale, Ts, Xs, X, Y};
 
@@ -11,10 +12,10 @@ pub enum TrOCRKind {
     HandWritten,
 }
 
-impl TryFrom<&str> for TrOCRKind {
-    type Error = anyhow::Error;
+impl FromStr for TrOCRKind {
+    type Err = anyhow::Error;
 
-    fn try_from(s: &str) -> Result<Self, Self::Error> {
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_lowercase().as_str() {
             "printed" => Ok(Self::Printed),
             "handwritten" | "hand-written" => Ok(Self::HandWritten),

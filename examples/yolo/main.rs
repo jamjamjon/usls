@@ -132,12 +132,12 @@ fn main() -> Result<()> {
     let args: Args = argh::from_env();
     let mut config = Config::yolo()
         .with_model_file(&args.model.unwrap_or_default())
-        .with_task(args.task.as_str().try_into()?)
+        .with_task(args.task.parse()?)
         .with_version(args.ver.try_into()?)
-        .with_scale(args.scale.as_str().try_into()?)
-        .with_model_dtype(args.dtype.as_str().try_into()?)
-        .with_model_device(args.device.as_str().try_into()?)
-        .with_model_trt_fp16(args.trt_fp16)
+        .with_scale(args.scale.parse()?)
+        .with_model_dtype(args.dtype.parse()?)
+        .with_model_device(args.device.parse()?)
+        .with_model_tensorrt_fp16(args.trt_fp16)
         .with_model_ixx(
             0,
             0,

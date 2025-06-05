@@ -25,14 +25,14 @@ fn main() -> Result<()> {
     let args: Args = argh::from_env();
 
     // Build model
-    let config = match args.scale.as_str().try_into()? {
+    let config = match args.scale.parse()? {
         Scale::T => Config::sam2_1_tiny(),
         Scale::S => Config::sam2_1_small(),
         Scale::B => Config::sam2_1_base_plus(),
         Scale::L => Config::sam2_1_large(),
         _ => unimplemented!("Unsupported model scale: {:?}. Try b, s, t, l.", args.scale),
     }
-    .with_device_all(args.device.as_str().try_into()?)
+    .with_device_all(args.device.parse()?)
     .commit()?;
     let mut model = SAM2::new(config)?;
 

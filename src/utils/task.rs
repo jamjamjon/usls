@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 #[derive(Debug, Clone, Ord, Eq, PartialOrd, PartialEq)]
 pub enum Task {
     /// Image classification task.
@@ -164,10 +166,10 @@ impl std::fmt::Display for Task {
     }
 }
 
-impl TryFrom<&str> for Task {
-    type Error = anyhow::Error;
+impl FromStr for Task {
+    type Err = anyhow::Error;
 
-    fn try_from(s: &str) -> Result<Self, Self::Error> {
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         // TODO
         match s.to_lowercase().as_str() {
             "cls" | "classify" | "classification" => Ok(Self::ImageClassification),

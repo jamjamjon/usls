@@ -26,7 +26,7 @@ fn main() -> Result<()> {
     let args: Args = argh::from_env();
 
     // build model
-    let config = match args.scale.as_str().try_into()? {
+    let config = match args.scale.parse()? {
         Scale::T => Config::fast_tiny(),
         Scale::S => Config::fast_small(),
         Scale::B => Config::fast_base(),
@@ -34,8 +34,8 @@ fn main() -> Result<()> {
     };
     let mut model = DB::new(
         config
-            .with_dtype_all(args.dtype.as_str().try_into()?)
-            .with_device_all(args.device.as_str().try_into()?)
+            .with_dtype_all(args.dtype.parse()?)
+            .with_device_all(args.device.parse()?)
             .commit()?,
     )?;
 

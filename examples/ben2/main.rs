@@ -21,8 +21,8 @@ fn main() -> anyhow::Result<()> {
 
     // build model
     let config = Config::ben2_base()
-        .with_model_dtype(args.dtype.as_str().try_into()?)
-        .with_model_device(args.device.as_str().try_into()?)
+        .with_model_dtype(args.dtype.parse()?)
+        .with_model_device(args.device.parse()?)
         .commit()?;
     let mut model = RMBG::new(config)?;
 
