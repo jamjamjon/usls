@@ -27,8 +27,8 @@ fn main() -> Result<()> {
 
     // build model
     let config = Config::slanet_lcnet_v2_mobile_ch()
-        .with_model_device(args.device.as_str().try_into()?)
-        .with_model_dtype(args.dtype.as_str().try_into()?)
+        .with_model_device(args.device.parse()?)
+        .with_model_dtype(args.dtype.parse()?)
         .commit()?;
     let mut model = SLANet::new(config)?;
 

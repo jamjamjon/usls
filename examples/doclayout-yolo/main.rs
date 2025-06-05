@@ -19,7 +19,7 @@ fn main() -> Result<()> {
 
     // build model
     let config = Config::doclayout_yolo_docstructbench()
-        .with_model_device(args.device.as_str().try_into()?)
+        .with_model_device(args.device.parse()?)
         .commit()?;
     let mut model = YOLO::new(config)?;
 

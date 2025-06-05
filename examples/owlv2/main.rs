@@ -49,8 +49,8 @@ fn main() -> Result<()> {
     // config
     let config = Config::owlv2_base_ensemble()
         // owlv2_base()
-        .with_model_dtype(args.dtype.as_str().try_into()?)
-        .with_model_device(args.device.as_str().try_into()?)
+        .with_model_dtype(args.dtype.parse()?)
+        .with_model_device(args.device.parse()?)
         .with_text_names(&args.labels.iter().map(|x| x.as_str()).collect::<Vec<_>>())
         .commit()?;
     let mut model = OWLv2::new(config)?;

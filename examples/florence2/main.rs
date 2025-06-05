@@ -26,8 +26,8 @@ fn main() -> Result<()> {
 
     // build model
     let config = Config::florence2_base()
-        .with_dtype_all(args.dtype.as_str().try_into()?)
-        .with_device_all(args.device.as_str().try_into()?)
+        .with_dtype_all(args.dtype.parse()?)
+        .with_device_all(args.device.parse()?)
         .with_batch_size_all(xs.len())
         .commit()?;
     let mut model = Florence2::new(config)?;

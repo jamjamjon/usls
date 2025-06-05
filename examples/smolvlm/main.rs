@@ -29,12 +29,12 @@ fn main() -> Result<()> {
     let args: Args = argh::from_env();
 
     // build model
-    let config = match args.scale.as_str().try_into()? {
+    let config = match args.scale.parse()? {
         Scale::Million(256.) => Config::smolvlm_256m(),
         Scale::Million(500.) => Config::smolvlm_500m(),
         _ => unimplemented!(),
     }
-    .with_device_all(args.device.as_str().try_into()?)
+    .with_device_all(args.device.parse()?)
     .commit()?;
     let mut model = SmolVLM::new(config)?;
 

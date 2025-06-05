@@ -46,8 +46,8 @@ fn main() -> anyhow::Result<()> {
     };
 
     let config = config
-        .with_model_dtype(args.dtype.as_str().try_into()?)
-        .with_model_device(args.device.as_str().try_into()?)
+        .with_model_dtype(args.dtype.parse()?)
+        .with_model_device(args.device.parse()?)
         .commit()?;
     let mut model = ImageClassifier::try_from(config)?;
 

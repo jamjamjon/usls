@@ -24,8 +24,8 @@ fn main() -> Result<()> {
 
     // model
     let config = Config::depth_pro()
-        .with_model_dtype(args.dtype.as_str().try_into()?)
-        .with_model_device(args.device.as_str().try_into()?)
+        .with_model_dtype(args.dtype.parse()?)
+        .with_model_device(args.device.parse()?)
         .commit()?;
 
     let mut model = DepthPro::new(config)?;
@@ -38,7 +38,7 @@ fn main() -> Result<()> {
 
     // annotate
     let annotator =
-        Annotator::default().with_mask_style(Style::mask().with_colormap256("turbo".into()));
+        Annotator::default().with_mask_style(Style::mask().with_colormap256("turbo".parse()?));
     for (x, y) in xs.iter().zip(ys.iter()) {
         annotator.annotate(x, y)?.save(format!(
             "{}.jpg",

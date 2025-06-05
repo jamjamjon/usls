@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub enum Scale {
     N,
@@ -64,10 +66,10 @@ impl TryFrom<char> for Scale {
     }
 }
 
-impl TryFrom<&str> for Scale {
-    type Error = anyhow::Error;
+impl FromStr for Scale {
+    type Err = anyhow::Error;
 
-    fn try_from(s: &str) -> Result<Self, Self::Error> {
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_lowercase().as_str() {
             "n" | "nano" => Ok(Self::N),
             "t" | "tiny" => Ok(Self::T),

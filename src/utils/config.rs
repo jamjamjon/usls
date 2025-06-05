@@ -261,6 +261,507 @@ impl Config {
 
         self
     }
+
+    pub fn with_graph_opt_level_all(mut self, level: u8) -> Self {
+        self.visual = self.visual.with_graph_opt_level(level);
+        self.textual = self.textual.with_graph_opt_level(level);
+        self.model = self.model.with_graph_opt_level(level);
+        self.encoder = self.encoder.with_graph_opt_level(level);
+        self.decoder = self.decoder.with_graph_opt_level(level);
+        self.visual_encoder = self.visual_encoder.with_graph_opt_level(level);
+        self.textual_encoder = self.textual_encoder.with_graph_opt_level(level);
+        self.visual_decoder = self.visual_decoder.with_graph_opt_level(level);
+        self.textual_decoder = self.textual_decoder.with_graph_opt_level(level);
+        self.textual_decoder_merged = self.textual_decoder_merged.with_graph_opt_level(level);
+        self.size_encoder = self.size_encoder.with_graph_opt_level(level);
+        self.size_decoder = self.size_decoder.with_graph_opt_level(level);
+        self.coord_encoder = self.coord_encoder.with_graph_opt_level(level);
+        self.coord_decoder = self.coord_decoder.with_graph_opt_level(level);
+        self.visual_projection = self.visual_projection.with_graph_opt_level(level);
+        self.textual_projection = self.textual_projection.with_graph_opt_level(level);
+        self
+    }
+
+    pub fn with_num_intra_threads_all(mut self, num_threads: usize) -> Self {
+        self.visual = self.visual.with_num_intra_threads(num_threads);
+        self.textual = self.textual.with_num_intra_threads(num_threads);
+        self.model = self.model.with_num_intra_threads(num_threads);
+        self.encoder = self.encoder.with_num_intra_threads(num_threads);
+        self.decoder = self.decoder.with_num_intra_threads(num_threads);
+        self.visual_encoder = self.visual_encoder.with_num_intra_threads(num_threads);
+        self.textual_encoder = self.textual_encoder.with_num_intra_threads(num_threads);
+        self.visual_decoder = self.visual_decoder.with_num_intra_threads(num_threads);
+        self.textual_decoder = self.textual_decoder.with_num_intra_threads(num_threads);
+        self.textual_decoder_merged = self
+            .textual_decoder_merged
+            .with_num_intra_threads(num_threads);
+        self.size_encoder = self.size_encoder.with_num_intra_threads(num_threads);
+        self.size_decoder = self.size_decoder.with_num_intra_threads(num_threads);
+        self.coord_encoder = self.coord_encoder.with_num_intra_threads(num_threads);
+        self.coord_decoder = self.coord_decoder.with_num_intra_threads(num_threads);
+        self.visual_projection = self.visual_projection.with_num_intra_threads(num_threads);
+        self.textual_projection = self.textual_projection.with_num_intra_threads(num_threads);
+        self
+    }
+
+    pub fn with_num_inter_threads_all(mut self, num_threads: usize) -> Self {
+        self.visual = self.visual.with_num_inter_threads(num_threads);
+        self.textual = self.textual.with_num_inter_threads(num_threads);
+        self.model = self.model.with_num_inter_threads(num_threads);
+        self.encoder = self.encoder.with_num_inter_threads(num_threads);
+        self.decoder = self.decoder.with_num_inter_threads(num_threads);
+        self.visual_encoder = self.visual_encoder.with_num_inter_threads(num_threads);
+        self.textual_encoder = self.textual_encoder.with_num_inter_threads(num_threads);
+        self.visual_decoder = self.visual_decoder.with_num_inter_threads(num_threads);
+        self.textual_decoder = self.textual_decoder.with_num_inter_threads(num_threads);
+        self.textual_decoder_merged = self
+            .textual_decoder_merged
+            .with_num_inter_threads(num_threads);
+        self.size_encoder = self.size_encoder.with_num_inter_threads(num_threads);
+        self.size_decoder = self.size_decoder.with_num_inter_threads(num_threads);
+        self.coord_encoder = self.coord_encoder.with_num_inter_threads(num_threads);
+        self.coord_decoder = self.coord_decoder.with_num_inter_threads(num_threads);
+        self.visual_projection = self.visual_projection.with_num_inter_threads(num_threads);
+        self.textual_projection = self.textual_projection.with_num_inter_threads(num_threads);
+        self
+    }
+
+    pub fn with_cpu_arena_allocator_all(mut self, x: bool) -> Self {
+        self.visual = self.visual.with_cpu_arena_allocator(x);
+        self.textual = self.textual.with_cpu_arena_allocator(x);
+        self.model = self.model.with_cpu_arena_allocator(x);
+        self.encoder = self.encoder.with_cpu_arena_allocator(x);
+        self.decoder = self.decoder.with_cpu_arena_allocator(x);
+        self.visual_encoder = self.visual_encoder.with_cpu_arena_allocator(x);
+        self.textual_encoder = self.textual_encoder.with_cpu_arena_allocator(x);
+        self.visual_decoder = self.visual_decoder.with_cpu_arena_allocator(x);
+        self.textual_decoder = self.textual_decoder.with_cpu_arena_allocator(x);
+        self.textual_decoder_merged = self.textual_decoder_merged.with_cpu_arena_allocator(x);
+        self.size_encoder = self.size_encoder.with_cpu_arena_allocator(x);
+        self.size_decoder = self.size_decoder.with_cpu_arena_allocator(x);
+        self.coord_encoder = self.coord_encoder.with_cpu_arena_allocator(x);
+        self.coord_decoder = self.coord_decoder.with_cpu_arena_allocator(x);
+        self.visual_projection = self.visual_projection.with_cpu_arena_allocator(x);
+        self.textual_projection = self.textual_projection.with_cpu_arena_allocator(x);
+        self
+    }
+
+    pub fn with_openvino_dynamic_shapes_all(mut self, x: bool) -> Self {
+        self.visual = self.visual.with_openvino_dynamic_shapes(x);
+        self.textual = self.textual.with_openvino_dynamic_shapes(x);
+        self.model = self.model.with_openvino_dynamic_shapes(x);
+        self.encoder = self.encoder.with_openvino_dynamic_shapes(x);
+        self.decoder = self.decoder.with_openvino_dynamic_shapes(x);
+        self.visual_encoder = self.visual_encoder.with_openvino_dynamic_shapes(x);
+        self.textual_encoder = self.textual_encoder.with_openvino_dynamic_shapes(x);
+        self.visual_decoder = self.visual_decoder.with_openvino_dynamic_shapes(x);
+        self.textual_decoder = self.textual_decoder.with_openvino_dynamic_shapes(x);
+        self.textual_decoder_merged = self.textual_decoder_merged.with_openvino_dynamic_shapes(x);
+        self.size_encoder = self.size_encoder.with_openvino_dynamic_shapes(x);
+        self.size_decoder = self.size_decoder.with_openvino_dynamic_shapes(x);
+        self.coord_encoder = self.coord_encoder.with_openvino_dynamic_shapes(x);
+        self.coord_decoder = self.coord_decoder.with_openvino_dynamic_shapes(x);
+        self.visual_projection = self.visual_projection.with_openvino_dynamic_shapes(x);
+        self.textual_projection = self.textual_projection.with_openvino_dynamic_shapes(x);
+        self
+    }
+
+    pub fn with_openvino_opencl_throttling_all(mut self, x: bool) -> Self {
+        self.visual = self.visual.with_openvino_opencl_throttling(x);
+        self.textual = self.textual.with_openvino_opencl_throttling(x);
+        self.model = self.model.with_openvino_opencl_throttling(x);
+        self.encoder = self.encoder.with_openvino_opencl_throttling(x);
+        self.decoder = self.decoder.with_openvino_opencl_throttling(x);
+        self.visual_encoder = self.visual_encoder.with_openvino_opencl_throttling(x);
+        self.textual_encoder = self.textual_encoder.with_openvino_opencl_throttling(x);
+        self.visual_decoder = self.visual_decoder.with_openvino_opencl_throttling(x);
+        self.textual_decoder = self.textual_decoder.with_openvino_opencl_throttling(x);
+        self.textual_decoder_merged = self
+            .textual_decoder_merged
+            .with_openvino_opencl_throttling(x);
+        self.size_encoder = self.size_encoder.with_openvino_opencl_throttling(x);
+        self.size_decoder = self.size_decoder.with_openvino_opencl_throttling(x);
+        self.coord_encoder = self.coord_encoder.with_openvino_opencl_throttling(x);
+        self.coord_decoder = self.coord_decoder.with_openvino_opencl_throttling(x);
+        self.visual_projection = self.visual_projection.with_openvino_opencl_throttling(x);
+        self.textual_projection = self.textual_projection.with_openvino_opencl_throttling(x);
+        self
+    }
+
+    pub fn with_openvino_qdq_optimizer_all(mut self, x: bool) -> Self {
+        self.visual = self.visual.with_openvino_qdq_optimizer(x);
+        self.textual = self.textual.with_openvino_qdq_optimizer(x);
+        self.model = self.model.with_openvino_qdq_optimizer(x);
+        self.encoder = self.encoder.with_openvino_qdq_optimizer(x);
+        self.decoder = self.decoder.with_openvino_qdq_optimizer(x);
+        self.visual_encoder = self.visual_encoder.with_openvino_qdq_optimizer(x);
+        self.textual_encoder = self.textual_encoder.with_openvino_qdq_optimizer(x);
+        self.visual_decoder = self.visual_decoder.with_openvino_qdq_optimizer(x);
+        self.textual_decoder = self.textual_decoder.with_openvino_qdq_optimizer(x);
+        self.textual_decoder_merged = self.textual_decoder_merged.with_openvino_qdq_optimizer(x);
+        self.size_encoder = self.size_encoder.with_openvino_qdq_optimizer(x);
+        self.size_decoder = self.size_decoder.with_openvino_qdq_optimizer(x);
+        self.coord_encoder = self.coord_encoder.with_openvino_qdq_optimizer(x);
+        self.coord_decoder = self.coord_decoder.with_openvino_qdq_optimizer(x);
+        self.visual_projection = self.visual_projection.with_openvino_qdq_optimizer(x);
+        self.textual_projection = self.textual_projection.with_openvino_qdq_optimizer(x);
+        self
+    }
+
+    pub fn with_openvino_num_threads_all(mut self, num_threads: usize) -> Self {
+        self.visual = self.visual.with_openvino_num_threads(num_threads);
+        self.textual = self.textual.with_openvino_num_threads(num_threads);
+        self.model = self.model.with_openvino_num_threads(num_threads);
+        self.encoder = self.encoder.with_openvino_num_threads(num_threads);
+        self.decoder = self.decoder.with_openvino_num_threads(num_threads);
+        self.visual_encoder = self.visual_encoder.with_openvino_num_threads(num_threads);
+        self.textual_encoder = self.textual_encoder.with_openvino_num_threads(num_threads);
+        self.visual_decoder = self.visual_decoder.with_openvino_num_threads(num_threads);
+        self.textual_decoder = self.textual_decoder.with_openvino_num_threads(num_threads);
+        self.textual_decoder_merged = self
+            .textual_decoder_merged
+            .with_openvino_num_threads(num_threads);
+        self.size_encoder = self.size_encoder.with_openvino_num_threads(num_threads);
+        self.size_decoder = self.size_decoder.with_openvino_num_threads(num_threads);
+        self.coord_encoder = self.coord_encoder.with_openvino_num_threads(num_threads);
+        self.coord_decoder = self.coord_decoder.with_openvino_num_threads(num_threads);
+        self.visual_projection = self
+            .visual_projection
+            .with_openvino_num_threads(num_threads);
+        self.textual_projection = self
+            .textual_projection
+            .with_openvino_num_threads(num_threads);
+        self
+    }
+
+    // onednn
+    pub fn with_onednn_arena_allocator_all(mut self, x: bool) -> Self {
+        self.visual = self.visual.with_onednn_arena_allocator(x);
+        self.textual = self.textual.with_onednn_arena_allocator(x);
+        self.model = self.model.with_onednn_arena_allocator(x);
+        self.encoder = self.encoder.with_onednn_arena_allocator(x);
+        self.decoder = self.decoder.with_onednn_arena_allocator(x);
+        self.visual_encoder = self.visual_encoder.with_onednn_arena_allocator(x);
+        self.textual_encoder = self.textual_encoder.with_onednn_arena_allocator(x);
+        self.visual_decoder = self.visual_decoder.with_onednn_arena_allocator(x);
+        self.textual_decoder = self.textual_decoder.with_onednn_arena_allocator(x);
+        self.textual_decoder_merged = self.textual_decoder_merged.with_onednn_arena_allocator(x);
+        self.size_encoder = self.size_encoder.with_onednn_arena_allocator(x);
+        self.size_decoder = self.size_decoder.with_onednn_arena_allocator(x);
+        self.coord_encoder = self.coord_encoder.with_onednn_arena_allocator(x);
+        self.coord_decoder = self.coord_decoder.with_onednn_arena_allocator(x);
+        self.visual_projection = self.visual_projection.with_onednn_arena_allocator(x);
+        self.textual_projection = self.textual_projection.with_onednn_arena_allocator(x);
+        self
+    }
+
+    // tensorrt
+    pub fn with_tensorrt_fp16_all(mut self, x: bool) -> Self {
+        self.visual = self.visual.with_tensorrt_fp16(x);
+        self.textual = self.textual.with_tensorrt_fp16(x);
+        self.model = self.model.with_tensorrt_fp16(x);
+        self.encoder = self.encoder.with_tensorrt_fp16(x);
+        self.decoder = self.decoder.with_tensorrt_fp16(x);
+        self.visual_encoder = self.visual_encoder.with_tensorrt_fp16(x);
+        self.textual_encoder = self.textual_encoder.with_tensorrt_fp16(x);
+        self.visual_decoder = self.visual_decoder.with_tensorrt_fp16(x);
+        self.textual_decoder = self.textual_decoder.with_tensorrt_fp16(x);
+        self.textual_decoder_merged = self.textual_decoder_merged.with_tensorrt_fp16(x);
+        self.size_encoder = self.size_encoder.with_tensorrt_fp16(x);
+        self.size_decoder = self.size_decoder.with_tensorrt_fp16(x);
+        self.coord_encoder = self.coord_encoder.with_tensorrt_fp16(x);
+        self.coord_decoder = self.coord_decoder.with_tensorrt_fp16(x);
+        self.visual_projection = self.visual_projection.with_tensorrt_fp16(x);
+        self.textual_projection = self.textual_projection.with_tensorrt_fp16(x);
+        self
+    }
+
+    pub fn with_tensorrt_engine_cache_all(mut self, x: bool) -> Self {
+        self.visual = self.visual.with_tensorrt_engine_cache(x);
+        self.textual = self.textual.with_tensorrt_engine_cache(x);
+        self.model = self.model.with_tensorrt_engine_cache(x);
+        self.encoder = self.encoder.with_tensorrt_engine_cache(x);
+        self.decoder = self.decoder.with_tensorrt_engine_cache(x);
+        self.visual_encoder = self.visual_encoder.with_tensorrt_engine_cache(x);
+        self.textual_encoder = self.textual_encoder.with_tensorrt_engine_cache(x);
+        self.visual_decoder = self.visual_decoder.with_tensorrt_engine_cache(x);
+        self.textual_decoder = self.textual_decoder.with_tensorrt_engine_cache(x);
+        self.textual_decoder_merged = self.textual_decoder_merged.with_tensorrt_engine_cache(x);
+        self.size_encoder = self.size_encoder.with_tensorrt_engine_cache(x);
+        self.size_decoder = self.size_decoder.with_tensorrt_engine_cache(x);
+        self.coord_encoder = self.coord_encoder.with_tensorrt_engine_cache(x);
+        self.coord_decoder = self.coord_decoder.with_tensorrt_engine_cache(x);
+        self.visual_projection = self.visual_projection.with_tensorrt_engine_cache(x);
+        self.textual_projection = self.textual_projection.with_tensorrt_engine_cache(x);
+        self
+    }
+
+    pub fn with_tensorrt_timing_cache_all(mut self, x: bool) -> Self {
+        self.visual = self.visual.with_tensorrt_timing_cache(x);
+        self.textual = self.textual.with_tensorrt_timing_cache(x);
+        self.model = self.model.with_tensorrt_timing_cache(x);
+        self.encoder = self.encoder.with_tensorrt_timing_cache(x);
+        self.decoder = self.decoder.with_tensorrt_timing_cache(x);
+        self.visual_encoder = self.visual_encoder.with_tensorrt_timing_cache(x);
+        self.textual_encoder = self.textual_encoder.with_tensorrt_timing_cache(x);
+        self.visual_decoder = self.visual_decoder.with_tensorrt_timing_cache(x);
+        self.textual_decoder = self.textual_decoder.with_tensorrt_timing_cache(x);
+        self.textual_decoder_merged = self.textual_decoder_merged.with_tensorrt_timing_cache(x);
+        self.size_encoder = self.size_encoder.with_tensorrt_timing_cache(x);
+        self.size_decoder = self.size_decoder.with_tensorrt_timing_cache(x);
+        self.coord_encoder = self.coord_encoder.with_tensorrt_timing_cache(x);
+        self.coord_decoder = self.coord_decoder.with_tensorrt_timing_cache(x);
+        self.visual_projection = self.visual_projection.with_tensorrt_timing_cache(x);
+        self.textual_projection = self.textual_projection.with_tensorrt_timing_cache(x);
+        self
+    }
+
+    // coreml
+    pub fn with_coreml_static_input_shapes_all(mut self, x: bool) -> Self {
+        self.visual = self.visual.with_coreml_static_input_shapes(x);
+        self.textual = self.textual.with_coreml_static_input_shapes(x);
+        self.model = self.model.with_coreml_static_input_shapes(x);
+        self.encoder = self.encoder.with_coreml_static_input_shapes(x);
+        self.decoder = self.decoder.with_coreml_static_input_shapes(x);
+        self.visual_encoder = self.visual_encoder.with_coreml_static_input_shapes(x);
+        self.textual_encoder = self.textual_encoder.with_coreml_static_input_shapes(x);
+        self.visual_decoder = self.visual_decoder.with_coreml_static_input_shapes(x);
+        self.textual_decoder = self.textual_decoder.with_coreml_static_input_shapes(x);
+        self.textual_decoder_merged = self
+            .textual_decoder_merged
+            .with_coreml_static_input_shapes(x);
+        self.size_encoder = self.size_encoder.with_coreml_static_input_shapes(x);
+        self.size_decoder = self.size_decoder.with_coreml_static_input_shapes(x);
+        self.coord_encoder = self.coord_encoder.with_coreml_static_input_shapes(x);
+        self.coord_decoder = self.coord_decoder.with_coreml_static_input_shapes(x);
+        self.visual_projection = self.visual_projection.with_coreml_static_input_shapes(x);
+        self.textual_projection = self.textual_projection.with_coreml_static_input_shapes(x);
+        self
+    }
+
+    pub fn with_coreml_subgraph_running_all(mut self, x: bool) -> Self {
+        self.visual = self.visual.with_coreml_subgraph_running(x);
+        self.textual = self.textual.with_coreml_subgraph_running(x);
+        self.model = self.model.with_coreml_subgraph_running(x);
+        self.encoder = self.encoder.with_coreml_subgraph_running(x);
+        self.decoder = self.decoder.with_coreml_subgraph_running(x);
+        self.visual_encoder = self.visual_encoder.with_coreml_subgraph_running(x);
+        self.textual_encoder = self.textual_encoder.with_coreml_subgraph_running(x);
+        self.visual_decoder = self.visual_decoder.with_coreml_subgraph_running(x);
+        self.textual_decoder = self.textual_decoder.with_coreml_subgraph_running(x);
+        self.textual_decoder_merged = self.textual_decoder_merged.with_coreml_subgraph_running(x);
+        self.size_encoder = self.size_encoder.with_coreml_subgraph_running(x);
+        self.size_decoder = self.size_decoder.with_coreml_subgraph_running(x);
+        self.coord_encoder = self.coord_encoder.with_coreml_subgraph_running(x);
+        self.coord_decoder = self.coord_decoder.with_coreml_subgraph_running(x);
+        self.visual_projection = self.visual_projection.with_coreml_subgraph_running(x);
+        self.textual_projection = self.textual_projection.with_coreml_subgraph_running(x);
+        self
+    }
+
+    // cann
+    pub fn with_cann_graph_inference_all(mut self, x: bool) -> Self {
+        self.visual = self.visual.with_cann_graph_inference(x);
+        self.textual = self.textual.with_cann_graph_inference(x);
+        self.model = self.model.with_cann_graph_inference(x);
+        self.encoder = self.encoder.with_cann_graph_inference(x);
+        self.decoder = self.decoder.with_cann_graph_inference(x);
+        self.visual_encoder = self.visual_encoder.with_cann_graph_inference(x);
+        self.textual_encoder = self.textual_encoder.with_cann_graph_inference(x);
+        self.visual_decoder = self.visual_decoder.with_cann_graph_inference(x);
+        self.textual_decoder = self.textual_decoder.with_cann_graph_inference(x);
+        self.textual_decoder_merged = self.textual_decoder_merged.with_cann_graph_inference(x);
+        self.size_encoder = self.size_encoder.with_cann_graph_inference(x);
+        self.size_decoder = self.size_decoder.with_cann_graph_inference(x);
+        self.coord_encoder = self.coord_encoder.with_cann_graph_inference(x);
+        self.coord_decoder = self.coord_decoder.with_cann_graph_inference(x);
+        self.visual_projection = self.visual_projection.with_cann_graph_inference(x);
+        self.textual_projection = self.textual_projection.with_cann_graph_inference(x);
+        self
+    }
+
+    pub fn with_cann_dump_graphs_all(mut self, x: bool) -> Self {
+        self.visual = self.visual.with_cann_dump_graphs(x);
+        self.textual = self.textual.with_cann_dump_graphs(x);
+        self.model = self.model.with_cann_dump_graphs(x);
+        self.encoder = self.encoder.with_cann_dump_graphs(x);
+        self.decoder = self.decoder.with_cann_dump_graphs(x);
+        self.visual_encoder = self.visual_encoder.with_cann_dump_graphs(x);
+        self.textual_encoder = self.textual_encoder.with_cann_dump_graphs(x);
+        self.visual_decoder = self.visual_decoder.with_cann_dump_graphs(x);
+        self.textual_decoder = self.textual_decoder.with_cann_dump_graphs(x);
+        self.textual_decoder_merged = self.textual_decoder_merged.with_cann_dump_graphs(x);
+        self.size_encoder = self.size_encoder.with_cann_dump_graphs(x);
+        self.size_decoder = self.size_decoder.with_cann_dump_graphs(x);
+        self.coord_encoder = self.coord_encoder.with_cann_dump_graphs(x);
+        self.coord_decoder = self.coord_decoder.with_cann_dump_graphs(x);
+        self.visual_projection = self.visual_projection.with_cann_dump_graphs(x);
+        self.textual_projection = self.textual_projection.with_cann_dump_graphs(x);
+        self
+    }
+
+    pub fn with_cann_dump_om_model_all(mut self, x: bool) -> Self {
+        self.visual = self.visual.with_cann_dump_om_model(x);
+        self.textual = self.textual.with_cann_dump_om_model(x);
+        self.model = self.model.with_cann_dump_om_model(x);
+        self.encoder = self.encoder.with_cann_dump_om_model(x);
+        self.decoder = self.decoder.with_cann_dump_om_model(x);
+        self.visual_encoder = self.visual_encoder.with_cann_dump_om_model(x);
+        self.textual_encoder = self.textual_encoder.with_cann_dump_om_model(x);
+        self.visual_decoder = self.visual_decoder.with_cann_dump_om_model(x);
+        self.textual_decoder = self.textual_decoder.with_cann_dump_om_model(x);
+        self.textual_decoder_merged = self.textual_decoder_merged.with_cann_dump_om_model(x);
+        self.size_encoder = self.size_encoder.with_cann_dump_om_model(x);
+        self.size_decoder = self.size_decoder.with_cann_dump_om_model(x);
+        self.coord_encoder = self.coord_encoder.with_cann_dump_om_model(x);
+        self.coord_decoder = self.coord_decoder.with_cann_dump_om_model(x);
+        self.visual_projection = self.visual_projection.with_cann_dump_om_model(x);
+        self.textual_projection = self.textual_projection.with_cann_dump_om_model(x);
+        self
+    }
+
+    // nnapi
+    pub fn with_nnapi_cpu_only_all(mut self, x: bool) -> Self {
+        self.visual = self.visual.with_nnapi_cpu_only(x);
+        self.textual = self.textual.with_nnapi_cpu_only(x);
+        self.model = self.model.with_nnapi_cpu_only(x);
+        self.encoder = self.encoder.with_nnapi_cpu_only(x);
+        self.decoder = self.decoder.with_nnapi_cpu_only(x);
+        self.visual_encoder = self.visual_encoder.with_nnapi_cpu_only(x);
+        self.textual_encoder = self.textual_encoder.with_nnapi_cpu_only(x);
+        self.visual_decoder = self.visual_decoder.with_nnapi_cpu_only(x);
+        self.textual_decoder = self.textual_decoder.with_nnapi_cpu_only(x);
+        self.textual_decoder_merged = self.textual_decoder_merged.with_nnapi_cpu_only(x);
+        self.size_encoder = self.size_encoder.with_nnapi_cpu_only(x);
+        self.size_decoder = self.size_decoder.with_nnapi_cpu_only(x);
+        self.coord_encoder = self.coord_encoder.with_nnapi_cpu_only(x);
+        self.coord_decoder = self.coord_decoder.with_nnapi_cpu_only(x);
+        self.visual_projection = self.visual_projection.with_nnapi_cpu_only(x);
+        self.textual_projection = self.textual_projection.with_nnapi_cpu_only(x);
+        self
+    }
+
+    pub fn with_nnapi_disable_cpu_all(mut self, x: bool) -> Self {
+        self.visual = self.visual.with_nnapi_disable_cpu(x);
+        self.textual = self.textual.with_nnapi_disable_cpu(x);
+        self.model = self.model.with_nnapi_disable_cpu(x);
+        self.encoder = self.encoder.with_nnapi_disable_cpu(x);
+        self.decoder = self.decoder.with_nnapi_disable_cpu(x);
+        self.visual_encoder = self.visual_encoder.with_nnapi_disable_cpu(x);
+        self.textual_encoder = self.textual_encoder.with_nnapi_disable_cpu(x);
+        self.visual_decoder = self.visual_decoder.with_nnapi_disable_cpu(x);
+        self.textual_decoder = self.textual_decoder.with_nnapi_disable_cpu(x);
+        self.textual_decoder_merged = self.textual_decoder_merged.with_nnapi_disable_cpu(x);
+        self.size_encoder = self.size_encoder.with_nnapi_disable_cpu(x);
+        self.size_decoder = self.size_decoder.with_nnapi_disable_cpu(x);
+        self.coord_encoder = self.coord_encoder.with_nnapi_disable_cpu(x);
+        self.coord_decoder = self.coord_decoder.with_nnapi_disable_cpu(x);
+        self.visual_projection = self.visual_projection.with_nnapi_disable_cpu(x);
+        self.textual_projection = self.textual_projection.with_nnapi_disable_cpu(x);
+        self
+    }
+
+    pub fn with_nnapi_fp16_all(mut self, x: bool) -> Self {
+        self.visual = self.visual.with_nnapi_fp16(x);
+        self.textual = self.textual.with_nnapi_fp16(x);
+        self.model = self.model.with_nnapi_fp16(x);
+        self.encoder = self.encoder.with_nnapi_fp16(x);
+        self.decoder = self.decoder.with_nnapi_fp16(x);
+        self.visual_encoder = self.visual_encoder.with_nnapi_fp16(x);
+        self.textual_encoder = self.textual_encoder.with_nnapi_fp16(x);
+        self.visual_decoder = self.visual_decoder.with_nnapi_fp16(x);
+        self.textual_decoder = self.textual_decoder.with_nnapi_fp16(x);
+        self.textual_decoder_merged = self.textual_decoder_merged.with_nnapi_fp16(x);
+        self.size_encoder = self.size_encoder.with_nnapi_fp16(x);
+        self.size_decoder = self.size_decoder.with_nnapi_fp16(x);
+        self.coord_encoder = self.coord_encoder.with_nnapi_fp16(x);
+        self.coord_decoder = self.coord_decoder.with_nnapi_fp16(x);
+        self.visual_projection = self.visual_projection.with_nnapi_fp16(x);
+        self.textual_projection = self.textual_projection.with_nnapi_fp16(x);
+        self
+    }
+
+    pub fn with_nnapi_nchw_all(mut self, x: bool) -> Self {
+        self.visual = self.visual.with_nnapi_nchw(x);
+        self.textual = self.textual.with_nnapi_nchw(x);
+        self.model = self.model.with_nnapi_nchw(x);
+        self.encoder = self.encoder.with_nnapi_nchw(x);
+        self.decoder = self.decoder.with_nnapi_nchw(x);
+        self.visual_encoder = self.visual_encoder.with_nnapi_nchw(x);
+        self.textual_encoder = self.textual_encoder.with_nnapi_nchw(x);
+        self.visual_decoder = self.visual_decoder.with_nnapi_nchw(x);
+        self.textual_decoder = self.textual_decoder.with_nnapi_nchw(x);
+        self.textual_decoder_merged = self.textual_decoder_merged.with_nnapi_nchw(x);
+        self.size_encoder = self.size_encoder.with_nnapi_nchw(x);
+        self.size_decoder = self.size_decoder.with_nnapi_nchw(x);
+        self.coord_encoder = self.coord_encoder.with_nnapi_nchw(x);
+        self.coord_decoder = self.coord_decoder.with_nnapi_nchw(x);
+        self.visual_projection = self.visual_projection.with_nnapi_nchw(x);
+        self.textual_projection = self.textual_projection.with_nnapi_nchw(x);
+        self
+    }
+
+    // armnn
+    pub fn with_armnn_arena_allocator_all(mut self, x: bool) -> Self {
+        self.visual = self.visual.with_armnn_arena_allocator(x);
+        self.textual = self.textual.with_armnn_arena_allocator(x);
+        self.model = self.model.with_armnn_arena_allocator(x);
+        self.encoder = self.encoder.with_armnn_arena_allocator(x);
+        self.decoder = self.decoder.with_armnn_arena_allocator(x);
+        self.visual_encoder = self.visual_encoder.with_armnn_arena_allocator(x);
+        self.textual_encoder = self.textual_encoder.with_armnn_arena_allocator(x);
+        self.visual_decoder = self.visual_decoder.with_armnn_arena_allocator(x);
+        self.textual_decoder = self.textual_decoder.with_armnn_arena_allocator(x);
+        self.textual_decoder_merged = self.textual_decoder_merged.with_armnn_arena_allocator(x);
+        self.size_encoder = self.size_encoder.with_armnn_arena_allocator(x);
+        self.size_decoder = self.size_decoder.with_armnn_arena_allocator(x);
+        self.coord_encoder = self.coord_encoder.with_armnn_arena_allocator(x);
+        self.coord_decoder = self.coord_decoder.with_armnn_arena_allocator(x);
+        self.visual_projection = self.visual_projection.with_armnn_arena_allocator(x);
+        self.textual_projection = self.textual_projection.with_armnn_arena_allocator(x);
+        self
+    }
+
+    // migraphx
+    pub fn with_migraphx_fp16_all(mut self, x: bool) -> Self {
+        self.visual = self.visual.with_migraphx_fp16(x);
+        self.textual = self.textual.with_migraphx_fp16(x);
+        self.model = self.model.with_migraphx_fp16(x);
+        self.encoder = self.encoder.with_migraphx_fp16(x);
+        self.decoder = self.decoder.with_migraphx_fp16(x);
+        self.visual_encoder = self.visual_encoder.with_migraphx_fp16(x);
+        self.textual_encoder = self.textual_encoder.with_migraphx_fp16(x);
+        self.visual_decoder = self.visual_decoder.with_migraphx_fp16(x);
+        self.textual_decoder = self.textual_decoder.with_migraphx_fp16(x);
+        self.textual_decoder_merged = self.textual_decoder_merged.with_migraphx_fp16(x);
+        self.size_encoder = self.size_encoder.with_migraphx_fp16(x);
+        self.size_decoder = self.size_decoder.with_migraphx_fp16(x);
+        self.coord_encoder = self.coord_encoder.with_migraphx_fp16(x);
+        self.coord_decoder = self.coord_decoder.with_migraphx_fp16(x);
+        self.visual_projection = self.visual_projection.with_migraphx_fp16(x);
+        self.textual_projection = self.textual_projection.with_migraphx_fp16(x);
+        self
+    }
+
+    pub fn with_migraphx_exhaustive_tune_all(mut self, x: bool) -> Self {
+        self.visual = self.visual.with_migraphx_exhaustive_tune(x);
+        self.textual = self.textual.with_migraphx_exhaustive_tune(x);
+        self.model = self.model.with_migraphx_exhaustive_tune(x);
+        self.encoder = self.encoder.with_migraphx_exhaustive_tune(x);
+        self.decoder = self.decoder.with_migraphx_exhaustive_tune(x);
+        self.visual_encoder = self.visual_encoder.with_migraphx_exhaustive_tune(x);
+        self.textual_encoder = self.textual_encoder.with_migraphx_exhaustive_tune(x);
+        self.visual_decoder = self.visual_decoder.with_migraphx_exhaustive_tune(x);
+        self.textual_decoder = self.textual_decoder.with_migraphx_exhaustive_tune(x);
+        self.textual_decoder_merged = self.textual_decoder_merged.with_migraphx_exhaustive_tune(x);
+        self.size_encoder = self.size_encoder.with_migraphx_exhaustive_tune(x);
+        self.size_decoder = self.size_decoder.with_migraphx_exhaustive_tune(x);
+        self.coord_encoder = self.coord_encoder.with_migraphx_exhaustive_tune(x);
+        self.coord_decoder = self.coord_decoder.with_migraphx_exhaustive_tune(x);
+        self.visual_projection = self.visual_projection.with_migraphx_exhaustive_tune(x);
+        self.textual_projection = self.textual_projection.with_migraphx_exhaustive_tune(x);
+        self
+    }
 }
 
 impl_ort_config_methods!(Config, model);

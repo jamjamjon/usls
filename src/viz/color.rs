@@ -61,20 +61,24 @@ impl From<Color> for [u8; 3] {
     }
 }
 
-impl TryFrom<&str> for Color {
-    type Error = &'static str;
+impl std::str::FromStr for Color {
+    type Err = anyhow::Error;
 
-    fn try_from(x: &str) -> Result<Self, Self::Error> {
+    fn from_str(x: &str) -> Result<Self, Self::Err> {
         let hex = x.trim_start_matches('#');
         let hex = match hex.len() {
             6 => format!("{}ff", hex),
             8 => hex.to_string(),
-            _ => return Err("Failed to convert `Color` from str: invalid length"),
+            _ => {
+                return Err(anyhow::anyhow!(
+                    "Failed to convert `Color` from str: invalid length"
+                ))
+            }
         };
 
         u32::from_str_radix(&hex, 16)
             .map(Self)
-            .map_err(|_| "Failed to convert `Color` from str: invalid hex")
+            .map_err(|_| anyhow::anyhow!("Failed to convert `Color` from str: invalid hex"))
     }
 }
 
@@ -151,17 +155,8 @@ impl Color {
         xs.iter().copied().map(Into::into).collect()
     }
 
-    pub fn try_create_palette<A: TryInto<Self> + Copy>(xs: &[A]) -> Result<Vec<Self>>
-    where
-        <A as TryInto<Self>>::Error: std::fmt::Debug,
-    {
-        xs.iter()
-            .copied()
-            .map(|x| {
-                x.try_into()
-                    .map_err(|e| anyhow::anyhow!("Failed to convert: {:?}", e))
-            })
-            .collect()
+    pub fn try_create_palette(xs: &[&str]) -> Result<Vec<Self>> {
+        xs.iter().map(|x| x.parse()).collect()
     }
 
     pub fn palette_rand(n: usize) -> Vec<Self> {

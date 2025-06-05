@@ -39,13 +39,13 @@ fn main() -> Result<()> {
     let args: Args = argh::from_env();
 
     // build model
-    let config = match args.scale.as_str().try_into()? {
+    let config = match args.scale.parse()? {
         Scale::Billion(0.5) => Config::moondream2_0_5b(),
         Scale::Billion(2.) => Config::moondream2_2b(),
         _ => unimplemented!(),
     }
-    .with_dtype_all(args.dtype.as_str().try_into()?)
-    .with_device_all(args.device.as_str().try_into()?)
+    .with_dtype_all(args.dtype.parse()?)
+    .with_device_all(args.device.parse()?)
     .commit()?;
 
     let mut model = Moondream2::new(config)?;
@@ -54,7 +54,7 @@ fn main() -> Result<()> {
     let xs = DataLoader::try_read_n(&args.source)?;
 
     // run with task
-    let task: Task = args.task.as_str().try_into()?;
+    let task: Task = args.task.parse()?;
     let ys = model.forward(&xs, &task)?;
 
     // annotate

@@ -27,7 +27,7 @@ fn main() -> Result<()> {
     let args: Args = argh::from_env();
 
     // build model
-    let config = match args.scale.as_str().try_into()? {
+    let config = match args.scale.parse()? {
         Scale::T => Config::linknet_r18(),
         Scale::S => Config::linknet_r34(),
         Scale::B => Config::linknet_r50(),
@@ -35,8 +35,8 @@ fn main() -> Result<()> {
     };
     let mut model = DB::new(
         config
-            .with_model_dtype(args.dtype.as_str().try_into()?)
-            .with_model_device(args.device.as_str().try_into()?)
+            .with_model_dtype(args.dtype.parse()?)
+            .with_model_device(args.device.parse()?)
             .commit()?,
     )?;
 

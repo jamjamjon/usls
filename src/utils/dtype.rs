@@ -29,10 +29,10 @@ pub enum DType {
     Complex128,
 }
 
-impl TryFrom<&str> for DType {
-    type Error = anyhow::Error;
+impl std::str::FromStr for DType {
+    type Err = anyhow::Error;
 
-    fn try_from(s: &str) -> Result<Self, Self::Error> {
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_lowercase().as_str() {
             "auto" | "dyn" => Ok(Self::Auto),
             "u4" | "uint4" => Ok(Self::Uint4),

@@ -28,8 +28,8 @@ fn main() -> Result<()> {
         // yoloe_11s_seg_pf()
         // yoloe_11m_seg_pf()
         // yoloe_11l_seg_pf()
-        .with_model_dtype(args.dtype.as_str().try_into()?)
-        .with_model_device(args.device.as_str().try_into()?)
+        .with_model_dtype(args.dtype.as_str().parse()?)
+        .with_model_device(args.device.as_str().parse()?)
         .commit()?;
     let mut model = YOLO::new(config)?;
 

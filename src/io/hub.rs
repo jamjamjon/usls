@@ -460,7 +460,7 @@ impl Hub {
     fn cache_file(owner: &str, repo: &str) -> String {
         let safe_owner = owner.replace(|c: char| !c.is_ascii_alphanumeric(), "_");
         let safe_repo = repo.replace(|c: char| !c.is_ascii_alphanumeric(), "_");
-        format!(".cache-releases-{}-{}.json", safe_owner, safe_repo)
+        format!("releases-{}-{}.json", safe_owner, safe_repo)
     }
 
     fn get_releases(
@@ -470,7 +470,9 @@ impl Hub {
         to: &Dir,
         ttl: &Duration,
     ) -> Result<Vec<Release>> {
-        let cache = to.crate_dir_default()?.join(Self::cache_file(owner, repo));
+        let cache = to
+            .crate_dir_default_with_subs(&["caches"])?
+            .join(Self::cache_file(owner, repo));
         let is_file_expired = Self::is_file_expired(&cache, ttl)?;
         let body = if is_file_expired {
             let gh_api_release = format!(

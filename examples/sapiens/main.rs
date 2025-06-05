@@ -18,7 +18,7 @@ fn main() -> Result<()> {
     let args: Args = argh::from_env();
     // build
     let config = Config::sapiens_seg_0_3b()
-        .with_model_device(args.device.as_str().try_into()?)
+        .with_model_device(args.device.parse()?)
         .commit()?;
     let mut model = Sapiens::new(config)?;
 

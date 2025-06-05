@@ -5,6 +5,7 @@ use log::{info, warn};
 use rayon::prelude::*;
 use std::collections::VecDeque;
 use std::path::{Path, PathBuf};
+use std::str::FromStr;
 use std::sync::mpsc;
 #[cfg(feature = "video")]
 use video_rs::{Decoder, Url};
@@ -80,9 +81,10 @@ impl std::fmt::Debug for DataLoader {
     }
 }
 
-impl TryFrom<&str> for DataLoader {
-    type Error = anyhow::Error;
-    fn try_from(source: &str) -> Result<Self, Self::Error> {
+impl FromStr for DataLoader {
+    type Err = anyhow::Error;
+
+    fn from_str(source: &str) -> Result<Self, Self::Err> {
         Self::new(source)
     }
 }

@@ -28,9 +28,9 @@ fn main() -> Result<()> {
 
     let args: Args = argh::from_env();
     // Build model
-    let config = match args.kind.as_str().try_into()? {
+    let config = match args.kind.parse()? {
         SamKind::Sam => Config::sam_v1_base(),
-        SamKind::Sam2 => match args.scale.as_str().try_into()? {
+        SamKind::Sam2 => match args.scale.parse()? {
             Scale::T => Config::sam2_tiny(),
             Scale::S => Config::sam2_small(),
             Scale::B => Config::sam2_base_plus(),
@@ -40,7 +40,7 @@ fn main() -> Result<()> {
         SamKind::SamHq => Config::sam_hq_tiny(),
         SamKind::EdgeSam => Config::edge_sam_3x(),
     }
-    .with_device_all(args.device.as_str().try_into()?)
+    .with_device_all(args.device.parse()?)
     .commit()?;
 
     let mut model = SAM::new(config)?;

@@ -29,8 +29,8 @@ fn main() -> Result<()> {
         // clip_vit_b32()
         // jina_clip_v1()
         // jina_clip_v2()
-        .with_dtype_all(args.dtype.as_str().try_into()?)
-        .with_device_all(args.device.as_str().try_into()?)
+        .with_dtype_all(args.dtype.parse()?)
+        .with_device_all(args.device.parse()?)
         .commit()?;
     let mut model = Clip::new(config)?;
 
