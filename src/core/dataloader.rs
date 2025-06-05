@@ -168,6 +168,11 @@ impl DataLoader {
         })
     }
 
+    #[cfg(feature = "video")]
+    pub fn video_decoder(&self) -> Option<&video_rs::decode::Decoder> {
+        self.decoder.as_ref()
+    }
+
     pub fn build(mut self) -> Result<Self> {
         let (sender, receiver) =
             mpsc::sync_channel::<Vec<Image>>(self.bound.unwrap_or(self.batch_size * 10));

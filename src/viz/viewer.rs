@@ -244,6 +244,12 @@ impl Viewer<'_> {
         self
     }
 
+    #[cfg(feature = "video")]
+    pub fn with_saveout(mut self, x: String) -> Self {
+        self.saveout = Some(x);
+        self
+    }
+
     #[inline]
     pub fn width_height(&self) -> Option<(usize, usize)> {
         self.window.as_ref().map(|x| x.get_size())

@@ -154,7 +154,7 @@ pub fn generate_random_string(length: usize) -> String {
 ///
 /// # Arguments
 /// * `delimiter` - Optional string to insert between each component of the timestamp.
-///                If None or empty string, components will be joined without delimiter.
+///   If None or empty string, components will be joined without delimiter.
 ///
 /// # Returns
 /// A string containing the current timestamp with the specified format.
