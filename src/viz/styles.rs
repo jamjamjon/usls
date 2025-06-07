@@ -2,6 +2,7 @@ use aksr::Builder;
 
 use crate::{Color, ColorMap256, Skeleton};
 
+/// Style configuration for drawing annotations and visualizations.
 #[derive(Debug, Clone, Builder, PartialEq)]
 pub struct Style {
     visible: bool,                        // For ALL
@@ -131,6 +132,7 @@ impl Style {
     }
 }
 
+/// Color configuration for different visual elements.
 #[derive(Debug, Builder, Default, Clone, PartialEq, Copy)]
 pub struct StyleColors {
     pub outline: Option<Color>,
@@ -139,6 +141,7 @@ pub struct StyleColors {
     pub text_bg: Option<Color>,
 }
 
+/// Text positioning options relative to visual elements.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum TextLoc {
     InnerTopLeft,

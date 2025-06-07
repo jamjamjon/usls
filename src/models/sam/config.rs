@@ -2,6 +2,13 @@ use crate::{models::SamKind, Config};
 
 /// Model configuration for `Segment Anything Model`
 impl Config {
+    /// Creates a base SAM configuration with common settings.
+    ///
+    /// Sets up default parameters for image preprocessing and model architecture:
+    /// - 1024x1024 input resolution
+    /// - Adaptive resize mode
+    /// - Image normalization parameters
+    /// - Contour finding enabled
     pub fn sam() -> Self {
         Self::default()
             .with_name("sam")
@@ -19,6 +26,8 @@ impl Config {
             .with_find_contours(true)
     }
 
+    /// Creates a configuration for SAM v1 base model.
+    /// Uses the original ViT-B architecture.  
     pub fn sam_v1_base() -> Self {
         Self::sam()
             .with_encoder_file("sam-vit-b-encoder.onnx")
@@ -29,6 +38,8 @@ impl Config {
     //     Self::sam().with_decoder_file("sam-vit-b-decoder-singlemask.onnx")
     // }
 
+    /// Creates a configuration for SAM 2.0 tiny model.
+    /// Uses a hierarchical architecture with tiny backbone.
     pub fn sam2_tiny() -> Self {
         Self::sam()
             .with_encoder_file("sam2-hiera-tiny-encoder.onnx")
@@ -36,6 +47,8 @@ impl Config {
             .with_decoder_file("sam2-hiera-tiny-decoder.onnx")
     }
 
+    /// Creates a configuration for SAM 2.0 small model.
+    /// Uses a hierarchical architecture with small backbone.
     pub fn sam2_small() -> Self {
         Self::sam()
             .with_encoder_file("sam2-hiera-small-encoder.onnx")
@@ -43,6 +56,8 @@ impl Config {
             .with_sam_kind(SamKind::Sam2)
     }
 
+    /// Creates a configuration for SAM 2.0 base-plus model.
+    /// Uses a hierarchical architecture with enhanced base backbone.
     pub fn sam2_base_plus() -> Self {
         Self::sam()
             .with_encoder_file("sam2-hiera-base-plus-encoder.onnx")
@@ -50,6 +65,8 @@ impl Config {
             .with_sam_kind(SamKind::Sam2)
     }
 
+    /// Creates a configuration for MobileSAM tiny model.
+    /// Lightweight model optimized for mobile devices.
     pub fn mobile_sam_tiny() -> Self {
         Self::sam()
             .with_encoder_file("mobile-sam-vit-t-encoder.onnx")
@@ -57,6 +74,8 @@ impl Config {
             .with_decoder_file("mobile-sam-vit-t-decoder.onnx")
     }
 
+    /// Creates a configuration for SAM-HQ tiny model.
+    /// High-quality variant focused on better mask quality.
     pub fn sam_hq_tiny() -> Self {
         Self::sam()
             .with_encoder_file("sam-hq-vit-t-encoder.onnx")
@@ -64,6 +83,8 @@ impl Config {
             .with_decoder_file("sam-hq-vit-t-decoder.onnx")
     }
 
+    /// Creates a configuration for EdgeSAM 3x model.
+    /// Edge-based variant optimized for speed and efficiency.
     pub fn edge_sam_3x() -> Self {
         Self::sam()
             .with_encoder_file("edge-sam-3x-encoder.onnx")

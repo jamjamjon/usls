@@ -1,5 +1,6 @@
 use crate::{Color, Style, StyleColors, TextRenderer};
 
+/// Drawing context containing styles and renderers for visualization.
 #[derive(Debug, Clone)]
 pub struct DrawContext<'a> {
     pub text_renderer: &'a TextRenderer,

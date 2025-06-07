@@ -3,9 +3,12 @@ mod r#impl;
 
 pub use r#impl::*;
 
+/// SAM prompt containing coordinates and labels for segmentation.
 #[derive(Debug, Default, Clone)]
 pub struct SamPrompt {
+    /// Point coordinates for prompting.
     pub coords: Vec<Vec<[f32; 2]>>,
+    /// Labels corresponding to the coordinates.
     pub labels: Vec<Vec<f32>>,
 }
 

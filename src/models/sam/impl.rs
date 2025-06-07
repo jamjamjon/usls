@@ -8,12 +8,18 @@ use crate::{
     elapsed, Config, DynConf, Engine, Image, Mask, Ops, Polygon, Processor, SamPrompt, Ts, Xs, X, Y,
 };
 
+/// SAM model variants for different use cases.
 #[derive(Debug, Clone)]
 pub enum SamKind {
+    /// Original SAM model
     Sam,
-    Sam2, // 2.0
+    /// SAM 2.0 with hierarchical architecture
+    Sam2,
+    /// Mobile optimized SAM
     MobileSam,
+    /// High quality SAM with better segmentation
     SamHq,
+    /// Efficient SAM with edge-based segmentation
     EdgeSam,
 }
 
@@ -32,6 +38,10 @@ impl FromStr for SamKind {
     }
 }
 
+/// Segment Anything Model (SAM) for image segmentation.
+///
+/// A foundation model for generating high-quality object masks from input prompts such as points or boxes.
+/// Supports multiple variants including the original SAM, SAM2, MobileSAM, SAM-HQ and EdgeSAM.
 #[derive(Builder, Debug)]
 pub struct SAM {
     encoder: Engine,
@@ -49,6 +59,10 @@ pub struct SAM {
 }
 
 impl SAM {
+    /// Creates a new SAM model instance from the provided configuration.
+    ///
+    /// Initializes the model based on the specified SAM variant (original SAM, SAM2, MobileSAM etc.)
+    /// and configures its encoder-decoder architecture.
     pub fn new(config: Config) -> Result<Self> {
         let encoder = Engine::try_from_config(&config.encoder)?;
         let decoder = Engine::try_from_config(&config.decoder)?;
@@ -94,6 +108,11 @@ impl SAM {
         })
     }
 
+    /// Runs the complete segmentation pipeline on a batch of images.
+    ///
+    /// The pipeline consists of:
+    /// 1. Encoding the images into embeddings
+    /// 2. Decoding the embeddings with input prompts to generate segmentation masks
     pub fn forward(&mut self, xs: &[Image], prompts: &[SamPrompt]) -> Result<Vec<Y>> {
         let ys = elapsed!("encode", self.ts, { self.encode(xs)? });
         let ys = elapsed!("decode", self.ts, { self.decode(&ys, prompts)? });
@@ -101,11 +120,16 @@ impl SAM {
         Ok(ys)
     }
 
+    /// Encodes input images into image embeddings.
     pub fn encode(&mut self, xs: &[Image]) -> Result<Xs> {
         let xs_ = self.processor.process_images(xs)?;
         self.encoder.run(Xs::from(xs_))
     }
 
+    /// Generates segmentation masks from image embeddings and input prompts.
+    ///
+    /// Takes the image embeddings from the encoder and input prompts (points or boxes)
+    /// to generate binary segmentation masks for the prompted objects.
     pub fn decode(&mut self, xs: &Xs, prompts: &[SamPrompt]) -> Result<Vec<Y>> {
         let (image_embeddings, high_res_features_0, high_res_features_1) = match self.kind {
             SamKind::Sam2 => (&xs[0], Some(&xs[1]), Some(&xs[2])),
@@ -285,10 +309,12 @@ impl SAM {
         Ok(ys)
     }
 
+    /// Returns the width of the low-resolution feature maps.
     pub fn width_low_res(&self) -> usize {
         self.width / 4
     }
 
+    /// Returns the height of the low-resolution feature maps.  
     pub fn height_low_res(&self) -> usize {
         self.height / 4
     }

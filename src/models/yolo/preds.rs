@@ -2,6 +2,7 @@ use ndarray::{ArrayBase, ArrayView, Axis, Dim, IxDyn, IxDynImpl, ViewRepr};
 
 use crate::Task;
 
+/// Bounding box coordinate format types.
 #[derive(Debug, Clone, PartialEq)]
 pub enum BoxType {
     Cxcywh,
@@ -11,6 +12,7 @@ pub enum BoxType {
     XyCxcy,
 }
 
+/// Classification output format types.
 #[derive(Debug, Clone, PartialEq)]
 pub enum ClssType {
     Clss,
@@ -20,18 +22,21 @@ pub enum ClssType {
     ClssConf,
 }
 
+/// Keypoint output format types.
 #[derive(Debug, Clone, PartialEq)]
 pub enum KptsType {
     Xys,
     Xycs,
 }
 
+/// Anchor position in the prediction pipeline.
 #[derive(Debug, Clone, PartialEq)]
 pub enum AnchorsPosition {
     Before,
     After,
 }
 
+/// YOLO prediction format configuration.
 #[derive(Debug, Clone, PartialEq)]
 pub struct YOLOPredsFormat {
     pub clss: ClssType,

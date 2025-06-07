@@ -7,6 +7,7 @@ use crate::{
     elapsed, Config, DynConf, Engine, Hbb, Image, Mask, Obb, Ops, Polygon, Processor, Ts, Xs, Y,
 };
 
+/// DB (Differentiable Binarization) model for text detection.
 #[derive(Debug, Builder)]
 pub struct DB {
     engine: Engine,

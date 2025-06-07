@@ -6,9 +6,12 @@ use std::str::FromStr;
 
 use crate::{elapsed, Config, Engine, Image, LogitsSampler, Processor, Scale, Ts, Xs, X, Y};
 
+/// TrOCR model variants for different text types.
 #[derive(Debug, Copy, Clone)]
 pub enum TrOCRKind {
+    /// Model variant optimized for machine-printed text recognition
     Printed,
+    /// Model variant optimized for handwritten text recognition
     HandWritten,
 }
 
@@ -24,23 +27,59 @@ impl FromStr for TrOCRKind {
     }
 }
 
+/// TrOCR model for optical character recognition.
+///
+/// TrOCR is a transformer-based OCR model that combines an image encoder with
+/// a text decoder for end-to-end text recognition. It supports both printed and
+/// handwritten text recognition through different model variants.
+///
+/// The model consists of:
+/// - An encoder that processes the input image
+/// - A decoder that generates text tokens
+/// - A merged decoder variant for optimized inference
+/// - A processor for image preprocessing and text postprocessing
 #[derive(Debug, Builder)]
 pub struct TrOCR {
+    /// Image encoder engine
     encoder: Engine,
+    /// Text decoder engine for token generation
     decoder: Engine,
+    /// Optimized merged decoder engine
     decoder_merged: Engine,
+    /// Maximum length of generated text sequence
     max_length: u32,
+    /// Token ID representing end of sequence
     eos_token_id: u32,
+    /// Token ID used to start text generation
     decoder_start_token_id: u32,
+    /// Timestamp tracking for performance analysis
     ts: Ts,
+    /// Number of key-value pairs in decoder attention
     n_kvs: usize,
+    /// Image and text processor for pre/post processing
     processor: Processor,
+    /// Batch size for inference
     batch: usize,
+    /// Input image height
     height: usize,
+    /// Input image width  
     width: usize,
 }
 
 impl TrOCR {
+    /// Creates a new TrOCR model instance from the given configuration.
+    ///
+    /// # Arguments
+    /// * `config` - The model configuration containing paths to model files and parameters
+    ///
+    /// # Returns
+    /// * `Result<Self>` - A new TrOCR instance if initialization succeeds
+    ///
+    /// # Errors
+    /// Returns an error if:
+    /// - Required model files cannot be loaded
+    /// - Model configuration is invalid
+    /// - Tokenizer initialization fails
     pub fn new(config: Config) -> Result<Self> {
         let encoder = Engine::try_from_config(&config.visual)?;
         let decoder = Engine::try_from_config(&config.textual_decoder)?;
@@ -86,6 +125,16 @@ impl TrOCR {
         })
     }
 
+    /// Encodes the given images into feature vectors using the TrOCR encoder.
+    ///
+    /// This method processes the images through the image processor and then
+    /// encodes them using the encoder engine.
+    ///
+    /// # Arguments
+    /// * `xs` - A slice of `Image` instances to be encoded.
+    ///
+    /// # Errors
+    /// Returns an error if image processing or encoding fails.
     pub fn encode(&mut self, xs: &[Image]) -> Result<X> {
         let ys = self.processor.process_images(xs)?;
         self.batch = xs.len(); // update
@@ -93,6 +142,16 @@ impl TrOCR {
         Ok(ys[0].to_owned())
     }
 
+    /// Performs the forward pass of the TrOCR model, from encoding images to decoding text.
+    ///
+    /// This method encodes the input images, generates token IDs using the decoder,
+    /// and finally decodes the token IDs into text.
+    ///
+    /// # Arguments
+    /// * `xs` - A slice of `Image` instances to be processed.
+    ///
+    /// # Errors
+    /// Returns an error if any step in the forward pass fails.
     pub fn forward(&mut self, xs: &[Image]) -> Result<Vec<Y>> {
         let encoder_hidden_states = elapsed!("encode", self.ts, { self.encode(xs)? });
         let generated = elapsed!("generate", self.ts, {
@@ -182,6 +241,13 @@ impl TrOCR {
         Ok(token_ids)
     }
 
+    /// Decodes the given token IDs into text using the TrOCR processor.
+    ///
+    /// # Arguments
+    /// * `token_ids` - A vector of vector of token IDs to be decoded.
+    ///
+    /// # Errors
+    /// Returns an error if decoding fails.
     pub fn decode(&self, token_ids: Vec<Vec<u32>>) -> Result<Vec<Y>> {
         // decode
         let texts = self.processor.decode_tokens_batch(&token_ids, false)?;
@@ -195,6 +261,7 @@ impl TrOCR {
         Ok(texts)
     }
 
+    /// Displays a summary of the TrOCR model's configuration and state.
     pub fn summary(&self) {
         self.ts.summary();
     }
