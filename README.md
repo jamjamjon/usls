@@ -56,7 +56,7 @@ usls = "latest-version"
 
 ## ⚡ Supported Models
 <details>
-<summary>Full list of supported models (click to expand)</summary>
+<summary>Click to expand</summary>
 
 | Model | Task / Description | Example |
 | ----- | ----------------- | ------- |
@@ -110,6 +110,7 @@ usls = "latest-version"
 | [SmolVLM(256M, 500M)](https://huggingface.co/HuggingFaceTB/SmolVLM-256M-Instruct) | Visual Question Answering | [demo](examples/smolvlm) |
 | [RMBG(1.4, 2.0)](https://huggingface.co/briaai/RMBG-2.0) | Image Segmentation<br />Background Removal | [demo](examples/rmbg) |
 | [BEN2](https://huggingface.co/PramaLLC/BEN2) | Image Segmentation<br />Background Removal | [demo](examples/rmbg) |
+| [MediaPipe: Selfie-segmentation](https://ai.google.dev/edge/mediapipe/solutions/vision/image_segmenter) | Image Segmentation | [demo](examples/mediapipe-selfie-segmentation) |
 
 </details>
 
