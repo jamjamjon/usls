@@ -37,6 +37,8 @@ cargo run -r -F coreml --example yolo -- --device coreml
 
 # Intel OpenVINO
 cargo run -r -F openvino -F ort-load-dynamic --example yolo -- --device openvino:CPU
+
+# And other EPs...
 ```
 
 
