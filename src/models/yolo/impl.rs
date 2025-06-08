@@ -12,6 +12,14 @@ use crate::{
     Ts, Version, Xs, Y,
 };
 
+/// YOLO (You Only Look Once) object detection model.
+///
+/// A versatile deep learning model that can perform multiple computer vision tasks including:
+/// - Object Detection
+/// - Instance Segmentation
+/// - Keypoint Detection  
+/// - Image Classification
+/// - Oriented Object Detection
 #[derive(Debug, Builder)]
 pub struct YOLO {
     engine: Engine,
@@ -45,6 +53,12 @@ impl TryFrom<Config> for YOLO {
 }
 
 impl YOLO {
+    /// Creates a new YOLO model instance from the provided configuration.
+    ///
+    /// This function initializes the model by:
+    /// - Loading the ONNX model file
+    /// - Setting up input dimensions and processing parameters
+    /// - Configuring task-specific settings and output formats
     pub fn new(config: Config) -> Result<Self> {
         let engine = Engine::try_from_config(&config.model)?;
         let (batch, height, width, ts, spec) = (
@@ -284,16 +298,24 @@ impl YOLO {
         })
     }
 
+    /// Pre-processes input images before model inference.
     fn preprocess(&mut self, xs: &[Image]) -> Result<Xs> {
         let x = self.processor.process_images(xs)?;
 
         Ok(x.into())
     }
 
+    /// Performs model inference on the pre-processed input.
     fn inference(&mut self, xs: Xs) -> Result<Xs> {
         self.engine.run(xs)
     }
 
+    /// Performs the complete inference pipeline on a batch of images.
+    ///
+    /// The pipeline consists of:
+    /// 1. Pre-processing the input images
+    /// 2. Running model inference
+    /// 3. Post-processing the outputs to generate final predictions
     pub fn forward(&mut self, xs: &[Image]) -> Result<Vec<Y>> {
         let ys = elapsed!("preprocess", self.ts, { self.preprocess(xs)? });
         let ys = elapsed!("inference", self.ts, { self.inference(ys)? });
@@ -302,6 +324,7 @@ impl YOLO {
         Ok(ys)
     }
 
+    /// Post-processes model outputs to generate final predictions.
     fn postprocess(&self, xs: Xs) -> Result<Vec<Y>> {
         // let protos = if xs.len() == 2 { Some(&xs[1]) } else { None };
         let ys: Vec<Y> = xs[0]
@@ -605,6 +628,7 @@ impl YOLO {
         // Ok(ys.into())
     }
 
+    /// Extracts class names from the ONNX model metadata if available.
     fn fetch_names_from_onnx(engine: &Engine) -> Option<Vec<String>> {
         // fetch class names from onnx metadata
         // String format: `{0: 'person', 1: 'bicycle', 2: 'sports ball', ..., 27: "yellow_lady's_slipper"}`
@@ -616,6 +640,7 @@ impl YOLO {
             .into()
     }
 
+    /// Extracts the number of keypoints from the ONNX model metadata if available.
     fn fetch_nk_from_onnx(engine: &Engine) -> Option<usize> {
         Regex::new(r"(\d+), \d+")
             .ok()?
@@ -624,6 +649,7 @@ impl YOLO {
             .and_then(|m| m.as_str().parse::<usize>().ok())
     }
 
+    /// Prints a summary of the model configuration and parameters.
     pub fn summary(&mut self) {
         self.ts.summary();
     }

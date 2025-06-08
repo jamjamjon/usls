@@ -7,6 +7,7 @@ mod prob;
 
 use crate::{DrawContext, Style, Y};
 
+/// Defines an interface for drawing objects on an image canvas
 pub trait Drawable {
     fn get_local_style(&self) -> Option<&Style> {
         None

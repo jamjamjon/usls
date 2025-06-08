@@ -5,6 +5,7 @@ use rayon::prelude::*;
 
 use crate::{elapsed, Config, DynConf, Engine, Image, Processor, Text, Ts, Xs, Y};
 
+/// SVTR (Scene Text Recognition) model for text recognition.
 #[derive(Builder, Debug)]
 pub struct SVTR {
     engine: Engine,

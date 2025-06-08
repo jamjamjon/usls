@@ -1,5 +1,6 @@
 use crate::Color;
 
+/// 256-color colormap variants for data visualization.
 #[derive(Clone, Debug, PartialEq)]
 pub enum ColorMap256 {
     Turbo,

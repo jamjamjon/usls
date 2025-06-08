@@ -6,6 +6,10 @@ use crate::{
     elapsed, Config, DynConf, Engine, Image, Mask, Ops, Processor, SamPrompt, Ts, Xs, X, Y,
 };
 
+/// SAM2 (Segment Anything Model 2.1) for advanced image segmentation.
+///
+/// A hierarchical vision foundation model with improved efficiency and quality.
+/// Features enhanced backbone architecture and optimized prompt handling.
 #[derive(Builder, Debug)]
 pub struct SAM2 {
     encoder: Engine,
@@ -20,6 +24,12 @@ pub struct SAM2 {
 }
 
 impl SAM2 {
+    /// Creates a new SAM2 model instance from the provided configuration.
+    ///
+    /// Initializes the model with:
+    /// - Encoder-decoder architecture
+    /// - Image preprocessing settings
+    /// - Confidence thresholds
     pub fn new(config: Config) -> Result<Self> {
         let encoder = Engine::try_from_config(&config.encoder)?;
         let decoder = Engine::try_from_config(&config.decoder)?;
@@ -48,6 +58,11 @@ impl SAM2 {
         })
     }
 
+    /// Runs the complete segmentation pipeline on a batch of images.
+    ///
+    /// The pipeline consists of:
+    /// 1. Image encoding into hierarchical features
+    /// 2. Prompt-guided mask generation
     pub fn forward(&mut self, xs: &[Image], prompts: &[SamPrompt]) -> Result<Vec<Y>> {
         let ys = elapsed!("encode", self.ts, { self.encode(xs)? });
         let ys = elapsed!("decode", self.ts, { self.decode(&ys, prompts)? });
@@ -55,11 +70,16 @@ impl SAM2 {
         Ok(ys)
     }
 
+    /// Encodes input images into hierarchical feature representations.
     pub fn encode(&mut self, xs: &[Image]) -> Result<Xs> {
         let xs_ = self.processor.process_images(xs)?;
         self.encoder.run(Xs::from(xs_))
     }
 
+    /// Generates segmentation masks from encoded features and prompts.
+    ///
+    /// Takes hierarchical image features and user prompts (points/boxes)
+    /// to generate accurate object masks.
     pub fn decode(&mut self, xs: &Xs, prompts: &[SamPrompt]) -> Result<Vec<Y>> {
         let (image_embeddings, high_res_features_0, high_res_features_1) = (&xs[0], &xs[1], &xs[2]);
 
@@ -153,10 +173,12 @@ impl SAM2 {
         Ok(ys)
     }
 
+    /// Returns the width of the low-resolution feature maps.
     pub fn width_low_res(&self) -> usize {
         self.width / 4
     }
 
+    /// Returns the height of the low-resolution feature maps.
     pub fn height_low_res(&self) -> usize {
         self.height / 4
     }

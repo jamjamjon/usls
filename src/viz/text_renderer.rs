@@ -5,6 +5,7 @@ use image::{Rgba, RgbaImage};
 
 use crate::{Color, Hub};
 
+/// Text rendering engine with font management and styling capabilities.
 #[derive(Builder, Clone, Debug)]
 pub struct TextRenderer {
     #[args(except(setter))]

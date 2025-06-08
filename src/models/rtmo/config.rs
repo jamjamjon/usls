@@ -15,6 +15,13 @@ impl crate::Config {
             .with_keypoint_confs(&[0.5])
     }
 
+    pub fn rtmo_t() -> Self {
+        Self::rtmo()
+            .with_model_ixx(0, 2, 416.into())
+            .with_model_ixx(0, 3, 416.into())
+            .with_model_file("t.onnx")
+    }
+
     pub fn rtmo_s() -> Self {
         Self::rtmo().with_model_file("s.onnx")
     }

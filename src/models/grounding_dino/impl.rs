@@ -7,6 +7,7 @@ use std::fmt::Write;
 use crate::{elapsed, Config, DynConf, Engine, Hbb, Image, Processor, Ts, Xs, X, Y};
 
 #[derive(Builder, Debug)]
+/// Grounding DINO model for open-vocabulary object detection.
 pub struct GroundingDINO {
     pub engine: Engine,
     height: usize,

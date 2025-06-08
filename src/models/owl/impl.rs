@@ -5,6 +5,7 @@ use rayon::prelude::*;
 
 use crate::{elapsed, Config, DynConf, Engine, Hbb, Image, Processor, Ts, Xs, X, Y};
 
+/// OWL-ViT v2 model for open-vocabulary object detection.
 #[derive(Debug, Builder)]
 pub struct OWLv2 {
     engine: Engine,

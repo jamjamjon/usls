@@ -5,6 +5,9 @@ use crate::{
 };
 
 impl Config {
+    /// Creates a base YOLO configuration with common settings.
+    ///
+    /// Sets up default input dimensions (640x640) and image processing parameters.
     pub fn yolo() -> Self {
         Self::default()
             .with_name("yolo")
@@ -16,6 +19,12 @@ impl Config {
             .with_resize_filter("CatmullRom")
     }
 
+    /// Creates a configuration for YOLO image classification.
+    ///
+    /// Configures the model for ImageNet classification with:
+    /// - 224x224 input size
+    /// - Exact resize mode with bilinear interpolation
+    /// - ImageNet 1000 class names
     pub fn yolo_classify() -> Self {
         Self::yolo()
             .with_task(Task::ImageClassification)
@@ -26,24 +35,38 @@ impl Config {
             .with_class_names(&NAMES_IMAGENET_1K)
     }
 
+    /// Creates a configuration for YOLO object detection.
+    ///
+    /// Configures the model for COCO dataset object detection with 80 classes.
     pub fn yolo_detect() -> Self {
         Self::yolo()
             .with_task(Task::ObjectDetection)
             .with_class_names(&NAMES_COCO_80)
     }
 
+    /// Creates a configuration for YOLO pose estimation.
+    ///
+    /// Configures the model for human keypoint detection with 17 COCO keypoints.
     pub fn yolo_pose() -> Self {
         Self::yolo()
             .with_task(Task::KeypointsDetection)
             .with_keypoint_names(&NAMES_COCO_KEYPOINTS_17)
     }
 
+    /// Creates a configuration for YOLO instance segmentation.
+    ///
+    /// Configures the model for COCO dataset instance segmentation with 80 classes.
     pub fn yolo_segment() -> Self {
         Self::yolo()
             .with_task(Task::InstanceSegmentation)
             .with_class_names(&NAMES_COCO_80)
     }
 
+    /// Creates a configuration for YOLO oriented object detection.
+    ///
+    /// Configures the model for detecting rotated objects with:
+    /// - 1024x1024 input size
+    /// - DOTA v1 dataset classes
     pub fn yolo_obb() -> Self {
         Self::yolo()
             .with_model_ixx(0, 2, 1024.into())
@@ -52,6 +75,11 @@ impl Config {
             .with_class_names(&NAMES_DOTA_V1_15)
     }
 
+    /// Creates a configuration for document layout analysis using YOLOv10.
+    ///
+    /// Configures the model for detecting document structure elements with:
+    /// - Variable input size up to 1024x1024
+    /// - 10 document layout classes
     pub fn doclayout_yolo_docstructbench() -> Self {
         Self::yolo_detect()
             .with_version(10.into())
@@ -62,12 +90,16 @@ impl Config {
             .with_model_file("doclayout-docstructbench.onnx") // TODO: batch_size > 1
     }
 
-    // YOLOE models
+    /// Creates a base YOLOE configuration with 4585 classes.
+    ///
+    /// Configures the model for instance segmentation with a large class vocabulary.
     pub fn yoloe() -> Self {
         Self::yolo()
             .with_task(Task::InstanceSegmentation)
             .with_class_names(&NAMES_YOLOE_4585)
     }
+    /// Creates a configuration for YOLOE-v8s segmentation model.
+    /// Uses the small variant of YOLOv8 architecture.
     pub fn yoloe_v8s_seg_pf() -> Self {
         Self::yoloe()
             .with_version(8.into())
@@ -75,6 +107,8 @@ impl Config {
             .with_model_file("yoloe-v8s-seg-pf.onnx")
     }
 
+    /// Creates a configuration for YOLOE-v8m segmentation model.
+    /// Uses the medium variant of YOLOv8 architecture.
     pub fn yoloe_v8m_seg_pf() -> Self {
         Self::yoloe()
             .with_version(8.into())
@@ -82,6 +116,8 @@ impl Config {
             .with_model_file("yoloe-v8m-seg-pf.onnx")
     }
 
+    /// Creates a configuration for YOLOE-v8l segmentation model.
+    /// Uses the large variant of YOLOv8 architecture.
     pub fn yoloe_v8l_seg_pf() -> Self {
         Self::yoloe()
             .with_version(8.into())
@@ -89,6 +125,8 @@ impl Config {
             .with_model_file("yoloe-v8l-seg-pf.onnx")
     }
 
+    /// Creates a configuration for YOLOE-11s segmentation model.
+    /// Uses the small variant of YOLOv11 architecture.
     pub fn yoloe_11s_seg_pf() -> Self {
         Self::yoloe()
             .with_version(11.into())
