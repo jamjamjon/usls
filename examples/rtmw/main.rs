@@ -50,7 +50,6 @@ fn main() -> Result<()> {
     }
     .with_model_dtype(args.dtype.parse()?)
     .with_model_device(args.device.parse()?)
-    .with_model_file("/HDD/zhangj/PROJECTS/e/mmml/rtmw-133-m-q4.onnx")
     .commit()?;
     let mut rtmpose = RTMPose::new(config)?;
 
