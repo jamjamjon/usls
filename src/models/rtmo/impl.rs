@@ -16,6 +16,7 @@ pub struct RTMO {
     processor: Processor,
     confs: DynConf,
     kconfs: DynConf,
+    names: Vec<String>,
 }
 
 impl RTMO {
@@ -28,6 +29,7 @@ impl RTMO {
             engine.try_width().unwrap_or(&512.into()).opt(),
             engine.ts().clone(),
         );
+        let names: Vec<String> = config.keypoint_names().to_vec();
         let nk = config.nk().unwrap_or(17);
         let confs = DynConf::new(config.class_confs(), 1);
         let kconfs = DynConf::new(config.keypoint_confs(), nk);
@@ -45,6 +47,7 @@ impl RTMO {
             processor,
             confs,
             kconfs,
+            names,
         })
     }
 
@@ -119,10 +122,17 @@ impl RTMO {
                         if c < self.kconfs[i] {
                             kpts_.push(Keypoint::default());
                         } else {
-                            kpts_.push(Keypoint::default().with_id(i).with_confidence(c).with_xy(
-                                x.max(0.0f32).min(width_original as _),
-                                y.max(0.0f32).min(height_original as _),
-                            ));
+                            let mut kpt_ =
+                                Keypoint::default().with_id(i).with_confidence(c).with_xy(
+                                    x.max(0.0f32).min(width_original as _),
+                                    y.max(0.0f32).min(height_original as _),
+                                );
+
+                            if !self.names.is_empty() {
+                                kpt_ = kpt_.with_name(&self.names[i]);
+                            }
+
+                            kpts_.push(kpt_);
                         }
                     }
                     y_kpts.push(kpts_);
