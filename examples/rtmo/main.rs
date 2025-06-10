@@ -12,7 +12,7 @@ struct Args {
     #[argh(option, default = "String::from(\"cpu:0\")")]
     device: String,
 
-    /// scale: s, m, l
+    /// scale: t, s, m, l
     #[argh(option, default = "String::from(\"t\")")]
     scale: String,
 }
@@ -52,7 +52,7 @@ fn main() -> Result<()> {
                 .with_skeleton(SKELETON_COCO_19.into())
                 .show_confidence(false)
                 .show_id(true)
-                .show_name(false),
+                .show_name(true),
         );
     for (x, y) in xs.iter().zip(ys.iter()) {
         annotator.annotate(x, y)?.save(format!(

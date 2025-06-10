@@ -24,10 +24,10 @@
 ## 🚀 Quick Start
 ```bash
 # CPU
-cargo run -r --example yolo  # YOLOv8-n detect by default
+cargo run -r --example yolo -- --task detect --ver 8 --scale n --dtype fp16  # q8, q4, q4f16
 
 # NVIDIA CUDA
-cargo run -r -F cuda --example yolo -- --device cuda:0
+cargo run -r -F cuda --example yolo -- --device cuda:0   # YOLOv8-n detect by default
 
 # NVIDIA TensorRT
 cargo run -r -F tensorrt --example yolo -- --device tensorrt:0
@@ -79,6 +79,9 @@ usls = "latest-version"
 | [DocLayout-YOLO](https://github.com/opendatalab/DocLayout-YOLO) | Object Detection | [demo](examples/picodet-layout) |
 | [D-FINE](https://github.com/manhbd-22022602/D-FINE) | Object Detection | [demo](examples/d-fine) |
 | [DEIM](https://github.com/ShihuaHuang95/DEIM) | Object Detection | [demo](examples/deim) |
+| [RTMPose](https://github.com/open-mmlab/mmpose/tree/dev-1.x/projects/rtmpose) | Keypoint Detection | [demo](examples/rtmpose) |
+| [DWPose](https://github.com/IDEA-Research/DWPose) | Keypoint Detection | [demo](examples/dwpose) |
+| [RTMW](https://arxiv.org/abs/2407.08634) | Keypoint Detection | [demo](examples/rtmw) |
 | [RTMO](https://github.com/open-mmlab/mmpose/tree/main/projects/rtmo) | Keypoint Detection | [demo](examples/rtmo) |
 | [SAM](https://github.com/facebookresearch/segment-anything) | Segment Anything | [demo](examples/sam) |
 | [SAM2](https://github.com/facebookresearch/segment-anything-2) | Segment Anything | [demo](examples/sam) |

@@ -97,7 +97,6 @@ impl Processor {
     pub fn process_images(&mut self, xs: &[Image]) -> Result<X> {
         let (mut x, images_transform_info) = self.par_resize(xs)?;
         self.images_transform_info = images_transform_info;
-
         if self.do_normalize {
             x = x.normalize(0., 255.)?;
         }

@@ -104,6 +104,12 @@ impl Keypoint {
         self.x + self.y
     }
 
+    pub fn rotate(&self, angle_rad: f32) -> Self {
+        let sn = angle_rad.sin();
+        let cs = angle_rad.cos();
+        (cs * self.x - sn * self.y, sn * self.x + cs * self.y).into()
+    }
+
     /// Calculates the perpendicular distance from the current keypoint (`self`)
     /// to a line segment defined by two other keypoints (`start` and `end`).
     pub fn perpendicular_distance(&self, start: &Self, end: &Self) -> f32 {
