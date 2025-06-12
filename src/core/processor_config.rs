@@ -28,6 +28,12 @@ pub struct ProcessorConfig {
     pub nchw: bool,
     /// Whether to use unsigned integer format.
     pub unsigned: bool,
+    /// Whether to pad image for super resolution.
+    pub pad_image: bool,
+    /// Padding size for super resolution.
+    pub pad_size: usize,
+    /// Up-scaling factor for super resolution.
+    pub up_scale: f32,
 
     // Text
     /// Maximum sequence length for tokenization.
@@ -65,6 +71,9 @@ impl Default for ProcessorConfig {
             image_mean: vec![],
             nchw: true,
             unsigned: false,
+            pad_image: false,
+            pad_size: 8,
+            up_scale: 2.,
             model_max_length: None,
             tokenizer_file: None,
             config_file: None,
@@ -212,6 +221,18 @@ macro_rules! impl_processor_config_methods {
             }
             pub fn with_unsigned(mut self, unsigned: bool) -> Self {
                 self.$field = self.$field.with_unsigned(unsigned);
+                self
+            }
+            pub fn with_pad_image(mut self, pad_image: bool) -> Self {
+                self.$field = self.$field.with_pad_image(pad_image);
+                self
+            }
+            pub fn with_pad_size(mut self, pad_size: usize) -> Self {
+                self.$field = self.$field.with_pad_size(pad_size);
+                self
+            }
+            pub fn with_up_scale(mut self, up_scale: f32) -> Self {
+                self.$field = self.$field.with_up_scale(up_scale);
                 self
             }
             pub fn with_model_max_length(mut self, model_max_length: u64) -> Self {

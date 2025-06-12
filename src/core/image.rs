@@ -18,6 +18,8 @@ pub struct ImageTransformInfo {
     pub height_dst: u32,
     pub height_scale: f32,
     pub width_scale: f32,
+    pub height_pad: f32,
+    pub width_pad: f32,
 }
 
 /// Image resize modes for different scaling strategies.
@@ -369,6 +371,74 @@ impl Image {
 
             Ok((Self::from_u8s(&dst.into_vec(), tw, th)?, trans_info))
         }
+    }
+
+    // TODO:
+    pub fn pad_image(
+        &mut self,
+        // image: RgbImage,
+        window_size: usize,
+    ) -> Result<(RgbImage, ImageTransformInfo)> {
+        let (width, height) = self.image.dimensions();
+        let h_old = height as usize;
+        let w_old = width as usize;
+
+        //  (size // window_size + 1) * window_size - size
+        let h_pad_total = (h_old / window_size + 1) * window_size - h_old;
+        let w_pad_total = (w_old / window_size + 1) * window_size - w_old;
+
+        // println!("Original size: {}x{}", h_old, w_old);
+        // println!("Padding: h_pad={}, w_pad={}", h_pad_total, w_pad_total);
+
+        // Create new image with padded dimensions
+        let new_h = h_old + h_pad_total;
+        let new_w = w_old + w_pad_total;
+        let mut padded = RgbImage::new(new_w as u32, new_h as u32);
+
+        // Copy original image
+        for y in 0..h_old {
+            for x in 0..w_old {
+                padded.put_pixel(
+                    x as u32,
+                    y as u32,
+                    *self.image.get_pixel(x as u32, y as u32),
+                );
+            }
+        }
+
+        // Symmetric padding for height
+        if h_pad_total > 0 {
+            for h_idx in 0..h_pad_total {
+                for w_idx in 0..w_old {
+                    // Reflect from the bottom edge
+                    let src_h = h_old - 1 - (h_idx % h_old);
+                    let pixel = *self.image.get_pixel(w_idx as u32, src_h as u32);
+                    padded.put_pixel(w_idx as u32, (h_old + h_idx) as u32, pixel);
+                }
+            }
+        }
+
+        // Symmetric padding for width (apply to the already height-padded image)
+        if w_pad_total > 0 {
+            for h_idx in 0..new_h {
+                for w_idx in 0..w_pad_total {
+                    // Reflect from the right edge
+                    let src_w = w_old - 1 - (w_idx % w_old);
+                    let pixel = *padded.get_pixel(src_w as u32, h_idx as u32);
+                    padded.put_pixel((w_old + w_idx) as u32, h_idx as u32, pixel);
+                }
+            }
+        }
+
+        let images_transform_info = ImageTransformInfo::default()
+            .with_width_src(w_old as u32)
+            .with_height_src(h_old as u32)
+            .with_width_dst(new_w as u32)
+            .with_height_dst(new_h as u32)
+            .with_height_pad(h_pad_total as f32)
+            .with_width_pad(w_pad_total as f32);
+
+        Ok((padded, images_transform_info))
     }
 
     pub fn to_ndarray(&self) -> Result<X> {

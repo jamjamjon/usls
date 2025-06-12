@@ -1,6 +1,6 @@
 use aksr::Builder;
 
-use crate::{Hbb, Keypoint, Mask, Obb, Polygon, Prob, Text};
+use crate::{Hbb, Image, Keypoint, Mask, Obb, Polygon, Prob, Text};
 
 /// Container for inference results for each image.
 ///
@@ -18,6 +18,7 @@ pub struct Y {
     obbs: Option<Vec<Obb>>,
     polygons: Option<Vec<Polygon>>,
     masks: Option<Vec<Mask>>,
+    images: Option<Vec<Image>>,
 }
 
 impl std::fmt::Debug for Y {
@@ -59,6 +60,11 @@ impl std::fmt::Debug for Y {
         if let Some(xs) = &self.masks {
             if !xs.is_empty() {
                 f.field("Masks", &xs);
+            }
+        }
+        if let Some(xs) = &self.images {
+            if !xs.is_empty() {
+                f.field("Images", &xs);
             }
         }
         f.finish()

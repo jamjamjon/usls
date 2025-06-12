@@ -24,6 +24,9 @@ pub struct Processor {
     pub vocab: Vec<String>,
     pub unsigned: bool,
     pub logits_sampler: Option<LogitsSampler>,
+    pub pad_image: bool,
+    pub pad_size: usize,
+    pub up_scale: f32,
 }
 
 impl Default for Processor {
@@ -43,6 +46,9 @@ impl Default for Processor {
             vocab: vec![],
             unsigned: false,
             logits_sampler: None,
+            pad_image: false,
+            pad_size: 8,
+            up_scale: 2.,
         }
     }
 }
@@ -83,6 +89,9 @@ impl Processor {
             image_std: config.image_std.clone(),
             nchw: config.nchw,
             unsigned: config.unsigned,
+            pad_image: config.pad_image,
+            pad_size: config.pad_size,
+            up_scale: config.up_scale,
             tokenizer,
             vocab,
             logits_sampler: Some(logits_sampler),
@@ -95,8 +104,23 @@ impl Processor {
     }
 
     pub fn process_images(&mut self, xs: &[Image]) -> Result<X> {
-        let (mut x, images_transform_info) = self.par_resize(xs)?;
-        self.images_transform_info = images_transform_info;
+        // TODO
+        let mut x = if self.pad_image {
+            if xs.len() != 1 {
+                anyhow::bail!("When pad_image is true, only one image is allowed.");
+            }
+            let (image, images_transform_info) = xs[0].clone().pad_image(self.pad_size)?;
+            let x = Image::from(image).to_ndarray()?.insert_axis(0)?;
+            self.images_transform_info = vec![images_transform_info];
+
+            x
+        } else {
+            let (x, images_transform_info) = self.par_resize(xs)?;
+            self.images_transform_info = images_transform_info;
+
+            x
+        };
+
         if self.do_normalize {
             x = x.normalize(0., 255.)?;
         }
