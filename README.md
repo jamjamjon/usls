@@ -114,6 +114,7 @@ usls = "latest-version"
 | [RMBG(1.4, 2.0)](https://huggingface.co/briaai/RMBG-2.0) | Image Segmentation<br />Background Removal | [demo](examples/rmbg) |
 | [BEN2](https://huggingface.co/PramaLLC/BEN2) | Image Segmentation<br />Background Removal | [demo](examples/rmbg) |
 | [MediaPipe: Selfie-segmentation](https://ai.google.dev/edge/mediapipe/solutions/vision/image_segmenter) | Image Segmentation | [demo](examples/mediapipe-selfie-segmentation) |
+| [Swin2SR](https://github.com/mv-lab/swin2sr) | Image Super-Resolution and Restoration | [demo](examples/swin2sr) |
 
 </details>
 
