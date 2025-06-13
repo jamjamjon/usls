@@ -373,66 +373,69 @@ impl Image {
         }
     }
 
-    // TODO:
-    pub fn pad_image(
-        &mut self,
-        // image: RgbImage,
-        window_size: usize,
-    ) -> Result<(RgbImage, ImageTransformInfo)> {
+    pub fn pad(&self, window_size: usize) -> Result<(RgbImage, ImageTransformInfo)> {
         let (width, height) = self.image.dimensions();
-        let h_old = height as usize;
-        let w_old = width as usize;
+        let (w_old, h_old) = (width as usize, height as usize);
 
         //  (size // window_size + 1) * window_size - size
         let h_pad_total = (h_old / window_size + 1) * window_size - h_old;
         let w_pad_total = (w_old / window_size + 1) * window_size - w_old;
 
-        // println!("Original size: {}x{}", h_old, w_old);
-        // println!("Padding: h_pad={}, w_pad={}", h_pad_total, w_pad_total);
-
         // Create new image with padded dimensions
-        let new_h = h_old + h_pad_total;
-        let new_w = w_old + w_pad_total;
+        let (new_w, new_h) = (w_old + w_pad_total, h_old + h_pad_total);
         let mut padded = RgbImage::new(new_w as u32, new_h as u32);
 
-        // Copy original image
+        // Get raw pixel buffers for high-performance operations
+        let src_pixels = self.image.as_raw();
+        let dst_pixels = padded.as_mut();
+
+        // Copy original image using row-wise memcpy for maximum performance
         for y in 0..h_old {
-            for x in 0..w_old {
-                padded.put_pixel(
-                    x as u32,
-                    y as u32,
-                    *self.image.get_pixel(x as u32, y as u32),
-                );
-            }
+            let src_offset = y * w_old * 3;
+            let dst_offset = y * new_w * 3;
+            let row_bytes = w_old * 3;
+
+            dst_pixels[dst_offset..dst_offset + row_bytes]
+                .copy_from_slice(&src_pixels[src_offset..src_offset + row_bytes]);
         }
 
-        // Symmetric padding for height
+        // Symmetric padding for height - batch copy rows
         if h_pad_total > 0 {
             for h_idx in 0..h_pad_total {
-                for w_idx in 0..w_old {
-                    // Reflect from the bottom edge
-                    let src_h = h_old - 1 - (h_idx % h_old);
-                    let pixel = *self.image.get_pixel(w_idx as u32, src_h as u32);
-                    padded.put_pixel(w_idx as u32, (h_old + h_idx) as u32, pixel);
-                }
+                let src_h = h_old - 1 - (h_idx % h_old);
+                let src_offset = src_h * w_old * 3;
+                let dst_offset = (h_old + h_idx) * new_w * 3;
+                let row_bytes = w_old * 3;
+
+                dst_pixels[dst_offset..dst_offset + row_bytes]
+                    .copy_from_slice(&src_pixels[src_offset..src_offset + row_bytes]);
             }
         }
 
-        // Symmetric padding for width (apply to the already height-padded image)
+        // Symmetric padding for width - copy pixels in chunks
         if w_pad_total > 0 {
             for h_idx in 0..new_h {
+                let row_offset = h_idx * new_w * 3;
+
                 for w_idx in 0..w_pad_total {
-                    // Reflect from the right edge
                     let src_w = w_old - 1 - (w_idx % w_old);
-                    let pixel = *padded.get_pixel(src_w as u32, h_idx as u32);
-                    padded.put_pixel((w_old + w_idx) as u32, h_idx as u32, pixel);
+                    let src_pixel_offset = row_offset + src_w * 3;
+                    let dst_pixel_offset = row_offset + (w_old + w_idx) * 3;
+
+                    // Copy RGB values (3 bytes per pixel) - use temporary buffer to avoid borrow conflict
+                    let temp_pixel = [
+                        dst_pixels[src_pixel_offset],
+                        dst_pixels[src_pixel_offset + 1],
+                        dst_pixels[src_pixel_offset + 2],
+                    ];
+                    dst_pixels[dst_pixel_offset..dst_pixel_offset + 3].copy_from_slice(&temp_pixel);
                 }
             }
         }
 
         let images_transform_info = ImageTransformInfo::default()
-            .with_width_src(w_old as u32)
-            .with_height_src(h_old as u32)
+            .with_width_src(width)
+            .with_height_src(height)
             .with_width_dst(new_w as u32)
             .with_height_dst(new_h as u32)
             .with_height_pad(h_pad_total as f32)

@@ -33,16 +33,13 @@ impl Swin2SR {
     }
 
     pub fn forward(&mut self, xs: &[Image]) -> Result<Vec<Y>> {
-        // TODO: into parallel?
-        let mut ys = Vec::with_capacity(xs.len());
-        for x in xs.iter() {
-            let y = elapsed!("preprocess_one", self.ts, { self.preprocess_one(x)? });
-            let y = elapsed!("inference", self.ts, { self.inference(y)? });
-            let y = elapsed!("postprocess_one", self.ts, { self.postprocess_one(y)? });
-            ys.push(y);
-        }
-
-        Ok(ys)
+        xs.iter()
+            .map(|x| {
+                let y = elapsed!("preprocess_one", self.ts, { self.preprocess_one(x)? });
+                let y = elapsed!("inference", self.ts, { self.inference(y)? });
+                elapsed!("postprocess_one", self.ts, { self.postprocess_one(y) })
+            })
+            .collect()
     }
 
     fn preprocess_one(&mut self, xs: &Image) -> Result<Xs> {
@@ -54,8 +51,7 @@ impl Swin2SR {
     }
 
     fn postprocess_one(&mut self, xs: Xs) -> Result<Y> {
-        // (batch, height, width, channels)
-        let y = xs[0].clone().permute(&[0, 2, 3, 1])?;
+        let y = xs[0].clone().permute(&[0, 2, 3, 1])?; // [b,h,w,c]
         let h =
             (self.processor.images_transform_info[0].height_src as f32 * self.up_scale) as usize;
         let w = (self.processor.images_transform_info[0].width_src as f32 * self.up_scale) as usize;
@@ -63,9 +59,7 @@ impl Swin2SR {
         let y = y.map(|x| ((x * 255.).clamp(0., 255.)) as u8);
         let image = Image::from_u8s(&y.into_raw_vec_and_offset().0, w as _, h as _)?;
 
-        let y = Y::default().with_images(&[image]);
-
-        Ok(y)
+        Ok(Y::default().with_images(&[image]))
     }
 
     pub fn summary(&mut self) {

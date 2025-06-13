@@ -27,6 +27,7 @@ pub struct Processor {
     pub pad_image: bool,
     pub pad_size: usize,
     pub up_scale: f32,
+    pub do_resize: bool,
 }
 
 impl Default for Processor {
@@ -49,6 +50,7 @@ impl Default for Processor {
             pad_image: false,
             pad_size: 8,
             up_scale: 2.,
+            do_resize: true,
         }
     }
 }
@@ -83,6 +85,7 @@ impl Processor {
             image_height: config.image_height.unwrap_or_default(),
             resize_mode: config.resize_mode.clone(),
             resize_filter: config.resize_filter.unwrap_or("Bilinear"),
+            do_resize: config.do_resize,
             padding_value: config.padding_value,
             do_normalize: config.normalize,
             image_mean: config.image_mean.clone(),
@@ -104,21 +107,21 @@ impl Processor {
     }
 
     pub fn process_images(&mut self, xs: &[Image]) -> Result<X> {
-        // TODO
         let mut x = if self.pad_image {
             if xs.len() != 1 {
                 anyhow::bail!("When pad_image is true, only one image is allowed.");
             }
-            let (image, images_transform_info) = xs[0].clone().pad_image(self.pad_size)?;
-            let x = Image::from(image).to_ndarray()?.insert_axis(0)?;
+            let (image, images_transform_info) = xs[0].pad(self.pad_size)?;
             self.images_transform_info = vec![images_transform_info];
-
-            x
-        } else {
+            Image::from(image).to_ndarray()?.insert_axis(0)?
+        } else if self.do_resize {
             let (x, images_transform_info) = self.par_resize(xs)?;
             self.images_transform_info = images_transform_info;
-
             x
+        } else {
+            anyhow::bail!(
+                "When pad_image and do_resize are both false, at least one image is required."
+            );
         };
 
         if self.do_normalize {

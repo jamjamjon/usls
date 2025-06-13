@@ -12,6 +12,8 @@ pub struct ProcessorConfig {
     pub image_width: Option<u32>,
     /// Target image height for resizing.
     pub image_height: Option<u32>,
+    /// Whether to resize the image.
+    pub do_resize: bool,
     /// Image resizing mode.
     pub resize_mode: ResizeMode,
     /// Image resize filter algorithm.
@@ -63,6 +65,7 @@ impl Default for ProcessorConfig {
         Self {
             image_width: None,
             image_height: None,
+            do_resize: true,
             resize_mode: ResizeMode::FitExact,
             resize_filter: Some("Bilinear"),
             padding_value: 114,
@@ -189,6 +192,10 @@ macro_rules! impl_processor_config_methods {
             }
             pub fn with_image_height(mut self, image_height: u32) -> Self {
                 self.$field = self.$field.with_image_height(image_height);
+                self
+            }
+            pub fn with_do_resize(mut self, do_resize: bool) -> Self {
+                self.$field = self.$field.with_do_resize(do_resize);
                 self
             }
             pub fn with_resize_mode(mut self, resize_mode: $crate::ResizeMode) -> Self {

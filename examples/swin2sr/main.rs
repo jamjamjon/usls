@@ -38,22 +38,22 @@ fn main() -> Result<()> {
     .commit()?;
     let mut model = Swin2SR::new(config)?;
 
-    // load
-    let xs = DataLoader::try_read_n(&["../demo.png", "../demo2.png"])?;
+    // load image
+    let xs = DataLoader::try_read_n(&["images/butterfly.jpg"])?;
 
     // run
     let ys = model.forward(&xs)?;
 
+    // save
     for y in ys {
         if let Some(images) = y.images() {
-            for (j, image) in images.iter().enumerate() {
+            for image in images.iter() {
                 image.save(format!(
-                    "{}_{}.png",
+                    "{}.png",
                     usls::Dir::Current
                         .base_dir_with_subs(&["runs", model.spec()])?
                         .join(usls::timestamp(None))
                         .display(),
-                    j,
                 ))?;
             }
         }
