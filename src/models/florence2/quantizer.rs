@@ -40,10 +40,14 @@ impl Quantizer {
                 self.quantize_value(input[0] as f32, size_per_bin_w, bins_w),
                 self.quantize_value(input[1] as f32, size_per_bin_h, bins_h),
             ],
-            _ => panic!(
-                "Error: Unsupported input length: {} in Quantizer.",
-                input.len()
-            ),
+            _ => {
+                log::error!(
+                    "Error: Unsupported input length: {} in Quantizer. Supported lengths: 2, 4",
+                    input.len()
+                );
+                // Return empty vector as fallback instead of panicking
+                Vec::new()
+            }
         }
     }
 
@@ -65,10 +69,14 @@ impl Quantizer {
                 self.dequantize_value(input[0], size_per_bin_w),
                 self.dequantize_value(input[1], size_per_bin_h),
             ],
-            _ => panic!(
-                "Error: Unsupported input length: {} in Quantizer.",
-                input.len()
-            ),
+            _ => {
+                log::error!(
+                    "Error: Unsupported input length: {} in Quantizer. Supported lengths: 2, 4",
+                    input.len()
+                );
+                // Return empty vector as fallback instead of panicking
+                Vec::new()
+            }
         }
     }
 

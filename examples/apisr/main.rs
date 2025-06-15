@@ -56,5 +56,7 @@ fn main() -> Result<()> {
         }
     }
 
+    usls::perf();
+
     Ok(())
 }

@@ -2,7 +2,7 @@ use aksr::Builder;
 use anyhow::Result;
 use ndarray::{s, Axis};
 
-use crate::{elapsed, Config, Engine, Image, LogitsSampler, Processor, Ts, Xs, X, Y};
+use crate::{elapsed_module, Config, Engine, Image, LogitsSampler, Processor, Xs, X, Y};
 
 #[derive(Debug, Builder)]
 pub struct Blip {
@@ -14,7 +14,6 @@ pub struct Blip {
     processor: Processor,
     max_length: usize,
     eos_token_id: u32,
-    ts: Ts,
 }
 
 impl Blip {
@@ -26,7 +25,7 @@ impl Blip {
             visual.try_height().unwrap_or(&384.into()).opt(),
             visual.try_width().unwrap_or(&384.into()).opt(),
         );
-        let ts = Ts::merge(&[visual.ts(), textual.ts()]);
+
         let processor = Processor::try_from_config(&config.processor)?
             .with_image_width(width as _)
             .with_image_height(height as _);
@@ -36,7 +35,6 @@ impl Blip {
         Ok(Self {
             textual,
             visual,
-            ts,
             max_length,
             eos_token_id,
             batch,
@@ -62,8 +60,8 @@ impl Blip {
     }
 
     pub fn forward(&mut self, images: &[Image], text: Option<&str>) -> Result<Vec<Y>> {
-        let image_embeds = elapsed!("encode_images", self.ts, { self.encode_images(images)? });
-        let ys = elapsed!("generate", self.ts, { self.generate(&image_embeds, text)? });
+        let image_embeds = elapsed_module!("blip", "encode_images", self.encode_images(images)?);
+        let ys = elapsed_module!("blip", "generate", self.generate(&image_embeds, text)?);
 
         Ok(ys)
     }
@@ -131,9 +129,5 @@ impl Blip {
             .collect::<Vec<_>>();
 
         Ok(ys)
-    }
-
-    pub fn summary(&mut self) {
-        self.ts.summary();
     }
 }

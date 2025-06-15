@@ -1,3 +1,4 @@
+//! Visualization utilities for rendering and displaying ML model results
 mod annotator;
 mod color;
 mod colormap256;

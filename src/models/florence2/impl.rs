@@ -4,8 +4,8 @@ use ndarray::{s, Axis};
 use rayon::prelude::*;
 
 use crate::{
-    elapsed, models::Quantizer, Config, Engine, Hbb, Image, LogitsSampler, Polygon, Processor,
-    Scale, Task, Ts, Xs, X, Y,
+    elapsed_module, models::Quantizer, Config, Engine, Hbb, Image, LogitsSampler, Polygon,
+    Processor, Scale, Task, Xs, X, Y,
 };
 
 #[derive(Debug, Builder)]
@@ -15,7 +15,7 @@ pub struct Florence2 {
     pub encoder: Engine,
     pub decoder: Engine,
     pub decoder_merged: Engine,
-    ts: Ts,
+
     quantizer: Quantizer,
     max_length: usize,
     eos_token_id: u32,
@@ -43,13 +43,7 @@ impl Florence2 {
             .with_image_width(width as _)
             .with_image_height(height as _);
         let quantizer = Quantizer::default();
-        let ts = Ts::merge(&[
-            vision_encoder.ts(),
-            text_embed.ts(),
-            encoder.ts(),
-            decoder.ts(),
-            decoder_merged.ts(),
-        ]);
+
         let max_length = 1024;
         let eos_token_id = 2;
         let decoder_start_token_id = 2;
@@ -67,7 +61,6 @@ impl Florence2 {
             decoder_merged,
             max_length,
             quantizer,
-            ts,
             eos_token_id,
             decoder_start_token_id,
             n_kvs,
@@ -118,22 +111,22 @@ impl Florence2 {
     }
 
     pub fn forward(&mut self, xs_visual: &[Image], x_textual: &Task) -> Result<Vec<Y>> {
-        let visual_embeddings = elapsed!("visual-encode", self.ts, {
+        let visual_embeddings = elapsed_module!("florence2", "visual-encode", {
             let xs = self.processor.process_images(xs_visual)?;
             self.batch = xs_visual.len(); // update
             let xs = self.vision_encoder.run(xs.into())?;
             xs[0].to_owned()
         });
 
-        let textual_embedding = elapsed!("textual-encode", self.ts, {
+        let textual_embedding = elapsed_module!("florence2", "textual-encode", {
             self.encode_text(x_textual, xs_visual)?
         });
 
-        let generated = elapsed!("generate-then-decode", self.ts, {
+        let generated = elapsed_module!("florence2", "generate-then-decode", {
             self.generate_then_decode(&visual_embeddings, &textual_embedding)?
         });
 
-        let ys = elapsed!("postprocess", self.ts, {
+        let ys = elapsed_module!("florence2", "postprocess", {
             self.postprocess(&generated, xs_visual, x_textual)?
         });
 
@@ -426,9 +419,5 @@ impl Florence2 {
             ys.push(y);
         }
         Ok(ys)
-    }
-
-    pub fn summary(&mut self) {
-        self.ts.summary();
     }
 }

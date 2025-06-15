@@ -200,19 +200,31 @@ impl Processor {
     }
 
     pub fn encode_text(&self, x: &str, skip_special_tokens: bool) -> Result<Encoding> {
-        self.tokenizer
-            .as_ref()
-            .expect("No tokenizer specified in `Processor`")
-            .encode(x, skip_special_tokens)
-            .map_err(|err| anyhow::anyhow!("Tokenizer encode error: {}", err))
+        let tokenizer = self.tokenizer.as_ref().ok_or_else(|| {
+            anyhow::anyhow!(
+                "No tokenizer configured in Processor. Please initialize with a tokenizer."
+            )
+        })?;
+
+        tokenizer.encode(x, skip_special_tokens).map_err(|err| {
+            anyhow::anyhow!(
+                "Failed to encode text '{}': {}",
+                x.chars().take(50).collect::<String>(),
+                err
+            )
+        })
     }
 
     pub fn encode_texts(&self, xs: &[&str], skip_special_tokens: bool) -> Result<Vec<Encoding>> {
-        self.tokenizer
-            .as_ref()
-            .expect("No tokenizer specified in `Processor`")
+        let tokenizer = self.tokenizer.as_ref().ok_or_else(|| {
+            anyhow::anyhow!(
+                "No tokenizer configured in Processor. Please initialize with a tokenizer."
+            )
+        })?;
+
+        tokenizer
             .encode_batch(xs.to_vec(), skip_special_tokens)
-            .map_err(|err| anyhow::anyhow!("Tokenizer encode_batch error: {}", err))
+            .map_err(|err| anyhow::anyhow!("Failed to encode batch of {} texts: {}", xs.len(), err))
     }
 
     pub fn encode_text_ids(&self, x: &str, skip_special_tokens: bool) -> Result<Vec<f32>> {
@@ -266,11 +278,15 @@ impl Processor {
     }
 
     pub fn decode_tokens(&self, ids: &[u32], skip_special_tokens: bool) -> Result<String> {
-        self.tokenizer
-            .as_ref()
-            .expect("No tokenizer specified in `Processor`")
+        let tokenizer = self.tokenizer.as_ref().ok_or_else(|| {
+            anyhow::anyhow!(
+                "No tokenizer configured in Processor. Please initialize with a tokenizer."
+            )
+        })?;
+
+        tokenizer
             .decode(ids, skip_special_tokens)
-            .map_err(|err| anyhow::anyhow!("Tokenizer decode error: {}", err))
+            .map_err(|err| anyhow::anyhow!("Failed to decode {} token IDs: {}", ids.len(), err))
     }
 
     pub fn decode_tokens_batch2(
@@ -278,11 +294,21 @@ impl Processor {
         ids: &[&[u32]],
         skip_special_tokens: bool,
     ) -> Result<Vec<String>> {
-        self.tokenizer
-            .as_ref()
-            .expect("No tokenizer specified in `Processor`")
+        let tokenizer = self.tokenizer.as_ref().ok_or_else(|| {
+            anyhow::anyhow!(
+                "No tokenizer configured in Processor. Please initialize with a tokenizer."
+            )
+        })?;
+
+        tokenizer
             .decode_batch(ids, skip_special_tokens)
-            .map_err(|err| anyhow::anyhow!("Tokenizer decode_batch error: {}", err))
+            .map_err(|err| {
+                anyhow::anyhow!(
+                    "Failed to decode batch of {} token sequences: {}",
+                    ids.len(),
+                    err
+                )
+            })
     }
 
     pub fn decode_tokens_batch(
@@ -290,13 +316,23 @@ impl Processor {
         ids: &[Vec<u32>],
         skip_special_tokens: bool,
     ) -> Result<Vec<String>> {
-        self.tokenizer
-            .as_ref()
-            .expect("No tokenizer specified in `Processor`")
+        let tokenizer = self.tokenizer.as_ref().ok_or_else(|| {
+            anyhow::anyhow!(
+                "No tokenizer configured in Processor. Please initialize with a tokenizer."
+            )
+        })?;
+
+        tokenizer
             .decode_batch(
                 &ids.iter().map(|x| x.as_slice()).collect::<Vec<_>>(),
                 skip_special_tokens,
             )
-            .map_err(|err| anyhow::anyhow!("Tokenizer decode_batch error: {}", err))
+            .map_err(|err| {
+                anyhow::anyhow!(
+                    "Failed to decode batch of {} token vectors: {}",
+                    ids.len(),
+                    err
+                )
+            })
     }
 }

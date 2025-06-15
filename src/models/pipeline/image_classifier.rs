@@ -3,7 +3,7 @@ use anyhow::Result;
 use ndarray::Axis;
 use rayon::prelude::*;
 
-use crate::{elapsed, Config, Engine, Image, Prob, Processor, Ts, Xs, Y};
+use crate::{elapsed_module, Config, Engine, Image, Prob, Processor, Xs, Y};
 
 #[derive(Debug, Builder)]
 pub struct ImageClassifier {
@@ -16,7 +16,6 @@ pub struct ImageClassifier {
     names: Vec<String>,
     spec: String,
     topk: usize,
-    ts: Ts,
 }
 
 impl TryFrom<Config> for ImageClassifier {
@@ -31,11 +30,10 @@ impl ImageClassifier {
     pub fn new(config: Config) -> Result<Self> {
         let engine = Engine::try_from_config(&config.model)?;
         let spec = engine.spec().to_string();
-        let (batch, height, width, ts) = (
+        let (batch, height, width) = (
             engine.batch().opt(),
             engine.try_height().unwrap_or(&224.into()).opt(),
             engine.try_width().unwrap_or(&224.into()).opt(),
-            engine.ts().clone(),
         );
         let names = config.class_names.to_vec();
         let apply_softmax = config.apply_softmax.unwrap_or_default();
@@ -49,17 +47,12 @@ impl ImageClassifier {
             height,
             width,
             batch,
-            ts,
             spec,
             processor,
             names,
             apply_softmax,
             topk,
         })
-    }
-
-    pub fn summary(&mut self) {
-        self.ts.summary();
     }
 
     fn preprocess(&mut self, xs: &[Image]) -> Result<Xs> {
@@ -73,9 +66,9 @@ impl ImageClassifier {
     }
 
     pub fn forward(&mut self, xs: &[Image]) -> Result<Vec<Y>> {
-        let ys = elapsed!("preprocess", self.ts, { self.preprocess(xs)? });
-        let ys = elapsed!("inference", self.ts, { self.inference(ys)? });
-        let ys = elapsed!("postprocess", self.ts, { self.postprocess(ys)? });
+        let ys = elapsed_module!("image_classifier", "preprocess", self.preprocess(xs)?);
+        let ys = elapsed_module!("image_classifier", "inference", self.inference(ys)?);
+        let ys = elapsed_module!("image_classifier", "postprocess", self.postprocess(ys)?);
 
         Ok(ys)
     }

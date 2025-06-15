@@ -47,10 +47,9 @@ impl Moondream2 {
         let coord_encoder = Engine::try_from_config(&config.coord_encoder).ok();
         let size_decoder = Engine::try_from_config(&config.size_decoder).ok();
         let size_encoder = Engine::try_from_config(&config.size_encoder).ok();
-        let (num_patch, patch_size, _ts) = (
+        let (num_patch, patch_size) = (
             vision_encoder.batch().opt(),
             vision_encoder.try_height().unwrap_or(&378.into()).opt(),
-            vision_encoder.ts.clone(),
         );
         let seq_len = vision_projection.inputs_minoptmax[0][1].opt();
         let processor = Processor::try_from_config(&config.processor)?
