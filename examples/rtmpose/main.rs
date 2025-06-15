@@ -114,9 +114,7 @@ fn main() -> Result<()> {
         }
     }
 
-    // summary
-    yolo.summary();
-    rtmpose.summary();
+    usls::perf();
 
     Ok(())
 }

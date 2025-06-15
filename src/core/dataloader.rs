@@ -236,39 +236,45 @@ impl DataLoader {
             MediaType::Image(_) => {
                 if data.len() < 8000 {
                     //  TODO: fast but memory inefficient
-                    data.par_iter()
-                        .filter_map(|path| {
-                            Some(
-                                Self::try_read_one(path)
-                                    .map_err(|e| warn!("Failed: {:?}, {}", path, e))
-                                    .ok()?
-                                    .with_media_type(media_type),
-                            )
-                        })
-                        .collect::<Vec<Image>>()
-                        .chunks(batch_size)
-                        .for_each(|chunk| {
-                            if !chunk.is_empty() {
-                                let _ = sender.send(chunk.to_vec());
-                            }
-                        });
+                    crate::elapsed_dataloader!("batch_parallel_read", {
+                        data.par_iter()
+                            .filter_map(|path| {
+                                Some(crate::elapsed_dataloader!("single_image_read", {
+                                    Self::try_read_one(path)
+                                        .map_err(|e| warn!("Failed: {:?}, {}", path, e))
+                                        .ok()?
+                                        .with_media_type(media_type)
+                                }))
+                            })
+                            .collect::<Vec<Image>>()
+                            .chunks(batch_size)
+                            .for_each(|chunk| {
+                                if !chunk.is_empty() {
+                                    let _ = sender.send(chunk.to_vec());
+                                }
+                            })
+                    });
                 } else {
                     // TODO: slow slow
-                    while let Some(path) = data.pop_front() {
-                        match Self::try_read_one(&path) {
-                            Err(_err) => {
-                                continue;
+                    crate::elapsed_dataloader!("sequential_read", {
+                        while let Some(path) = data.pop_front() {
+                            match crate::elapsed_dataloader!("single_image_read", {
+                                Self::try_read_one(&path)
+                            }) {
+                                Err(_err) => {
+                                    continue;
+                                }
+                                Ok(img) => {
+                                    images.push(img.with_media_type(media_type));
+                                }
                             }
-                            Ok(img) => {
-                                images.push(img.with_media_type(media_type));
+                            if images.len() == batch_size
+                                && sender.send(std::mem::take(&mut images)).is_err()
+                            {
+                                break;
                             }
                         }
-                        if images.len() == batch_size
-                            && sender.send(std::mem::take(&mut images)).is_err()
-                        {
-                            break;
-                        }
-                    }
+                    });
                 }
             }
             #[cfg(feature = "video")]
@@ -325,33 +331,40 @@ impl DataLoader {
     }
 
     pub fn try_read_one<P: AsRef<Path>>(path: P) -> Result<Image> {
-        Image::try_read(path)
+        crate::elapsed_dataloader!("image_decode", Image::try_read(path))
     }
 
     pub fn try_read_n<P: AsRef<Path> + std::fmt::Debug + Sync>(paths: &[P]) -> Result<Vec<Image>> {
-        let images: Vec<Image> = paths
-            .par_iter()
-            .filter_map(|path| match Self::try_read_one(path) {
-                Ok(img) => Some(img),
-                Err(err) => {
-                    log::warn!("Failed to read from: {:?}. Error: {:?}", path, err);
-                    None
-                }
-            })
-            .collect();
+        let images: Vec<Image> = crate::elapsed_dataloader!("batch_read_n", {
+            paths
+                .par_iter()
+                .filter_map(|path| match Self::try_read_one(path) {
+                    Ok(img) => Some(img),
+                    Err(err) => {
+                        log::warn!("Failed to read from: {:?}. Error: {:?}", path, err);
+                        None
+                    }
+                })
+                .collect()
+        });
 
         Ok(images)
     }
 
     pub fn try_read_folder<P: AsRef<Path>>(path: P) -> Result<Vec<Image>> {
-        let paths: Vec<PathBuf> = Self::load_image_paths_from_folder(
-            path.as_ref().to_str().unwrap(),
-            crate::IMAGE_EXTENSIONS,
-        )?;
-        let images: Vec<Image> = paths
-            .par_iter()
-            .filter_map(|path| Self::try_read_one(path).ok())
-            .collect();
+        let path_str = path
+            .as_ref()
+            .to_str()
+            .ok_or_else(|| anyhow::anyhow!("Invalid UTF-8 path: {:?}", path.as_ref()))?;
+        let paths: Vec<PathBuf> = crate::elapsed_dataloader!("folder_scan", {
+            Self::load_image_paths_from_folder(path_str, crate::IMAGE_EXTENSIONS)?
+        });
+        let images: Vec<Image> = crate::elapsed_dataloader!("folder_read", {
+            paths
+                .par_iter()
+                .filter_map(|path| Self::try_read_one(path).ok())
+                .collect()
+        });
 
         Ok(images)
     }
@@ -388,7 +401,10 @@ impl DataLoader {
         };
         for ext in exts.iter() {
             let pattern = source_path.join(format!("*.{}", ext));
-            let paths_: Vec<PathBuf> = glob_with(pattern.to_str().unwrap(), config)?
+            let pattern_str = pattern
+                .to_str()
+                .ok_or_else(|| anyhow::anyhow!("Invalid UTF-8 pattern path: {:?}", pattern))?;
+            let paths_: Vec<PathBuf> = glob_with(pattern_str, config)?
                 .filter_map(|entry| entry.ok())
                 .collect();
             paths.extend(paths_);

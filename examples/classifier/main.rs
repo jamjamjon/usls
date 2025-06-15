@@ -70,5 +70,7 @@ fn main() -> anyhow::Result<()> {
         ))?;
     }
 
+    usls::perf();
+
     Ok(())
 }

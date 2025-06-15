@@ -83,7 +83,13 @@ impl Index<&str> for Xs {
     type Output = X;
 
     fn index(&self, index: &str) -> &Self::Output {
-        self.map.get(index).expect("Index was not found in `Xs`")
+        self.map.get(index).unwrap_or_else(|| {
+            let available_keys: Vec<&str> = self.map.keys().map(|s| s.as_str()).collect();
+            panic!(
+                "Key '{}' was not found in Xs. Available keys: {:?}",
+                index, available_keys
+            )
+        })
     }
 }
 
@@ -94,7 +100,13 @@ impl Index<usize> for Xs {
         self.names
             .get(index)
             .and_then(|key| self.map.get(key))
-            .expect("Index was not found in `Xs`")
+            .unwrap_or_else(|| {
+                panic!(
+                    "Index {} was not found in Xs. Available indices: 0..{}",
+                    index,
+                    self.names.len()
+                )
+            })
     }
 }
 

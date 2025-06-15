@@ -4,7 +4,7 @@ use ndarray::{s, Array2, Axis};
 use rayon::prelude::*;
 use std::fmt::Write;
 
-use crate::{elapsed, Config, DynConf, Engine, Hbb, Image, Processor, Ts, Xs, X, Y};
+use crate::{elapsed_module, Config, DynConf, Engine, Hbb, Image, Processor, Xs, X, Y};
 
 #[derive(Builder, Debug)]
 /// Grounding DINO model for open-vocabulary object detection.
@@ -19,7 +19,7 @@ pub struct GroundingDINO {
     class_ids_map: Vec<Option<usize>>,
     tokens: Vec<String>,
     token_ids: Vec<f32>,
-    ts: Ts,
+
     processor: Processor,
     spec: String,
 }
@@ -28,11 +28,10 @@ impl GroundingDINO {
     pub fn new(config: Config) -> Result<Self> {
         let engine = Engine::try_from_config(&config.model)?;
         let spec = engine.spec().to_string();
-        let (batch, height, width, ts) = (
+        let (batch, height, width) = (
             engine.batch().opt(),
             engine.try_height().unwrap_or(&800.into()).opt(),
             engine.try_width().unwrap_or(&1200.into()).opt(),
-            engine.ts().clone(),
         );
         let class_names: Vec<_> = config
             .text_names
@@ -49,8 +48,8 @@ impl GroundingDINO {
             write!(&mut acc, "{}.", text).unwrap();
             acc
         });
-        let confs_visual = DynConf::new(config.class_confs(), class_names.len());
-        let confs_textual = DynConf::new(config.text_confs(), class_names.len());
+        let confs_visual = DynConf::new_or_default(config.class_confs(), class_names.len());
+        let confs_textual = DynConf::new_or_default(config.text_confs(), class_names.len());
         let processor = Processor::try_from_config(&config.processor)?
             .with_image_width(width as _)
             .with_image_height(height as _);
@@ -68,7 +67,6 @@ impl GroundingDINO {
             class_names,
             token_ids,
             tokens,
-            ts,
             processor,
             spec,
             class_ids_map,
@@ -106,17 +104,12 @@ impl GroundingDINO {
     }
 
     pub fn forward(&mut self, xs: &[Image]) -> Result<Vec<Y>> {
-        let ys = elapsed!("preprocess", self.ts, { self.preprocess(xs)? });
-        let ys = elapsed!("inference", self.ts, { self.inference(ys)? });
-        let ys = elapsed!("postprocess", self.ts, { self.postprocess(ys)? });
+        let ys = elapsed_module!("grounding_dino", "preprocess", self.preprocess(xs)?);
+        let ys = elapsed_module!("grounding_dino", "inference", self.inference(ys)?);
+        let ys = elapsed_module!("grounding_dino", "postprocess", self.postprocess(ys)?);
 
         Ok(ys)
     }
-
-    pub fn summary(&mut self) {
-        self.ts.summary();
-    }
-
     fn inference(&mut self, xs: Xs) -> Result<Xs> {
         self.engine.run(xs)
     }

@@ -197,8 +197,7 @@ fn main() -> Result<()> {
             _ => (),
         }
     }
-
-    model.summary();
+    usls::perf();
 
     Ok(())
 }

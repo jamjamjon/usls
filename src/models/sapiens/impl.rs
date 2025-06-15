@@ -2,7 +2,7 @@ use aksr::Builder;
 use anyhow::Result;
 use ndarray::{s, Array2, Axis};
 
-use crate::{elapsed, Config, Engine, Image, Mask, Ops, Polygon, Processor, Task, Ts, Xs, Y};
+use crate::{elapsed_module, Config, Engine, Image, Mask, Ops, Polygon, Processor, Task, Xs, Y};
 
 #[derive(Builder, Debug)]
 pub struct Sapiens {
@@ -12,7 +12,6 @@ pub struct Sapiens {
     batch: usize,
     task: Task,
     names_body: Vec<String>,
-    ts: Ts,
     processor: Processor,
     spec: String,
 }
@@ -21,11 +20,10 @@ impl Sapiens {
     pub fn new(config: Config) -> Result<Self> {
         let engine = Engine::try_from_config(&config.model)?;
         let spec = engine.spec().to_string();
-        let (batch, height, width, ts) = (
+        let (batch, height, width) = (
             engine.batch().opt(),
             engine.try_height().unwrap_or(&1024.into()).opt(),
             engine.try_width().unwrap_or(&768.into()).opt(),
-            engine.ts().clone(),
         );
         let task = config.task.expect("No sapiens task specified.");
         let names_body = config.class_names;
@@ -40,7 +38,6 @@ impl Sapiens {
             batch,
             task,
             names_body,
-            ts,
             processor,
             spec,
         })
@@ -55,9 +52,9 @@ impl Sapiens {
     }
 
     pub fn forward(&mut self, xs: &[Image]) -> Result<Vec<Y>> {
-        let ys = elapsed!("preprocess", self.ts, { self.preprocess(xs)? });
-        let ys = elapsed!("inference", self.ts, { self.inference(ys)? });
-        let ys = elapsed!("postprocess", self.ts, {
+        let ys = elapsed_module!("sapiens", "preprocess", self.preprocess(xs)?);
+        let ys = elapsed_module!("sapiens", "inference", self.inference(ys)?);
+        let ys = elapsed_module!("sapiens", "postprocess", {
             if let Task::InstanceSegmentation = self.task {
                 self.postprocess_seg(ys)?
             } else {
@@ -66,10 +63,6 @@ impl Sapiens {
         });
 
         Ok(ys)
-    }
-
-    pub fn summary(&mut self) {
-        self.ts.summary();
     }
 
     pub fn postprocess_seg(&self, xs: Xs) -> Result<Vec<Y>> {

@@ -63,7 +63,7 @@ fn main() -> Result<()> {
     }
 
     // summary
-    model.summary();
+    usls::perf();
 
     Ok(())
 }

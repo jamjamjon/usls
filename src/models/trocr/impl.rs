@@ -4,7 +4,7 @@ use ndarray::{s, Axis};
 use rayon::prelude::*;
 use std::str::FromStr;
 
-use crate::{elapsed, Config, Engine, Image, LogitsSampler, Processor, Scale, Ts, Xs, X, Y};
+use crate::{elapsed_module, Config, Engine, Image, LogitsSampler, Processor, Scale, Xs, X, Y};
 
 /// TrOCR model variants for different text types.
 #[derive(Debug, Copy, Clone)]
@@ -52,8 +52,6 @@ pub struct TrOCR {
     eos_token_id: u32,
     /// Token ID used to start text generation
     decoder_start_token_id: u32,
-    /// Timestamp tracking for performance analysis
-    ts: Ts,
     /// Number of key-value pairs in decoder attention
     n_kvs: usize,
     /// Image and text processor for pre/post processing
@@ -89,7 +87,7 @@ impl TrOCR {
             encoder.try_height().unwrap_or(&384.into()).opt(),
             encoder.try_width().unwrap_or(&384.into()).opt(),
         );
-        let ts = Ts::merge(&[encoder.ts(), decoder.ts(), decoder_merged.ts()]);
+
         // "bos_token": "<s>",  "eos_token": "</s>",  "sep_token": "</s>",
         // "model_max_length": 1000000000000000019884624838656,
         // let bos_token = "<s>";
@@ -114,7 +112,6 @@ impl TrOCR {
             decoder,
             decoder_merged,
             max_length,
-            ts,
             eos_token_id,
             decoder_start_token_id,
             n_kvs,
@@ -153,11 +150,11 @@ impl TrOCR {
     /// # Errors
     /// Returns an error if any step in the forward pass fails.
     pub fn forward(&mut self, xs: &[Image]) -> Result<Vec<Y>> {
-        let encoder_hidden_states = elapsed!("encode", self.ts, { self.encode(xs)? });
-        let generated = elapsed!("generate", self.ts, {
+        let encoder_hidden_states = elapsed_module!("trocr", "encode", self.encode(xs)?);
+        let generated = elapsed_module!("trocr", "generate", {
             self.generate(&encoder_hidden_states)?
         });
-        let ys = elapsed!("decode", self.ts, { self.decode(generated)? });
+        let ys = elapsed_module!("trocr", "decode", self.decode(generated)?);
 
         Ok(ys)
     }
@@ -259,10 +256,5 @@ impl TrOCR {
             .collect::<Vec<_>>();
 
         Ok(texts)
-    }
-
-    /// Displays a summary of the TrOCR model's configuration and state.
-    pub fn summary(&self) {
-        self.ts.summary();
     }
 }

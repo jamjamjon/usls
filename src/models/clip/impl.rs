@@ -2,7 +2,7 @@ use aksr::Builder;
 use anyhow::Result;
 use ndarray::Array2;
 
-use crate::{elapsed, Config, Engine, Image, Processor, Ts, X};
+use crate::{elapsed_module, Config, Engine, Image, Processor, X};
 
 #[derive(Debug, Builder)]
 pub struct Clip {
@@ -12,7 +12,6 @@ pub struct Clip {
     width: usize,
     batch: usize,
     processor: Processor,
-    ts: Ts,
 }
 
 impl Clip {
@@ -24,7 +23,7 @@ impl Clip {
             visual.try_height().unwrap_or(&224.into()).opt(),
             visual.try_width().unwrap_or(&224.into()).opt(),
         );
-        let ts = Ts::merge(&[visual.ts(), textual.ts()]);
+
         let processor = Processor::try_from_config(&config.processor)?
             .with_image_width(width as _)
             .with_image_height(height as _);
@@ -36,22 +35,21 @@ impl Clip {
             width,
             batch,
             processor,
-            ts,
         })
     }
 
     pub fn encode_images(&mut self, xs: &[Image]) -> Result<X> {
-        let xs = elapsed!("visual-preprocess", self.ts, {
+        let xs = elapsed_module!("clip", "visual-preprocess", {
             self.processor.process_images(xs)?
         });
-        let xs = elapsed!("visual-inference", self.ts, { self.visual.run(xs.into())? });
-        let x = elapsed!("visual-postprocess", self.ts, { xs[0].to_owned() });
+        let xs = elapsed_module!("clip", "visual-inference", self.visual.run(xs.into())?);
+        let x = elapsed_module!("clip", "visual-postprocessssss", xs[0].to_owned());
 
         Ok(x)
     }
 
     pub fn encode_texts(&mut self, xs: &[&str]) -> Result<X> {
-        let xs = elapsed!("textual-preprocess", self.ts, {
+        let xs = elapsed_module!("clip", "textual-preprocess", {
             let encodings: Vec<f32> = self
                 .processor
                 .encode_texts_ids(xs, true)?
@@ -65,15 +63,11 @@ impl Clip {
 
             x
         });
-        let xs = elapsed!("textual-inference", self.ts, {
+        let xs = elapsed_module!("clip", "textual-inference", {
             self.textual.run(xs.into())?
         });
-        let x = elapsed!("textual-postprocess", self.ts, { xs[0].to_owned() });
+        let x = elapsed_module!("clip", "textual-postprocess", xs[0].to_owned());
 
         Ok(x)
-    }
-
-    pub fn summary(&mut self) {
-        self.ts.summary();
     }
 }

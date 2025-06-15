@@ -3,7 +3,7 @@ use anyhow::Result;
 use ndarray::{s, Array, Axis, IxDyn};
 
 use crate::{
-    elapsed, Config, DynConf, Engine, Hbb, Image, NmsOps, Ops, Polygon, Processor, Ts, Xs, Y,
+    elapsed_module, Config, DynConf, Engine, Hbb, Image, NmsOps, Ops, Polygon, Processor, Xs, Y,
 };
 
 #[derive(Builder, Debug)]
@@ -12,7 +12,7 @@ pub struct YOLOPv2 {
     height: usize,
     width: usize,
     batch: usize,
-    ts: Ts,
+
     spec: String,
     processor: Processor,
     confs: DynConf,
@@ -23,13 +23,12 @@ impl YOLOPv2 {
     pub fn new(config: Config) -> Result<Self> {
         let engine = Engine::try_from_config(&config.model)?;
         let spec = engine.spec().to_string();
-        let (batch, height, width, ts) = (
+        let (batch, height, width) = (
             engine.batch().opt(),
             engine.try_height().unwrap_or(&512.into()).opt(),
             engine.try_width().unwrap_or(&512.into()).opt(),
-            engine.ts().clone(),
         );
-        let confs = DynConf::new(config.class_confs(), 80);
+        let confs = DynConf::new_or_default(config.class_confs(), 80);
         let iou = config.iou.unwrap_or(0.45f32);
         let processor = Processor::try_from_config(&config.processor)?
             .with_image_width(width as _)
@@ -42,7 +41,7 @@ impl YOLOPv2 {
             batch,
             confs,
             iou,
-            ts,
+
             processor,
             spec,
         })
@@ -57,17 +56,12 @@ impl YOLOPv2 {
     }
 
     pub fn forward(&mut self, xs: &[Image]) -> Result<Vec<Y>> {
-        let ys = elapsed!("preprocess", self.ts, { self.preprocess(xs)? });
-        let ys = elapsed!("inference", self.ts, { self.inference(ys)? });
-        let ys = elapsed!("postprocess", self.ts, { self.postprocess(ys)? });
+        let ys = elapsed_module!("yolop", "preprocess", self.preprocess(xs)?);
+        let ys = elapsed_module!("yolop", "inference", self.inference(ys)?);
+        let ys = elapsed_module!("yolop", "postprocess", self.postprocess(ys)?);
 
         Ok(ys)
     }
-
-    pub fn summary(&mut self) {
-        self.ts.summary();
-    }
-
     fn postprocess(&mut self, xs: Xs) -> Result<Vec<Y>> {
         let mut ys: Vec<Y> = Vec::new();
         let (xs_da, xs_ll, xs_det) = (&xs[0], &xs[1], &xs[2]);

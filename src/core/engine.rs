@@ -13,8 +13,8 @@ use prost::Message;
 use std::collections::HashSet;
 
 use crate::{
-    build_progress_bar, elapsed, human_bytes_binary, onnx, DType, Device, Iiix, MinOptMax,
-    ORTConfig, Ops, Ts, Xs, PROGRESS_BAR_STYLE_CYAN_2, PROGRESS_BAR_STYLE_FINISH, X,
+    build_progress_bar, elapsed_global, human_bytes_binary, onnx, DType, Device, HardwareConfig,
+    Iiix, MinOptMax, ORTConfig, Ops, Xs, PROGRESS_BAR_STYLE_CYAN_2, PROGRESS_BAR_STYLE_FINISH, X,
 };
 
 impl From<TensorElementType> for DType {
@@ -90,8 +90,6 @@ pub struct Engine {
     pub inputs_minoptmax: Vec<Vec<MinOptMax>>,
     /// ONNX I/O structure.
     pub onnx: Option<OnnxIo>,
-    /// Timing statistics.
-    pub ts: Ts,
     /// Number of dry runs for warmup.
     pub num_dry_run: usize,
 
@@ -100,44 +98,8 @@ pub struct Engine {
     pub num_intra_threads: Option<usize>,
     pub num_inter_threads: Option<usize>,
 
-    // cpu
-    pub cpu_arena_allocator: bool,
-
-    // tensorrt
-    pub tensorrt_fp16: bool,
-    pub tensorrt_engine_cache: bool,
-    pub tensorrt_timing_cache: bool,
-
-    // openvino
-    pub openvino_dynamic_shapes: bool,
-    pub openvino_opencl_throttling: bool,
-    pub openvino_qdq_optimizer: bool,
-    pub openvino_num_threads: Option<usize>,
-
-    // onednn
-    pub onednn_arena_allocator: bool,
-
-    // coreml
-    pub coreml_static_input_shapes: bool,
-    pub coreml_subgraph_running: bool,
-
-    // cann
-    pub cann_graph_inference: bool,
-    pub cann_dump_graphs: bool,
-    pub cann_dump_om_model: bool,
-
-    // nnapi
-    pub nnapi_cpu_only: bool,
-    pub nnapi_disable_cpu: bool,
-    pub nnapi_fp16: bool,
-    pub nnapi_nchw: bool,
-
-    // armnn
-    pub armnn_arena_allocator: bool,
-
-    // migraphx
-    pub migraphx_fp16: bool,
-    pub migraphx_exhaustive_tune: bool,
+    /// Hardware-specific configurations for all execution providers
+    pub hardware: HardwareConfig,
 }
 
 impl Default for Engine {
@@ -152,47 +114,60 @@ impl Default for Engine {
             wbmems: None,
             inputs_minoptmax: vec![],
             onnx: None,
-            ts: Ts::default(),
             // global
             graph_opt_level: None,
             num_intra_threads: None,
             num_inter_threads: None,
-            // cpu
-            cpu_arena_allocator: true,
-            // openvino
-            openvino_dynamic_shapes: true,
-            openvino_opencl_throttling: true,
-            openvino_qdq_optimizer: true,
-            openvino_num_threads: None,
-            // onednn
-            onednn_arena_allocator: true,
-            // coreml
-            coreml_static_input_shapes: false,
-            coreml_subgraph_running: true,
-            // tensorrt
-            tensorrt_fp16: true,
-            tensorrt_engine_cache: true,
-            tensorrt_timing_cache: false,
-            // cann
-            cann_graph_inference: true,
-            cann_dump_graphs: false,
-            cann_dump_om_model: true,
-            // nnapi
-            nnapi_cpu_only: false,
-            nnapi_disable_cpu: false,
-            nnapi_fp16: true,
-            nnapi_nchw: false,
-            // armnn
-            armnn_arena_allocator: true,
-            // migraphx
-            migraphx_fp16: true,
-            migraphx_exhaustive_tune: false,
+            // hardware configurations
+            hardware: HardwareConfig::new(),
         }
     }
 }
 
 impl Engine {
     pub fn try_from_config(config: &ORTConfig) -> Result<Self> {
+        let hardware = HardwareConfig {
+            cpu: crate::CpuConfig {
+                arena_allocator: config.hardware.cpu.arena_allocator,
+            },
+            tensorrt: crate::TensorRtConfig {
+                fp16: config.hardware.tensorrt.fp16,
+                engine_cache: config.hardware.tensorrt.engine_cache,
+                timing_cache: config.hardware.tensorrt.timing_cache,
+            },
+            openvino: crate::OpenVinoConfig {
+                dynamic_shapes: config.hardware.openvino.dynamic_shapes,
+                opencl_throttling: config.hardware.openvino.opencl_throttling,
+                qdq_optimizer: config.hardware.openvino.qdq_optimizer,
+                num_threads: config.hardware.openvino.num_threads,
+            },
+            onednn: crate::OneDnnConfig {
+                arena_allocator: config.hardware.onednn.arena_allocator,
+            },
+            coreml: crate::CoreMlConfig {
+                static_input_shapes: config.hardware.coreml.static_input_shapes,
+                subgraph_running: config.hardware.coreml.subgraph_running,
+            },
+            cann: crate::CannConfig {
+                graph_inference: config.hardware.cann.graph_inference,
+                dump_graphs: config.hardware.cann.dump_graphs,
+                dump_om_model: config.hardware.cann.dump_om_model,
+            },
+            nnapi: crate::NnapiConfig {
+                cpu_only: config.hardware.nnapi.cpu_only,
+                disable_cpu: config.hardware.nnapi.disable_cpu,
+                fp16: config.hardware.nnapi.fp16,
+                nchw: config.hardware.nnapi.nchw,
+            },
+            armnn: crate::ArmNnConfig {
+                arena_allocator: config.hardware.armnn.arena_allocator,
+            },
+            migraphx: crate::MiGraphXConfig {
+                fp16: config.hardware.migraphx.fp16,
+                exhaustive_tune: config.hardware.migraphx.exhaustive_tune,
+            },
+        };
+
         Self {
             file: config.file.clone(),
             spec: config.spec.clone(),
@@ -203,35 +178,8 @@ impl Engine {
             graph_opt_level: config.graph_opt_level,
             num_intra_threads: config.num_intra_threads,
             num_inter_threads: config.num_inter_threads,
-            // cpu
-            cpu_arena_allocator: config.cpu_arena_allocator,
-            // openvino
-            openvino_dynamic_shapes: config.openvino_dynamic_shapes,
-            openvino_opencl_throttling: config.openvino_opencl_throttling,
-            openvino_qdq_optimizer: config.openvino_qdq_optimizer,
-            openvino_num_threads: config.openvino_num_threads,
-            // coreml
-            coreml_static_input_shapes: config.coreml_static_input_shapes,
-            coreml_subgraph_running: config.coreml_subgraph_running,
-            // tensorrt
-            tensorrt_fp16: config.tensorrt_fp16,
-            tensorrt_engine_cache: config.tensorrt_engine_cache,
-            tensorrt_timing_cache: config.tensorrt_timing_cache,
-            // cann
-            cann_graph_inference: config.cann_graph_inference,
-            cann_dump_graphs: config.cann_dump_graphs,
-            cann_dump_om_model: config.cann_dump_om_model,
-            // nnapi
-            nnapi_cpu_only: config.nnapi_cpu_only,
-            nnapi_disable_cpu: config.nnapi_disable_cpu,
-            nnapi_fp16: config.nnapi_fp16,
-            nnapi_nchw: config.nnapi_nchw,
-            // armnn
-            armnn_arena_allocator: config.armnn_arena_allocator,
-            // migraphx
-            migraphx_fp16: config.migraphx_fp16,
-            migraphx_exhaustive_tune: config.migraphx_exhaustive_tune,
-
+            // hardware configurations
+            hardware,
             ..Default::default()
         }
         .build()
@@ -239,7 +187,7 @@ impl Engine {
 
     pub fn build(mut self) -> Result<Self> {
         let name = format!("[{}] ort_initialization", self.spec);
-        elapsed!(&name, self.ts, {
+        elapsed_global!(&name, {
             let proto = Self::load_onnx(self.file())?;
             let graph = match &proto.graph {
                 Some(graph) => graph,
@@ -339,7 +287,7 @@ impl Engine {
             for i in 0..self.num_dry_run {
                 pb.inc(1);
                 let name = format!("[{}] ort_dry_run_{}", self.spec, i);
-                elapsed!(&name, self.ts, {
+                elapsed_global!(&name, {
                     self.run(xs.clone())?;
                 });
             }
@@ -368,7 +316,7 @@ impl Engine {
         let mut ys = xs.derive();
         if let Some(onnx) = &mut self.onnx {
             // alignment
-            let xs_ = elapsed!(&format!("[{}] ort_preprocessing", self.spec), self.ts, {
+            let xs_ = elapsed_global!(&format!("[{}] ort_preprocessing", self.spec), {
                 let mut xs_ = Vec::new();
                 for (dtype, x) in onnx.inputs.dtypes.iter().zip(xs.into_iter()) {
                     xs_.push(Into::<SessionInputValue<'_>>::into(Self::preprocess(
@@ -380,14 +328,13 @@ impl Engine {
             });
 
             // run
-            let outputs = elapsed!(
+            let outputs = elapsed_global!(
                 &format!("[{}] ort_inference", self.spec),
-                self.ts,
                 onnx.session.run(&xs_[..])?
             );
 
             // extract
-            elapsed!(&format!("[{}] ort_postprocessing", self.spec), self.ts, {
+            elapsed_global!(&format!("[{}] ort_postprocessing", self.spec), {
                 for (dtype, name) in onnx.outputs.dtypes.iter().zip(onnx.outputs.names.iter()) {
                     let y = Self::postprocess(&outputs[name.as_str()], dtype)?;
                     ys.push_kv(name.as_str(), X::from(y))?;
@@ -507,9 +454,9 @@ impl Engine {
 
                     let ep = ort::execution_providers::TensorRTExecutionProvider::default()
                         .with_device_id(id as i32)
-                        .with_fp16(self.tensorrt_fp16)
-                        .with_engine_cache(self.tensorrt_engine_cache)
-                        .with_timing_cache(self.tensorrt_timing_cache)
+                        .with_fp16(self.hardware.tensorrt.fp16)
+                        .with_engine_cache(self.hardware.tensorrt.engine_cache)
+                        .with_timing_cache(self.hardware.tensorrt.timing_cache)
                         .with_engine_cache_path(
                             crate::Dir::Cache
                                 .crate_dir_default_with_subs(&["caches", "tensorrt"])?
@@ -571,8 +518,8 @@ impl Engine {
                                 .crate_dir_default_with_subs(&["caches", "coreml"])?
                                 .display(),
                         )
-                        .with_static_input_shapes(self.coreml_static_input_shapes)
-                        .with_subgraphs(self.coreml_subgraph_running)
+                        .with_static_input_shapes(self.hardware.coreml.static_input_shapes)
+                .with_subgraphs(self.hardware.coreml.subgraph_running)
                         .with_compute_units(ort::execution_providers::coreml::CoreMLComputeUnits::All)
                         .with_model_format(ort::execution_providers::coreml::CoreMLModelFormat::MLProgram)
                         .with_specialization_strategy(
@@ -600,10 +547,15 @@ impl Engine {
                 {
                     let ep = ort::execution_providers::OpenVINOExecutionProvider::default()
                         .with_device_type(dt)
-                        .with_num_threads(self.openvino_num_threads.unwrap_or(n_threads_available))
-                        .with_dynamic_shapes(self.openvino_dynamic_shapes)
-                        .with_opencl_throttling(self.openvino_opencl_throttling)
-                        .with_qdq_optimizer(self.openvino_qdq_optimizer)
+                        .with_num_threads(
+                            self.hardware
+                                .openvino
+                                .num_threads
+                                .unwrap_or(n_threads_available),
+                        )
+                        .with_dynamic_shapes(self.hardware.openvino.dynamic_shapes)
+                        .with_opencl_throttling(self.hardware.openvino.opencl_throttling)
+                        .with_qdq_optimizer(self.hardware.openvino.qdq_optimizer)
                         .with_cache_dir(
                             crate::Dir::Cache
                                 .crate_dir_default_with_subs(&["caches", "openvino"])?
@@ -672,9 +624,9 @@ impl Engine {
                 {
                     let ep = ort::execution_providers::CANNExecutionProvider::default()
                         .with_device_id(id as i32)
-                        .with_cann_graph(self.cann_graph_inference)
-                        .with_dump_graphs(self.cann_dump_graphs)
-                        .with_dump_om_model(self.cann_dump_om_model);
+                        .with_cann_graph(self.hardware.cann.graph_inference)
+                        .with_dump_graphs(self.hardware.cann.dump_graphs)
+                        .with_dump_om_model(self.hardware.cann.dump_om_model);
                     match ep.is_available() {
                         Ok(true) => {
                             ep.register(&mut builder).map_err(|err| {
@@ -715,7 +667,7 @@ impl Engine {
                 #[cfg(feature = "onednn")]
                 {
                     let ep = ort::execution_providers::OneDNNExecutionProvider::default()
-                        .with_arena_allocator(self.onednn_arena_allocator);
+                        .with_arena_allocator(self.hardware.onednn.arena_allocator);
                     match ep.is_available() {
                         Ok(true) => {
                             ep.register(&mut builder).map_err(|err| {
@@ -778,10 +730,10 @@ impl Engine {
                 #[cfg(feature = "nnapi")]
                 {
                     let ep = ort::execution_providers::NNAPIExecutionProvider::default()
-                        .with_fp16(self.nnapi_fp16)
-                        .with_nchw(self.nnapi_nchw)
-                        .with_cpu_only(self.nnapi_cpu_only)
-                        .with_disable_cpu(self.nnapi_disable_cpu);
+                        .with_fp16(self.hardware.nnapi.fp16)
+                        .with_nchw(self.hardware.nnapi.nchw)
+                        .with_cpu_only(self.hardware.nnapi.cpu_only)
+                        .with_disable_cpu(self.hardware.nnapi.disable_cpu);
                     match ep.is_available() {
                         Ok(true) => {
                             ep.register(&mut builder).map_err(|err| {
@@ -802,7 +754,7 @@ impl Engine {
                 #[cfg(feature = "armnn")]
                 {
                     let ep = ort::execution_providers::ArmNNExecutionProvider::default()
-                        .with_arena_allocator(self.armnn_arena_allocator);
+                        .with_arena_allocator(self.hardware.armnn.arena_allocator);
                     match ep.is_available() {
                         Ok(true) => {
                             ep.register(&mut builder).map_err(|err| {
@@ -865,8 +817,8 @@ impl Engine {
                 {
                     let ep = ort::execution_providers::MIGraphXExecutionProvider::default()
                         .with_device_id(id as _)
-                        .with_fp16(self.migraphx_fp16)
-                        .with_exhaustive_tune(self.migraphx_exhaustive_tune);
+                        .with_fp16(self.hardware.migraphx.fp16)
+                        .with_exhaustive_tune(self.hardware.migraphx.exhaustive_tune);
                     match ep.is_available() {
                         Ok(true) => {
                             ep.register(&mut builder).map_err(|err| {
@@ -926,7 +878,7 @@ impl Engine {
             }
             _ => {
                 let ep = ort::execution_providers::CPUExecutionProvider::default()
-                    .with_arena_allocator(self.cpu_arena_allocator);
+                    .with_arena_allocator(self.hardware.cpu.arena_allocator);
                 match ep.is_available() {
                     Ok(true) => {
                         ep.register(&mut builder)
@@ -1138,9 +1090,10 @@ impl Engine {
     }
 
     pub fn try_fetch(&self, key: &str) -> Option<String> {
-        match self.onnx.as_ref().unwrap().session.metadata() {
+        let onnx = self.onnx.as_ref()?;
+        match onnx.session.metadata() {
             Err(_) => None,
-            Ok(metadata) => metadata.custom(key).unwrap_or_default(),
+            Ok(metadata) => metadata.custom(key).ok().flatten(),
         }
     }
 
@@ -1213,7 +1166,7 @@ impl Engine {
     }
 
     pub fn profile(&self) {
-        self.ts.summary();
+        crate::core::global_ts::global_ts_manager().print_global_summary();
     }
 
     pub fn info(&self) {

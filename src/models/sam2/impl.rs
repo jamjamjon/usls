@@ -3,7 +3,7 @@ use anyhow::Result;
 use ndarray::{s, Axis};
 
 use crate::{
-    elapsed, Config, DynConf, Engine, Image, Mask, Ops, Processor, SamPrompt, Ts, Xs, X, Y,
+    elapsed_module, Config, DynConf, Engine, Image, Mask, Ops, Processor, SamPrompt, Xs, X, Y,
 };
 
 /// SAM2 (Segment Anything Model 2.1) for advanced image segmentation.
@@ -19,7 +19,6 @@ pub struct SAM2 {
     batch: usize,
     processor: Processor,
     conf: DynConf,
-    ts: Ts,
     spec: String,
 }
 
@@ -38,9 +37,8 @@ impl SAM2 {
             encoder.try_height().unwrap_or(&1024.into()).opt(),
             encoder.try_width().unwrap_or(&1024.into()).opt(),
         );
-        let ts = Ts::merge(&[encoder.ts(), decoder.ts()]);
         let spec = encoder.spec().to_owned();
-        let conf = DynConf::new(config.class_confs(), 1);
+        let conf = DynConf::new_or_default(config.class_confs(), 1);
         let processor = Processor::try_from_config(&config.processor)?
             .with_image_width(width as _)
             .with_image_height(height as _);
@@ -52,7 +50,6 @@ impl SAM2 {
             batch,
             height,
             width,
-            ts,
             processor,
             spec,
         })
@@ -64,8 +61,8 @@ impl SAM2 {
     /// 1. Image encoding into hierarchical features
     /// 2. Prompt-guided mask generation
     pub fn forward(&mut self, xs: &[Image], prompts: &[SamPrompt]) -> Result<Vec<Y>> {
-        let ys = elapsed!("encode", self.ts, { self.encode(xs)? });
-        let ys = elapsed!("decode", self.ts, { self.decode(&ys, prompts)? });
+        let ys = elapsed_module!("sam2", "encode", self.encode(xs)?);
+        let ys = elapsed_module!("sam2", "decode", self.decode(&ys, prompts)?);
 
         Ok(ys)
     }
