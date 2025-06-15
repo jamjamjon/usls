@@ -36,7 +36,7 @@ fn main() -> anyhow::Result<()> {
     let ys = model.forward(&xs, Some("this image depict"))?;
     println!("Conditional: {:?}", ys);
 
-    usls::perf();
+    usls::perf(false);
 
     Ok(())
 }

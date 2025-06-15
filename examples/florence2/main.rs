@@ -197,7 +197,7 @@ fn main() -> Result<()> {
             _ => (),
         }
     }
-    usls::perf();
+    usls::perf(false);
 
     Ok(())
 }

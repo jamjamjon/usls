@@ -183,8 +183,8 @@ impl Perf {
             return;
         }
 
-        println!("\n\n🚀 Performance Analysis");
-        println!("──────────────────────────────\n");
+        println!("\n\n🚀 usls Performance Analysis Chart");
+        println!("═══════════════════════════════════════════════════════════════\n");
 
         // Extract unique model names from model_details
         let mut model_totals: std::collections::HashMap<String, Duration> =

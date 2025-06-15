@@ -20,7 +20,7 @@ fn main() -> Result<()> {
     let y = model.encode_images(&xs)?;
     println!("Feat shape: {:?}", y.shape());
 
-    usls::perf();
+    usls::perf(false);
 
     Ok(())
 }

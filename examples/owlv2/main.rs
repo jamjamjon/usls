@@ -72,7 +72,7 @@ fn main() -> Result<()> {
                 .display(),
         ))?;
     }
-    usls::perf();
+    usls::perf(false);
 
     Ok(())
 }
