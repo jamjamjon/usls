@@ -32,7 +32,7 @@ fn main() -> Result<()> {
     }
 
     // summary
-    usls::perf();
+    usls::perf(false);
 
     Ok(())
 }

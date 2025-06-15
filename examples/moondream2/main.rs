@@ -104,7 +104,7 @@ fn main() -> Result<()> {
         }
         _ => unimplemented!("Unsupported moondream2 task."),
     }
-    usls::perf();
+    usls::perf(false);
 
     Ok(())
 }

@@ -59,7 +59,7 @@ fn main() -> anyhow::Result<()> {
     let ys = model.forward(&xs)?;
     println!("{:?}", ys);
 
-    usls::perf();
+    usls::perf(false);
 
     Ok(())
 }

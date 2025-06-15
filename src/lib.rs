@@ -62,7 +62,3 @@ pub use minifb::Key;
 pub use models::*;
 pub use results::*;
 pub use viz::*;
-
-pub fn perf() {
-    perf::perf(false);
-}
