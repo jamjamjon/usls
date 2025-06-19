@@ -40,6 +40,10 @@ pub struct DataLoader {
     #[cfg(feature = "video")]
     nf_skip: u64,
 
+    /// Frame rate for video or stream.
+    #[cfg(feature = "video")]
+    frame_rate: f32,
+
     /// Progress bar for displaying iteration progress.
     progress_bar: Option<ProgressBar>,
 
@@ -146,7 +150,8 @@ impl DataLoader {
                 Err(_) => u64::MAX,
                 Ok(0) => u64::MAX,
                 Ok(x) => x,
-            }
+            };
+            frame_rate = decoder.frame_rate();
         }
 
         // info
@@ -166,11 +171,6 @@ impl DataLoader {
             decoder,
             ..Default::default()
         })
-    }
-
-    #[cfg(feature = "video")]
-    pub fn video_decoder(&self) -> Option<&video_rs::decode::Decoder> {
-        self.decoder.as_ref()
     }
 
     pub fn build(mut self) -> Result<Self> {
@@ -503,6 +503,11 @@ impl DataLoader {
     #[cfg(feature = "video")]
     pub fn nf_skip(&self) -> u64 {
         self.nf_skip
+    }
+
+    #[cfg(feature = "video")]
+    pub fn frame_rate(&self) -> f32 {
+        self.frame_rate
     }
 
     pub fn with_progress_bar(mut self, x: bool) -> Self {
