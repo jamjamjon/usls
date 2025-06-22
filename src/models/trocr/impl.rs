@@ -1,10 +1,11 @@
 use aksr::Builder;
 use anyhow::Result;
-use ndarray::{s, Axis};
-use rayon::prelude::*;
+// use rayon::prelude::*;
 use std::str::FromStr;
 
-use crate::{elapsed_module, Config, Engine, Image, LogitsSampler, Processor, Scale, Xs, X, Y};
+use crate::{
+    elapsed_module, Config, Engine, Image, LogitsSampler, Processor, Scale, Tensor, Xs, Y,
+};
 
 /// TrOCR model variants for different text types.
 #[derive(Debug, Copy, Clone)]
@@ -132,7 +133,7 @@ impl TrOCR {
     ///
     /// # Errors
     /// Returns an error if image processing or encoding fails.
-    pub fn encode(&mut self, xs: &[Image]) -> Result<X> {
+    pub fn encode(&mut self, xs: &[Image]) -> Result<Tensor> {
         let ys = self.processor.process_images(xs)?;
         self.batch = xs.len(); // update
         let ys = self.encoder.run(ys.into())?;
@@ -159,10 +160,10 @@ impl TrOCR {
         Ok(ys)
     }
 
-    fn generate(&mut self, encoder_hidden_states: &X) -> Result<Vec<Vec<u32>>> {
+    fn generate(&mut self, encoder_hidden_states: &Tensor) -> Result<Vec<Vec<u32>>> {
         // input_ids
-        let input_ids = X::from(vec![self.decoder_start_token_id as f32])
-            .insert_axis(0)?
+        let input_ids = Tensor::from(vec![self.decoder_start_token_id as f32])
+            .unsqueeze(0)?
             .repeat(0, self.batch)?;
 
         // decoder
@@ -194,15 +195,17 @@ impl TrOCR {
                 .collect();
 
             // decode each token for each batch
-            for (i, logit) in logits.axis_iter(Axis(0)).enumerate() {
+            let logits_vec = logits.to_vec::<f32>()?;
+            let seq_len = logits.shape()[1];
+            let vocab_size = logits.shape()[2];
+
+            for i in 0..self.batch {
                 if !finished[i] {
-                    let token_id = logits_sampler.decode(
-                        &logit
-                            .slice(s![-1, ..])
-                            .into_owned()
-                            .into_raw_vec_and_offset()
-                            .0,
-                    )?;
+                    // Get the last token's logits for this batch item
+                    let start_idx = i * seq_len * vocab_size + (seq_len - 1) * vocab_size;
+                    let end_idx = start_idx + vocab_size;
+                    let logit_vec = logits_vec[start_idx..end_idx].to_vec();
+                    let token_id = logits_sampler.decode(&logit_vec)?;
 
                     if token_id == self.eos_token_id {
                         finished[i] = true;
@@ -221,7 +224,7 @@ impl TrOCR {
             }
 
             // build inputs
-            let input_ids = X::from(last_tokens.clone()).insert_axis(1)?;
+            let input_ids = Tensor::from(last_tokens.clone()).unsqueeze(1)?;
             let mut xs = vec![input_ids, encoder_hidden_states.clone()];
             for i in 0..self.n_kvs {
                 xs.push(decoder_kvs[i * 2].clone());
@@ -229,7 +232,7 @@ impl TrOCR {
                 xs.push(encoder_kvs[i * 2].clone());
                 xs.push(encoder_kvs[i * 2 + 1].clone());
             }
-            xs.push(X::ones(&[1])); // use_cache
+            xs.push(Tensor::ones(vec![1])); // use_cache
 
             // generate
             decoder_outputs = self.decoder_merged.run(xs.into())?;
@@ -251,7 +254,7 @@ impl TrOCR {
 
         // to texts
         let texts = texts
-            .into_par_iter()
+            .into_iter()
             .map(|x| Y::default().with_texts(&[x.into()]))
             .collect::<Vec<_>>();
 

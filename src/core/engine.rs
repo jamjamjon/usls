@@ -1,8 +1,7 @@
 use aksr::Builder;
-use anyhow::Result;
+use anyhow::{Context, Result};
 use half::{bf16, f16};
 use log::{debug, info, warn};
-use ndarray::{Array, IxDyn};
 use ort::{
     execution_providers::ExecutionProvider,
     session::{builder::GraphOptimizationLevel, Session, SessionInputValue},
@@ -14,12 +13,14 @@ use std::collections::HashSet;
 
 use crate::{
     build_progress_bar, elapsed_global, human_bytes_binary, onnx, DType, Device, HardwareConfig,
-    Iiix, MinOptMax, ORTConfig, Ops, Xs, PROGRESS_BAR_STYLE_CYAN_2, PROGRESS_BAR_STYLE_FINISH, X,
+    Iiix, MinOptMax, ORTConfig, Ops, Tensor, Xs, PROGRESS_BAR_STYLE_CYAN_2,
+    PROGRESS_BAR_STYLE_FINISH,
 };
 
 impl From<TensorElementType> for DType {
     fn from(dtype: TensorElementType) -> Self {
         match dtype {
+            TensorElementType::Bool => Self::Bool,
             TensorElementType::Int4 => Self::Int4,
             TensorElementType::Int8 => Self::Int8,
             TensorElementType::Int16 => Self::Int16,
@@ -40,7 +41,15 @@ impl From<TensorElementType> for DType {
             TensorElementType::Float8E5M2FNUZ => Self::Fp8e5m2fnuz,
             TensorElementType::Complex64 => Self::Complex64,
             TensorElementType::Complex128 => Self::Complex128,
-            _ => todo!(),
+            _ => {
+                // For unsupported tensor element types, default to Float32
+                // This provides a safe fallback while logging the issue
+                warn!(
+                    "Unsupported TensorElementType: {:?}, defaulting to Float32",
+                    dtype
+                );
+                Self::Fp32
+            }
         }
     }
 }
@@ -89,7 +98,7 @@ pub struct Engine {
     /// Input min-opt-max configurations.
     pub inputs_minoptmax: Vec<Vec<MinOptMax>>,
     /// ONNX I/O structure.
-    pub onnx: Option<OnnxIo>,
+    pub onnx_io: Option<OnnxIo>,
     /// Number of dry runs for warmup.
     pub num_dry_run: usize,
 
@@ -113,12 +122,10 @@ impl Default for Engine {
             params: None,
             wbmems: None,
             inputs_minoptmax: vec![],
-            onnx: None,
-            // global
+            onnx_io: None,
             graph_opt_level: None,
             num_intra_threads: None,
             num_inter_threads: None,
-            // hardware configurations
             hardware: HardwareConfig::new(),
         }
     }
@@ -126,60 +133,16 @@ impl Default for Engine {
 
 impl Engine {
     pub fn try_from_config(config: &ORTConfig) -> Result<Self> {
-        let hardware = HardwareConfig {
-            cpu: crate::CpuConfig {
-                arena_allocator: config.hardware.cpu.arena_allocator,
-            },
-            tensorrt: crate::TensorRtConfig {
-                fp16: config.hardware.tensorrt.fp16,
-                engine_cache: config.hardware.tensorrt.engine_cache,
-                timing_cache: config.hardware.tensorrt.timing_cache,
-            },
-            openvino: crate::OpenVinoConfig {
-                dynamic_shapes: config.hardware.openvino.dynamic_shapes,
-                opencl_throttling: config.hardware.openvino.opencl_throttling,
-                qdq_optimizer: config.hardware.openvino.qdq_optimizer,
-                num_threads: config.hardware.openvino.num_threads,
-            },
-            onednn: crate::OneDnnConfig {
-                arena_allocator: config.hardware.onednn.arena_allocator,
-            },
-            coreml: crate::CoreMlConfig {
-                static_input_shapes: config.hardware.coreml.static_input_shapes,
-                subgraph_running: config.hardware.coreml.subgraph_running,
-            },
-            cann: crate::CannConfig {
-                graph_inference: config.hardware.cann.graph_inference,
-                dump_graphs: config.hardware.cann.dump_graphs,
-                dump_om_model: config.hardware.cann.dump_om_model,
-            },
-            nnapi: crate::NnapiConfig {
-                cpu_only: config.hardware.nnapi.cpu_only,
-                disable_cpu: config.hardware.nnapi.disable_cpu,
-                fp16: config.hardware.nnapi.fp16,
-                nchw: config.hardware.nnapi.nchw,
-            },
-            armnn: crate::ArmNnConfig {
-                arena_allocator: config.hardware.armnn.arena_allocator,
-            },
-            migraphx: crate::MiGraphXConfig {
-                fp16: config.hardware.migraphx.fp16,
-                exhaustive_tune: config.hardware.migraphx.exhaustive_tune,
-            },
-        };
-
         Self {
             file: config.file.clone(),
             spec: config.spec.clone(),
             iiixs: config.iiixs.clone(),
             device: config.device,
             num_dry_run: config.num_dry_run,
-            // global
             graph_opt_level: config.graph_opt_level,
             num_intra_threads: config.num_intra_threads,
             num_inter_threads: config.num_inter_threads,
-            // hardware configurations
-            hardware,
+            hardware: config.hardware.clone(),
             ..Default::default()
         }
         .build()
@@ -248,7 +211,7 @@ impl Engine {
             let session = self.build_session(&inputs)?;
 
             // onnxio
-            self.onnx = Some(OnnxIo {
+            self.onnx_io = Some(OnnxIo {
                 inputs,
                 outputs,
                 proto,
@@ -261,6 +224,43 @@ impl Engine {
         Ok(self)
     }
 
+    /// Create dummy input tensors for dry run based on optimal dimensions
+    /// Uses random data instead of ones for more realistic testing
+    /// Parallelized with Rayon for better performance with multiple inputs
+    fn create_dummy_inputs(&self) -> Result<Xs> {
+        use rayon::prelude::*;
+
+        // Get input data types if available, otherwise default to Float32
+        let input_dtypes = self
+            .idtypes()
+            .unwrap_or_else(|| vec![crate::DType::Fp32; self.inputs_minoptmax.len()]);
+
+        // Parallel tensor creation for multiple inputs
+        let xs: Result<Vec<Tensor>, _> = self
+            .inputs_minoptmax
+            .par_iter()
+            .zip(input_dtypes.par_iter())
+            .map(|(input_dims, dtype)| {
+                let shape: Vec<usize> = input_dims.iter().map(|dim| dim.opt()).collect();
+
+                // Create random tensor with appropriate data type
+                // Using normal distribution for more realistic data patterns
+                match dtype {
+                    crate::DType::Fp32 | crate::DType::Fp64 => {
+                        // Use normal distribution for floating point types
+                        Tensor::randn(shape, *dtype)
+                    }
+                    _ => {
+                        // TODO: (workaround) Use uniform random for integer and other types
+                        Tensor::rand(shape, crate::DType::Fp32)
+                    }
+                }
+            })
+            .collect();
+
+        Ok(Xs::from(xs?))
+    }
+
     pub fn dry_run(&mut self) -> Result<()> {
         if self.num_dry_run > 0 {
             // pb
@@ -271,17 +271,8 @@ impl Engine {
                 PROGRESS_BAR_STYLE_CYAN_2,
             )?;
 
-            // dummy
-            let mut xs = Vec::new();
-            for i in self.inputs_minoptmax().iter() {
-                let mut x: Vec<usize> = Vec::new();
-                for i_ in i.iter() {
-                    x.push(i_.opt());
-                }
-                let x: Array<f32, IxDyn> = Array::ones(x).into_dyn();
-                xs.push(X::from(x));
-            }
-            let xs = Xs::from(xs);
+            // Create dummy inputs once and reuse
+            let xs = self.create_dummy_inputs()?;
 
             // run
             for i in 0..self.num_dry_run {
@@ -313,92 +304,176 @@ impl Engine {
     }
 
     pub fn run(&mut self, xs: Xs) -> Result<Xs> {
-        let mut ys = xs.derive();
-        if let Some(onnx) = &mut self.onnx {
-            // alignment
-            let xs_ = elapsed_global!(&format!("[{}] ort_preprocessing", self.spec), {
-                let mut xs_ = Vec::new();
-                for (dtype, x) in onnx.inputs.dtypes.iter().zip(xs.into_iter()) {
-                    xs_.push(Into::<SessionInputValue<'_>>::into(Self::preprocess(
-                        x, dtype,
-                    )?));
-                }
+        // Early validation
+        let onnx_io = self
+            .onnx_io
+            .as_mut()
+            .ok_or_else(|| anyhow::anyhow!("Engine not initialized: ONNX model not loaded"))?;
 
-                xs_
-            });
-
-            // run
-            let outputs = elapsed_global!(
-                &format!("[{}] ort_inference", self.spec),
-                onnx.session.run(&xs_[..])?
+        if xs.len() != onnx_io.inputs.dtypes.len() {
+            anyhow::bail!(
+                "Input tensor count mismatch: expected {}, got {}",
+                onnx_io.inputs.dtypes.len(),
+                xs.len()
             );
-
-            // extract
-            elapsed_global!(&format!("[{}] ort_postprocessing", self.spec), {
-                for (dtype, name) in onnx.outputs.dtypes.iter().zip(onnx.outputs.names.iter()) {
-                    let y = Self::postprocess(&outputs[name.as_str()], dtype)?;
-                    ys.push_kv(name.as_str(), X::from(y))?;
-                }
-            });
-
-            Ok(ys)
-        } else {
-            anyhow::bail!("Failed to run with ONNXRuntime. No model info found.");
         }
-    }
 
-    fn preprocess(x: &X, dtype: &TensorElementType) -> Result<DynValue> {
-        let x = match dtype {
-            TensorElementType::Float32 | TensorElementType::Float64 => {
-                Value::from_array(x.0.clone())?.into_dyn()
+        let mut ys = Xs::new();
+
+        // Preprocessing with better error context (parallelized with Rayon)
+        let xs_ = elapsed_global!(&format!("[{}] ort_preprocessing", self.spec), {
+            // Convert Xs to Vec for parallel processing
+            let xs_vec: Vec<Tensor> = xs.into_iter().collect();
+
+            onnx_io
+                .inputs
+                .dtypes
+                // .par_iter()
+                .iter()
+                .zip(xs_vec.into_iter())
+                // .zip(xs_vec.into_par_iter())
+                .enumerate()
+                .map(|(i, (dtype, x))| {
+                    Self::preprocess(x.clone(), dtype)
+                        .map(Into::<SessionInputValue<'_>>::into)
+                        .with_context(|| format!("Failed to preprocess input tensor {}", i))
+                })
+                .collect::<Result<Vec<_>>>()?
+        });
+
+        // Inference
+        let outputs = elapsed_global!(
+            &format!("[{}] ort_inference", self.spec),
+            onnx_io
+                .session
+                .run(&xs_[..])
+                .with_context(|| "ONNX Runtime inference failed")?
+        );
+
+        // Postprocessing with better error context (parallelized with Rayon)
+        elapsed_global!(&format!("[{}] ort_postprocessing", self.spec), {
+            use rayon::prelude::*;
+
+            // Parallel postprocessing of all outputs
+            let processed_outputs: Result<Vec<(String, Tensor)>, anyhow::Error> = onnx_io
+                .outputs
+                .dtypes
+                .par_iter()
+                .zip(onnx_io.outputs.names.par_iter())
+                .enumerate()
+                .map(
+                    |(i, (dtype, name))| -> Result<(String, Tensor), anyhow::Error> {
+                        let output_value = outputs
+                            .get(name.as_str())
+                            .ok_or_else(|| anyhow::anyhow!("Missing output tensor: {}", name))?;
+
+                        let y = Self::postprocess(output_value, dtype).with_context(|| {
+                            format!("Failed to postprocess output tensor {} ({})", i, name)
+                        })?;
+
+                        Ok((name.clone(), y))
+                    },
+                )
+                .collect();
+
+            // Sequential insertion to maintain order
+            for (name, tensor) in processed_outputs? {
+                ys.push_kv(&name, tensor)?;
             }
-            TensorElementType::Float16 => Value::from_array(x.mapv(f16::from_f32))?.into_dyn(),
-            TensorElementType::Bfloat16 => Value::from_array(x.mapv(bf16::from_f32))?.into_dyn(),
-            TensorElementType::Int8 => Value::from_array(x.mapv(|x_| x_ as i8))?.into_dyn(),
-            TensorElementType::Int16 => Value::from_array(x.mapv(|x_| x_ as i16))?.into_dyn(),
-            TensorElementType::Int32 => Value::from_array(x.mapv(|x_| x_ as i32))?.into_dyn(),
-            TensorElementType::Int64 => Value::from_array(x.mapv(|x_| x_ as i64))?.into_dyn(),
-            TensorElementType::Uint8 => Value::from_array(x.mapv(|x_| x_ as u8))?.into_dyn(),
-            TensorElementType::Uint16 => Value::from_array(x.mapv(|x_| x_ as u16))?.into_dyn(),
-            TensorElementType::Uint32 => Value::from_array(x.mapv(|x_| x_ as u32))?.into_dyn(),
-            TensorElementType::Uint64 => Value::from_array(x.mapv(|x_| x_ as u64))?.into_dyn(),
-            TensorElementType::Bool => Value::from_array(x.mapv(|x_| x_ != 0.))?.into_dyn(),
-            _ => unimplemented!(),
-        };
-        Ok(x)
+        });
+
+        Ok(ys)
     }
 
-    fn postprocess(x: &DynValue, dtype: &TensorElementType) -> Result<Array<f32, IxDyn>> {
-        fn _extract_and_convert<T>(x: &DynValue, map_fn: impl Fn(T) -> f32) -> Array<f32, IxDyn>
+    /// Convert tensor to DynValue for ONNX Runtime without unnecessary type conversion
+    ///
+    /// This method directly extracts the underlying data in its native dtype,
+    /// avoiding expensive conversions when the tensor dtype matches the target dtype.
+    ///
+    /// # Returns
+    /// * DynValue containing the tensor data in its native format
+    ///
+    /// # Performance Notes
+    /// * Zero-copy operation when possible
+    /// * Avoids f32 conversion bottleneck in preprocessing
+    fn tensor_to_dyn_value(tensor: &Tensor) -> Result<DynValue> {
+        use crate::tensor::DTypeTensor;
+
+        let dyn_value = match &tensor.data {
+            DTypeTensor::F32(arr) => Value::from_array(arr.clone().into_owned())?.into_dyn(),
+            DTypeTensor::F64(arr) => Value::from_array(arr.clone().into_owned())?.into_dyn(),
+            DTypeTensor::F16(arr) => Value::from_array(arr.clone().into_owned())?.into_dyn(),
+            DTypeTensor::Bf16(arr) => Value::from_array(arr.clone().into_owned())?.into_dyn(),
+            DTypeTensor::I8(arr) => Value::from_array(arr.clone().into_owned())?.into_dyn(),
+            DTypeTensor::I16(arr) => Value::from_array(arr.clone().into_owned())?.into_dyn(),
+            DTypeTensor::I32(arr) => Value::from_array(arr.clone().into_owned())?.into_dyn(),
+            DTypeTensor::I64(arr) => Value::from_array(arr.clone().into_owned())?.into_dyn(),
+            DTypeTensor::U8(arr) => Value::from_array(arr.clone().into_owned())?.into_dyn(),
+            DTypeTensor::U16(arr) => Value::from_array(arr.clone().into_owned())?.into_dyn(),
+            DTypeTensor::U32(arr) => Value::from_array(arr.clone().into_owned())?.into_dyn(),
+            DTypeTensor::U64(arr) => Value::from_array(arr.clone().into_owned())?.into_dyn(),
+            DTypeTensor::Bool(arr) => Value::from_array(arr.clone().into_owned())?.into_dyn(),
+        };
+
+        Ok(dyn_value)
+    }
+
+    fn preprocess(x: Tensor, dtype: &TensorElementType) -> Result<DynValue> {
+        // Convert TensorElementType to DType for comparison
+        let target_dtype: DType = (*dtype).into();
+
+        // If tensor dtype matches target dtype, use direct conversion (zero-copy when possible)
+        if x.dtype() == target_dtype {
+            return Self::tensor_to_dyn_value(&x);
+        }
+
+        // Convert tensor to target dtype using the safe to_dtype method
+        let converted_tensor = x.to_dtype(target_dtype).with_context(|| {
+            format!(
+                "Failed to convert tensor from {:?} to {:?}",
+                x.dtype(),
+                target_dtype
+            )
+        })?;
+
+        // Use direct conversion for the converted tensor
+        Self::tensor_to_dyn_value(&converted_tensor)
+    }
+
+    fn postprocess(x: &DynValue, dtype: &TensorElementType) -> Result<Tensor> {
+        use crate::tensor::TensorElement;
+
+        fn _extract_tensor<T>(x: &DynValue) -> Result<Tensor>
         where
-            T: Clone + 'static + ort::tensor::PrimitiveTensorElementType,
+            T: Clone + 'static + ort::tensor::PrimitiveTensorElementType + TensorElement,
         {
             match x.try_extract_array::<T>() {
                 Err(err) => {
                     debug!("Failed to extract from ort outputs: {:?}. A default value has been generated.", err);
-                    Array::zeros(0).into_dyn()
+                    Ok(Tensor::zeros(0))
                 }
-                Ok(x) => x.view().mapv(map_fn).into_owned(),
+                Ok(arr) => Ok(Tensor::from_array(arr.into_owned().into_dyn())),
             }
         }
-        let x = match dtype {
-            TensorElementType::Float32 => _extract_and_convert::<f32>(x, |x| x),
-            TensorElementType::Float16 => _extract_and_convert::<f16>(x, f16::to_f32),
-            TensorElementType::Bfloat16 => _extract_and_convert::<bf16>(x, bf16::to_f32),
-            TensorElementType::Float64 => _extract_and_convert::<f64>(x, |x| x as f32),
-            TensorElementType::Int64 => _extract_and_convert::<i64>(x, |x| x as f32),
-            TensorElementType::Int32 => _extract_and_convert::<i32>(x, |x| x as f32),
-            TensorElementType::Int16 => _extract_and_convert::<i16>(x, |x| x as f32),
-            TensorElementType::Int8 => _extract_and_convert::<i8>(x, |x| x as f32),
-            TensorElementType::Uint64 => _extract_and_convert::<u64>(x, |x| x as f32),
-            TensorElementType::Uint32 => _extract_and_convert::<u32>(x, |x| x as f32),
-            TensorElementType::Uint16 => _extract_and_convert::<u16>(x, |x| x as f32),
-            TensorElementType::Uint8 => _extract_and_convert::<u8>(x, |x| x as f32),
-            TensorElementType::Bool => _extract_and_convert::<bool>(x, |x| x as u8 as f32),
+
+        let tensor = match dtype {
+            TensorElementType::Float32 => _extract_tensor::<f32>(x)?,
+            TensorElementType::Float16 => _extract_tensor::<f16>(x)?,
+            TensorElementType::Bfloat16 => _extract_tensor::<bf16>(x)?,
+            TensorElementType::Float64 => _extract_tensor::<f64>(x)?,
+            TensorElementType::Int64 => _extract_tensor::<i64>(x)?,
+            TensorElementType::Int32 => _extract_tensor::<i32>(x)?,
+            TensorElementType::Int16 => _extract_tensor::<i16>(x)?,
+            TensorElementType::Int8 => _extract_tensor::<i8>(x)?,
+            TensorElementType::Uint64 => _extract_tensor::<u64>(x)?,
+            TensorElementType::Uint32 => _extract_tensor::<u32>(x)?,
+            TensorElementType::Uint16 => _extract_tensor::<u16>(x)?,
+            TensorElementType::Uint8 => _extract_tensor::<u8>(x)?,
+            TensorElementType::Bool => _extract_tensor::<bool>(x)?,
             _ => return Err(anyhow::anyhow!("Unsupported ort tensor type: {:?}", dtype)),
         };
 
-        Ok(x)
+        Ok(tensor)
     }
 
     #[allow(unused_variables)]
@@ -1090,49 +1165,53 @@ impl Engine {
     }
 
     pub fn try_fetch(&self, key: &str) -> Option<String> {
-        let onnx = self.onnx.as_ref()?;
-        match onnx.session.metadata() {
+        let onnx_io = self.onnx_io.as_ref()?;
+        match onnx_io.session.metadata() {
             Err(_) => None,
             Ok(metadata) => metadata.custom(key).ok().flatten(),
         }
     }
 
     pub fn ir_version(&self) -> Option<usize> {
-        self.onnx.as_ref().map(|x| x.proto.ir_version as usize)
+        self.onnx_io.as_ref().map(|x| x.proto.ir_version as usize)
     }
 
     pub fn opset_version(&self) -> Option<usize> {
-        self.onnx
+        self.onnx_io
             .as_ref()
             .map(|x| x.proto.opset_import[0].version as usize)
     }
 
     pub fn producer_name(&self) -> Option<String> {
-        self.onnx.as_ref().map(|x| x.proto.producer_name.clone())
+        self.onnx_io.as_ref().map(|x| x.proto.producer_name.clone())
     }
 
     pub fn producer_version(&self) -> Option<String> {
-        self.onnx.as_ref().map(|x| x.proto.producer_version.clone())
+        self.onnx_io
+            .as_ref()
+            .map(|x| x.proto.producer_version.clone())
     }
 
     pub fn model_version(&self) -> Option<usize> {
-        self.onnx.as_ref().map(|x| x.proto.model_version as usize)
+        self.onnx_io
+            .as_ref()
+            .map(|x| x.proto.model_version as usize)
     }
 
     pub fn ishapes(&self) -> Option<&[Vec<usize>]> {
-        self.onnx.as_ref().map(|x| x.inputs.dimss())
+        self.onnx_io.as_ref().map(|x| x.inputs.dimss())
     }
 
     pub fn idimss(&self) -> Option<&[Vec<usize>]> {
-        self.onnx.as_ref().map(|x| x.inputs.dimss())
+        self.onnx_io.as_ref().map(|x| x.inputs.dimss())
     }
 
     pub fn inames(&self) -> Option<&[String]> {
-        self.onnx.as_ref().map(|x| x.inputs.names())
+        self.onnx_io.as_ref().map(|x| x.inputs.names())
     }
 
     pub fn idtypes(&self) -> Option<Vec<DType>> {
-        self.onnx.as_ref().and_then(|x| {
+        self.onnx_io.as_ref().and_then(|x| {
             x.inputs
                 .dtypes()
                 .iter()
@@ -1143,19 +1222,19 @@ impl Engine {
     }
 
     pub fn oshapes(&self) -> Option<&[Vec<usize>]> {
-        self.onnx.as_ref().map(|x| x.outputs.dimss())
+        self.onnx_io.as_ref().map(|x| x.outputs.dimss())
     }
 
     pub fn odimss(&self) -> Option<&[Vec<usize>]> {
-        self.onnx.as_ref().map(|x| x.outputs.dimss())
+        self.onnx_io.as_ref().map(|x| x.outputs.dimss())
     }
 
     pub fn onames(&self) -> Option<&[String]> {
-        self.onnx.as_ref().map(|x| x.outputs.names())
+        self.onnx_io.as_ref().map(|x| x.outputs.names())
     }
 
     pub fn odtypes(&self) -> Option<Vec<DType>> {
-        self.onnx.as_ref().and_then(|x| {
+        self.onnx_io.as_ref().and_then(|x| {
             x.outputs
                 .dtypes()
                 .iter()

@@ -24,6 +24,7 @@ impl Config {
             .with_sam_kind(SamKind::Sam)
             .with_sam_low_res_mask(false)
             .with_find_contours(true)
+            .with_num_dry_run_all(0)
     }
 
     /// Creates a configuration for SAM v1 base model.

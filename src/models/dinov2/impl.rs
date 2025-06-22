@@ -1,7 +1,7 @@
 use aksr::Builder;
 use anyhow::Result;
 
-use crate::{elapsed_module, Config, Engine, Image, Processor, Scale, Xs, X};
+use crate::{elapsed_module, Config, Engine, Image, Processor, Scale, Tensor, Xs};
 
 #[derive(Builder, Debug)]
 pub struct DINOv2 {
@@ -27,7 +27,7 @@ impl DINOv2 {
             Some(Scale::L) => 1024,
             Some(Scale::G) => 1536,
             Some(x) => anyhow::bail!("Unsupported scale: {:?}", x),
-            None => anyhow::bail!("No model scale specified"),
+            None => anyhow::bail!("No DINOv2 scale specified"),
         };
         let processor = Processor::try_from_config(&config.processor)?
             .with_image_width(width as _)
@@ -53,10 +53,10 @@ impl DINOv2 {
         self.engine.run(xs)
     }
 
-    pub fn encode_images(&mut self, xs: &[Image]) -> Result<X> {
-        let xs = elapsed_module!("dinov2", "visual-preprocess", self.preprocess(xs)?);
-        let xs = elapsed_module!("dinov2", "visual-inference", self.inference(xs)?);
-        let x = elapsed_module!("dinov2", "visual-postprocess", xs[0].to_owned());
+    pub fn encode_images(&mut self, xs: &[Image]) -> Result<Tensor> {
+        let xs = elapsed_module!("DINOv2", "preprocess", self.preprocess(xs)?);
+        let xs = elapsed_module!("DINOv2", "inference", self.inference(xs)?);
+        let x = elapsed_module!("DINOv2", "postprocess", xs[0].to_owned());
 
         Ok(x)
     }

@@ -32,8 +32,6 @@ mod traits;
 pub mod ts;
 mod utils;
 mod version;
-mod x;
-mod xs;
 
 pub use config::*;
 pub use dataloader::*;
@@ -64,5 +62,3 @@ pub use traits::*;
 pub use ts::Ts;
 pub use utils::*;
 pub use version::Version;
-pub use x::X;
-pub use xs::Xs;

@@ -159,7 +159,7 @@ impl Config {
     pub fn fastsam_x() -> Self {
         Self::yolo_segment()
             .with_class_names(&["object"])
-            .with_scale(Scale::X)
+            .with_scale(Scale::Tensor)
             .with_version(8.into())
             .with_model_file("FastSAM-x.onnx")
     }
@@ -174,7 +174,7 @@ impl Config {
     pub fn ultralytics_rtdetr_x() -> Self {
         Self::yolo_detect()
             .with_yolo_preds_format(YOLOPredsFormat::n_a_cxcywh_clss_n())
-            .with_scale(Scale::X)
+            .with_scale(Scale::Tensor)
             .with_model_file("rtdetr-x.onnx")
     }
 }

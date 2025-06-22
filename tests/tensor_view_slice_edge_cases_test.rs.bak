@@ -1,0 +1,390 @@
+//! Edge cases and advanced tests for tensor view and slice operations
+//!
+//! This module provides comprehensive testing for edge cases, error conditions,
+//! and advanced scenarios in tensor view and slice operations, ensuring 100%
+//! compatibility with ndarray behavior.
+
+use anyhow::Result;
+use ndarray::{Array, s};
+use usls::tensor::{Tensor, SliceOrIndex};
+
+// ============================================================================
+// Negative Index Tests
+// ============================================================================
+
+#[test]
+fn test_negative_indices_comprehensive() -> Result<()> {
+    let data: Vec<f32> = (0..24).map(|i| i as f32).collect();
+    let tensor = Tensor::from_shape_vec(vec![4, 6], data.clone())?;
+    let ndarray = Array::from_shape_vec((4, 6), data)?;
+
+    // Test various negative index patterns
+    let test_cases = vec![
+        (vec![SliceOrIndex::index(-1), SliceOrIndex::full()], s![-1, ..]),
+        (vec![SliceOrIndex::index(-2), SliceOrIndex::full()], s![-2, ..]),
+        (vec![SliceOrIndex::full(), SliceOrIndex::index(-1)], s![.., -1]),
+        (vec![SliceOrIndex::full(), SliceOrIndex::index(-3)], s![.., -3]),
+        (vec![SliceOrIndex::index(-1), SliceOrIndex::index(-1)], s![-1, -1]),
+        (vec![SliceOrIndex::index(-4), SliceOrIndex::index(-6)], s![-4, -6]),
+    ];
+
+    for (tensor_spec, ndarray_spec) in test_cases {
+        let ndarray_view = ndarray.slice(ndarray_spec);
+        let tensor_view = tensor.slice(tensor_spec.as_slice())?;
+
+        assert_eq!(tensor_view.shape(), ndarray_view.shape(), "Shape mismatch for spec: {:?}", tensor_spec);
+        
+        if !tensor_view.is_empty() {
+            let tensor_data = tensor_view.to_owned()?.to_vec::<f32>()?;
+            let ndarray_data: Vec<f32> = ndarray_view.iter().cloned().collect();
+            assert_eq!(tensor_data, ndarray_data, "Data mismatch for spec: {:?}", tensor_spec);
+        }
+    }
+
+    Ok(())
+}
+
+#[test]
+fn test_negative_range_indices() -> Result<()> {
+    let data: Vec<f32> = (0..30).map(|i| i as f32).collect();
+    let tensor = Tensor::from_shape_vec(vec![5, 6], data.clone())?;
+    let ndarray = Array::from_shape_vec((5, 6), data)?;
+
+    // Test negative ranges
+    let test_cases = vec![
+        (vec![SliceOrIndex::from(-3), SliceOrIndex::full()], s![-3.., ..]),
+        (vec![SliceOrIndex::to(-1), SliceOrIndex::full()], s![..-1, ..]),
+        (vec![SliceOrIndex::range(-4, -1), SliceOrIndex::full()], s![-4..-1, ..]),
+        (vec![SliceOrIndex::full(), SliceOrIndex::from(-4)], s![.., -4..]),
+        (vec![SliceOrIndex::full(), SliceOrIndex::to(-2)], s![.., ..-2]),
+        (vec![SliceOrIndex::full(), SliceOrIndex::range(-5, -1)], s![.., -5..-1]),
+    ];
+
+    for (tensor_spec, ndarray_spec) in test_cases {
+        let ndarray_view = ndarray.slice(ndarray_spec);
+        let tensor_view = tensor.slice(tensor_spec.as_slice())?;
+
+        assert_eq!(tensor_view.shape(), ndarray_view.shape(), "Shape mismatch for spec: {:?}", tensor_spec);
+        
+        let tensor_data = tensor_view.to_owned()?.to_vec::<f32>()?;
+        let ndarray_data: Vec<f32> = ndarray_view.iter().cloned().collect();
+        assert_eq!(tensor_data, ndarray_data, "Data mismatch for spec: {:?}", tensor_spec);
+    }
+
+    Ok(())
+}
+
+// ============================================================================
+// Empty and Degenerate Cases
+// ============================================================================
+
+#[test]
+fn test_empty_slices() -> Result<()> {
+    let tensor = Tensor::from_shape_vec(vec![4, 5], (0..20).map(|i| i as f32).collect())?;
+    let ndarray = Array::from_shape_vec((4, 5), (0..20).map(|i| i as f32).collect())?;
+
+    // Test empty ranges
+    let test_cases = vec![
+        (vec![SliceOrIndex::range(2, 2), SliceOrIndex::full()], s![2..2, ..]),
+        (vec![SliceOrIndex::range(3, 1), SliceOrIndex::full()], s![3..1, ..]), // Invalid range
+        (vec![SliceOrIndex::full(), SliceOrIndex::range(4, 4)], s![.., 4..4]),
+        (vec![SliceOrIndex::full(), SliceOrIndex::range(5, 3)], s![.., 5..3]), // Invalid range
+    ];
+
+    for (tensor_spec, ndarray_spec) in test_cases {
+        let ndarray_view = ndarray.slice(ndarray_spec);
+        let tensor_view = tensor.slice(tensor_spec.as_slice())?;
+
+        assert_eq!(tensor_view.shape(), ndarray_view.shape(), "Shape mismatch for spec: {:?}", tensor_spec);
+        assert!(tensor_view.is_empty() == ndarray_view.is_empty(), "Empty status mismatch for spec: {:?}", tensor_spec);
+        
+        if !tensor_view.is_empty() {
+            let tensor_data = tensor_view.to_owned()?.to_vec::<f32>()?;
+            let ndarray_data: Vec<f32> = ndarray_view.iter().cloned().collect();
+            assert_eq!(tensor_data, ndarray_data, "Data mismatch for spec: {:?}", tensor_spec);
+        }
+    }
+
+    Ok(())
+}
+
+#[test]
+fn test_zero_dimension_tensor() -> Result<()> {
+    // Test tensor with zero in one dimension
+    let tensor = Tensor::zeros(vec![0, 5]);
+    let ndarray = Array::<f32, _>::zeros((0, 5));
+
+    // Any slice should result in empty tensor
+    let tensor_view = tensor.slice((SliceOrIndex::full(), SliceOrIndex::range(1, 3)))?;
+    let ndarray_view = ndarray.slice(s![.., 1..3]);
+
+    assert_eq!(tensor_view.shape(), ndarray_view.shape());
+    assert!(tensor_view.is_empty());
+    assert!(ndarray_view.is_empty());
+
+    Ok(())
+}
+
+#[test]
+fn test_single_element_tensor() -> Result<()> {
+    let tensor = Tensor::from_shape_vec(vec![1, 1, 1], vec![42.0])?;
+    let ndarray = Array::from_shape_vec((1, 1, 1), vec![42.0])?;
+
+    // Test various ways to slice single element
+    let test_cases = vec![
+        (vec![SliceOrIndex::index(0), SliceOrIndex::full(), SliceOrIndex::full()], s![0, .., ..]),
+        (vec![SliceOrIndex::full(), SliceOrIndex::index(0), SliceOrIndex::full()], s![.., 0, ..]),
+        (vec![SliceOrIndex::full(), SliceOrIndex::full(), SliceOrIndex::index(0)], s![.., .., 0]),
+        (vec![SliceOrIndex::index(0), SliceOrIndex::index(0), SliceOrIndex::full()], s![0, 0, ..]),
+        (vec![SliceOrIndex::index(0), SliceOrIndex::full(), SliceOrIndex::index(0)], s![0, .., 0]),
+        (vec![SliceOrIndex::full(), SliceOrIndex::index(0), SliceOrIndex::index(0)], s![.., 0, 0]),
+    ];
+
+    for (tensor_spec, ndarray_spec) in test_cases {
+        let ndarray_view = ndarray.slice(ndarray_spec);
+        let tensor_view = tensor.slice(tensor_spec.as_slice())?;
+
+        assert_eq!(tensor_view.shape(), ndarray_view.shape(), "Shape mismatch for spec: {:?}", tensor_spec);
+        
+        if !tensor_view.is_empty() {
+            let tensor_data = tensor_view.to_owned()?.to_vec::<f32>()?;
+            let ndarray_data: Vec<f32> = ndarray_view.iter().cloned().collect();
+            assert_eq!(tensor_data, ndarray_data, "Data mismatch for spec: {:?}", tensor_spec);
+        }
+    }
+
+    Ok(())
+}
+
+// ============================================================================
+// Boundary Conditions
+// ============================================================================
+
+#[test]
+fn test_boundary_indices() -> Result<()> {
+    let data: Vec<f32> = (0..20).map(|i| i as f32).collect();
+    let tensor = Tensor::from_shape_vec(vec![4, 5], data.clone())?;
+    let ndarray = Array::from_shape_vec((4, 5), data)?;
+
+    // Test boundary conditions
+    let test_cases = vec![
+        // First and last indices
+        (vec![SliceOrIndex::index(0), SliceOrIndex::full()], s![0, ..]),
+        (vec![SliceOrIndex::index(3), SliceOrIndex::full()], s![3, ..]),
+        (vec![SliceOrIndex::full(), SliceOrIndex::index(0)], s![.., 0]),
+        (vec![SliceOrIndex::full(), SliceOrIndex::index(4)], s![.., 4]),
+        
+        // Full ranges
+        (vec![SliceOrIndex::range(0, 4), SliceOrIndex::full()], s![0..4, ..]),
+        (vec![SliceOrIndex::full(), SliceOrIndex::range(0, 5)], s![.., 0..5]),
+        
+        // Ranges to end
+        (vec![SliceOrIndex::from(0), SliceOrIndex::full()], s![0.., ..]),
+        (vec![SliceOrIndex::from(3), SliceOrIndex::full()], s![3.., ..]),
+        (vec![SliceOrIndex::full(), SliceOrIndex::from(0)], s![.., 0..]),
+        (vec![SliceOrIndex::full(), SliceOrIndex::from(4)], s![.., 4..]),
+        
+        // Ranges from start
+        (vec![SliceOrIndex::to(4), SliceOrIndex::full()], s![..4, ..]),
+        (vec![SliceOrIndex::to(1), SliceOrIndex::full()], s![..1, ..]),
+        (vec![SliceOrIndex::full(), SliceOrIndex::to(5)], s![.., ..5]),
+        (vec![SliceOrIndex::full(), SliceOrIndex::to(1)], s![.., ..1]),
+    ];
+
+    for (tensor_spec, ndarray_spec) in test_cases {
+        let ndarray_view = ndarray.slice(ndarray_spec);
+        let tensor_view = tensor.slice(tensor_spec.as_slice())?;
+
+        assert_eq!(tensor_view.shape(), ndarray_view.shape(), "Shape mismatch for spec: {:?}", tensor_spec);
+        
+        if !tensor_view.is_empty() {
+            let tensor_data = tensor_view.to_owned()?.to_vec::<f32>()?;
+            let ndarray_data: Vec<f32> = ndarray_view.iter().cloned().collect();
+            assert_eq!(tensor_data, ndarray_data, "Data mismatch for spec: {:?}", tensor_spec);
+        }
+    }
+
+    Ok(())
+}
+
+// ============================================================================
+// Error Conditions
+// ============================================================================
+
+#[test]
+fn test_out_of_bounds_errors() {
+    let tensor = Tensor::from_shape_vec(vec![3, 4], (0..12).map(|i| i as f32).collect()).unwrap();
+
+    // Test index out of bounds
+    assert!(tensor.slice((SliceOrIndex::index(3), SliceOrIndex::full())).is_err());
+    assert!(tensor.slice((SliceOrIndex::full(), SliceOrIndex::index(4))).is_err());
+    assert!(tensor.slice((SliceOrIndex::index(-4), SliceOrIndex::full())).is_err());
+    assert!(tensor.slice((SliceOrIndex::full(), SliceOrIndex::index(-5))).is_err());
+}
+
+#[test]
+fn test_dimension_mismatch_errors() {
+    let tensor = Tensor::from_shape_vec(vec![3, 4], (0..12).map(|i| i as f32).collect()).unwrap();
+
+    // Test too many dimensions
+    assert!(tensor.slice((SliceOrIndex::full(), SliceOrIndex::full(), SliceOrIndex::full())).is_err());
+    
+    // Test too few dimensions (should work - remaining dimensions are implicitly All)
+    assert!(tensor.slice((SliceOrIndex::index(0),)).is_ok());
+}
+
+// ============================================================================
+// Complex Multi-dimensional Cases
+// ============================================================================
+
+#[test]
+fn test_complex_4d_slicing() -> Result<()> {
+    let data: Vec<f32> = (0..120).map(|i| i as f32).collect();
+    let tensor = Tensor::from_shape_vec(vec![2, 3, 4, 5], data.clone())?;
+    let ndarray = Array::from_shape_vec((2, 3, 4, 5), data)?;
+
+    // Complex slicing patterns
+    let test_cases = vec![
+        (
+            vec![SliceOrIndex::index(1), SliceOrIndex::range(1, 3), SliceOrIndex::full(), SliceOrIndex::to(3)],
+            s![1, 1..3, .., ..3]
+        ),
+        (
+            vec![SliceOrIndex::to(2), SliceOrIndex::index(-1), SliceOrIndex::from(1), SliceOrIndex::index(0)],
+            s![..2, -1, 1.., 0]
+        ),
+        (
+            vec![SliceOrIndex::full(), SliceOrIndex::from(-2), SliceOrIndex::index(0), SliceOrIndex::range(-3, -1)],
+            s![.., -2.., 0, -3..-1]
+        ),
+    ];
+
+    for (tensor_spec, ndarray_spec) in test_cases {
+        let tensor_view = tensor.slice(tensor_spec.as_slice())?;
+        let ndarray_view = ndarray.slice(ndarray_spec);
+
+        assert_eq!(tensor_view.shape(), ndarray_view.shape(), "Shape mismatch for spec: {:?}", tensor_spec);
+        
+        if !tensor_view.is_empty() {
+            let tensor_data = tensor_view.to_owned()?.to_vec::<f32>()?;
+            let ndarray_data: Vec<f32> = ndarray_view.iter().cloned().collect();
+            assert_eq!(tensor_data, ndarray_data, "Data mismatch for spec: {:?}", tensor_spec);
+        }
+    }
+
+    Ok(())
+}
+
+// ============================================================================
+// View Chain Operations
+// ============================================================================
+
+#[test]
+fn test_chained_view_operations() -> Result<()> {
+    let data: Vec<f32> = (0..60).map(|i| i as f32).collect();
+    let tensor = Tensor::from_shape_vec(vec![3, 4, 5], data.clone())?;
+    let ndarray = Array::from_shape_vec((3, 4, 5), data)?;
+
+    // Chain multiple view operations
+    let tensor_view1 = tensor.slice((SliceOrIndex::from(1), SliceOrIndex::full(), SliceOrIndex::full()))?;
+    let tensor_view2 = tensor_view1.slice((SliceOrIndex::full(), SliceOrIndex::range(1, 3), SliceOrIndex::full()))?;
+    let tensor_view3 = tensor_view2.slice((SliceOrIndex::full(), SliceOrIndex::full(), SliceOrIndex::to(4)))?;
+
+    let ndarray_view1 = ndarray.slice(s![1.., .., ..]);
+    let ndarray_view2 = ndarray_view1.slice(s![.., 1..3, ..]);
+    let ndarray_view3 = ndarray_view2.slice(s![.., .., ..4]);
+
+    assert_eq!(tensor_view3.shape(), ndarray_view3.shape());
+    
+    let tensor_data = tensor_view3.to_owned()?.to_vec::<f32>()?;
+    let ndarray_data: Vec<f32> = ndarray_view3.iter().cloned().collect();
+    assert_eq!(tensor_data, ndarray_data);
+
+    Ok(())
+}
+
+// ============================================================================
+// Memory Layout and Stride Tests
+// ============================================================================
+
+#[test]
+fn test_non_contiguous_views() -> Result<()> {
+    let data: Vec<f32> = (0..24).map(|i| i as f32).collect();
+    let tensor = Tensor::from_shape_vec(vec![4, 6], data.clone())?;
+    let ndarray = Array::from_shape_vec((4, 6), data)?;
+
+    // Create non-contiguous views
+    let tensor_view = tensor.slice((SliceOrIndex::full(), SliceOrIndex::range(1, 5)))?;
+    let ndarray_view = ndarray.slice(s![.., 1..5]);
+
+    assert_eq!(tensor_view.shape(), ndarray_view.shape());
+    
+    // Test that data is correctly accessed despite non-contiguous layout
+    let tensor_data = tensor_view.to_owned()?.to_vec::<f32>()?;
+    let ndarray_data: Vec<f32> = ndarray_view.iter().cloned().collect();
+    assert_eq!(tensor_data, ndarray_data);
+
+    // Test further slicing of non-contiguous view
+    let tensor_view2 = tensor_view.slice((SliceOrIndex::range(1, 3), SliceOrIndex::full()))?;
+    let ndarray_view2 = ndarray_view.slice(s![1..3, ..]);
+
+    assert_eq!(tensor_view2.shape(), ndarray_view2.shape());
+    
+    let tensor_data2 = tensor_view2.to_owned()?.to_vec::<f32>()?;
+    let ndarray_data2: Vec<f32> = ndarray_view2.iter().cloned().collect();
+    assert_eq!(tensor_data2, ndarray_data2);
+
+    Ok(())
+}
+
+// ============================================================================
+// Type Safety and Conversion Tests
+// ============================================================================
+
+#[test]
+fn test_view_type_preservation() -> Result<()> {
+    let tensor_f32 = Tensor::from_shape_vec(vec![2, 3], vec![1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0])?;
+    let tensor_i32 = Tensor::from_shape_vec(vec![2, 3], vec![1i32, 2, 3, 4, 5, 6])?;
+
+    // Test that views preserve original tensor type
+    let view_f32 = tensor_f32.slice((SliceOrIndex::index(0), SliceOrIndex::full()))?;
+    let view_i32 = tensor_i32.slice((SliceOrIndex::index(0), SliceOrIndex::full()))?;
+
+    assert_eq!(view_f32.dtype(), tensor_f32.dtype());
+    assert_eq!(view_i32.dtype(), tensor_i32.dtype());
+
+    // Test data integrity
+    let data_f32 = view_f32.to_owned()?.to_vec::<f32>()?;
+    let data_i32 = view_i32.to_owned()?.to_vec::<i32>()?;
+
+    assert_eq!(data_f32, vec![1.0, 2.0, 3.0]);
+    assert_eq!(data_i32, vec![1, 2, 3]);
+
+    Ok(())
+}
+
+// ============================================================================
+// Performance Edge Cases
+// ============================================================================
+
+#[test]
+fn test_large_tensor_slicing() -> Result<()> {
+    // Test with larger tensor to ensure performance doesn't degrade
+    let tensor = Tensor::zeros(vec![100, 100]);
+    
+    // Multiple slice operations
+    let view1 = tensor.slice((SliceOrIndex::range(10, 90), SliceOrIndex::full()))?;
+    assert_eq!(view1.shape(), &[80, 100]);
+    
+    let view2 = view1.slice((SliceOrIndex::full(), SliceOrIndex::range(20, 80)))?;
+    assert_eq!(view2.shape(), &[80, 60]);
+    
+    let view3 = view2.slice((SliceOrIndex::range(10, 70), SliceOrIndex::range(10, 50)))?;
+    assert_eq!(view3.shape(), &[60, 40]);
+    
+    // Verify the final view is valid
+    assert!(!view3.is_empty());
+    assert_eq!(view3.len(), 60 * 40);
+
+    Ok(())
+}

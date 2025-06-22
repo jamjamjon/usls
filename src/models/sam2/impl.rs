@@ -1,9 +1,8 @@
 use aksr::Builder;
 use anyhow::Result;
-use ndarray::{s, Axis};
 
 use crate::{
-    elapsed_module, Config, DynConf, Engine, Image, Mask, Ops, Processor, SamPrompt, Xs, X, Y,
+    elapsed_module, Config, DynConf, Engine, Image, Mask, Ops, Processor, SamPrompt, Tensor, Xs, Y,
 };
 
 /// SAM2 (Segment Anything Model 2.1) for advanced image segmentation.
@@ -81,7 +80,7 @@ impl SAM2 {
         let (image_embeddings, high_res_features_0, high_res_features_1) = (&xs[0], &xs[1], &xs[2]);
 
         let mut ys: Vec<Y> = Vec::new();
-        for (idx, image_embedding) in image_embeddings.axis_iter(Axis(0)).enumerate() {
+        for (idx, image_embedding) in image_embeddings.iter_dim(0).enumerate() {
             let (image_height, image_width) = (
                 self.processor.images_transform_info[idx].height_src,
                 self.processor.images_transform_info[idx].width_src,
@@ -89,31 +88,39 @@ impl SAM2 {
             let ratio = self.processor.images_transform_info[idx].height_scale;
 
             let ys_ = self.decoder.run(Xs::from(vec![
-                X::from(image_embedding.into_dyn().into_owned())
-                    .insert_axis(0)?
+                image_embedding
+                    .to_owned()
+                    .unsqueeze(0)?
                     .repeat(0, self.batch)?,
-                X::from(
-                    high_res_features_0
-                        .slice(s![idx, .., .., ..])
-                        .into_dyn()
-                        .into_owned(),
-                )
-                .insert_axis(0)?
-                .repeat(0, self.batch)?,
-                X::from(
-                    high_res_features_1
-                        .slice(s![idx, .., .., ..])
-                        .into_dyn()
-                        .into_owned(),
-                )
-                .insert_axis(0)?
-                .repeat(0, self.batch)?,
+                high_res_features_0
+                    .slice(&[
+                        idx..idx + 1,
+                        0..high_res_features_0.shape()[1],
+                        0..high_res_features_0.shape()[2],
+                        0..high_res_features_0.shape()[3],
+                    ])?
+                    .to_owned()?
+                    .repeat(0, self.batch)?,
+                high_res_features_1
+                    .slice(&[
+                        idx..idx + 1,
+                        0..high_res_features_1.shape()[1],
+                        0..high_res_features_1.shape()[2],
+                        0..high_res_features_1.shape()[3],
+                    ])?
+                    .to_owned()?
+                    .repeat(0, self.batch)?,
                 prompts[idx].point_coords(ratio)?,
                 prompts[idx].point_labels()?,
                 // TODO
-                X::zeros(&[1, 1, self.height_low_res() as _, self.width_low_res() as _]),
-                X::zeros(&[1]),
-                X::from(vec![self.width as _, self.height as _]),
+                Tensor::zeros(vec![
+                    1,
+                    1,
+                    self.height_low_res() as _,
+                    self.width_low_res() as _,
+                ]),
+                Tensor::zeros(vec![1]),
+                Tensor::from(vec![self.width as f32, self.height as f32]),
             ]))?;
 
             let mut y_masks: Vec<Mask> = Vec::new();
@@ -121,31 +128,25 @@ impl SAM2 {
             // masks & confs
             let (masks, confs) = (&ys_[0], &ys_[1]);
 
-            for (id, (mask, iou)) in masks
-                .axis_iter(Axis(0))
-                .zip(confs.axis_iter(Axis(0)))
-                .enumerate()
-            {
-                let (i, conf) = match iou
-                    .to_owned()
-                    .into_raw_vec_and_offset()
-                    .0
-                    .into_iter()
-                    .enumerate()
-                    .max_by(|a, b| a.1.total_cmp(&b.1))
-                {
-                    Some((i, c)) => (i, c),
-                    None => continue,
-                };
+            for (id, (mask, iou)) in masks.iter_dim(0).zip(confs.iter_dim(0)).enumerate() {
+                let iou_vec = iou.to_vec::<f32>().unwrap();
+                let (i, conf) =
+                    match iou_vec.iter().enumerate().max_by(|(_, a), (_, b)| {
+                        a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal)
+                    }) {
+                        Some((i, c)) => (i, *c),
+                        None => continue,
+                    };
 
                 if conf < self.conf[0] {
                     continue;
                 }
-                let mask = mask.slice(s![i, .., ..]);
+                let mask = mask.slice(&[i..i + 1, 0..mask.shape()[1], 0..mask.shape()[2]])?;
 
-                let (h, w) = mask.dim();
+                let shape = mask.shape();
+                let (_, h, w) = (shape[0], shape[1], shape[2]);
                 let luma = Ops::resize_lumaf32_u8(
-                    &mask.into_owned().into_raw_vec_and_offset().0,
+                    &mask.to_vec::<f32>()?,
                     w as _,
                     h as _,
                     image_width as _,

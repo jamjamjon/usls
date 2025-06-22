@@ -1,11 +1,10 @@
 use aksr::Builder;
 use anyhow::Result;
-use ndarray::{s, Axis};
 use rayon::prelude::*;
 
 use crate::{
     elapsed_module, models::Quantizer, Config, Engine, Hbb, Image, LogitsSampler, Polygon,
-    Processor, Scale, Task, Xs, X, Y,
+    Processor, Scale, Task, Tensor, Xs, Y,
 };
 
 #[derive(Debug, Builder)]
@@ -15,7 +14,6 @@ pub struct Florence2 {
     pub encoder: Engine,
     pub decoder: Engine,
     pub decoder_merged: Engine,
-
     quantizer: Quantizer,
     max_length: usize,
     eos_token_id: u32,
@@ -93,17 +91,17 @@ impl Florence2 {
         }
     }
 
-    fn encode_text(&mut self, task: &Task, images: &[Image]) -> Result<X> {
+    fn encode_text(&mut self, task: &Task, images: &[Image]) -> Result<Tensor> {
         let xs = images
             .par_iter()
             .map(|im| {
                 let text = Self::process_task(task, im.height() as _, im.width() as _)
                     .prompt_for_florence2()?;
                 let ids = self.processor.encode_text_ids(&text, true)?;
-                X::from(ids).insert_axis(0)
+                Tensor::from(ids).unsqueeze(0)
             })
             .collect::<Result<Vec<_>, _>>()?;
-        let x = X::concat(&xs, 0)?;
+        let x = Tensor::concat(&xs, 0)?;
         let xs = self.text_embed.run(x.into())?;
         let x = xs[0].to_owned();
 
@@ -136,14 +134,14 @@ impl Florence2 {
     // decode or postprocess, batch images and one text
     fn generate_then_decode(
         &mut self,
-        visual_embeddings: &X,
-        textual_embedding: &X,
+        visual_embeddings: &Tensor,
+        textual_embedding: &Tensor,
     ) -> Result<Vec<String>> {
         // concate image embeddings and prompt embeddings
         let inputs_embeds = visual_embeddings
             .clone()
             .concatenate(textual_embedding, 1)?;
-        let attention_mask = X::ones(&[self.batch(), inputs_embeds.dims()[1]]);
+        let attention_mask = Tensor::ones(vec![self.batch(), inputs_embeds.shape()[1]]);
 
         // encoder
         let last_hidden_state = self.encoder.run(Xs::from(vec![
@@ -153,8 +151,13 @@ impl Florence2 {
             .clone();
 
         // decoder
-        let inputs_embeds = inputs_embeds.slice(s![.., -1.., ..]);
-        let inputs_embeds = X::from(inputs_embeds.to_owned().into_dyn());
+        let inputs_embeds = inputs_embeds
+            .slice(&[
+                0..inputs_embeds.shape()[0],
+                inputs_embeds.shape()[1] - 1..inputs_embeds.shape()[1],
+                0..inputs_embeds.shape()[2],
+            ])?
+            .to_owned()?;
         let mut decoder_outputs = self.decoder.run(Xs::from(vec![
             attention_mask.clone(),
             last_hidden_state.clone(),
@@ -176,33 +179,38 @@ impl Florence2 {
 
         // generate
         for _ in 0..self.max_length {
-            let logits = &decoder_outputs[0];
+            let logits = decoder_outputs[0].clone();
             let decoder_kvs: Vec<_> = (1..(4 * self.n_kvs) - 2)
                 .step_by(4)
                 .flat_map(|i| [i, i + 1])
                 .map(|i| decoder_outputs[i].clone())
                 .collect();
 
-            // decode each token for each batch
-            // let (finished, last_tokens) = self.decoder_merged.processor().par_generate(
-            //     logits,
-            //     &mut token_ids,
-            //     self.eos_token_id,
-            // )?;
-
-            // if finished {
-            //     break;
-            // }
-
-            for (i, logit) in logits.axis_iter(Axis(0)).enumerate() {
+            for (i, logit) in logits.iter_dim(0).enumerate() {
                 if !finished[i] {
-                    let token_id = logits_sampler.decode(
-                        &logit
-                            .slice(s![-1, ..])
-                            .into_owned()
-                            .into_raw_vec_and_offset()
-                            .0,
-                    )?;
+                    let logit_shape = logit.shape();
+                    let logit_slice = logit
+                        .slice(&[logit_shape[0] - 1..logit_shape[0], 0..logit_shape[1]])?
+                        .to_owned()?;
+                    // Convert tensor to f32 slice for logits sampler
+                    let logit_data = match logit_slice.dtype() {
+                        crate::DType::Fp32 => logit_slice.as_array().as_slice().unwrap().to_vec(),
+                        crate::DType::Fp16 => {
+                            // Convert f16 to f32
+                            let f16_data = match &logit_slice.data {
+                                crate::tensor::DTypeTensor::F16(arr) => arr.as_slice().unwrap(),
+                                _ => unreachable!(),
+                            };
+                            f16_data.iter().map(|x| x.to_f32()).collect::<Vec<f32>>()
+                        }
+                        _ => {
+                            anyhow::bail!(
+                                "Unsupported tensor dtype for logits: {:?}",
+                                logit_slice.dtype()
+                            )
+                        }
+                    };
+                    let token_id = logits_sampler.decode(&logit_data)?;
                     if token_id == self.eos_token_id {
                         finished[i] = true;
                     } else {
@@ -219,9 +227,9 @@ impl Florence2 {
             }
 
             // decode
-            let next_tokens = X::from(last_tokens.clone()).insert_axis(1)?;
+            let next_tokens = Tensor::from(last_tokens.clone()).unsqueeze(1)?;
             let inputs_embeds = &self.text_embed.run(Xs::from(next_tokens))?[0].clone();
-            let use_cache = X::ones(&[1]);
+            let use_cache = Tensor::ones(vec![1]);
             let mut xs = vec![
                 attention_mask.clone(),
                 last_hidden_state.clone(),

@@ -1,9 +1,8 @@
 use aksr::Builder;
 use anyhow::Result;
 use image::GenericImageView;
-use ndarray::s;
 
-use crate::{Config, Engine, Image, LogitsSampler, Processor, Scale, Xs, X, Y};
+use crate::{Config, Engine, Image, LogitsSampler, Processor, Scale, Tensor, Xs, Y};
 
 #[derive(Debug, Builder)]
 pub struct SmolVLM {
@@ -104,32 +103,33 @@ impl SmolVLM {
         // patches and pixel_attention_mask
         let (patches, nw_nh) = self.process_one(image)?;
         let dims = patches.dims();
-        let pixel_attention_mask = X::ones(&[dims[0], dims[1], dims[3], dims[4]]);
+        let pixel_attention_mask = Tensor::ones(vec![dims[0], dims[1], dims[3], dims[4]]);
 
         // input ids
         let prompt = self.image_prompt_string(nw_nh, text);
         let mut input_ids: Vec<f32> = self.processor.encode_text_ids(&prompt, true)?;
 
         // position ids
-        let mut position_ids = X::from(
+        let mut position_ids = Tensor::from(
             (1..input_ids.len() + 1)
                 .map(|x| x as f32)
                 .collect::<Vec<f32>>(),
         )
-        .insert_axis(0)?;
+        .unsqueeze(0)?;
 
         // past key_values
-        let mut past_key_values = vec![
-            X::zeros(&[bs, self.num_key_value_heads, 0, self.head_dim]);
-            self.num_hidden_layers * 2
-        ];
+        let mut past_key_values =
+            vec![
+                Tensor::zeros(vec![bs, self.num_key_value_heads, 0, self.head_dim]);
+                self.num_hidden_layers * 2
+            ];
 
         // generate
         let logits_sampler = LogitsSampler::new();
         let mut token_ids: Vec<u32> = vec![];
         for ii in 0..self.max_length {
             // inputs embeds
-            let input_ids_x = X::from(input_ids.clone()).insert_axis(0)?;
+            let input_ids_x = Tensor::from(input_ids.clone()).unsqueeze(0)?;
             let mut inputs_embeds = self.text_embed.run(input_ids_x.clone().into())?[0].clone();
 
             // encode image and merge
@@ -147,9 +147,9 @@ impl SmolVLM {
                 for (i, &token_id) in input_ids_x.indexed_iter() {
                     if token_id == self.image_token_id as f32 {
                         inputs_embeds
-                            .0
-                            .slice_mut(s![0, i[1], ..])
-                            .assign(&image_features.slice(s![r, ..]));
+                            .as_array_mut()
+                            .slice_mut(ndarray::s![0..1, i[1]..i[1] + 1, ..])
+                            .assign(&image_features.slice(ndarray::s![r..r + 1, ..]));
                         r += 1;
                     }
                 }
@@ -158,7 +158,7 @@ impl SmolVLM {
             // inputs
             let mut xs = vec![
                 inputs_embeds.clone(),
-                X::ones_like(&input_ids_x),
+                Tensor::ones_like(&input_ids_x),
                 position_ids.clone(),
             ];
             for i in 0..self.num_hidden_layers {
@@ -174,13 +174,20 @@ impl SmolVLM {
                 .flat_map(|i| [i, i + 1])
                 .map(|i| decoder_outputs[i].clone())
                 .collect();
-            let token_id = logits_sampler.decode(
-                &logits
-                    .slice(s![0, -1, ..])
-                    .into_owned()
-                    .into_raw_vec_and_offset()
-                    .0,
-            )?;
+            let sliced_tensor = logits
+                .slice(&[
+                    0..1,
+                    logits.shape()[1] - 1..logits.shape()[1],
+                    0..logits.shape()[2],
+                ])?
+                .to_owned()?;
+            let raw_data = sliced_tensor
+                .as_array()
+                .as_standard_layout()
+                .into_owned()
+                .into_raw_vec_and_offset()
+                .0;
+            let token_id = logits_sampler.decode(&raw_data)?;
 
             // early return
             if token_id == self.eos_token_id {
@@ -191,12 +198,14 @@ impl SmolVLM {
 
             // update
             input_ids = vec![token_id as f32];
-            position_ids = X::from(
+            position_ids = Tensor::from_array(
                 position_ids
-                    .slice(s![.., -1..])
-                    .mapv(|x| x + 1.0)
-                    .into_owned()
-                    .into_dyn(),
+                    .slice(&[
+                        0..position_ids.shape()[0],
+                        position_ids.shape()[1] - 1..position_ids.shape()[1],
+                    ])?
+                    .to_owned()?
+                    .mapv(|x| x + 1.0),
             );
         }
 
@@ -281,9 +290,9 @@ impl SmolVLM {
         (patches, (nw, nh))
     }
 
-    pub fn process_one(&mut self, x: &Image) -> Result<(X, (u32, u32))> {
+    pub fn process_one(&mut self, x: &Image) -> Result<(Tensor, (u32, u32))> {
         let (patches, nw_nh) = Self::create_patches(x, (self.width as _, self.height as _));
-        let patches = self.processor.process_images(&patches)?.insert_axis(0)?;
+        let patches = self.processor.process_images(&patches)?.unsqueeze(0)?;
 
         Ok((patches, (nw_nh)))
     }

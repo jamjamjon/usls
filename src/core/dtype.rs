@@ -3,6 +3,7 @@
 pub enum DType {
     #[default]
     Auto,
+    Bool,
     Int4,
     Int8,
     Int16,
@@ -36,6 +37,7 @@ impl std::str::FromStr for DType {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_lowercase().as_str() {
             "auto" | "dyn" => Ok(Self::Auto),
+            "bool" => Ok(Self::Bool),
             "u4" | "uint4" => Ok(Self::Uint4),
             "u8" | "uint8" => Ok(Self::Uint8),
             "u16" | "uint16" => Ok(Self::Uint16),
@@ -70,6 +72,7 @@ impl std::fmt::Display for DType {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         let x = match self {
             Self::Auto => "auto",
+            Self::Bool => "bool",
             Self::Int4 => "int4",
             Self::Int8 => "int8",
             Self::Int16 => "int16",

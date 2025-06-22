@@ -1,6 +1,5 @@
 use aksr::Builder;
 use anyhow::Result;
-use ndarray::Axis;
 use rayon::prelude::*;
 
 use crate::{elapsed_module, Config, DynConf, Engine, Image, Processor, Text, Xs, Y};
@@ -64,20 +63,25 @@ impl SVTR {
 
     pub fn postprocess(&self, xs: Xs) -> Result<Vec<Y>> {
         let ys: Vec<Y> = xs[0]
-            .axis_iter(Axis(0))
+            .iter_dim(0)
             .into_par_iter()
             .map(|preds| {
                 let mut preds: Vec<_> = preds
-                    .axis_iter(Axis(0))
-                    .filter_map(|x| x.into_iter().enumerate().max_by(|a, b| a.1.total_cmp(b.1)))
+                    .iter_dim(0)
+                    .filter_map(|x| {
+                        let vec = x.to_vec::<f32>().ok()?;
+                        vec.into_iter()
+                            .enumerate()
+                            .max_by(|a, b| a.1.total_cmp(&b.1))
+                    })
                     .collect();
 
                 preds.dedup_by(|a, b| a.0 == b.0);
 
                 let (text, confs): (String, Vec<f32>) = preds
                     .into_iter()
-                    .filter(|(id, &conf)| *id != 0 && conf >= self.confs[0])
-                    .map(|(id, &conf)| (self.processor.vocab()[id].clone(), conf))
+                    .filter(|(id, conf)| *id != 0 && *conf >= self.confs[0])
+                    .map(|(id, conf)| (self.processor.vocab()[id].clone(), conf))
                     .collect();
 
                 Y::default().with_texts(&[Text::from(text)

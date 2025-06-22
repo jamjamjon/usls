@@ -1,9 +1,9 @@
+use crate::core::ts::Ts;
 use once_cell::sync::Lazy;
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
-
-use crate::core::ts::Ts;
 
 /// Global singleton Ts manager for performance monitoring
 /// Provides thread-safe access to global and module-level performance data
@@ -13,7 +13,7 @@ pub struct GlobalTsManager {
     /// Module-specific performance data
     module_ts: Arc<Mutex<HashMap<String, Ts>>>,
     /// Performance monitoring enabled flag (for zero-overhead when disabled)
-    enabled: bool,
+    enabled: AtomicBool,
 }
 
 impl GlobalTsManager {
@@ -22,19 +22,19 @@ impl GlobalTsManager {
         Self {
             global_ts: Arc::new(Mutex::new(Ts::default())),
             module_ts: Arc::new(Mutex::new(HashMap::new())),
-            enabled: true, // Can be controlled via env var or config
+            enabled: AtomicBool::new(true), // Can be controlled via env var or config
         }
     }
 
     /// Check if performance monitoring is enabled
     #[inline(always)]
     pub fn is_enabled(&self) -> bool {
-        self.enabled
+        self.enabled.load(Ordering::Relaxed)
     }
 
     /// Enable/disable performance monitoring
-    pub fn set_enabled(&mut self, enabled: bool) {
-        self.enabled = enabled;
+    pub fn set_enabled(&self, enabled: bool) {
+        self.enabled.store(enabled, Ordering::Relaxed);
     }
 
     /// Get the global Ts instance
@@ -66,7 +66,7 @@ impl GlobalTsManager {
     /// Push timing data to global Ts (with early return if disabled)
     #[inline(always)]
     pub fn push_global(&self, label: &str, duration: Duration) {
-        if !self.enabled {
+        if !self.enabled.load(Ordering::Relaxed) {
             return;
         }
         if let Ok(mut ts) = self.global_ts.lock() {
@@ -77,7 +77,7 @@ impl GlobalTsManager {
     /// Push timing data to module-specific Ts (with early return if disabled)
     #[inline(always)]
     pub fn push_module(&self, module_name: &str, label: &str, duration: Duration) {
-        if !self.enabled {
+        if !self.enabled.load(Ordering::Relaxed) {
             return;
         }
         // Push timing data to module
@@ -280,7 +280,7 @@ impl GlobalTsManager {
             if !ts.is_empty() {
                 let total = ts.sum();
                 let avg = ts.avg().ok()?;
-                let count = ts.names().len();
+                let count = ts.get_names().len();
                 return Some((total, avg, count));
             }
         }
@@ -417,12 +417,21 @@ impl Drop for ScopedTimer {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::thread;
     use std::time::Duration;
 
     #[test]
     fn test_global_ts_manager() {
-        let manager = global_ts_manager();
+        use std::collections::HashMap;
+        use std::sync::atomic::AtomicBool;
+        use std::sync::Arc;
+        use std::sync::Mutex;
+
+        // Create a local manager instance for this test to avoid global state interference
+        let manager = GlobalTsManager {
+            global_ts: Arc::new(Mutex::new(Ts::default())),
+            module_ts: Arc::new(Mutex::new(HashMap::new())),
+            enabled: AtomicBool::new(true),
+        };
 
         // Test global timing
         manager.push_global("test_task", Duration::from_millis(100));
@@ -434,33 +443,63 @@ mod tests {
 
         // Verify data
         if let Ok(global_ts) = manager.global().lock() {
-            assert_eq!(global_ts["test_task"].len(), 2);
+            assert!(
+                !global_ts.is_empty(),
+                "Global Ts should not be empty after push operations"
+            );
+            assert!(
+                global_ts.get_names().contains(&"test_task".to_string()),
+                "test_task should exist in global Ts"
+            );
+            assert_eq!(
+                global_ts["test_task"].len(),
+                2,
+                "test_task should have 2 entries"
+            );
         }
 
         // Test stats
         let stats = manager.global_stats();
-        assert!(stats.is_some());
+        assert!(stats.is_some(), "Global stats should be available");
     }
 
     #[test]
     fn test_macros() {
+        use std::thread;
+
+        // Clear any existing data to ensure test isolation
+        let manager = global_ts_manager();
+        manager.clear_all();
+        manager.set_enabled(true);
+
         // Test global macro
         let result = elapsed_global!("macro_test", {
-            std::thread::sleep(Duration::from_millis(1));
+            thread::sleep(Duration::from_millis(1));
             42
         });
         assert_eq!(result, 42);
 
         // Test module macro
         let result = elapsed_module!("TEST_MODULE", "macro_test", {
-            std::thread::sleep(Duration::from_millis(1));
+            thread::sleep(Duration::from_millis(1));
             "hello"
         });
         assert_eq!(result, "hello");
+
+        // Clean up after test
+        manager.clear_all();
     }
 
     #[test]
     fn test_thread_safety() {
+        use std::thread;
+
+        // Clear any existing data to ensure test isolation
+        let manager = global_ts_manager();
+        manager.clear_all();
+        // Ensure the manager is enabled for this test
+        manager.set_enabled(true);
+
         let handles: Vec<_> = (0..10)
             .map(|i| {
                 thread::spawn(move || {
@@ -480,7 +519,6 @@ mod tests {
         }
 
         // Verify all data was recorded
-        let manager = global_ts_manager();
         if let Ok(global_ts) = manager.global().lock() {
             // Should have at least some tasks recorded
             assert!(!global_ts.is_empty());
@@ -489,20 +527,36 @@ mod tests {
 
     #[test]
     fn test_scoped_timer() {
+        use std::thread;
+
+        // Clear any existing data to ensure test isolation
+        let manager = global_ts_manager();
+        manager.clear_all();
+        // Ensure the manager is enabled for this test
+        manager.set_enabled(true);
+
+        // Add a small delay to ensure complete isolation from other tests
+        thread::sleep(Duration::from_millis(5));
+
         {
             let _timer = ScopedTimer::global("scoped_test");
-            std::thread::sleep(Duration::from_millis(1));
+            thread::sleep(Duration::from_millis(1));
         } // Timer drops here and records timing
 
         {
             let _timer = ScopedTimer::module("TEST_MODULE", "scoped_module_test");
-            std::thread::sleep(Duration::from_millis(1));
+            thread::sleep(Duration::from_millis(1));
         } // Timer drops here and records timing
 
+        // Small delay to ensure timer drop handlers complete
+        thread::sleep(Duration::from_millis(1));
+
         // Verify data was recorded
-        let manager = global_ts_manager();
         if let Ok(global_ts) = manager.global().lock() {
-            assert!(!global_ts.is_empty());
+            assert!(
+                !global_ts.is_empty(),
+                "Global timing data should not be empty after scoped timer operations"
+            );
         }
     }
 }

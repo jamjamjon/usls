@@ -1,9 +1,10 @@
 use aksr::Builder;
 use anyhow::Result;
-use ndarray::{s, Array, Axis, IxDyn};
+use ndarray::{Array, IxDyn};
 
 use crate::{
-    elapsed_module, Config, DynConf, Engine, Hbb, Image, NmsOps, Ops, Polygon, Processor, Xs, Y,
+    elapsed_module, Config, DynConf, Engine, Hbb, Image, NmsOps, Ops, Polygon, Processor,
+    SliceOrIndex, Xs, Y,
 };
 
 #[derive(Builder, Debug)]
@@ -66,9 +67,9 @@ impl YOLOPv2 {
         let mut ys: Vec<Y> = Vec::new();
         let (xs_da, xs_ll, xs_det) = (&xs[0], &xs[1], &xs[2]);
         for (idx, ((x_det, x_ll), x_da)) in xs_det
-            .axis_iter(Axis(0))
-            .zip(xs_ll.axis_iter(Axis(0)))
-            .zip(xs_da.axis_iter(Axis(0)))
+            .iter_dim(0)
+            .zip(xs_ll.iter_dim(0))
+            .zip(xs_da.iter_dim(0))
             .enumerate()
         {
             let (image_height, image_width) = (
@@ -79,12 +80,14 @@ impl YOLOPv2 {
 
             // Vehicle
             let mut y_bboxes = Vec::new();
-            for x in x_det.axis_iter(Axis(0)) {
-                let bbox = x.slice(s![0..4]);
-                let clss = x.slice(s![5..]).to_owned();
-                let conf = x[4];
-                let clss = conf * clss;
-                let (id, conf) = clss
+            for x in x_det.iter_dim(0) {
+                let bbox = x.slice(vec![SliceOrIndex::Range(0..4)])?;
+                let clss = x.slice(vec![SliceOrIndex::RangeFrom(5)])?.to_owned()?;
+                let conf_tensor = x.slice(vec![SliceOrIndex::Index(4)])?.to_owned()?;
+                let conf = conf_tensor.to_vec::<f32>()?[0];
+                let clss = (&clss * conf)?;
+                let clss_vec = clss.to_vec::<f32>()?;
+                let (id, conf) = clss_vec
                     .into_iter()
                     .enumerate()
                     .reduce(|max, x| if x.1 > max.1 { x } else { max })
@@ -92,10 +95,12 @@ impl YOLOPv2 {
                 if conf < self.confs[id] {
                     continue;
                 }
-                let cx = bbox[0] / ratio;
-                let cy = bbox[1] / ratio;
-                let w = bbox[2] / ratio;
-                let h = bbox[3] / ratio;
+                let bbox_owned = bbox.to_owned()?;
+                let bbox_vec = bbox_owned.to_vec::<f32>()?;
+                let cx = bbox_vec[0] / ratio;
+                let cy = bbox_vec[1] / ratio;
+                let w = bbox_vec[2] / ratio;
+                let h = bbox_vec[3] / ratio;
                 let x = cx - w / 2.;
                 let y = cy - h / 2.;
                 let x = x.max(0.0).min(image_width as _);
@@ -112,11 +117,23 @@ impl YOLOPv2 {
             let mut y_polygons: Vec<Polygon> = Vec::new();
 
             // Drivable area
-            let x_da_0 = x_da.slice(s![0, .., ..]).to_owned();
-            let x_da_1 = x_da.slice(s![1, .., ..]).to_owned();
-            let x_da = x_da_1 - x_da_0;
+            let x_da_0 = x_da
+                .slice(vec![
+                    SliceOrIndex::Range(0..1),
+                    SliceOrIndex::FullSlice,
+                    SliceOrIndex::FullSlice,
+                ])?
+                .to_owned()?;
+            let x_da_1 = x_da
+                .slice(vec![
+                    SliceOrIndex::Range(1..2),
+                    SliceOrIndex::FullSlice,
+                    SliceOrIndex::FullSlice,
+                ])?
+                .to_owned()?;
+            let x_da = (&x_da_1 - &x_da_0)?;
             let contours = match self.get_contours_from_mask(
-                x_da.into_dyn(),
+                x_da.as_array().to_owned().into_dyn(),
                 0.0,
                 self.width as _,
                 self.height as _,
@@ -142,7 +159,7 @@ impl YOLOPv2 {
 
             // Lane line
             let contours = match self.get_contours_from_mask(
-                x_ll.to_owned(),
+                x_ll.as_array().to_owned().into_dyn(),
                 0.5,
                 self.width as _,
                 self.height as _,

@@ -2,12 +2,10 @@
 
 use anyhow::Result;
 use fast_image_resize::{
-    images::{CroppedImageMut, Image},
-    pixels::PixelType,
-    FilterType, ResizeAlg, ResizeOptions, Resizer,
+    images::Image, pixels::PixelType, FilterType, ResizeAlg, ResizeOptions, Resizer,
 };
-use image::{DynamicImage, GenericImageView};
-use ndarray::{concatenate, s, Array, Array3, ArrayView1, Axis, IntoDimension, Ix2, IxDyn, Zip};
+use image::DynamicImage;
+use ndarray::{concatenate, s, Array, Array3, Axis, IxDyn};
 
 use rayon::prelude::*;
 
@@ -42,47 +40,47 @@ pub enum Ops<'a> {
 }
 
 impl Ops<'_> {
-    pub fn normalize(x: &mut Array<f32, IxDyn>, min: f32, max: f32) -> Result<()> {
-        if min >= max {
-            anyhow::bail!(
-                "Invalid range in `normalize`: `min` ({}) must be less than `max` ({}).",
-                min,
-                max
-            );
-        }
-        let range = max - min;
-        x.par_mapv_inplace(|x| (x - min) / range);
+    // pub fn normalize(x: &mut Array<f32, IxDyn>, min: f32, max: f32) -> Result<()> {
+    //     if min >= max {
+    //         anyhow::bail!(
+    //             "Invalid range in `normalize`: `min` ({}) must be less than `max` ({}).",
+    //             min,
+    //             max
+    //         );
+    //     }
+    //     let range = max - min;
+    //     x.par_mapv_inplace(|x| (x - min) / range);
 
-        Ok(())
-    }
+    //     Ok(())
+    // }
 
     pub fn sigmoid(x: Array<f32, IxDyn>) -> Array<f32, IxDyn> {
         x.mapv(|x| 1. / ((-x).exp() + 1.))
     }
 
-    pub fn broadcast<D: IntoDimension + std::fmt::Debug + Copy>(
-        x: Array<f32, IxDyn>,
-        dim: D,
-    ) -> Result<Array<f32, IxDyn>> {
-        match x.broadcast(dim) {
-            Some(x) => Ok(x.to_owned().into_dyn()),
-            None => anyhow::bail!(
-                "Failed to broadcast. Shape: {:?}, dim: {:?}",
-                x.shape(),
-                dim
-            ),
-        }
-    }
+    // pub fn broadcast<D: IntoDimension + std::fmt::Debug + Copy>(
+    //     x: Array<f32, IxDyn>,
+    //     dim: D,
+    // ) -> Result<Array<f32, IxDyn>> {
+    //     match x.broadcast(dim) {
+    //         Some(x) => Ok(x.to_owned().into_dyn()),
+    //         None => anyhow::bail!(
+    //             "Failed to broadcast. Shape: {:?}, dim: {:?}",
+    //             x.shape(),
+    //             dim
+    //         ),
+    //     }
+    // }
 
-    pub fn repeat(x: Array<f32, IxDyn>, d: usize, n: usize) -> Result<Array<f32, IxDyn>> {
-        if d >= x.ndim() {
-            anyhow::bail!("Index {d} is out of bounds with size {}.", x.ndim());
-        } else {
-            let mut dim = x.shape().to_vec();
-            dim[d] = n;
-            Self::broadcast(x, dim.as_slice())
-        }
-    }
+    // pub fn repeat(x: Array<f32, IxDyn>, d: usize, n: usize) -> Result<Array<f32, IxDyn>> {
+    //     if d >= x.ndim() {
+    //         anyhow::bail!("Index {d} is out of bounds with size {}.", x.ndim());
+    //     } else {
+    //         let mut dim = x.shape().to_vec();
+    //         dim[d] = n;
+    //         Self::broadcast(x, dim.as_slice())
+    //     }
+    // }
 
     pub fn to_shape<D: ndarray::ShapeArg>(
         x: Array<f32, IxDyn>,
@@ -91,65 +89,65 @@ impl Ops<'_> {
         Ok(x.to_shape(dim).map(|x| x.to_owned().into_dyn())?)
     }
 
-    pub fn standardize(
-        x: &mut Array<f32, IxDyn>,
-        mean: ArrayView1<f32>,
-        std: ArrayView1<f32>,
-        dim: usize,
-    ) -> Result<()> {
-        if mean.len() != std.len() {
-            anyhow::bail!(
-                "`standardize`: `mean` and `std` lengths are not equal. Mean length: {}, Std length: {}.",
-                mean.len(),
-                std.len()
-            );
-        }
+    // pub fn standardize(
+    //     x: &mut Array<f32, IxDyn>,
+    //     mean: ArrayView1<f32>,
+    //     std: ArrayView1<f32>,
+    //     dim: usize,
+    // ) -> Result<()> {
+    //     if mean.len() != std.len() {
+    //         anyhow::bail!(
+    //             "`standardize`: `mean` and `std` lengths are not equal. Mean length: {}, Std length: {}.",
+    //             mean.len(),
+    //             std.len()
+    //         );
+    //     }
 
-        let shape = x.shape();
-        if dim >= shape.len() || shape[dim] != mean.len() {
-            anyhow::bail!(
-                "`standardize`: Dimension mismatch. `dim` is {} but shape length is {} or `mean` length is {}.",
-                dim,
-                shape.len(),
-                mean.len()
-            );
-        }
-        let mean_broadcast = mean.broadcast(shape).ok_or_else(|| {
-            anyhow::anyhow!("Failed to broadcast `mean` to the shape of the input array.")
-        })?;
-        let std_broadcast = std.broadcast(shape).ok_or_else(|| {
-            anyhow::anyhow!("Failed to broadcast `std` to the shape of the input array.")
-        })?;
-        Zip::from(x)
-            .and(mean_broadcast)
-            .and(std_broadcast)
-            .par_for_each(|x_val, &mean_val, &std_val| {
-                *x_val = (*x_val - mean_val) / std_val;
-            });
+    //     let shape = x.shape();
+    //     if dim >= shape.len() || shape[dim] != mean.len() {
+    //         anyhow::bail!(
+    //             "`standardize`: Dimension mismatch. `dim` is {} but shape length is {} or `mean` length is {}.",
+    //             dim,
+    //             shape.len(),
+    //             mean.len()
+    //         );
+    //     }
+    //     let mean_broadcast = mean.broadcast(shape).ok_or_else(|| {
+    //         anyhow::anyhow!("Failed to broadcast `mean` to the shape of the input array.")
+    //     })?
+    //     let std_broadcast = std.broadcast(shape).ok_or_else(|| {
+    //         anyhow::anyhow!("Failed to broadcast `std` to the shape of the input array.")
+    //     })?
+    //     Zip::from(x)
+    //         .and(mean_broadcast)
+    //         .and(std_broadcast)
+    //         .par_for_each(|x_val, &mean_val, &std_val| {
+    //             *x_val = (*x_val - mean_val) / std_val;
+    //         });
 
-        Ok(())
-    }
+    //     Ok(())
+    // }
 
-    pub fn permute(x: Array<f32, IxDyn>, shape: &[usize]) -> Result<Array<f32, IxDyn>> {
-        if shape.len() != x.shape().len() {
-            anyhow::bail!(
-                "`permute`: Shape length mismatch. Expected: {}, got: {}. Target shape: {:?}, provided shape: {:?}.",
-                x.shape().len(),
-                shape.len(),
-                x.shape(),
-                shape
-            );
-        }
-        Ok(x.permuted_axes(shape.to_vec()).into_dyn())
-    }
+    // pub fn permute(x: Array<f32, IxDyn>, shape: &[usize]) -> Result<Array<f32, IxDyn>> {
+    //     if shape.len() != x.shape().len() {
+    //         anyhow::bail!(
+    //             "`permute`: Shape length mismatch. Expected: {}, got: {}. Target shape: {:?}, provided shape: {:?}.",
+    //             x.shape().len(),
+    //             shape.len(),
+    //             x.shape(),
+    //             shape
+    //         );
+    //     }
+    //     Ok(x.permuted_axes(shape.to_vec()).into_dyn())
+    // }
 
-    pub fn nhwc2nchw(x: Array<f32, IxDyn>) -> Result<Array<f32, IxDyn>> {
-        Self::permute(x, &[0, 3, 1, 2])
-    }
+    // pub fn nhwc2nchw(x: Array<f32, IxDyn>) -> Result<Array<f32, IxDyn>> {
+    //     Self::permute(x, &[0, 3, 1, 2])
+    // }
 
-    pub fn nchw2nhwc(x: Array<f32, IxDyn>) -> Result<Array<f32, IxDyn>> {
-        Self::permute(x, &[0, 2, 3, 1])
-    }
+    // pub fn nchw2nhwc(x: Array<f32, IxDyn>) -> Result<Array<f32, IxDyn>> {
+    //     Self::permute(x, &[0, 2, 3, 1])
+    // }
 
     pub fn concatenate(
         x: &Array<f32, IxDyn>,
@@ -159,68 +157,68 @@ impl Ops<'_> {
         Ok(concatenate(Axis(d), &[x.view(), y.view()])?)
     }
 
-    pub fn concat(xs: &[Array<f32, IxDyn>], d: usize) -> Result<Array<f32, IxDyn>> {
-        let xs = xs.iter().map(|x| x.view()).collect::<Vec<_>>();
-        Ok(concatenate(Axis(d), &xs)?)
-    }
+    // pub fn concat(xs: &[Array<f32, IxDyn>], d: usize) -> Result<Array<f32, IxDyn>> {
+    //     let xs = xs.iter().map(|x| x.view()).collect::<Vec<_>>();
+    //     Ok(concatenate(Axis(d), &xs)?)
+    // }
 
-    pub fn dot2(x: &Array<f32, IxDyn>, other: &Array<f32, IxDyn>) -> Result<Vec<Vec<f32>>> {
-        // (m, ndim) * (n, ndim).t => (m, n)
-        let query = x.to_owned().into_dimensionality::<Ix2>()?;
-        let gallery = other.to_owned().into_dimensionality::<Ix2>()?;
-        let matrix = query.dot(&gallery.t());
-        let exps = matrix.mapv(|x| x.exp());
-        let stds = exps.sum_axis(Axis(1));
-        let matrix = exps / stds.insert_axis(Axis(1));
-        let matrix: Vec<Vec<f32>> = matrix.axis_iter(Axis(0)).map(|row| row.to_vec()).collect();
-        Ok(matrix)
-    }
+    // pub fn dot2(x: &Array<f32, IxDyn>, other: &Array<f32, IxDyn>) -> Result<Vec<Vec<f32>>> {
+    //     // (m, ndim) * (n, ndim).t => (m, n)
+    //     let query = x.to_owned().into_dimensionality::<Ix2>()?;
+    //     let gallery = other.to_owned().into_dimensionality::<Ix2>()?;
+    //     let matrix = query.dot(&gallery.t());
+    //     let exps = matrix.mapv(|x| x.exp());
+    //     let stds = exps.sum_axis(Axis(1));
+    //     let matrix = exps / stds.insert_axis(Axis(1));
+    //     let matrix: Vec<Vec<f32>> = matrix.axis_iter(0)?.map(|row| row.to_vec()).collect();
+    //     Ok(matrix)
+    // }
 
-    pub fn insert_axis(x: Array<f32, IxDyn>, d: usize) -> Result<Array<f32, IxDyn>> {
-        if x.shape().len() < d {
-            anyhow::bail!(
-                "`insert_axis`: The specified axis position {} exceeds the maximum shape length {}.",
-                d,
-                x.shape().len()
-            );
-        }
-        Ok(x.insert_axis(Axis(d)))
-    }
+    // pub fn insert_axis(x: Array<f32, IxDyn>, d: usize) -> Result<Array<f32, IxDyn>> {
+    //     if x.shape().len() < d {
+    //         anyhow::bail!(
+    //             "`insert_axis`: The specified axis position {} exceeds the maximum shape length {}.",
+    //             d,
+    //             x.shape().len()
+    //         );
+    //     }
+    //     Ok(x.insert_axis(Axis(d)))
+    // }
 
-    pub fn norm(xs: Array<f32, IxDyn>, d: usize) -> Result<Array<f32, IxDyn>> {
-        if xs.shape().len() < d {
-            anyhow::bail!(
-                "`norm`: Specified axis {} exceeds the maximum dimension length {}.",
-                d,
-                xs.shape().len()
-            );
-        }
-        let std_ = xs
-            .mapv(|x| x * x)
-            .sum_axis(Axis(d))
-            .mapv(f32::sqrt)
-            .insert_axis(Axis(d));
-        Ok(xs / std_)
-    }
+    // pub fn norm(xs: Array<f32, IxDyn>, d: usize) -> Result<Array<f32, IxDyn>> {
+    //     if xs.shape().len() < d {
+    //         anyhow::bail!(
+    //             "`norm`: Specified axis {} exceeds the maximum dimension length {}.",
+    //             d,
+    //             xs.shape().len()
+    //         );
+    //     }
+    //     let std_ = xs
+    //         .mapv(|x| x * x)
+    //         .sum_axis(Axis(d))
+    //         .mapv(f32::sqrt)
+    //         .insert_axis(Axis(d));
+    //     Ok(xs / std_)
+    // }
 
-    pub fn softmax(xs: Array<f32, IxDyn>, d: usize) -> Result<Array<f32, IxDyn>> {
-        if xs.shape().len() <= d {
-            anyhow::bail!(
-                "`softmax`: Specified axis {} exceeds the maximum dimension length {}.",
-                d,
-                xs.shape().len()
-            );
-        }
-        let max_vals = xs
-            .map_axis(Axis(d), |view| {
-                view.fold(f32::NEG_INFINITY, |a, &b| a.max(b))
-            })
-            .insert_axis(Axis(d));
-        let exps = (&xs - &max_vals).mapv(f32::exp);
-        let sums = exps.sum_axis(Axis(d)).insert_axis(Axis(d));
+    // pub fn softmax(xs: Array<f32, IxDyn>, d: usize) -> Result<Array<f32, IxDyn>> {
+    //     if xs.shape().len() <= d {
+    //         anyhow::bail!(
+    //             "`softmax`: Specified axis {} exceeds the maximum dimension length {}.",
+    //             d,
+    //             xs.shape().len()
+    //         );
+    //     }
+    //     let max_vals = xs
+    //         .map_axis(Axis(d), |view| {
+    //             view.fold(f32::NEG_INFINITY, |a, &b| a.max(b))
+    //         })
+    //         .insert_axis(Axis(d));
+    //     let exps = (&xs - &max_vals).mapv(f32::exp);
+    //     let sums = exps.sum_axis(Axis(d)).insert_axis(Axis(d));
 
-        Ok(exps / sums)
-    }
+    //     Ok(exps / sums)
+    // }
 
     pub fn scale_wh(w0: f32, h0: f32, w1: f32, h1: f32) -> (f32, f32, f32) {
         let r = (w1 / w0).min(h1 / h0);
@@ -232,14 +230,14 @@ impl Ops<'_> {
         x.div_ceil(divisor) * divisor
     }
 
-    // deprecated
-    pub fn descale_mask(mask: DynamicImage, w0: f32, h0: f32, w1: f32, h1: f32) -> DynamicImage {
-        // 0 -> 1
-        let (_, w, h) = Ops::scale_wh(w1, h1, w0, h0);
-        let mut mask = mask.to_owned();
-        let mask = mask.crop(0, 0, w as u32, h as u32);
-        mask.resize_exact(w1 as u32, h1 as u32, image::imageops::FilterType::Triangle)
-    }
+    // // deprecated
+    // pub fn descale_mask(mask: DynamicImage, w0: f32, h0: f32, w1: f32, h1: f32) -> DynamicImage {
+    //     // 0 -> 1
+    //     let (_, w, h) = Ops::scale_wh(w1, h1, w0, h0);
+    //     let mut mask = mask.to_owned();
+    //     let mask = mask.crop(0, 0, w as u32, h as u32);
+    //     mask.resize_exact(w1 as u32, h1 as u32, image::imageops::FilterType::Triangle)
+    // }
 
     pub fn interpolate_3d(
         xs: Array<f32, IxDyn>,
@@ -264,7 +262,7 @@ impl Ops<'_> {
                 filter,
             )?;
             let y_ = Array::from_shape_vec((th as usize, tw as usize), v)?;
-            ys.slice_mut(s![i, .., ..]).assign(&y_);
+            ys.slice_mut(s![i..i + 1, .., ..]).assign(&y_);
         }
 
         Ok(ys.into_dyn())
@@ -376,109 +374,109 @@ impl Ops<'_> {
         ))
     }
 
-    pub fn resize_rgb(
-        x: &DynamicImage,
-        th: u32,
-        tw: u32,
-        resizer: &mut Resizer,
-        config: &ResizeOptions,
-    ) -> Result<Array<f32, IxDyn>> {
-        let buffer = if x.dimensions() == (tw, th) {
-            x.to_rgb8().into_raw()
-        } else {
-            let mut dst = Image::new(tw, th, PixelType::U8x3);
-            resizer.resize(x, &mut dst, config)?;
-            dst.into_vec()
-        };
-        let y = Array::from_shape_vec((th as usize, tw as usize, 3), buffer)?
-            .mapv(|x| x as f32)
-            .into_dyn();
-        Ok(y)
-    }
+    // pub fn resize_rgb(
+    //     x: &DynamicImage,
+    //     th: u32,
+    //     tw: u32,
+    //     resizer: &mut Resizer,
+    //     config: &ResizeOptions,
+    // ) -> Result<Array<f32, IxDyn>> {
+    //     let buffer = if x.dimensions() == (tw, th) {
+    //         x.to_rgb8().into_raw()
+    //     } else {
+    //         let mut dst = Image::new(tw, th, PixelType::U8x3);
+    //         resizer.resize(x, &mut dst, config)?;
+    //         dst.into_vec()
+    //     };
+    //     let y = Array::from_shape_vec((th as usize, tw as usize, 3), buffer)?
+    //         .mapv(|x| x as f32)
+    //         .into_dyn();
+    //     Ok(y)
+    // }
 
-    pub fn resize(
-        xs: &[DynamicImage],
-        th: u32,
-        tw: u32,
-        filter: &str,
-    ) -> Result<Array<f32, IxDyn>> {
-        let mut ys = Array::ones((xs.len(), th as usize, tw as usize, 3)).into_dyn();
-        let (mut resizer, config) = Self::build_resizer_filter(filter)?;
-        for (idx, x) in xs.iter().enumerate() {
-            let y = Self::resize_rgb(x, th, tw, &mut resizer, &config)?;
-            ys.slice_mut(s![idx, .., .., ..]).assign(&y);
-        }
-        Ok(ys)
-    }
+    // pub fn resize(
+    //     xs: &[DynamicImage],
+    //     th: u32,
+    //     tw: u32,
+    //     filter: &str,
+    // ) -> Result<Array<f32, IxDyn>> {
+    //     let mut ys = Array::ones((xs.len(), th as usize, tw as usize, 3)).into_dyn();
+    //     let (mut resizer, config) = Self::build_resizer_filter(filter)?;
+    //     for (idx, x) in xs.iter().enumerate() {
+    //         let y = Self::resize_rgb(x, th, tw, &mut resizer, &config)?;
+    //         ys.slice_mut(s![idx, .., .., ..]).assign(&y);
+    //     }
+    //     Ok(ys)
+    // }
 
-    #[allow(clippy::too_many_arguments)]
-    pub fn letterbox_rgb(
-        x: &DynamicImage,
-        th: u32,
-        tw: u32,
-        bg: u8,
-        resize_by: &str,
-        center: bool,
-        resizer: &mut Resizer,
-        config: &ResizeOptions,
-    ) -> Result<Array<f32, IxDyn>> {
-        let (w0, h0) = x.dimensions();
-        let buffer = if w0 == tw && h0 == th {
-            x.to_rgb8().into_raw()
-        } else {
-            let (w, h) = match resize_by {
-                "auto" => {
-                    let r = (tw as f32 / w0 as f32).min(th as f32 / h0 as f32);
-                    (
-                        (w0 as f32 * r).round() as u32,
-                        (h0 as f32 * r).round() as u32,
-                    )
-                }
-                "height" => (th * w0 / h0, th),
-                "width" => (tw, tw * h0 / w0),
-                _ => anyhow::bail!("ORTConfig for `letterbox`: width, height, auto"),
-            };
+    // #[allow(clippy::too_many_arguments)]
+    // pub fn letterbox_rgb(
+    //     x: &DynamicImage,
+    //     th: u32,
+    //     tw: u32,
+    //     bg: u8,
+    //     resize_by: &str,
+    //     center: bool,
+    //     resizer: &mut Resizer,
+    //     config: &ResizeOptions,
+    // ) -> Result<Array<f32, IxDyn>> {
+    //     let (w0, h0) = x.dimensions();
+    //     let buffer = if w0 == tw && h0 == th {
+    //         x.to_rgb8().into_raw()
+    //     } else {
+    //         let (w, h) = match resize_by {
+    //             "auto" => {
+    //                 let r = (tw as f32 / w0 as f32).min(th as f32 / h0 as f32);
+    //                 (
+    //                     (w0 as f32 * r).round() as u32,
+    //                     (h0 as f32 * r).round() as u32,
+    //                 )
+    //             }
+    //             "height" => (th * w0 / h0, th),
+    //             "width" => (tw, tw * h0 / w0),
+    //             _ => anyhow::bail!("ORTConfig for `letterbox`: width, height, auto"),
+    //         };
 
-            let mut dst = Image::from_vec_u8(
-                tw,
-                th,
-                vec![bg; 3 * th as usize * tw as usize],
-                PixelType::U8x3,
-            )?;
-            let (l, t) = if center {
-                if w == tw {
-                    (0, (th - h) / 2)
-                } else {
-                    ((tw - w) / 2, 0)
-                }
-            } else {
-                (0, 0)
-            };
-            let mut dst_cropped = CroppedImageMut::new(&mut dst, l, t, w, h)?;
-            resizer.resize(x, &mut dst_cropped, config)?;
-            dst.into_vec()
-        };
-        let y = Array::from_shape_vec((th as usize, tw as usize, 3), buffer)?
-            .mapv(|x| x as f32)
-            .into_dyn();
-        Ok(y)
-    }
+    //         let mut dst = Image::from_vec_u8(
+    //             tw,
+    //             th,
+    //             vec![bg; 3 * th as usize * tw as usize],
+    //             PixelType::U8x3,
+    //         )?;
+    //         let (l, t) = if center {
+    //             if w == tw {
+    //                 (0, (th - h) / 2)
+    //             } else {
+    //                 ((tw - w) / 2, 0)
+    //             }
+    //         } else {
+    //             (0, 0)
+    //         };
+    //         let mut dst_cropped = CroppedImageMut::new(&mut dst, l, t, w, h)?;
+    //         resizer.resize(x, &mut dst_cropped, config)?;
+    //         dst.into_vec()
+    //     };
+    //     let y = Array::from_shape_vec((th as usize, tw as usize, 3), buffer)?
+    //         .mapv(|x| x as f32)
+    //         .into_dyn();
+    //     Ok(y)
+    // }
 
-    pub fn letterbox(
-        xs: &[DynamicImage],
-        th: u32,
-        tw: u32,
-        filter: &str,
-        bg: u8,
-        resize_by: &str,
-        center: bool,
-    ) -> Result<Array<f32, IxDyn>> {
-        let mut ys = Array::ones((xs.len(), th as usize, tw as usize, 3)).into_dyn();
-        let (mut resizer, config) = Self::build_resizer_filter(filter)?;
-        for (idx, x) in xs.iter().enumerate() {
-            let y = Self::letterbox_rgb(x, th, tw, bg, resize_by, center, &mut resizer, &config)?;
-            ys.slice_mut(s![idx, .., .., ..]).assign(&y);
-        }
-        Ok(ys)
-    }
+    // pub fn letterbox(
+    //     xs: &[DynamicImage],
+    //     th: u32,
+    //     tw: u32,
+    //     filter: &str,
+    //     bg: u8,
+    //     resize_by: &str,
+    //     center: bool,
+    // ) -> Result<Array<f32, IxDyn>> {
+    //     let mut ys = Array::ones((xs.len(), th as usize, tw as usize, 3)).into_dyn();
+    //     let (mut resizer, config) = Self::build_resizer_filter(filter)?;
+    //     for (idx, x) in xs.iter().enumerate() {
+    //         let y = Self::letterbox_rgb(x, th, tw, bg, resize_by, center, &mut resizer, &config)?;
+    //         ys.slice_mut(s![idx, .., .., ..]).assign(&y);
+    //     }
+    //     Ok(ys)
+    // }
 }

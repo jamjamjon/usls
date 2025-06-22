@@ -1,10 +1,9 @@
 use aksr::Builder;
 use anyhow::Result;
-use ndarray::{s, Array2, Axis};
 use rayon::prelude::*;
 use std::fmt::Write;
 
-use crate::{elapsed_module, Config, DynConf, Engine, Hbb, Image, Processor, Xs, X, Y};
+use crate::{elapsed_module, Config, DynConf, Engine, Hbb, Image, Processor, Tensor, Xs, Y};
 
 #[derive(Builder, Debug)]
 /// Grounding DINO model for open-vocabulary object detection.
@@ -19,7 +18,6 @@ pub struct GroundingDINO {
     class_ids_map: Vec<Option<usize>>,
     tokens: Vec<String>,
     token_ids: Vec<f32>,
-
     processor: Processor,
     spec: String,
 }
@@ -78,17 +76,17 @@ impl GroundingDINO {
         let image_embeddings = self.processor.process_images(xs)?;
 
         // encode texts
-        let input_ids = X::from(self.token_ids.clone())
-            .insert_axis(0)?
+        let input_ids = Tensor::from(self.token_ids.clone())
+            .unsqueeze(0)?
             .repeat(0, self.batch)?;
-        let token_type_ids = X::zeros(&[self.batch, self.tokens.len()]);
-        let attention_mask = X::ones(&[self.batch, self.tokens.len()]);
+        let token_type_ids = Tensor::zeros(vec![self.batch, self.tokens.len()]);
+        let attention_mask = Tensor::ones(vec![self.batch, self.tokens.len()]);
         let (text_self_attention_masks, position_ids) =
             Self::gen_text_attn_masks_and_pos_ids(&self.token_ids)?;
         let text_self_attention_masks = text_self_attention_masks
-            .insert_axis(0)?
+            .unsqueeze(0)?
             .repeat(0, self.batch)?;
-        let position_ids = position_ids.insert_axis(0)?.repeat(0, self.batch)?;
+        let position_ids = position_ids.unsqueeze(0)?.repeat(0, self.batch)?;
 
         // inputs
         let xs = Xs::from(vec![
@@ -116,7 +114,7 @@ impl GroundingDINO {
 
     fn postprocess(&self, xs: Xs) -> Result<Vec<Y>> {
         let ys: Vec<Y> = xs["logits"]
-            .axis_iter(Axis(0))
+            .iter_dim(0)
             .into_par_iter()
             .enumerate()
             .filter_map(|(idx, logits)| {
@@ -126,25 +124,29 @@ impl GroundingDINO {
                 );
                 let ratio = self.processor.images_transform_info[idx].height_scale;
                 let y_bboxes: Vec<Hbb> = logits
-                    .axis_iter(Axis(0))
+                    .iter_dim(0)
                     .into_par_iter()
                     .enumerate()
                     .filter_map(|(i, clss)| {
-                        let (class_id, &conf) = clss
-                            .mapv(|x| 1. / ((-x).exp() + 1.))
+                        // Apply sigmoid to get probabilities
+                        let clss_vec: Vec<f32> = clss.sigmoid().ok()?.to_vec().ok()?;
+                        let (class_id, conf) = clss_vec
                             .iter()
                             .enumerate()
                             .max_by(|a, b| a.1.total_cmp(b.1))?;
 
-                        if conf < self.confs_visual[0] {
+                        if *conf < self.confs_visual[0] {
                             return None;
                         }
 
-                        let bbox = xs["boxes"].slice(s![idx, i, ..]).mapv(|x| x / ratio);
-                        let cx = bbox[0] * self.width as f32;
-                        let cy = bbox[1] * self.height as f32;
-                        let w = bbox[2] * self.width as f32;
-                        let h = bbox[3] * self.height as f32;
+                        let bbox_slice = xs["boxes"]
+                            .slice((idx..idx + 1, i..i + 1, 0..xs["boxes"].shape()[2]))
+                            .ok()?;
+                        let bbox_vec: Vec<f32> = bbox_slice.to_vec().ok()?;
+                        let cx = bbox_vec[0] / ratio * self.width as f32;
+                        let cy = bbox_vec[1] / ratio * self.height as f32;
+                        let w = bbox_vec[2] / ratio * self.width as f32;
+                        let h = bbox_vec[3] / ratio * self.height as f32;
                         let x = cx - w / 2.;
                         let y = cy - h / 2.;
                         let x = x.max(0.0).min(image_width as _);
@@ -152,9 +154,9 @@ impl GroundingDINO {
 
                         self.class_ids_map[class_id].map(|c| {
                             let mut bbox =
-                                Hbb::default().with_xywh(x, y, w, h).with_confidence(conf);
+                                Hbb::default().with_xywh(x, y, w, h).with_confidence(*conf);
 
-                            if conf > self.confs_textual[c] {
+                            if *conf > self.confs_textual[c] {
                                 bbox = bbox.with_name(&self.class_names[c]).with_id(c as _);
                             }
                             bbox
@@ -173,7 +175,7 @@ impl GroundingDINO {
         Ok(ys)
     }
 
-    fn gen_text_attn_masks_and_pos_ids(input_ids: &[f32]) -> Result<(X, X)> {
+    fn gen_text_attn_masks_and_pos_ids(input_ids: &[f32]) -> Result<(Tensor, Tensor)> {
         let n = input_ids.len();
         let mut vs: Vec<f32> = input_ids
             .iter()
@@ -202,7 +204,13 @@ impl GroundingDINO {
                 }
             })
             .collect();
-        let mut attn = Array2::<f32>::eye(n);
+
+        // Create identity matrix using Tensor
+        let mut attn_data = vec![0.0f32; n * n];
+        for i in 0..n {
+            attn_data[i * n + i] = 1.0;
+        }
+
         let mut pos_ids = vec![0f32; n];
         let mut prev = special_idxs[0];
         for &idx in special_idxs.iter() {
@@ -210,7 +218,7 @@ impl GroundingDINO {
             } else {
                 for r in (prev + 1)..=idx {
                     for c in (prev + 1)..=idx {
-                        attn[[r, c]] = 1.0;
+                        attn_data[r * n + c] = 1.0;
                     }
                 }
                 for (offset, pos_id) in pos_ids[prev + 1..=idx].iter_mut().enumerate() {
@@ -220,7 +228,8 @@ impl GroundingDINO {
             prev = idx;
         }
 
-        Ok((X::from(attn.into_dyn()), X::from(pos_ids)))
+        let attn_tensor = Tensor::from_shape_vec(vec![n, n], attn_data)?;
+        Ok((attn_tensor, Tensor::from(pos_ids)))
     }
 
     fn process_class_ids(tokens: &[String]) -> Vec<Option<usize>> {

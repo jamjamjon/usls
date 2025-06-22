@@ -1,6 +1,5 @@
 use aksr::Builder;
 use anyhow::Result;
-use ndarray::Axis;
 use rayon::prelude::*;
 
 use crate::{elapsed_module, Config, DynConf, Engine, Hbb, Image, Keypoint, Processor, Xs, Y};
@@ -68,9 +67,9 @@ impl RTMO {
 
     fn postprocess(&mut self, xs: Xs) -> Result<Vec<Y>> {
         let ys: Vec<Y> = xs[0]
-            .axis_iter(Axis(0))
+            .iter_dim(0)
             .into_par_iter()
-            .zip(xs[1].axis_iter(Axis(0)).into_par_iter())
+            .zip(xs[1].iter_dim(0).into_par_iter())
             .enumerate()
             .map(|(idx, (batch_bboxes, batch_kpts))| {
                 let (height_original, width_original) = (
@@ -81,10 +80,7 @@ impl RTMO {
 
                 let mut y_bboxes = Vec::new();
                 let mut y_kpts: Vec<Vec<Keypoint>> = Vec::new();
-                for (xyxyc, kpts) in batch_bboxes
-                    .axis_iter(Axis(0))
-                    .zip(batch_kpts.axis_iter(Axis(0)))
-                {
+                for (xyxyc, kpts) in batch_bboxes.iter_dim(0).zip(batch_kpts.iter_dim(0)) {
                     // bbox
                     let x1 = xyxyc[0] / ratio;
                     let y1 = xyxyc[1] / ratio;
@@ -110,7 +106,7 @@ impl RTMO {
 
                     // keypoints
                     let mut kpts_ = Vec::new();
-                    for (i, kpt) in kpts.axis_iter(Axis(0)).enumerate() {
+                    for (i, kpt) in kpts.iter_dim(0).enumerate() {
                         let x = kpt[0] / ratio;
                         let y = kpt[1] / ratio;
                         let c = kpt[2];

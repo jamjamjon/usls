@@ -13,7 +13,7 @@ pub struct SamPrompt {
 }
 
 impl SamPrompt {
-    pub fn point_coords(&self, ratio: f32) -> anyhow::Result<crate::X> {
+    pub fn point_coords(&self, ratio: f32) -> anyhow::Result<crate::Tensor> {
         // [num_labels,num_points,2]
         let num_labels = self.coords.len();
         let num_points = if num_labels > 0 {
@@ -26,12 +26,12 @@ impl SamPrompt {
             .iter()
             .flat_map(|v| v.iter().flat_map(|&[x, y]| [x, y]))
             .collect();
-        let y = ndarray::Array3::from_shape_vec((num_labels, num_points, 2), flat)?.into_dyn();
+        let y = crate::Tensor::from_shape_vec((num_labels, num_points, 2), flat)?;
 
-        Ok((y * ratio).into())
+        y * ratio
     }
 
-    pub fn point_labels(&self) -> anyhow::Result<crate::X> {
+    pub fn point_labels(&self) -> anyhow::Result<crate::Tensor> {
         // [num_labels,num_points]
         let num_labels = self.labels.len();
         let num_points = if num_labels > 0 {
@@ -40,8 +40,8 @@ impl SamPrompt {
             0
         };
         let flat: Vec<f32> = self.labels.iter().flat_map(|v| v.iter().copied()).collect();
-        let y = ndarray::Array2::from_shape_vec((num_labels, num_points), flat)?.into_dyn();
-        Ok(y.into())
+        let y = crate::Tensor::from_shape_vec((num_labels, num_points), flat)?;
+        Ok(y)
     }
 
     pub fn with_xyxy(mut self, x1: f32, y1: f32, x2: f32, y2: f32) -> Self {

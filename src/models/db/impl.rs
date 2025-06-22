@@ -1,6 +1,5 @@
 use aksr::Builder;
 use anyhow::Result;
-use ndarray::Axis;
 use rayon::prelude::*;
 
 use crate::{
@@ -74,7 +73,7 @@ impl DB {
 
     pub fn postprocess(&mut self, xs: Xs) -> Result<Vec<Y>> {
         let ys: Vec<Y> = xs[0]
-            .axis_iter(Axis(0))
+            .iter_dim(0)
             .into_par_iter()
             .enumerate()
             .filter_map(|(idx, luma)| {

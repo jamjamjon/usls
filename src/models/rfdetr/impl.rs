@@ -1,6 +1,5 @@
 use aksr::Builder;
 use anyhow::Result;
-use ndarray::{s, Axis};
 use rayon::prelude::*;
 
 use crate::{elapsed_module, Config, DynConf, Engine, Hbb, Image, Processor, Xs, Y};
@@ -66,7 +65,7 @@ impl RFDETR {
         // 0: bboxes
         // 1: logits
         let ys: Vec<Y> = xs[1]
-            .axis_iter(Axis(0))
+            .iter_dim(0)
             .into_par_iter()
             .enumerate()
             .filter_map(|(idx, logits)| {
@@ -75,35 +74,43 @@ impl RFDETR {
                     self.processor.images_transform_info[idx].width_src,
                 );
                 let ratio = self.processor.images_transform_info[idx].height_scale;
+
                 let y_bboxes: Vec<Hbb> = logits
-                    .axis_iter(Axis(0))
+                    .iter_dim(0)
                     .into_par_iter()
                     .enumerate()
                     .filter_map(|(i, clss)| {
-                        let (class_id, &conf) = clss
-                            .mapv(|x| 1. / ((-x).exp() + 1.))
+                        let sigmoid_logits: Vec<f32> = clss.sigmoid().ok()?.to_vec().ok()?;
+                        let (class_id, &conf) = sigmoid_logits
                             .iter()
                             .enumerate()
                             .max_by(|a, b| a.1.total_cmp(b.1))?;
 
-                        if conf < self.confs[idx] {
+                        if conf < self.confs[class_id.min(self.confs.len().saturating_sub(1))] {
                             return None;
                         }
 
-                        let bbox = xs[0].slice(s![idx, i, ..]).mapv(|x| x / ratio);
-                        let cx = bbox[0] * self.width as f32;
-                        let cy = bbox[1] * self.height as f32;
-                        let w = bbox[2] * self.width as f32;
-                        let h = bbox[3] * self.height as f32;
-                        let x = cx - w / 2.;
-                        let y = cy - h / 2.;
-                        let x = x.max(0.0).min(image_width as _);
-                        let y = y.max(0.0).min(image_height as _);
+                        // Get bbox coordinates from tensor slice
+                        let bbox_slice = xs[0]
+                            .slice((idx..idx + 1, i..i + 1, 0..xs[0].shape()[2]))
+                            .ok()?;
+                        let bbox_vec: Vec<f32> = bbox_slice.to_vec().ok()?;
+                        if bbox_vec.len() < 4 {
+                            return None;
+                        }
+
+                        let cx = bbox_vec[0] / ratio * self.width as f32;
+                        let cy = bbox_vec[1] / ratio * self.height as f32;
+                        let w = bbox_vec[2] / ratio * self.width as f32;
+                        let h = bbox_vec[3] / ratio * self.height as f32;
+                        let x = (cx - w / 2.).max(0.0).min(image_width as _);
+                        let y = (cy - h / 2.).max(0.0).min(image_height as _);
+
                         let mut hbb = Hbb::default()
                             .with_xywh(x, y, w, h)
                             .with_confidence(conf)
                             .with_id(class_id as _);
-                        if !self.names.is_empty() {
+                        if !self.names.is_empty() && class_id < self.names.len() {
                             hbb = hbb.with_name(&self.names[class_id]);
                         }
 

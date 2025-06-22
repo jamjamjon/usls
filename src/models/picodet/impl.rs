@@ -1,9 +1,8 @@
 use aksr::Builder;
 use anyhow::Result;
-use ndarray::Axis;
 use rayon::prelude::*;
 
-use crate::{elapsed_module, Config, DynConf, Engine, Hbb, Image, Processor, Xs, X, Y};
+use crate::{elapsed_module, Config, DynConf, Engine, Hbb, Image, Processor, Tensor, Xs, Y};
 
 #[derive(Debug, Builder)]
 pub struct PicoDet {
@@ -46,7 +45,7 @@ impl PicoDet {
 
     fn preprocess(&mut self, xs: &[Image]) -> Result<Xs> {
         let x1 = self.processor.process_images(xs)?;
-        let x2: X = self
+        let x2: Tensor = self
             .processor
             .images_transform_info
             .iter()
@@ -74,15 +73,16 @@ impl PicoDet {
         // xs[0] : n, 6
         // xs[1] : n
         let y_bboxes: Vec<Hbb> = xs[0]
-            .axis_iter(Axis(0))
+            .iter_dim(0)
             .into_par_iter()
             .enumerate()
             .filter_map(|(_i, pred)| {
-                let (class_id, confidence) = (pred[0] as usize, pred[1]);
+                let pred_vec: Vec<f32> = pred.to_vec().ok()?;
+                let (class_id, confidence) = (pred_vec[0] as usize, pred_vec[1]);
                 if confidence < self.confs[class_id] {
                     return None;
                 }
-                let (x1, y1, x2, y2) = (pred[2], pred[3], pred[4], pred[5]);
+                let (x1, y1, x2, y2) = (pred_vec[2], pred_vec[3], pred_vec[4], pred_vec[5]);
                 let mut hbb = Hbb::default()
                     .with_xyxy(x1.max(0.0f32), y1.max(0.0f32), x2, y2)
                     .with_confidence(confidence)

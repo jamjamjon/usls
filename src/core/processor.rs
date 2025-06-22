@@ -5,7 +5,7 @@ use rayon::prelude::*;
 use std::sync::Mutex;
 use tokenizers::{Encoding, Tokenizer};
 
-use crate::{Hub, Image, ImageTransformInfo, LogitsSampler, ProcessorConfig, ResizeMode, X};
+use crate::{Hub, Image, ImageTransformInfo, LogitsSampler, ProcessorConfig, ResizeMode, Tensor};
 
 /// Image and text processing pipeline with tokenization and transformation capabilities.
 #[derive(Builder, Debug, Clone)]
@@ -106,14 +106,14 @@ impl Processor {
         self.images_transform_info.clear();
     }
 
-    pub fn process_images(&mut self, xs: &[Image]) -> Result<X> {
+    pub fn process_images(&mut self, xs: &[Image]) -> Result<Tensor> {
         let mut x = if self.pad_image {
             if xs.len() != 1 {
                 anyhow::bail!("When pad_image is true, only one image is allowed.");
             }
             let (image, images_transform_info) = xs[0].pad(self.pad_size)?;
             self.images_transform_info = vec![images_transform_info];
-            Image::from(image).to_ndarray()?.insert_axis(0)?
+            Image::from(image).to_ndarray()?.unsqueeze(0)?
         } else if self.do_resize {
             let (x, images_transform_info) = self.par_resize(xs)?;
             self.images_transform_info = images_transform_info;
@@ -127,20 +127,22 @@ impl Processor {
         if self.do_normalize {
             x = x.normalize(0., 255.)?;
         }
+
         if !self.image_std.is_empty() && !self.image_mean.is_empty() {
             x = x.standardize(&self.image_mean, &self.image_std, 3)?;
         }
+
         if self.nchw {
-            x = x.nhwc2nchw()?;
+            x = x.nhwc_to_nchw()?;
         }
         if self.unsigned {
-            x = x.unsigned();
+            x = x.clamp_unsigned()?;
         }
 
         Ok(x)
     }
 
-    pub fn par_resize(&self, xs: &[Image]) -> Result<(X, Vec<ImageTransformInfo>)> {
+    pub fn par_resize(&self, xs: &[Image]) -> Result<(Tensor, Vec<ImageTransformInfo>)> {
         match xs.len() {
             0 => anyhow::bail!("Found no input images."),
             1 => {
@@ -152,7 +154,7 @@ impl Processor {
                     self.padding_value,
                 )?;
 
-                let y = image.to_ndarray()?.insert_axis(0)?;
+                let y = image.to_ndarray()?.unsqueeze(0)?;
                 Ok((y, vec![trans_info]))
             }
             _ => {
@@ -183,7 +185,7 @@ impl Processor {
                             let mut ys_guard = ys
                                 .lock()
                                 .map_err(|e| anyhow::anyhow!("Mutex lock error: {e}"))?;
-                            ys_guard.slice_mut(s![idx, .., .., ..]).assign(&y);
+                            ys_guard.slice_mut(s![idx..idx + 1, .., .., ..]).assign(&y);
                         }
 
                         Ok(trans_info)

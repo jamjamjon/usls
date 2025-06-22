@@ -1,6 +1,6 @@
 use aksr::Builder;
 use anyhow::Result;
-use ndarray::{s, Array2, Axis};
+use ndarray::{Array2, Axis};
 
 use crate::{elapsed_module, Config, Engine, Image, Mask, Ops, Polygon, Processor, Task, Xs, Y};
 
@@ -80,7 +80,11 @@ impl Sapiens {
             let mut ids = Vec::new();
             for hh in 0..h1 {
                 for ww in 0..w1 {
-                    let pt_slice = masks.slice(s![.., hh as usize, ww as usize]);
+                    let pt_slice = masks.slice(ndarray::s![
+                        ..,
+                        hh as usize..hh as usize + 1,
+                        ww as usize..ww as usize + 1
+                    ]);
                     let (i, c) = match pt_slice
                         .into_iter()
                         .enumerate()

@@ -1,12 +1,13 @@
 use aksr::Builder;
 use anyhow::{Context, Result};
+use half;
 use image::GenericImageView;
 use ndarray::{s, Array, Array2, Array3, Axis, IxDyn};
 use ndarray_npy::ReadNpyExt;
 
 use crate::{
-    Config, DType, Engine, Hbb, Hub, Image, Keypoint, LogitsSampler, Processor, Scale, Task, Xs, X,
-    Y,
+    elapsed_module, Config, DType, Engine, Hbb, Hub, Image, Keypoint, LogitsSampler, Processor,
+    Scale, Task, Tensor, Xs, Y,
 };
 
 #[derive(Builder, Debug)]
@@ -19,7 +20,7 @@ pub struct Moondream2 {
     coord_encoder: Option<Engine>,
     size_decoder: Option<Engine>,
     size_encoder: Option<Engine>,
-    initial_kv_cache: X, // TODO: use f16
+    initial_kv_cache: Tensor, // Now using fp16 directly from npy file
     scale: Scale,
     dtype: DType,
     max_length: usize,
@@ -38,7 +39,7 @@ impl Moondream2 {
         let eos_token_id = 50256;
         let dtype = config.visual_encoder.dtype;
         let scale = config.scale.clone().unwrap_or(Scale::Billion(0.5));
-        let initial_kv_cache: X = KVCache::new(&scale, &dtype)?.0.into();
+        let initial_kv_cache: Tensor = KVCache::new(&scale, &dtype)?.0.into();
         let vision_encoder = Engine::try_from_config(&config.visual_encoder)?;
         let vision_projection = Engine::try_from_config(&config.visual_projection)?;
         let text_decoder = Engine::try_from_config(&config.textual_decoder)?;
@@ -78,9 +79,16 @@ impl Moondream2 {
         })
     }
 
-    pub fn encode_image(&mut self, x: &Image) -> Result<X> {
-        let patches_emb = self.encode(x)?.clone().insert_axis(0)?;
-        let image_embedding = self.vision_projection.run(patches_emb.into())?[0].to_owned();
+    pub fn encode_image(&mut self, x: &Image) -> Result<Tensor> {
+        let patches_emb = elapsed_module!("moondream2", "vision_encode", self.encode(x))?
+            .clone()
+            .unsqueeze(0)?;
+        let image_embedding = elapsed_module!(
+            "moondream2",
+            "vision_projection",
+            self.vision_projection.run(patches_emb.into())
+        )?[0]
+            .to_owned();
 
         Ok(image_embedding)
     }
@@ -97,7 +105,11 @@ impl Moondream2 {
 
     pub fn forward_once(&mut self, images: &Image, task: &Task) -> Result<Y> {
         let image_embedding = self.encode_image(images)?;
-        let kv_cache = self.prepare_kv_cache(&image_embedding)?;
+        let kv_cache = elapsed_module!(
+            "moondream2",
+            "prepare_kv_cache",
+            self.prepare_kv_cache(&image_embedding)?
+        );
 
         match task {
             Task::Caption(n) => {
@@ -160,12 +172,19 @@ impl Moondream2 {
     }
 
     fn generate_text(&mut self, input_ids: &[f32], kv_cache: Array<f32, IxDyn>) -> Result<String> {
-        let input_ids = X::from(input_ids.to_vec()).insert_axis(0)?;
-        let mut input_embeds = self.text_encoder.run(Xs::from(input_ids))?[0].to_owned();
+        let input_ids = Tensor::from(input_ids.to_vec()).unsqueeze(0)?;
+        let input_embeds = elapsed_module!(
+            "moondream2",
+            "text_encoder",
+            self.text_encoder.run(Xs::from(input_ids))
+        )?[0]
+            .to_owned();
         let logits_sampler = LogitsSampler::new();
         let mut token_ids: Vec<u32> = Vec::new();
         let mut pos = self.seq_len + self.initial_kv_cache.shape()[4];
-        let mut inc = input_embeds.shape()[1];
+        let input_embeds_f32 = input_embeds.to_dtype(DType::Fp32)?;
+        let mut inc = input_embeds_f32.shape()[1];
+        let mut input_embeds = input_embeds_f32;
         let mut kv_cache = kv_cache.clone();
 
         // generate
@@ -174,27 +193,34 @@ impl Moondream2 {
             let input = Xs::from(vec![
                 input_embeds.clone(),
                 kv_cache
-                    .slice(s![.., .., .., .., ..pos, ..])
+                    .slice(s![.., .., .., .., 0..pos, ..])
                     .into_owned()
                     .into_dyn()
                     .into(),
             ]);
-            let decoder_outputs = self.text_decoder.run(input)?;
+            let decoder_outputs =
+                elapsed_module!("moondream2", "text_decoder", self.text_decoder.run(input))?;
 
             // update
             let logits = &decoder_outputs["logits"];
             let new_kv_cache = &decoder_outputs["new_kv_cache"];
+            let new_kv_cache_f32 = new_kv_cache.to_dtype(DType::Fp32)?;
             kv_cache
                 .slice_mut(s![.., .., .., .., pos..pos + inc, ..])
-                .assign(new_kv_cache);
+                .assign(new_kv_cache_f32.as_array());
             pos += inc;
 
             // decode
+            let logits_f32 = logits.to_dtype(DType::Fp32)?;
             let token_id = logits_sampler.decode(
-                logits
-                    .slice(s![-1, ..])
+                logits_f32
+                    .slice(&[
+                        (logits_f32.shape()[0] - 1)..logits_f32.shape()[0],
+                        0..logits_f32.shape()[1],
+                    ])?
+                    .to_owned()?
                     .as_slice()
-                    .context("Failed to get slice when decode `logits`")?,
+                    .context("Failed to get slice for `logits`")?,
             )?;
 
             // break
@@ -207,8 +233,13 @@ impl Moondream2 {
             inc = 1;
 
             // encode
-            let next_tokens = X::from(vec![token_id as f32]).insert_axis(1)?;
-            input_embeds = self.text_encoder.run(Xs::from(next_tokens))?[0].to_owned();
+            let next_tokens = Tensor::from(vec![token_id as f32]).unsqueeze(1)?;
+            input_embeds = elapsed_module!(
+                "moondream2",
+                "text_encoder_next",
+                self.text_encoder.run(Xs::from(next_tokens))
+            )?[0]
+                .to_owned();
         }
 
         let text = self.processor.decode_tokens(&token_ids, true)?;
@@ -234,8 +265,13 @@ impl Moondream2 {
         let logits_sampler = LogitsSampler::new();
 
         // initial input_embeds
-        let input_ids = X::from(input_ids.to_vec()).insert_axis(0)?;
-        let mut hidden = self.text_encoder.run(Xs::from(input_ids))?[0].to_owned();
+        let input_ids = Tensor::from(input_ids.to_vec()).unsqueeze(0)?;
+        let mut hidden = elapsed_module!(
+            "moondream2",
+            "text_encoder_points",
+            self.text_encoder.run(Xs::from(input_ids))
+        )?[0]
+            .to_owned();
         let mut kv_cache = kv_cache;
 
         // generate
@@ -243,9 +279,14 @@ impl Moondream2 {
             let logits = self.run_decoder(&mut hidden, &mut kv_cache, &mut pos)?;
 
             // decode
+            let logits_f32 = logits.to_dtype(DType::Fp32)?;
             let token_id = logits_sampler.decode(
-                logits
-                    .slice(s![-1, ..])
+                logits_f32
+                    .slice(&[
+                        (logits_f32.shape()[0] - 1)..logits_f32.shape()[0],
+                        0..logits_f32.shape()[1],
+                    ])?
+                    .to_owned()?
                     .as_slice()
                     .context("Failed to get slice for `logits`")?,
             )?;
@@ -256,30 +297,47 @@ impl Moondream2 {
             }
 
             // cx
-            let input: X = hidden.slice(s![0, -1, ..]).into_owned().into_dyn().into();
+            let hidden_f32 = hidden.to_dtype(DType::Fp32)?;
+            let input: Tensor = hidden_f32
+                .slice(&[
+                    0..1,
+                    hidden_f32.shape()[1] - 1..hidden_f32.shape()[1],
+                    0..hidden_f32.shape()[2],
+                ])?
+                .to_owned()?;
             let cx = self.coord_decoder.as_mut().unwrap().run(Xs::from(input))?[0].clone(); // [1024]
-            let ratio = cx.shape()[0] as f32;
+            let cx_f32 = cx.to_dtype(DType::Fp32)?;
+            let ratio = cx_f32.shape()[0] as f32;
             let cx = logits_sampler
-                .decode(cx.as_slice().context("Failed to get slice for `cx`")?)?
+                .decode(cx_f32.as_slice().context("Failed to get slice for `cx`")?)?
                 as f32
                 / ratio;
             hidden = self
                 .coord_encoder
                 .as_mut()
                 .unwrap()
-                .run(Xs::from(X::from(vec![cx])))?[0]
+                .run(Xs::from(Tensor::from(vec![cx])))?[0]
                 .clone()
-                .insert_axis(0)?
-                .insert_axis(0)?;
+                .unsqueeze(0)?
+                .unsqueeze(0)?;
 
             // cy
             let _logits = self.run_decoder(&mut hidden, &mut kv_cache, &mut pos)?;
-            let input: X = hidden.slice(s![0, -1, ..]).into_owned().into_dyn().into();
+            let hidden_f32 = hidden.to_dtype(DType::Fp32)?;
+            let input: Tensor = hidden_f32
+                .slice(&[
+                    0..1,
+                    (hidden_f32.shape()[1] - 1)..hidden_f32.shape()[1],
+                    0..hidden_f32.shape()[2],
+                ])?
+                .to_owned()?;
+            // hidden = hidden_f32;
             let cy = self.coord_decoder.as_mut().unwrap().run(Xs::from(input))?[0].clone();
-            let ratio = cy.shape()[0] as f32;
+            let cy_f32 = cy.to_dtype(DType::Fp32)?;
+            let ratio = cy_f32.shape()[0] as f32;
 
             let cy = logits_sampler
-                .decode(cy.as_slice().context("Failed to get slice for `cy`")?)?
+                .decode(cy_f32.as_slice().context("Failed to get slice for `cy`")?)?
                 as f32
                 / ratio;
 
@@ -287,10 +345,10 @@ impl Moondream2 {
                 .coord_encoder
                 .as_mut()
                 .unwrap()
-                .run(Xs::from(X::from(vec![cy])))?[0]
+                .run(Xs::from(Tensor::from(vec![cy])))?[0]
                 .clone()
-                .insert_axis(0)?
-                .insert_axis(0)?;
+                .unsqueeze(0)?
+                .unsqueeze(0)?;
 
             if !generate_boxes {
                 y_kpts.push(vec![Keypoint::from((
@@ -308,12 +366,23 @@ impl Moondream2 {
             } else {
                 // wh
                 let _logits = self.run_decoder(&mut hidden, &mut kv_cache, &mut pos)?;
-                let input: X = hidden.slice(s![0, -1, ..]).into_owned().into_dyn().into();
+                let hidden_f32 = hidden.to_f32()?;
+                let input: Tensor = hidden_f32
+                    .slice(&[
+                        0..1,
+                        (hidden_f32.shape()[1] - 1)..hidden_f32.shape()[1],
+                        0..hidden_f32.shape()[2],
+                    ])?
+                    .to_owned()?;
+                // hidden = hidden_f32;
                 let size = self.size_decoder.as_mut().unwrap().run(Xs::from(input))?[0].clone(); // [2, 1024]
 
-                let ratio = size.shape()[1] as f32;
+                let size_f32 = size.to_dtype(DType::Fp32)?;
+                let ratio = size_f32.shape()[1] as f32;
                 let w = logits_sampler.decode(
-                    size.slice(s![0, ..])
+                    size_f32
+                        .slice(&[0..1, 0..size_f32.shape()[1]])?
+                        .to_owned()?
                         .as_slice()
                         .context("Failed to get slice when decode `w`")?,
                 )? as f32
@@ -321,7 +390,9 @@ impl Moondream2 {
 
                 // h
                 let h = logits_sampler.decode(
-                    size.slice(s![1, ..])
+                    size_f32
+                        .slice(&[1..2, 0..size_f32.shape()[1]])?
+                        .to_owned()?
                         .as_slice()
                         .context("Failed to get slice when decode `h`")?,
                 )? as f32
@@ -331,10 +402,10 @@ impl Moondream2 {
                     .size_encoder
                     .as_mut()
                     .unwrap()
-                    .run(Xs::from(X::from(vec![w, h])))?[0]
+                    .run(Xs::from(Tensor::from(vec![w, h])))?[0]
                     .clone()
-                    .insert_axis(0)?
-                    .insert_axis(0)?; // [1024]
+                    .unsqueeze(0)?
+                    .unsqueeze(0)?; // [1024]
 
                 let xmin = cx - w / 2.;
                 let ymin = cy - h / 2.;
@@ -361,17 +432,22 @@ impl Moondream2 {
         Ok((y_kpts, y_bboxes))
     }
 
-    fn prepare_kv_cache(&mut self, image_embedding: &X) -> Result<Array<f32, IxDyn>> {
+    fn prepare_kv_cache(&mut self, image_embedding: &Tensor) -> Result<Array<f32, IxDyn>> {
         let kv_cache_new = self.text_decoder.run(Xs::from(vec![
             image_embedding.clone(),
             self.initial_kv_cache.clone(),
         ]))?["new_kv_cache"]
-            .to_owned();
+            .to_owned()
+            .to_f32()?;
 
-        // TODO
+        // TODO: Convert fp16 initial_kv_cache to f32 for concatenation
+        let initial_kv_cache_f32 = match self.initial_kv_cache.data() {
+            crate::tensor::DTypeTensor::F16(arr) => arr.mapv(|v| v.to_f32()),
+            _ => anyhow::bail!("Expected F16 tensor for initial_kv_cache"),
+        };
         let kv_cache_new = ndarray::concatenate(
             Axis(4),
-            &[kv_cache_new.view(), self.initial_kv_cache.view()],
+            &[kv_cache_new.as_array().view(), initial_kv_cache_f32.view()],
         )?;
 
         // fill with max sequence length
@@ -379,7 +455,7 @@ impl Moondream2 {
         shapes[4] = self.max_length;
         let mut kv_cache = Array::zeros(shapes);
         kv_cache
-            .slice_mut(s![.., .., .., .., ..kv_cache_new.dim()[4], ..])
+            .slice_mut(s![.., .., .., .., 0..kv_cache_new.dim()[4], ..])
             .assign(&kv_cache_new);
 
         Ok(kv_cache.into_dyn())
@@ -387,28 +463,34 @@ impl Moondream2 {
 
     fn run_decoder(
         &mut self,
-        input_embeds: &mut X,
+        input_embeds: &mut Tensor,
         kv_cache: &mut Array<f32, IxDyn>,
         pos: &mut usize,
-    ) -> Result<X> {
-        let decoder_outputs = self.text_decoder.run(Xs::from(vec![
-            input_embeds.clone(),
-            kv_cache
-                .slice(s![.., .., .., .., ..*pos, ..])
-                .into_owned()
-                .into_dyn()
-                .into(),
-        ]))?;
+    ) -> Result<Tensor> {
+        let decoder_outputs = elapsed_module!(
+            "moondream2",
+            "text_decoder_run",
+            self.text_decoder.run(Xs::from(vec![
+                input_embeds.clone(),
+                kv_cache
+                    .slice(s![.., .., .., .., 0..*pos, ..])
+                    .into_owned()
+                    .into_dyn()
+                    .into(),
+            ]))
+        )?;
         let hidden = &decoder_outputs["hidden"];
         let new_kv_cache = &decoder_outputs["new_kv_cache"];
 
         // update
-        let inc = hidden.shape()[1]; // -2
+        let hidden_f32 = hidden.to_f32()?;
+        let inc = hidden_f32.shape()[1]; // -2
+        let new_kv_cache_f32 = new_kv_cache.to_f32()?;
         kv_cache
             .slice_mut(s![.., .., .., .., *pos..*pos + inc, ..])
-            .assign(new_kv_cache);
+            .assign(new_kv_cache_f32.as_array());
         *pos += inc;
-        *input_embeds = hidden.to_owned();
+        *input_embeds = hidden_f32.to_owned();
 
         Ok(decoder_outputs["logits"].to_owned())
     }
@@ -453,24 +535,37 @@ impl Moondream2 {
         (patches, selected_template)
     }
 
-    pub fn encode(&mut self, x: &Image) -> Result<X> {
+    pub fn encode(&mut self, x: &Image) -> Result<Tensor> {
         let (patches, selected_template) = Self::create_patches(x, self.patch_size);
         let patches = self.processor.process_images(&patches)?;
         let template = (
             (selected_template.0 as usize),
             (selected_template.1 as usize),
         );
-        let patch_emb = self.vision_encoder.run(patches.clone().into())?[0].clone();
-        let patch_emb = patch_emb.clone().0.into_dimensionality::<ndarray::Ix3>()?;
-        let patch_emb = Self::process_patch_emb(patch_emb, template)?;
-        let patch_emb = X::from(patch_emb.into_dyn()); // TODO .insert_axis(x),
+        let patch_emb = elapsed_module!(
+            "moondream2",
+            "vision_encoder",
+            self.vision_encoder.run(patches.clone().into())
+        )?[0]
+            .clone();
+        let patch_emb = patch_emb
+            .clone()
+            .to_f32()?
+            .as_array()
+            .clone()
+            .into_dimensionality::<ndarray::Ix3>()?;
+        let patch_emb = Self::process_patch_emb(patch_emb.to_owned(), template)?;
+        let patch_emb = Tensor::from(patch_emb.into_dyn().into_shared()); // TODO .insert_axis(x),
 
         Ok(patch_emb)
     }
 
     fn process_patch_emb(patch_emb: Array3<f32>, template: (usize, usize)) -> Result<Array2<f32>> {
         let (_, seq_len, enc_dim) = patch_emb.dim(); // (N, 729, 720)
-        let global_patch = patch_emb.slice(s![0, .., ..]).into_owned();
+        let global_patch = patch_emb
+            .slice(s![0..1, .., ..])
+            .into_owned()
+            .into_shape_with_order((seq_len, enc_dim))?;
         if template == (1, 1) {
             Ok(ndarray::concatenate(
                 Axis(1),
@@ -483,7 +578,7 @@ impl Moondream2 {
                 let mut row = Vec::new();
                 for c in 0..template.1 {
                     let idx = r * template.1 + c;
-                    let patch = patch_emb.slice(s![idx, .., ..]).into_owned();
+                    let patch = patch_emb.slice(s![idx..idx + 1, .., ..]).into_owned();
                     let patch = patch.into_shape_with_order((w, w, enc_dim))?;
                     row.push(patch);
                 }
@@ -543,15 +638,25 @@ impl Moondream2 {
 }
 
 #[derive(Builder, Debug)]
-struct KVCache(pub Array<f32, IxDyn>);
+struct KVCache(pub Array<half::f16, IxDyn>);
 
 impl KVCache {
     pub fn new(scale: &Scale, dtype: &DType) -> Result<Self> {
         let f = format!("moondream2/{}-initial-kv-cache-{}.npy", scale, dtype);
         let f = Hub::default().try_fetch(&f)?;
         let file = std::fs::File::open(f)?;
-        let x = Array::<f32, IxDyn>::read_npy(file)?.into_dyn();
+        // Load as f32 first, then convert to fp16 for memory efficiency
+        let x_f32 = Array::<f32, IxDyn>::read_npy(file)?.into_dyn();
+        let x = x_f32.mapv(half::f16::from_f32);
 
         Ok(Self(x))
+    }
+}
+
+impl std::ops::Deref for KVCache {
+    type Target = Array<half::f16, IxDyn>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }

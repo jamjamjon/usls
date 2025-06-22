@@ -53,12 +53,12 @@ impl RMBG {
     }
     fn postprocess(&mut self, xs: Xs) -> Result<Vec<Y>> {
         let mut ys: Vec<Y> = Vec::new();
-        for (idx, luma) in xs[0].axis_iter(ndarray::Axis(0)).enumerate() {
+        for (idx, luma) in xs[0].iter_dim(0).enumerate() {
             let (h1, w1) = (
                 self.processor.images_transform_info[idx].height_src,
                 self.processor.images_transform_info[idx].width_src,
             );
-            let v = luma.into_owned().into_raw_vec_and_offset().0;
+            let v: Vec<f32> = luma.to_vec()?;
             let max_ = v.iter().max_by(|x, y| x.total_cmp(y)).unwrap();
             let min_ = v.iter().min_by(|x, y| x.total_cmp(y)).unwrap();
             let v = v

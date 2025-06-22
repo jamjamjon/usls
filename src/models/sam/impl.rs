@@ -1,12 +1,11 @@
 use aksr::Builder;
 use anyhow::Result;
-use ndarray::{s, Axis};
 use rand::{prelude::*, rng};
 use std::str::FromStr;
 
 use crate::{
-    elapsed_module, Config, DynConf, Engine, Image, Mask, Ops, Polygon, Processor, SamPrompt, Xs,
-    X, Y,
+    elapsed_module, Config, DynConf, Engine, Image, Mask, Ops, Polygon, Processor, SamPrompt,
+    Tensor, Xs, Y,
 };
 
 /// SAM model variants for different use cases.
@@ -137,7 +136,7 @@ impl SAM {
         };
 
         let mut ys: Vec<Y> = Vec::new();
-        for (idx, image_embedding) in image_embeddings.axis_iter(Axis(0)).enumerate() {
+        for (idx, image_embedding) in image_embeddings.iter_dim(0).enumerate() {
             let (image_height, image_width) = (
                 self.processor.images_transform_info[idx].height_src,
                 self.processor.images_transform_info[idx].width_src,
@@ -150,47 +149,76 @@ impl SAM {
             );
 
             if point_coords.shape()[0] != 1 {
-                point_coords = X::from(point_coords.slice(s![-1, .., ..]).to_owned().into_dyn())
-                    .insert_axis(0)?;
+                let last_idx = point_coords.shape()[0] - 1;
+                point_coords = point_coords
+                    .slice(&[
+                        last_idx..last_idx + 1,
+                        0..point_coords.shape()[1],
+                        0..point_coords.shape()[2],
+                    ])?
+                    .to_owned()?
+                    .unsqueeze(0)?;
             }
             if point_labels.shape()[0] != 1 {
-                point_labels = X::from(point_labels.slice(s![-1, ..,]).to_owned().into_dyn())
-                    .insert_axis(0)?;
+                let last_idx = point_labels.shape()[0] - 1;
+                point_labels = point_labels
+                    .slice(&[last_idx..last_idx + 1, 0..point_labels.shape()[1]])?
+                    .to_owned()?
+                    .unsqueeze(0)?;
             }
 
             let args = match self.kind {
                 SamKind::Sam | SamKind::MobileSam => {
                     vec![
-                        X::from(image_embedding.into_dyn().into_owned())
-                            .insert_axis(0)?
+                        image_embedding
+                            .to_owned()
+                            .unsqueeze(0)?
                             .repeat(0, self.batch)?, // image_embedding
                         point_coords,
                         point_labels,
-                        X::zeros(&[1, 1, self.height_low_res() as _, self.width_low_res() as _]), // mask_input,
-                        X::zeros(&[1]), // has_mask_input
-                        X::from(vec![image_height as _, image_width as _]), // orig_im_size
+                        Tensor::zeros(vec![
+                            1,
+                            1,
+                            self.height_low_res() as _,
+                            self.width_low_res() as _,
+                        ]), // mask_input
+                        Tensor::zeros(vec![1]), // has_mask_input
+                        Tensor::from(vec![image_height as f32, image_width as f32]), // orig_im_size
                     ]
                 }
                 SamKind::SamHq => {
                     vec![
-                        X::from(image_embedding.into_dyn().into_owned())
-                            .insert_axis(0)?
+                        image_embedding
+                            .to_owned()
+                            .unsqueeze(0)?
                             .repeat(0, self.batch)?, // image_embedding
-                        X::from(xs[1].slice(s![idx, .., .., ..]).into_dyn().into_owned())
-                            .insert_axis(0)?
-                            .insert_axis(0)?
+                        xs[1]
+                            .slice(&[
+                                idx..idx + 1,
+                                0..xs[1].shape()[1],
+                                0..xs[1].shape()[2],
+                                0..xs[1].shape()[3],
+                            ])?
+                            .to_owned()?
+                            .unsqueeze(0)?
                             .repeat(0, self.batch)?, // intern_embedding
                         point_coords,
                         point_labels,
-                        X::zeros(&[1, 1, self.height_low_res() as _, self.width_low_res() as _]), // mask_input
-                        X::zeros(&[1]), // has_mask_input
-                        X::from(vec![image_height as _, image_width as _]), // orig_im_size
+                        Tensor::zeros(vec![
+                            1,
+                            1,
+                            self.height_low_res() as _,
+                            self.width_low_res() as _,
+                        ]), // mask_input
+                        Tensor::zeros(vec![1]), // has_mask_input
+                        Tensor::from(vec![image_height as f32, image_width as f32]), // orig_im_size
                     ]
                 }
                 SamKind::EdgeSam => {
                     vec![
-                        X::from(image_embedding.into_dyn().into_owned())
-                            .insert_axis(0)?
+                        image_embedding
+                            .to_owned()
+                            .unsqueeze(0)?
                             .repeat(0, self.batch)?,
                         point_coords,
                         point_labels,
@@ -198,32 +226,40 @@ impl SAM {
                 }
                 SamKind::Sam2 => {
                     vec![
-                        X::from(image_embedding.into_dyn().into_owned())
-                            .insert_axis(0)?
+                        image_embedding
+                            .to_owned()
+                            .unsqueeze(0)?
                             .repeat(0, self.batch)?,
-                        X::from(
-                            high_res_features_0
-                                .unwrap()
-                                .slice(s![idx, .., .., ..])
-                                .into_dyn()
-                                .into_owned(),
-                        )
-                        .insert_axis(0)?
-                        .repeat(0, self.batch)?,
-                        X::from(
-                            high_res_features_1
-                                .unwrap()
-                                .slice(s![idx, .., .., ..])
-                                .into_dyn()
-                                .into_owned(),
-                        )
-                        .insert_axis(0)?
-                        .repeat(0, self.batch)?,
+                        high_res_features_0
+                            .unwrap()
+                            .slice(&[
+                                idx..idx + 1,
+                                0..high_res_features_0.as_ref().unwrap().shape()[1],
+                                0..high_res_features_0.as_ref().unwrap().shape()[2],
+                                0..high_res_features_0.as_ref().unwrap().shape()[3],
+                            ])?
+                            .to_owned()?
+                            .repeat(0, self.batch)?,
+                        high_res_features_1
+                            .unwrap()
+                            .slice(&[
+                                idx..idx + 1,
+                                0..high_res_features_1.as_ref().unwrap().shape()[1],
+                                0..high_res_features_1.as_ref().unwrap().shape()[2],
+                                0..high_res_features_1.as_ref().unwrap().shape()[3],
+                            ])?
+                            .to_owned()?
+                            .repeat(0, self.batch)?,
                         point_coords,
                         point_labels,
-                        X::zeros(&[1, 1, self.height_low_res() as _, self.width_low_res() as _]),
-                        X::zeros(&[1]),
-                        X::from(vec![image_height as _, image_width as _]),
+                        Tensor::zeros(vec![
+                            1,
+                            1,
+                            self.height_low_res() as _,
+                            self.width_low_res() as _,
+                        ]), // mask_input
+                        Tensor::zeros(vec![1]),
+                        Tensor::from(vec![image_height as f32, image_width as f32]),
                     ]
                 }
             };
@@ -248,28 +284,26 @@ impl SAM {
                 SamKind::EdgeSam => (&ys_["masks"], &ys_["scores"]),
             };
 
-            for (mask, iou) in masks.axis_iter(Axis(0)).zip(confs.axis_iter(Axis(0))) {
-                let (i, conf) = match iou
-                    .to_owned()
-                    .into_raw_vec_and_offset()
-                    .0
-                    .into_iter()
-                    .enumerate()
-                    .max_by(|a, b| a.1.total_cmp(&b.1))
-                {
-                    Some((i, c)) => (i, c),
-                    None => continue,
-                };
+            for (mask, iou) in masks.iter_dim(0).zip(confs.iter_dim(0)) {
+                let iou_vec = iou.to_vec::<f32>().unwrap();
+                let (i, conf) =
+                    match iou_vec.iter().enumerate().max_by(|(_, a), (_, b)| {
+                        a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal)
+                    }) {
+                        Some((i, c)) => (i, c),
+                        None => continue,
+                    };
 
-                if conf < self.conf[0] {
+                if *conf < self.conf[0] {
                     continue;
                 }
-                let mask = mask.slice(s![i, .., ..]);
+                let mask = mask.slice(&[i..i + 1, 0..mask.shape()[1], 0..mask.shape()[2]])?;
 
-                let (h, w) = mask.dim();
+                let shape = mask.shape();
+                let (_, h, w) = (shape[0], shape[1], shape[2]);
                 let luma = if self.use_low_res_mask {
                     Ops::resize_lumaf32_u8(
-                        &mask.into_owned().into_raw_vec_and_offset().0,
+                        &mask.to_vec::<f32>()?,
                         w as _,
                         h as _,
                         image_width as _,
@@ -278,9 +312,10 @@ impl SAM {
                         "Bilinear",
                     )?
                 } else {
-                    mask.mapv(|x| if x > 0. { 255u8 } else { 0u8 })
-                        .into_raw_vec_and_offset()
-                        .0
+                    mask.to_vec::<f32>()?
+                        .into_iter()
+                        .map(|x| if x > 0.0 { 255u8 } else { 0u8 })
+                        .collect::<Vec<u8>>()
                 };
 
                 // contours

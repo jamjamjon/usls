@@ -7,7 +7,7 @@ use fast_image_resize::{
 use image::{DynamicImage, GrayImage, RgbImage, RgbaImage};
 use std::path::{Path, PathBuf};
 
-use crate::{build_resizer_filter, Hub, Location, MediaType, X};
+use crate::{build_resizer_filter, Hub, Location, MediaType, Tensor};
 
 /// Information about image transformation including source and destination dimensions.
 #[derive(Builder, Debug, Clone, Default)]
@@ -233,13 +233,7 @@ impl Image {
     }
 
     pub fn to_f32s(&self) -> Vec<f32> {
-        use rayon::prelude::*;
-
-        self.image
-            .as_raw()
-            .into_par_iter()
-            .map(|x| *x as f32)
-            .collect()
+        self.image.as_raw().iter().map(|x| *x as f32).collect()
     }
 
     pub fn to_dyn(&self) -> DynamicImage {
@@ -444,9 +438,9 @@ impl Image {
         Ok((padded, images_transform_info))
     }
 
-    pub fn to_ndarray(&self) -> Result<X> {
-        X::from_shape_vec(
-            &[self.height() as usize, self.width() as usize, 3],
+    pub fn to_ndarray(&self) -> Result<Tensor> {
+        Tensor::from_shape_vec(
+            vec![self.height() as usize, self.width() as usize, 3],
             self.to_f32s(),
         )
     }

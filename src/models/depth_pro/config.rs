@@ -12,5 +12,6 @@ impl crate::Config {
             .with_resize_mode(crate::ResizeMode::FitExact)
             .with_normalize(true)
             .with_model_file("model.onnx")
+            .with_model_num_dry_run(0)
     }
 }

@@ -1,9 +1,8 @@
 use aksr::Builder;
 use anyhow::Result;
-use ndarray::{s, Axis};
 use rayon::prelude::*;
 
-use crate::{elapsed_module, Config, DynConf, Engine, Hbb, Image, Processor, Xs, X, Y};
+use crate::{elapsed_module, Config, DynConf, Engine, Hbb, Image, Processor, Tensor, Xs, Y};
 
 #[derive(Debug, Builder)]
 pub struct RTDETR {
@@ -46,8 +45,8 @@ impl RTDETR {
 
     fn preprocess(&mut self, xs: &[Image]) -> Result<Xs> {
         let x1 = self.processor.process_images(xs)?;
-        let x2 = X::from(vec![self.height as f32, self.width as f32])
-            .insert_axis(0)?
+        let x2 = Tensor::from(vec![self.height as f32, self.width as f32])
+            .unsqueeze(0)?
             .repeat(0, self.batch)?;
 
         let xs = Xs::from(vec![x1, x2]);
@@ -69,25 +68,24 @@ impl RTDETR {
 
     fn postprocess(&mut self, xs: Xs) -> Result<Vec<Y>> {
         let ys: Vec<Y> = xs[0]
-            .axis_iter(Axis(0))
+            .iter_dim(0)
             .into_par_iter()
-            .zip(xs[1].axis_iter(Axis(0)).into_par_iter())
-            .zip(xs[2].axis_iter(Axis(0)).into_par_iter())
+            .zip(xs[1].iter_dim(0).into_par_iter())
+            .zip(xs[2].iter_dim(0).into_par_iter())
             .enumerate()
             .filter_map(|(idx, ((labels, boxes), scores))| {
                 let ratio = self.processor.images_transform_info[idx].height_scale;
                 let mut y_bboxes = Vec::new();
                 for (i, &score) in scores.iter().enumerate() {
-                    let class_id = labels[i] as usize;
+                    let class_id = labels.get_element::<i64>(i).ok()? as usize;
                     if score < self.confs[class_id] {
                         continue;
                     }
-                    let xyxy = boxes.slice(s![i, ..]);
                     let (x1, y1, x2, y2) = (
-                        xyxy[0] / ratio,
-                        xyxy[1] / ratio,
-                        xyxy[2] / ratio,
-                        xyxy[3] / ratio,
+                        boxes[[i, 0]] / ratio,
+                        boxes[[i, 1]] / ratio,
+                        boxes[[i, 2]] / ratio,
+                        boxes[[i, 3]] / ratio,
                     );
                     let mut hbb = Hbb::default()
                         .with_xyxy(x1.max(0.0f32), y1.max(0.0f32), x2, y2)

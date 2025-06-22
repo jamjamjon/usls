@@ -1,8 +1,8 @@
 use aksr::Builder;
 use anyhow::Result;
-use ndarray::{s, Axis};
+use ndarray::Axis;
 
-use crate::{elapsed_module, Config, Engine, Image, LogitsSampler, Processor, Xs, X, Y};
+use crate::{elapsed_module, Config, Engine, Image, LogitsSampler, Processor, Tensor, Xs, Y};
 
 #[derive(Debug, Builder)]
 pub struct Blip {
@@ -44,7 +44,7 @@ impl Blip {
         })
     }
 
-    pub fn encode_images(&mut self, xs: &[Image]) -> Result<X> {
+    pub fn encode_images(&mut self, xs: &[Image]) -> Result<Tensor> {
         let ys = self.processor.process_images(xs)?;
         self.batch = xs.len(); // update
         let ys = self.visual.run(ys.into())?;
@@ -60,13 +60,13 @@ impl Blip {
     }
 
     pub fn forward(&mut self, images: &[Image], text: Option<&str>) -> Result<Vec<Y>> {
-        let image_embeds = elapsed_module!("blip", "encode_images", self.encode_images(images)?);
-        let ys = elapsed_module!("blip", "generate", self.generate(&image_embeds, text)?);
+        let image_embeds = elapsed_module!("BLIP", "encode_images", self.encode_images(images)?);
+        let ys = elapsed_module!("BLIP", "generate", self.generate(&image_embeds, text)?);
 
         Ok(ys)
     }
 
-    pub fn generate(&mut self, image_embeds: &X, text: Option<&str>) -> Result<Vec<Y>> {
+    pub fn generate(&mut self, image_embeds: &Tensor, text: Option<&str>) -> Result<Vec<Y>> {
         // encode texts
         let mut token_ids = self.encode_texts(text)?;
 
@@ -76,18 +76,18 @@ impl Blip {
         for _ in 0..self.max_length {
             let input_ids_nd = token_ids
                 .iter()
-                .map(|tokens| X::from(tokens.clone()).insert_axis(0))
+                .map(|tokens| Tensor::from(tokens.clone()).unsqueeze(0))
                 .collect::<Result<Vec<_>, _>>()?;
 
-            let input_ids_nd = X::concat(&input_ids_nd, 0)?;
-            let input_ids_attn_mask = X::ones(input_ids_nd.dims());
+            let input_ids_nd = Tensor::cat(&input_ids_nd, 0)?;
+            let input_ids_attn_mask = Tensor::ones(input_ids_nd.dims());
 
             // decode
             let outputs = self.textual.run(Xs::from(vec![
                 input_ids_nd,
                 input_ids_attn_mask,
                 image_embeds.clone(),
-                X::ones(&[self.batch(), image_embeds.dims()[1]]),
+                Tensor::ones(vec![self.batch(), image_embeds.dims()[1]]),
             ]))?;
 
             // decode each token for each batch
@@ -95,7 +95,7 @@ impl Blip {
                 if !finished[i] {
                     let token_id = logits_sampler.decode(
                         &logit
-                            .slice(s![-1, ..])
+                            .slice(ndarray::s![logit.shape()[0] - 1..logit.shape()[0], ..])
                             .into_owned()
                             .into_raw_vec_and_offset()
                             .0,

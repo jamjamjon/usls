@@ -2,7 +2,8 @@ use aksr::Builder;
 use anyhow::Result;
 
 use crate::{
-    elapsed_module, Config, DType, Device, Engine, Image, Processor, Scale, Task, Version, Xs, X,
+    elapsed_module, Config, DType, Device, Engine, Image, Processor, Scale, Task, Tensor, Version,
+    Xs,
 };
 
 #[derive(Debug, Builder)]
@@ -68,7 +69,7 @@ impl BaseModelVisual {
         self.engine.run(xs)
     }
 
-    pub fn encode(&mut self, xs: &[Image]) -> Result<X> {
+    pub fn encode(&mut self, xs: &[Image]) -> Result<Tensor> {
         let xs = elapsed_module!("basemodel", "visual-preprocess", self.preprocess(xs)?);
         let xs = elapsed_module!("basemodel", "visual-inference", self.inference(xs)?);
 

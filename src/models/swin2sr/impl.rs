@@ -1,6 +1,5 @@
 use aksr::Builder;
 use anyhow::Result;
-use ndarray::s;
 
 use crate::{elapsed_module, Config, Engine, Image, Processor, Xs, Y};
 
@@ -55,9 +54,15 @@ impl Swin2SR {
         let h =
             (self.processor.images_transform_info[0].height_src as f32 * self.up_scale) as usize;
         let w = (self.processor.images_transform_info[0].width_src as f32 * self.up_scale) as usize;
-        let y = y.slice(s![.., 0..h, 0..w, ..]);
-        let y = y.map(|x| ((x * 255.).clamp(0., 255.)) as u8);
-        let image = Image::from_u8s(&y.into_raw_vec_and_offset().0, w as _, h as _)?;
+        let y = y.slice(&[0..1, 0..h, 0..w, 0..y.shape()[3]])?;
+        let y = y.to_owned()?;
+        // Convert to u8 values with clamping
+        let y_vec = y.to_vec::<f32>()?;
+        let u8_data: Vec<u8> = y_vec
+            .into_iter()
+            .map(|x| ((x * 255.0).clamp(0.0, 255.0)) as u8)
+            .collect();
+        let image = Image::from_u8s(&u8_data, w as _, h as _)?;
 
         Ok(Y::default().with_images(&[image]))
     }

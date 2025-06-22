@@ -1,7 +1,7 @@
 use aksr::Builder;
 use anyhow::Result;
 use log::{error, info};
-use ndarray::{s, Array, Axis};
+use ndarray::{Array, Axis};
 use rayon::prelude::*;
 use regex::Regex;
 
@@ -324,7 +324,6 @@ impl YOLO {
 
     /// Post-processes model outputs to generate final predictions.
     fn postprocess(&self, xs: Xs) -> Result<Vec<Y>> {
-        // let protos = if xs.len() == 2 { Some(&xs[1]) } else { None };
         let ys: Vec<Y> = xs[0]
             .axis_iter(Axis(0))
             .into_par_iter()
@@ -346,7 +345,7 @@ impl YOLO {
                 // ImageClassifcation
                 if let Task::ImageClassification = self.task {
                     let x = if self.layout.apply_softmax {
-                        let exps = slice_clss.mapv(|x| x.exp());
+                        let exps = slice_clss.to_owned().mapv(|x| x.exp());
                         let stds = exps.sum_axis(Axis(0));
                         exps / stds
                     } else {
@@ -379,7 +378,7 @@ impl YOLO {
                             Some(ids) => (ids[[i, 0]] as _, slice_clss[[i, 0]] as _),
                             None => {
                                 let (class_id, &confidence) = slice_clss
-                                    .slice(s![i, ..])
+                                    .slice(ndarray::s![i..i + 1, ..])
                                     .into_iter()
                                     .enumerate()
                                     .max_by(|a, b| a.1.total_cmp(b.1))?;
@@ -519,13 +518,14 @@ impl YOLO {
                         let y_kpts = hbbs
                             .into_par_iter()
                             .filter_map(|hbb| {
-                                let pred = pred_kpts.slice(s![hbb.uid(), ..]);
+                                let pred =
+                                    pred_kpts.slice(ndarray::s![hbb.uid()..hbb.uid() + 1, ..]);
                                 let kpts = (0..self.nk)
                                     .into_par_iter()
                                     .map(|i| {
-                                        let kx = pred[kpt_step * i] / ratio;
-                                        let ky = pred[kpt_step * i + 1] / ratio;
-                                        let kconf = pred[kpt_step * i + 2];
+                                        let kx = pred[[0, kpt_step * i]] / ratio;
+                                        let ky = pred[[0, kpt_step * i + 1]] / ratio;
+                                        let kconf = pred[[0, kpt_step * i + 2]];
                                         if kconf < self.kconfs[i] {
                                             Keypoint::default()
                                         } else {
@@ -557,18 +557,21 @@ impl YOLO {
                         let y_masks = hbbs
                             .into_par_iter()
                             .filter_map(|hbb| {
-                                let coefs = coefs.slice(s![hbb.uid(), ..]).to_vec();
-                                let proto = protos.slice(s![idx, .., .., ..]);
-                                let (nm, mh, mw) = proto.dim();
+                                let coefs = coefs.slice(ndarray::s![hbb.uid(), ..]).to_vec();
+                                let proto = protos.slice((idx, .., .., ..)).ok()?;
+                                let shape = proto.shape();
+                                let (nm, mh, mw) = (shape[0], shape[1], shape[2]);
 
                                 // coefs * proto => mask
                                 let coefs = Array::from_shape_vec((1, nm), coefs).ok()?; // (n, nm)
-                                let proto = proto.to_shape((nm, mh * mw)).ok()?; // (nm, mh * mw)
-                                let mask = coefs.dot(&proto); // (mh, mw, n)
+                                let proto_tensor = proto.to_owned().ok()?;
+                                let proto = proto_tensor.as_array().to_shape((nm, mh * mw)).ok()?; // (nm, mh * mw)
+                                let mask = coefs.dot(&proto); // (1, mh * mw)
 
                                 // Mask rescale
+                                let (mask_data, _) = mask.into_raw_vec_and_offset();
                                 let mask = Ops::resize_lumaf32_u8(
-                                    &mask.into_raw_vec_and_offset().0,
+                                    &mask_data,
                                     mw as _,
                                     mh as _,
                                     image_width as _,

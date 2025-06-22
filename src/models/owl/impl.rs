@@ -1,9 +1,8 @@
 use aksr::Builder;
 use anyhow::Result;
-use ndarray::{s, Axis};
 use rayon::prelude::*;
 
-use crate::{elapsed_module, Config, DynConf, Engine, Hbb, Image, Processor, Xs, X, Y};
+use crate::{elapsed_module, Config, DynConf, Engine, Hbb, Image, Processor, Tensor, Xs, Y};
 
 /// OWL-ViT v2 model for open-vocabulary object detection.
 #[derive(Debug, Builder)]
@@ -17,8 +16,8 @@ pub struct OWLv2 {
     confs: DynConf,
     processor: Processor,
     spec: String,
-    input_ids: X,
-    attention_mask: X,
+    input_ids: Tensor,
+    attention_mask: Tensor,
 }
 
 impl OWLv2 {
@@ -54,10 +53,8 @@ impl OWLv2 {
             .into_iter()
             .flatten()
             .collect();
-        let input_ids: X = ndarray::Array2::from_shape_vec((n, input_ids.len() / n), input_ids)?
-            .into_dyn()
-            .into();
-        let attention_mask = X::ones_like(&input_ids);
+        let input_ids: Tensor = Tensor::from_shape_vec((n, input_ids.len() / n), input_ids)?;
+        let attention_mask = Tensor::ones_like(&input_ids);
 
         Ok(Self {
             engine,
@@ -99,9 +96,9 @@ impl OWLv2 {
 
     fn postprocess(&mut self, xs: Xs) -> Result<Vec<Y>> {
         let ys: Vec<Y> = xs[0]
-            .axis_iter(Axis(0))
+            .iter_dim(0)
             .into_par_iter()
-            .zip(xs[1].axis_iter(Axis(0)).into_par_iter())
+            .zip(xs[1].iter_dim(0).into_par_iter())
             .enumerate()
             .filter_map(|(idx, (clss, bboxes))| {
                 let (image_height, image_width) = (
@@ -111,26 +108,26 @@ impl OWLv2 {
 
                 let ratio = image_height.max(image_width) as f32;
                 let y_bboxes: Vec<Hbb> = clss
-                    .axis_iter(Axis(0))
+                    .iter_dim(0)
                     .into_par_iter()
                     .enumerate()
                     .filter_map(|(i, clss_)| {
-                        let (class_id, &confidence) = clss_
-                            .into_iter()
-                            .enumerate()
-                            .max_by(|a, b| a.1.total_cmp(b.1))?;
+                        let (class_id, confidence) =
+                            clss_.iter().enumerate().max_by(|a, b| a.1.total_cmp(b.1))?;
 
                         let confidence = 1. / ((-confidence).exp() + 1.);
                         if confidence < self.confs[class_id] {
                             return None;
                         }
 
-                        let bbox = bboxes.slice(s![i, ..]).mapv(|x| x * ratio);
+                        let bbox_slice = bboxes.slice((i..i + 1, ..)).ok()?.to_owned().ok()?;
+                        let bbox_scaled = (bbox_slice * ratio).ok()?;
+                        let bbox_array = bbox_scaled.as_array();
                         let (x, y, w, h) = (
-                            (bbox[0] - bbox[2] / 2.).max(0.0f32),
-                            (bbox[1] - bbox[3] / 2.).max(0.0f32),
-                            bbox[2],
-                            bbox[3],
+                            (bbox_array[[0, 0]] - bbox_array[[0, 2]] / 2.).max(0.0f32),
+                            (bbox_array[[0, 1]] - bbox_array[[0, 3]] / 2.).max(0.0f32),
+                            bbox_array[[0, 2]],
+                            bbox_array[[0, 3]],
                         );
 
                         Some(

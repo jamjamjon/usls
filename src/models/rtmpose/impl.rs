@@ -1,6 +1,6 @@
 use aksr::Builder;
 use anyhow::Result;
-use ndarray::s;
+
 use rayon::prelude::*;
 use std::f32::consts::PI;
 
@@ -141,17 +141,41 @@ impl RTMPose {
 
         let simcc_x_array = &xs[0];
         let simcc_y_array = &xs[1];
-        let y_kpts: Vec<Vec<Keypoint>> = (0..self.batch)
+        let y_kpts: Result<Vec<Vec<Keypoint>>, anyhow::Error> = (0..self.batch)
             .into_par_iter()
-            .map(|batch_idx| {
+            .map(|batch_idx| -> Result<Vec<Keypoint>, anyhow::Error> {
                 let mut keypoints = Vec::new();
                 let center = &centers_and_scales.centers[batch_idx];
                 let scale = &centers_and_scales.scales[batch_idx];
                 for kpt_idx in 0..self.nk {
-                    let simcc_x_slice = simcc_x_array.slice(s![batch_idx, kpt_idx, ..]);
-                    let simcc_y_slice = simcc_y_array.slice(s![batch_idx, kpt_idx, ..]);
-                    let (x_loc, max_val_x) = Self::argmax_and_max(&simcc_x_slice);
-                    let (y_loc, max_val_y) = Self::argmax_and_max(&simcc_y_slice);
+                    let simcc_x_slice = simcc_x_array.slice(&[
+                        batch_idx..batch_idx + 1,
+                        kpt_idx..kpt_idx + 1,
+                        0..simcc_x_array.shape()[2],
+                    ])?;
+                    let simcc_y_slice = simcc_y_array.slice(&[
+                        batch_idx..batch_idx + 1,
+                        kpt_idx..kpt_idx + 1,
+                        0..simcc_y_array.shape()[2],
+                    ])?;
+                    let simcc_x_tensor = simcc_x_slice.to_owned()?;
+                    let simcc_y_tensor = simcc_y_slice.to_owned()?;
+
+                    // Flatten the tensors to 1D for argmax operation
+                    let simcc_x_flat = simcc_x_tensor.flatten(0, simcc_x_tensor.ndim() - 1)?;
+                    let simcc_y_flat = simcc_y_tensor.flatten(0, simcc_y_tensor.ndim() - 1)?;
+
+                    // Get argmax and max values using Tensor methods
+                    let x_argmax_tensor = simcc_x_flat.argmax(None, false)?;
+                    let y_argmax_tensor = simcc_y_flat.argmax(None, false)?;
+                    let x_max_tensor = simcc_x_flat.max_dim(None, false)?;
+                    let y_max_tensor = simcc_y_flat.max_dim(None, false)?;
+
+                    // Extract scalar values
+                    let x_loc = x_argmax_tensor.get_element::<f32>(0)? as usize;
+                    let y_loc = y_argmax_tensor.get_element::<f32>(0)? as usize;
+                    let max_val_x = x_max_tensor.get_element::<f32>(0)?;
+                    let max_val_y = y_max_tensor.get_element::<f32>(0)?;
                     let confidence = 0.5 * (max_val_x + max_val_y);
                     let mut x = x_loc as f32 / self.simcc_split_ratio;
                     let mut y = y_loc as f32 / self.simcc_split_ratio;
@@ -176,25 +200,14 @@ impl RTMPose {
                     keypoints.push(keypoint);
                 }
 
-                keypoints
+                Ok(keypoints)
             })
             .collect();
+        let y_kpts = y_kpts?;
 
         Ok(Y::default().with_keypointss(&y_kpts))
     }
-    fn argmax_and_max(arr: &ndarray::ArrayView1<f32>) -> (usize, f32) {
-        let mut max_idx = 0;
-        let mut max_val = arr[0];
-
-        for (idx, &val) in arr.iter().enumerate() {
-            if val > max_val {
-                max_val = val;
-                max_idx = idx;
-            }
-        }
-
-        (max_idx, max_val)
-    }
+    // Removed argmax_and_max function as we now use Tensor's built-in argmax and max methods
 
     fn hbb2cs(hbb: &Hbb, padding: f32) -> (Keypoint, Keypoint) {
         let (x1, y1, x2, y2) = hbb.xyxy();
