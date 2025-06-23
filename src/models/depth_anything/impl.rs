@@ -57,7 +57,7 @@ impl DepthAnything {
                     self.processor.images_transform_info[idx].height_src,
                     self.processor.images_transform_info[idx].width_src,
                 );
-                let v = luma.as_slice()?;
+                let v = luma.as_slice::<f32>()?;
                 let max_ = v.iter().max_by(|x, y| x.total_cmp(y))?;
                 let min_ = v.iter().min_by(|x, y| x.total_cmp(y))?;
                 let v = v

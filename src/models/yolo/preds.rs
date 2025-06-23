@@ -1,6 +1,4 @@
-use ndarray::{ArrayBase, ArrayView, Axis, Dim, IxDyn, IxDynImpl, ViewRepr};
-
-use crate::Task;
+use crate::{Task, TensorView};
 
 /// Bounding box coordinate format types.
 #[derive(Debug, Clone, PartialEq)]
@@ -227,72 +225,86 @@ impl YOLOPredsFormat {
     }
 
     #[allow(clippy::type_complexity)]
-    pub fn parse_preds<'a>(
-        &'a self,
-        x: ArrayBase<ViewRepr<&'a f32>, Dim<IxDynImpl>>,
+    pub fn parse_preds(
+        &self,
+        x: TensorView,
         nc: usize,
-    ) -> (
-        Option<ArrayView<'a, f32, IxDyn>>,
-        Option<ArrayView<'a, f32, IxDyn>>,
-        ArrayView<'a, f32, IxDyn>,
-        Option<ArrayView<'a, f32, IxDyn>>,
-        Option<ArrayView<'a, f32, IxDyn>>,
-        Option<ArrayView<'a, f32, IxDyn>>,
-        Option<ArrayView<'a, f32, IxDyn>>,
-    ) {
+    ) -> anyhow::Result<(
+        Option<crate::Tensor>,
+        Option<crate::Tensor>,
+        crate::Tensor,
+        Option<crate::Tensor>,
+        Option<crate::Tensor>,
+        Option<crate::Tensor>,
+        Option<crate::Tensor>,
+    )> {
         match self.task() {
-            Task::ImageClassification => (None, None, x, None, None, None, None),
+            Task::ImageClassification => Ok((None, None, x.to_owned()?, None, None, None, None)),
             _ => {
                 let x = if self.is_anchors_first() {
-                    x
+                    x.to_owned()?
                 } else {
-                    x.reversed_axes()
+                    x.reversed_axes()?
                 };
 
                 // each tasks slices
-                let (slice_bboxes, xs) = x.split_at(Axis(1), 4);
-                let (slice_id, slice_clss, slice_confs, xs) = match self.clss {
+                let x_view = x.view();
+                let (slice_bboxes, xs_tensor) = x_view.split_at(1, 4)?;
+                let xs_view = xs_tensor.view();
+
+                let (slice_id, slice_clss, slice_confs, xs_tensor) = match self.clss {
                     ClssType::ConfClss => {
-                        let (confs, xs) = xs.split_at(Axis(1), 1);
-                        let (clss, xs) = xs.split_at(Axis(1), nc);
-                        (None, clss, Some(confs), xs)
+                        let (confs, xs) = xs_view.split_at(1, 1)?;
+                        let (clss, xs) = xs.split_at(1, nc)?;
+                        (None, Some(clss), Some(confs), xs)
                     }
                     ClssType::ClssConf => {
-                        let (clss, xs) = xs.split_at(Axis(1), nc);
-                        let (confs, xs) = xs.split_at(Axis(1), 1);
-                        (None, clss, Some(confs), xs)
+                        let (clss, xs) = xs_view.split_at(1, nc)?;
+                        let (confs, xs) = xs.split_at(1, 1)?;
+                        (None, Some(clss), Some(confs), xs)
                     }
                     ClssType::ConfCls => {
-                        let (clss, xs) = xs.split_at(Axis(1), 1);
-                        let (ids, xs) = xs.split_at(Axis(1), 1);
-                        (Some(ids), clss, None, xs)
+                        let (clss, xs) = xs_view.split_at(1, 1)?;
+                        let (ids, xs) = xs.split_at(1, 1)?;
+                        (Some(ids), Some(clss), None, xs)
                     }
                     ClssType::ClsConf => {
-                        let (ids, xs) = xs.split_at(Axis(1), 1);
-                        let (clss, xs) = xs.split_at(Axis(1), 1);
-                        (Some(ids), clss, None, xs)
+                        let (ids, xs) = xs_view.split_at(1, 1)?;
+                        let (clss, xs) = xs.split_at(1, 1)?;
+                        (Some(ids), Some(clss), None, xs)
                     }
                     ClssType::Clss => {
-                        let (clss, xs) = xs.split_at(Axis(1), nc);
-                        (None, clss, None, xs)
+                        let (clss, xs) = xs_view.split_at(1, nc)?;
+                        (None, Some(clss), None, xs)
                     }
                 };
+                let xs = xs_tensor.view();
                 let (slice_kpts, slice_coefs, slice_radians) = match self.task() {
-                    Task::Pose | Task::KeypointsDetection => (Some(xs), None, None),
-                    Task::InstanceSegmentation => (None, Some(xs), None),
-                    Task::Obb | Task::OrientedObjectDetection => (None, None, Some(xs)),
+                    Task::Pose | Task::KeypointsDetection => {
+                        // For pose detection, remaining xs contains keypoints
+                        (Some(xs.to_owned()?), None, None)
+                    }
+                    Task::InstanceSegmentation => {
+                        // For instance segmentation, remaining xs contains mask coefficients
+                        (None, Some(xs.to_owned()?), None)
+                    }
+                    Task::Obb | Task::OrientedObjectDetection => {
+                        // For OBB, remaining xs contains rotation angles
+                        (None, None, Some(xs.to_owned()?))
+                    }
                     _ => (None, None, None),
                 };
+                let xs_owned = xs.to_owned()?;
 
-                (
+                Ok((
                     Some(slice_bboxes),
                     slice_id,
-                    slice_clss,
+                    slice_clss.unwrap_or(xs_owned),
                     slice_confs,
                     slice_kpts,
                     slice_coefs,
                     slice_radians,
-                )
+                ))
             }
         }
     }

@@ -246,13 +246,17 @@ impl Engine {
                 // Create random tensor with appropriate data type
                 // Using normal distribution for more realistic data patterns
                 match dtype {
-                    crate::DType::Fp32 | crate::DType::Fp64 => {
+                    crate::DType::Fp32 => {
                         // Use normal distribution for floating point types
-                        Tensor::randn(shape, *dtype)
+                        Tensor::randn::<f32, _>(shape)
+                    }
+                    crate::DType::Fp64 => {
+                        // Use normal distribution for floating point types
+                        Tensor::randn::<f64, _>(shape)
                     }
                     _ => {
                         // TODO: (workaround) Use uniform random for integer and other types
-                        Tensor::rand(shape, crate::DType::Fp32)
+                        Tensor::rand(0.0f32, 1.0f32, shape)
                     }
                 }
             })
@@ -452,7 +456,7 @@ impl Engine {
                     debug!("Failed to extract from ort outputs: {:?}. A default value has been generated.", err);
                     Ok(Tensor::zeros(0))
                 }
-                Ok(arr) => Ok(Tensor::from_array(arr.into_owned().into_dyn())),
+                Ok(arr) => Ok(arr.into_owned().into_dyn().into()),
             }
         }
 

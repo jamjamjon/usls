@@ -46,7 +46,7 @@ fn main() -> Result<()> {
 }
 
 fn basic_tensor_view_demo() -> Result<()> {
-    let tensor = Tensor::rand([6, 8, 4], usls::DType::Fp32)?;
+    let tensor = Tensor::rand(0.0f32, 1.0f32, [6, 8, 4])?;
     println!("Original tensor shape: {:?}", tensor.shape());
 
     // Method 1: Create view of entire tensor using .view()
@@ -110,7 +110,7 @@ fn tensor_view_mut_demo() -> Result<()> {
 
 fn image_processing_demo() -> Result<()> {
     // Simulate batch image data [batch, height, width, channels]
-    let batch_images = Tensor::rand([8, 224, 224, 3], usls::DType::Fp32)?;
+    let batch_images = Tensor::rand(0.0f32, 1.0f32, [8, 224, 224, 3])?;
     println!("Batch images shape: {:?}", batch_images.shape());
 
     // Single image view
@@ -166,7 +166,7 @@ fn kv_cache_demo() -> Result<()> {
 
 fn sequence_processing_demo() -> Result<()> {
     // Simulate sequence data [batch, seq_len, hidden_dim]
-    let sequence = Tensor::rand([16, 512, 768], usls::DType::Fp32)?;
+    let sequence = Tensor::rand(0.0f32, 1.0f32, [16, 512, 768])?;
     println!("Sequence shape: {:?}", sequence.shape());
 
     // Truncate sequence
@@ -224,7 +224,7 @@ fn performance_patterns_demo() -> Result<()> {
 }
 
 fn advanced_view_operations() -> Result<()> {
-    let tensor = Tensor::rand([8, 8, 8, 8], usls::DType::Fp32)?;
+    let tensor = Tensor::rand(0.0f32, 1.0f32, [8, 8, 8, 8])?;
     println!("4D tensor shape: {:?}", tensor.shape());
 
     // Chained view operations

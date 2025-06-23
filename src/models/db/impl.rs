@@ -86,7 +86,7 @@ impl DB {
                 // reshape
                 let ratio = self.processor.images_transform_info[idx].height_scale;
                 let v = luma
-                    .as_slice()?
+                    .as_slice::<f32>()?
                     .par_iter()
                     .map(|x| {
                         if x <= &self.binary_thresh {

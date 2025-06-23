@@ -113,7 +113,7 @@ impl Processor {
             }
             let (image, images_transform_info) = xs[0].pad(self.pad_size)?;
             self.images_transform_info = vec![images_transform_info];
-            Image::from(image).to_ndarray()?.unsqueeze(0)?
+            Image::from(image).to_tensor()?.unsqueeze(0)?
         } else if self.do_resize {
             let (x, images_transform_info) = self.par_resize(xs)?;
             self.images_transform_info = images_transform_info;
@@ -154,7 +154,7 @@ impl Processor {
                     self.padding_value,
                 )?;
 
-                let y = image.to_ndarray()?.unsqueeze(0)?;
+                let y = image.to_tensor()?.unsqueeze(0)?;
                 Ok((y, vec![trans_info]))
             }
             _ => {
@@ -180,7 +180,7 @@ impl Processor {
                             self.padding_value,
                         )?;
 
-                        let y = image.to_ndarray()?;
+                        let y = image.to_tensor()?;
                         {
                             let mut ys_guard = ys
                                 .lock()

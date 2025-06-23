@@ -1,6 +1,5 @@
 use aksr::Builder;
 use anyhow::Result;
-use ndarray::{Array2, Axis};
 
 use crate::{elapsed_module, Config, Engine, Image, Mask, Ops, Polygon, Processor, Task, Xs, Y};
 
@@ -67,37 +66,45 @@ impl Sapiens {
 
     pub fn postprocess_seg(&self, xs: Xs) -> Result<Vec<Y>> {
         let mut ys: Vec<Y> = Vec::new();
-        for (idx, b) in xs[0].axis_iter(Axis(0)).enumerate() {
+        for (idx, b) in xs[0].iter_dim(0).enumerate() {
             // rescale
             let (h1, w1) = (
                 self.processor.images_transform_info[idx].height_src,
                 self.processor.images_transform_info[idx].width_src,
             );
-            let masks = Ops::interpolate_3d(b.to_owned(), w1 as _, h1 as _, "Bilinear")?;
+            let masks_array = Ops::interpolate_3d(
+                b.as_array().clone().into_owned(),
+                w1 as _,
+                h1 as _,
+                "Bilinear",
+            )?;
+            let masks: crate::Tensor = masks_array.into();
 
             // generate mask
-            let mut mask = Array2::<usize>::zeros((h1 as _, w1 as _));
+            let mut mask = vec![vec![0usize; w1 as usize]; h1 as usize];
             let mut ids = Vec::new();
             for hh in 0..h1 {
                 for ww in 0..w1 {
-                    let pt_slice = masks.slice(ndarray::s![
+                    let pt_view = masks.slice((
                         ..,
-                        hh as usize..hh as usize + 1,
-                        ww as usize..ww as usize + 1
-                    ]);
-                    let (i, c) = match pt_slice
+                        hh as usize..(hh + 1) as usize,
+                        ww as usize..(ww + 1) as usize,
+                    ))?;
+                    let pt_slice = pt_view.to_owned()?;
+                    let pt_vec = pt_slice.to_vec::<f32>()?;
+                    let (i, c) = match pt_vec
                         .into_iter()
                         .enumerate()
-                        .max_by(|a, b| a.1.total_cmp(b.1))
+                        .max_by(|a, b| a.1.total_cmp(&b.1))
                     {
                         Some((i, c)) => (i, c),
                         None => continue,
                     };
 
-                    if *c <= 0. || i == 0 {
+                    if c <= 0. || i == 0 {
                         continue;
                     }
-                    mask[[hh as _, ww as _]] = i;
+                    mask[hh as usize][ww as usize] = i;
 
                     if !ids.contains(&i) {
                         ids.push(i);
@@ -109,10 +116,11 @@ impl Sapiens {
             let mut y_masks: Vec<Mask> = Vec::new();
             let mut y_polygons: Vec<Polygon> = Vec::new();
             for i in ids.iter() {
-                let luma = mask
-                    .mapv(|x| if x == *i { 255 } else { 0 })
-                    .into_raw_vec_and_offset()
-                    .0;
+                let luma: Vec<u8> = mask
+                    .iter()
+                    .flat_map(|row| row.iter())
+                    .map(|&x| if x == *i { 255u8 } else { 0u8 })
+                    .collect();
                 let mut mask = match Mask::new(&luma, w1, h1) {
                     Ok(luma) => luma.with_id(*i),
                     Err(_) => continue,

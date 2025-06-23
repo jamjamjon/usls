@@ -1,6 +1,5 @@
 use aksr::Builder;
 use anyhow::Result;
-use ndarray::Axis;
 
 use crate::{elapsed_module, Config, Engine, Image, LogitsSampler, Processor, Tensor, Xs, Y};
 
@@ -91,15 +90,10 @@ impl Blip {
             ]))?;
 
             // decode each token for each batch
-            for (i, logit) in outputs[0].axis_iter(Axis(0)).enumerate() {
+            for (i, logit) in outputs[0].iter_dim(0).enumerate() {
                 if !finished[i] {
-                    let token_id = logits_sampler.decode(
-                        &logit
-                            .slice(ndarray::s![logit.shape()[0] - 1..logit.shape()[0], ..])
-                            .into_owned()
-                            .into_raw_vec_and_offset()
-                            .0,
-                    )?;
+                    let last_token_logit = logit.slice((logit.shape()[0] - 1.., ..))?.to_owned()?;
+                    let token_id = logits_sampler.decode(&last_token_logit.to_vec::<f32>()?)?;
                     if token_id == self.eos_token_id {
                         finished[i] = true;
                     }

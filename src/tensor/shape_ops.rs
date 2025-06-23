@@ -89,7 +89,7 @@ impl Tensor {
 
                 // Stack arrays along the specified dimension
                 let stacked = stack_arrays_f32(&arrays, dim)?;
-                Ok(Self::from_array(stacked.into_dyn()))
+                Ok(stacked.into_dyn().into())
             }
             DTypeTensor::F64(_) => {
                 let arrays: Result<Vec<_>> = tensors
@@ -101,7 +101,7 @@ impl Tensor {
                     .collect();
                 let arrays = arrays?;
                 let stacked = stack_arrays_f64(&arrays, dim)?;
-                Ok(Self::from_array(stacked.into_dyn()))
+                Ok(stacked.into_dyn().into())
             }
             _ => anyhow::bail!("Stack operation not yet implemented for dtype: {:?}", dtype),
         }

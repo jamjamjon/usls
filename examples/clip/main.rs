@@ -1,5 +1,5 @@
 use anyhow::Result;
-use usls::{models::Clip, Config, DataLoader};
+use usls::{models::Clip, Config, DType, DataLoader};
 
 #[derive(argh::FromArgs)]
 /// CLIP Example
@@ -21,16 +21,17 @@ fn main() -> Result<()> {
     let args: Args = argh::from_env();
 
     // build model
-    let config = Config::mobileclip_s0()
+    let config = Config::
+    // mobileclip_s0()
         // mobileclip_blt()
         // clip_vit_b16()
         // clip_vit_l14()
         // clip_vit_b32()
-        // jina_clip_v1()
-        // jina_clip_v2()
-        .with_dtype_all(args.dtype.parse()?)
-        .with_device_all(args.device.parse()?)
-        .commit()?;
+        jina_clip_v1()
+    // jina_clip_v2()
+    .with_dtype_all(args.dtype.parse()?)
+    .with_device_all(args.device.parse()?)
+    .commit()?;
     let mut model = Clip::new(config)?;
 
     // encode texts
@@ -52,7 +53,9 @@ fn main() -> Result<()> {
     feats_image /= &feats_image.norm(2, Some(1), true)?;
 
     // similarity
-    let matrix = (feats_image * 100.)?.dot(&feats_text)?.softmax(1)?;
+    let matrix = (feats_image.to_dtype(DType::Fp32)? * 100.)?
+        .dot(&feats_text.to_dtype(DType::Fp32)?)?
+        .softmax(1)?;
     for (i, row) in matrix.iter_dim(0).enumerate() {
         let (id, &score) = row
             .iter()

@@ -438,7 +438,7 @@ impl Image {
         Ok((padded, images_transform_info))
     }
 
-    pub fn to_ndarray(&self) -> Result<Tensor> {
+    pub fn to_tensor(&self) -> Result<Tensor> {
         Tensor::from_shape_vec(
             vec![self.height() as usize, self.width() as usize, 3],
             self.to_f32s(),

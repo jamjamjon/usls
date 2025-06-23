@@ -8,7 +8,7 @@ use usls::tensor::Tensor;
 
 #[test]
 fn test_basic_tensor_view() -> Result<()> {
-    let tensor = Tensor::rand([6, 8, 4], usls::DType::Fp32)?;
+    let tensor = Tensor::rand(0.0f32, 1.0f32, [6, 8, 4])?;
 
     // Test .view() method - creates view of entire tensor
     let full_view = tensor.view();
@@ -66,7 +66,7 @@ fn test_tensor_view_mut() -> Result<()> {
 #[test]
 fn test_view_methods() -> Result<()> {
     // Test .view() method
-    let tensor = Tensor::rand([3, 4, 5], usls::DType::Fp32)?;
+    let tensor = Tensor::rand(0.0f32, 1.0f32, [3, 4, 5])?;
     let view = tensor.view();
 
     assert_eq!(view.shape(), tensor.shape());
@@ -98,7 +98,7 @@ fn test_view_methods() -> Result<()> {
 
 #[test]
 fn test_chained_views() -> Result<()> {
-    let tensor = Tensor::rand([8, 8, 8, 8], usls::DType::Fp32)?;
+    let tensor = Tensor::rand(0.0f32, 1.0f32, [8, 8, 8, 8])?;
 
     // Chained view operations
     let view1 = tensor.slice((1..7, 0..8, 0..8, 0..8))?;
@@ -115,7 +115,7 @@ fn test_chained_views() -> Result<()> {
 
 #[test]
 fn test_sub_views() -> Result<()> {
-    let tensor = Tensor::rand([6, 8, 4], usls::DType::Fp32)?;
+    let tensor = Tensor::rand(0.0f32, 1.0f32, [6, 8, 4])?;
     let view = tensor.slice((1..5, 2..6, 0..4))?;
 
     // Create sub-view
@@ -134,7 +134,7 @@ fn test_sub_views() -> Result<()> {
 #[test]
 fn test_image_processing_views() -> Result<()> {
     // Simulate batch image data [batch, height, width, channels]
-    let batch_images = Tensor::rand([8, 224, 224, 3], usls::DType::Fp32)?;
+    let batch_images = Tensor::rand(0.0f32, 1.0f32, [8, 224, 224, 3])?;
 
     // Single image view
     let single_image = batch_images.slice((0..1, 0..224, 0..224, 0..3))?;
@@ -190,7 +190,7 @@ fn test_kv_cache_views() -> Result<()> {
 #[test]
 fn test_sequence_processing_views() -> Result<()> {
     // Simulate sequence data [batch, seq_len, hidden_dim]
-    let sequence = Tensor::rand([16, 512, 768], usls::DType::Fp32)?;
+    let sequence = Tensor::rand(0.0f32, 1.0f32, [16, 512, 768])?;
 
     // Truncate sequence
     let truncated = sequence.slice((0..16, 0..256, 0..768))?;
@@ -236,7 +236,7 @@ fn test_performance_patterns() -> Result<()> {
 
 #[test]
 fn test_edge_cases() -> Result<()> {
-    let tensor = Tensor::rand([8, 8, 8, 8], usls::DType::Fp32)?;
+    let tensor = Tensor::rand(0.0f32, 1.0f32, [8, 8, 8, 8])?;
 
     // Single element views
     let single_element = tensor.slice((3..4, 4..5, 5..6, 6..7))?;
@@ -256,7 +256,7 @@ fn test_edge_cases() -> Result<()> {
 
 #[test]
 fn test_complex_indexing() -> Result<()> {
-    let tensor = Tensor::rand([8, 8, 8, 8], usls::DType::Fp32)?;
+    let tensor = Tensor::rand(0.0f32, 1.0f32, [8, 8, 8, 8])?;
 
     // Complex indexing patterns
     let complex_view = tensor.slice((0..4, 1..7, 2..6, 3..5))?;
@@ -271,7 +271,7 @@ fn test_complex_indexing() -> Result<()> {
 
 #[test]
 fn test_view_properties() -> Result<()> {
-    let tensor = Tensor::rand([6, 8, 4], usls::DType::Fp32)?;
+    let tensor = Tensor::rand(0.0f32, 1.0f32, [6, 8, 4])?;
     let view = tensor.slice((1..5, 2..6, 0..4))?;
 
     // Test basic properties
@@ -290,7 +290,7 @@ fn test_view_properties() -> Result<()> {
 
 #[test]
 fn test_view_conversion() -> Result<()> {
-    let tensor = Tensor::rand([4, 6, 3], usls::DType::Fp32)?;
+    let tensor = Tensor::rand(0.0f32, 1.0f32, [4, 6, 3])?;
     let view = tensor.slice((1..3, 2..5, 0..3))?;
 
     // Convert view to owned tensor
@@ -332,7 +332,7 @@ fn test_batch_processing() -> Result<()> {
 
 #[test]
 fn test_tuple_syntax_consistency() -> Result<()> {
-    let tensor = Tensor::rand([6, 8, 4], usls::DType::Fp32)?;
+    let tensor = Tensor::rand(0.0f32, 1.0f32, [6, 8, 4])?;
 
     // Test various tuple syntax patterns
     let view1 = tensor.slice((1..5, 2..6, 0..4))?;

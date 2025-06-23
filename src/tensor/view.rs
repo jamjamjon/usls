@@ -8,7 +8,7 @@ use super::slice::{IntoSliceSpec, SliceOrIndex};
 use super::{DTypeTensor, Tensor, TensorElement};
 use crate::core::DType;
 use anyhow::Result;
-use ndarray::{ArrayView, ArrayViewMut, IxDyn, SliceInfo, SliceInfoElem};
+use ndarray::{ArrayView, ArrayViewMut, Axis, IxDyn, SliceInfo, SliceInfoElem};
 use std::ops::Range;
 
 /// Zero-copy immutable view into a tensor
@@ -314,7 +314,7 @@ impl<'a> TensorView<'a> {
     pub fn to_owned(&self) -> Result<Tensor> {
         tensor_view_match!(&self.data, view, {
             let owned = view.to_owned().into_dyn();
-            Ok(Tensor::from_array(owned))
+            Ok(owned.into())
         })
     }
 
@@ -568,6 +568,115 @@ impl<'a> TensorView<'a> {
     pub fn transpose(&self) -> Result<Tensor> {
         let tensor = self.to_owned()?;
         tensor.transpose()
+    }
+
+    /// Reverse the order of axes (dimensions)
+    ///
+    /// This method reverses the order of tensor dimensions. For example,
+    /// a tensor view with shape [2, 3, 4] becomes [4, 3, 2] after calling this method.
+    ///
+    /// # Returns
+    ///
+    /// Returns a `Result<Tensor>` containing the tensor with reversed axes or an error
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use usls::tensor::Tensor;
+    ///
+    /// let tensor = Tensor::zeros(vec![2, 3, 4]);
+    /// let view = tensor.view();
+    /// let reversed = view.reversed_axes().unwrap();
+    /// assert_eq!(reversed.shape(), &[4, 3, 2]);
+    /// ```
+    pub fn reversed_axes(&self) -> Result<Tensor> {
+        let tensor = self.to_owned()?;
+        tensor.reversed_axes()
+    }
+
+    /// Split the tensor view along the specified axis at the given index
+    ///
+    /// This method splits the tensor view into two parts along the specified axis.
+    /// The first part contains elements before the split index, and the second part
+    /// contains elements from the split index onwards.
+    ///
+    /// # Arguments
+    ///
+    /// * `axis` - The axis along which to split (0-indexed)
+    /// * `index` - The index at which to split (must be <= dimension size)
+    ///
+    /// # Returns
+    ///
+    /// Returns a `Result<(Tensor, Tensor)>` containing the two split tensors or an error
+    ///
+    /// # Panics
+    ///
+    /// Panics if axis or index is out of bounds.
+    pub fn split_at(&self, axis: usize, index: usize) -> Result<(Tensor, Tensor)> {
+        // Check if axis is valid
+        if axis >= self.ndim() {
+            anyhow::bail!(
+                "Axis {} is out of bounds for tensor with {} dimensions",
+                axis,
+                self.ndim()
+            );
+        }
+
+        // Check if index is valid
+        let dim_size = self.shape()[axis];
+        if index > dim_size {
+            anyhow::bail!(
+                "Index {} is out of bounds for axis {} with size {}",
+                index,
+                axis,
+                dim_size
+            );
+        }
+
+        // Use ndarray's efficient split_at method directly on views
+        match &self.data {
+            TensorViewData::F32(view) => {
+                let (left_view, right_view) = view.clone().split_at(Axis(axis), index);
+                let _left_shape = left_view.shape().to_vec();
+                let _right_shape = right_view.shape().to_vec();
+                Ok((
+                    Tensor {
+                        data: DTypeTensor::F32(left_view.to_owned().into_shared()),
+                        dtype: self.dtype,
+                        uid: Tensor::generate_uid(),
+                    },
+                    Tensor {
+                        data: DTypeTensor::F32(right_view.to_owned().into_shared()),
+                        dtype: self.dtype,
+                        uid: Tensor::generate_uid(),
+                    },
+                ))
+            }
+            TensorViewData::F64(view) => {
+                let (left_view, right_view) = view.clone().split_at(Axis(axis), index);
+                let _left_shape = left_view.shape().to_vec();
+                let _right_shape = right_view.shape().to_vec();
+                Ok((
+                    Tensor {
+                        data: DTypeTensor::F64(left_view.to_owned().into_shared()),
+                        dtype: self.dtype,
+                        uid: Tensor::generate_uid(),
+                    },
+                    Tensor {
+                        data: DTypeTensor::F64(right_view.to_owned().into_shared()),
+                        dtype: self.dtype,
+                        uid: Tensor::generate_uid(),
+                    },
+                ))
+            }
+            // Add other data types as needed...
+            _ => {
+                // Fallback to the old implementation for now
+                let tensor = self.to_owned()?;
+                let (left, right) = tensor.split_at(axis, index)?;
+                Ok((left, right))
+            }
+        }
     }
 
     /// Permute dimensions according to the given axes
@@ -1139,7 +1248,7 @@ impl<'a> TensorViewMut<'a> {
     pub fn to_owned(&self) -> Result<Tensor> {
         tensor_view_mut_match!(&self.data, view, {
             let owned = view.to_owned().into_dyn();
-            Ok(Tensor::from_array(owned))
+            Ok(owned.into())
         })
     }
 
@@ -1159,6 +1268,106 @@ impl<'a> TensorViewMut<'a> {
     /// Returns a `Result<()>` indicating success or failure
     pub fn one_(&mut self) -> Result<()> {
         self.fill(1.0)
+    }
+
+    /// Reverse the order of axes in the tensor
+    ///
+    /// This method creates a new tensor with the axes in reverse order.
+    /// For example, a tensor with shape [2, 3, 4] becomes [4, 3, 2].
+    ///
+    /// # Returns
+    ///
+    /// Returns a `Result<Tensor>` containing the tensor with reversed axes or an error
+    ///
+    pub fn reversed_axes(&self) -> Result<Tensor> {
+        self.to_owned()?.reversed_axes()
+    }
+
+    /// Split the tensor view along the specified axis at the given index
+    ///
+    /// This method splits the tensor view into two parts along the specified axis.
+    /// The first part contains elements before the split index, and the second part
+    /// contains elements from the split index onwards.
+    ///
+    /// # Arguments
+    ///
+    /// * `axis` - The axis along which to split (0-indexed)
+    /// * `index` - The index at which to split (must be <= dimension size)
+    ///
+    /// # Returns
+    ///
+    /// Returns a `Result<(Tensor, Tensor)>` containing the two split tensors or an error
+    ///
+    /// # Panics
+    ///
+    /// Panics if axis or index is out of bounds.
+    ///
+    pub fn split_at(&self, axis: usize, index: usize) -> Result<(Tensor, Tensor)> {
+        // Check if axis is valid
+        if axis >= self.ndim() {
+            anyhow::bail!(
+                "Axis {} is out of bounds for tensor with {} dimensions",
+                axis,
+                self.ndim()
+            );
+        }
+
+        // Check if index is valid
+        let dim_size = self.shape()[axis];
+        if index > dim_size {
+            anyhow::bail!(
+                "Index {} is out of bounds for axis {} with size {}",
+                index,
+                axis,
+                dim_size
+            );
+        }
+
+        // Use ndarray's efficient split_at method directly on views
+        match &self.data {
+            TensorViewMutData::F32(view) => {
+                let (left_view, right_view) = view.view().split_at(Axis(axis), index);
+                let left_shape = left_view.shape().to_vec();
+                let right_shape = right_view.shape().to_vec();
+                let left_tensor = TensorView {
+                    data: TensorViewData::F32(left_view),
+                    dtype: self.dtype,
+                    shape: left_shape,
+                }
+                .to_owned()?;
+                let right_tensor = TensorView {
+                    data: TensorViewData::F32(right_view),
+                    dtype: self.dtype,
+                    shape: right_shape,
+                }
+                .to_owned()?;
+                Ok((left_tensor, right_tensor))
+            }
+            TensorViewMutData::F64(view) => {
+                let (left_view, right_view) = view.view().split_at(Axis(axis), index);
+                let left_shape = left_view.shape().to_vec();
+                let right_shape = right_view.shape().to_vec();
+                let left_tensor = TensorView {
+                    data: TensorViewData::F64(left_view),
+                    dtype: self.dtype,
+                    shape: left_shape,
+                }
+                .to_owned()?;
+                let right_tensor = TensorView {
+                    data: TensorViewData::F64(right_view),
+                    dtype: self.dtype,
+                    shape: right_shape,
+                }
+                .to_owned()?;
+                Ok((left_tensor, right_tensor))
+            }
+            // Add other data types as needed...
+            _ => {
+                // Fallback to the old implementation for now
+                let tensor = self.to_owned()?;
+                tensor.split_at(axis, index)
+            }
+        }
     }
 
     /// Copy data from another tensor view

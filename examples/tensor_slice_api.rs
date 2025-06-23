@@ -12,7 +12,7 @@ fn main() -> Result<()> {
 
     // === Basic Tensor Creation ===
     println!("=== 📊 Basic Tensor Creation ===");
-    let tensor_3d = Tensor::rand([6, 8, 4], usls::DType::Fp32)?;
+    let tensor_3d = Tensor::rand(0.0f32, 1.0f32, [6, 8, 4])?;
     println!("Created 3D tensor: {:?}", tensor_3d.shape());
 
     let tensor_2d = Tensor::zeros(vec![10, 12]);

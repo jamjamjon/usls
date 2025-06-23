@@ -2,26 +2,34 @@
 
 use anyhow::{anyhow, Result};
 use half::{bf16, f16};
-use ndarray::{ArcArray, Array, Dimension, IntoDimension, Ix2, IxDyn};
-use std::ops::{Add, AddAssign, Deref, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign};
+use ndarray::{ArcArray, Array, Axis, IntoDimension, Ix2, IxDyn};
+use std::ops::Deref;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use super::iter::{TensorDimIter, TensorDimIterMut};
 use super::macros::{dtype_tensor_self_update_match, dtype_tensor_transform_match};
 use super::slice::{IntoSliceSpec, SliceOrIndex};
-use crate::{DType, TensorView, TensorViewMut};
+
+use crate::{DType, TensorElement, TensorView, TensorViewMut};
 
 /// Multi-dtype tensor with optimized storage and zero-copy operations
-#[derive(Debug, Clone)]
+#[derive(Clone, PartialEq)]
 pub struct Tensor {
     pub data: DTypeTensor,
     pub dtype: DType,
     pub uid: usize,
 }
 
+impl std::fmt::Debug for Tensor {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self.data)?;
+
+        Ok(())
+    }
+}
+
 /// Enum for different data types with optimized memory layout
-#[allow(dead_code)]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum DTypeTensor {
     F32(ArcArray<f32, IxDyn>),
     F64(ArcArray<f64, IxDyn>),
@@ -97,14 +105,22 @@ impl Default for Tensor {
 impl<T: TensorElement> From<Array<T, IxDyn>> for Tensor {
     #[inline]
     fn from(x: Array<T, IxDyn>) -> Self {
-        Self::from_array(x)
+        Self {
+            data: T::into_dtype_tensor(x.into_shared()),
+            dtype: T::dtype(),
+            uid: Self::generate_uid(),
+        }
     }
 }
 
 impl<T: TensorElement> From<ArcArray<T, IxDyn>> for Tensor {
     #[inline]
     fn from(x: ArcArray<T, IxDyn>) -> Self {
-        Self::from_arc_array(x)
+        Self {
+            data: T::into_dtype_tensor(x),
+            dtype: T::dtype(),
+            uid: Self::generate_uid(),
+        }
     }
 }
 
@@ -167,22 +183,6 @@ impl Tensor {
         COUNTER.fetch_add(1, Ordering::Relaxed)
     }
 
-    /// Create tensor from ArcArray (zero-copy)
-    #[inline]
-    pub fn from_arc_array<T: TensorElement>(data: ArcArray<T, IxDyn>) -> Self {
-        Self {
-            data: T::into_dtype_tensor(data),
-            dtype: T::dtype(),
-            uid: Self::generate_uid(),
-        }
-    }
-
-    /// Create tensor from owned Array with automatic dtype inference
-    #[inline]
-    pub fn from_array<T: TensorElement>(data: Array<T, IxDyn>) -> Self {
-        Self::from_arc_array(data.into_shared())
-    }
-
     /// Create tensor from vector with automatic type inference
     #[inline]
     pub fn from_vec<T: TensorElement>(data: Vec<T>) -> Self {
@@ -230,8 +230,6 @@ impl Tensor {
             uid: Self::generate_uid(),
         })
     }
-
-    // TODO: from_shape_fn()
 
     /// Create zeros tensor with specified shape (default f32)
     #[inline]
@@ -482,82 +480,78 @@ impl Tensor {
         }
     }
 
-    /// Create random tensor with specified shape and dtype
-    pub fn rand<D: IntoDimension>(shape: D, dtype: DType) -> Result<Self> {
-        use rand::Rng;
-        let mut rng = rand::rng();
-        let shape = shape.into_dimension();
-        let size = shape.size();
+    /// Create random tensor with uniform distribution in range [low, high)
+    /// Type is automatically inferred from the low and high parameters
+    /// Supports all numeric types except bool
+    pub fn rand<T, D>(low: T, high: T, shape: D) -> Result<Self>
+    where
+        T: TensorElement + rand_distr::uniform::SampleUniform,
+        D: IntoDimension,
+    {
+        use ndarray_rand::RandomExt;
+        use rand_distr::Uniform;
 
-        match dtype {
-            DType::Fp32 => {
-                let data: Vec<f32> = (0..size).map(|_| rng.random::<f32>()).collect();
-                Self::from_shape_vec(shape, data)
-            }
-            DType::Fp64 => {
-                let data: Vec<f64> = (0..size).map(|_| rng.random::<f64>()).collect();
-                Self::from_shape_vec(shape, data)
-            }
-            DType::Int32 => {
-                let data: Vec<i32> = (0..size).map(|_| rng.random::<i32>()).collect();
-                Self::from_shape_vec(shape, data)
-            }
-            DType::Int64 => {
-                let data: Vec<i64> = (0..size).map(|_| rng.random::<i64>()).collect();
-                Self::from_shape_vec(shape, data)
-            }
-            DType::Uint8 => {
-                let data: Vec<u8> = (0..size).map(|_| rng.random::<u8>()).collect();
-                Self::from_shape_vec(shape, data)
-            }
-            _ => {
-                // Default to F32 for unsupported types
-                let data: Vec<f32> = (0..size).map(|_| rng.random::<f32>()).collect();
-                Self::from_shape_vec(shape, data)
-            }
-        }
+        let dist = Uniform::new(low, high);
+        let array = ndarray::Array::random(shape, dist).into_dyn();
+
+        Ok(Self {
+            data: T::into_dtype_tensor(array.into_shared()),
+            dtype: T::dtype(),
+            uid: Self::generate_uid(),
+        })
     }
 
-    // TODO: pub fn rand_range<D: IntoDimension>(shape: D, lo: D, up: D, dtype: DType) -> Result<Self> {}
+    /// Create random tensor with standard normal distribution (mean=0, std=1)
+    /// Supports floating point types
+    pub fn randn<T: TensorElement, D: IntoDimension>(shape: D) -> Result<Self> {
+        use ndarray_rand::RandomExt;
+        use rand_distr::StandardNormal;
+        use std::any::TypeId;
 
-    /// Create random tensor with normal distribution (mean=0, std=1)
-    pub fn randn<D: IntoDimension>(shape: D, dtype: DType) -> Result<Self> {
-        use rand::Rng;
-        let mut rng = rand::rng();
-        let shape = shape.into_dimension();
-        let size = shape.size();
-
-        match dtype {
-            DType::Fp64 => {
-                // Box-Muller transform for normal distribution
-                let data: Vec<f64> = (0..size)
-                    .map(|_| {
-                        let u1: f64 = rng.random();
-                        let u2: f64 = rng.random();
-                        (-2.0 * u1.ln()).sqrt() * (2.0 * std::f64::consts::PI * u2).cos()
-                    })
-                    .collect();
-                Self::from_shape_vec(shape, data)
-            }
-            _ => {
-                // Default to F32 for other types
-                let data: Vec<f32> = (0..size)
-                    .map(|_| {
-                        let u1: f32 = rng.random();
-                        let u2: f32 = rng.random();
-                        (-2.0 * u1.ln()).sqrt() * (2.0 * std::f32::consts::PI * u2).cos()
-                    })
-                    .collect();
-                Self::from_shape_vec(shape, data)
-            }
+        // Handle each floating point type specifically
+        if TypeId::of::<T>() == TypeId::of::<f32>() {
+            let array = ndarray::Array::random(shape, StandardNormal).into_dyn();
+            let result = unsafe {
+                std::mem::transmute::<
+                    ndarray::Array<f32, ndarray::IxDyn>,
+                    ndarray::Array<T, ndarray::IxDyn>,
+                >(array)
+            };
+            return Ok(Self {
+                data: T::into_dtype_tensor(result.into_shared()),
+                dtype: T::dtype(),
+                uid: Self::generate_uid(),
+            });
         }
+
+        if TypeId::of::<T>() == TypeId::of::<f64>() {
+            let array = ndarray::Array::random(shape, StandardNormal).into_dyn();
+            let result = unsafe {
+                std::mem::transmute::<
+                    ndarray::Array<f64, ndarray::IxDyn>,
+                    ndarray::Array<T, ndarray::IxDyn>,
+                >(array)
+            };
+            return Ok(Self {
+                data: T::into_dtype_tensor(result.into_shared()),
+                dtype: T::dtype(),
+                uid: Self::generate_uid(),
+            });
+        }
+
+        // For non-floating point types, generate f32 normal and convert
+        let array: ndarray::Array<f32, ndarray::IxDyn> =
+            ndarray::Array::random(shape, StandardNormal).into_dyn();
+        let converted = array.mapv(|x| T::from_f32(x));
+        Ok(Self {
+            data: T::into_dtype_tensor(converted.into_shared()),
+            dtype: T::dtype(),
+            uid: Self::generate_uid(),
+        })
     }
 }
 
 impl Tensor {
-    // TODO: unary ops
-    // TODO: binary ops
-
     /// Clamp values to range with optional bounds (lite builder)
     /// If min is None, uses the minimum value for the data type
     /// If max is None, uses the maximum value for the data type
@@ -575,7 +569,7 @@ impl Tensor {
             .clamp_typed(min_val, max_val)
             .ok_or_else(|| anyhow::anyhow!("Clamp operation not supported for this tensor type"))?;
 
-        Ok(Self::from_array(data))
+        Ok(data.into())
     }
 
     /// Clamp values to be non-negative (unsigned) based on tensor's dtype
@@ -617,6 +611,33 @@ impl Tensor {
 
     /// Transpose tensor (lite builder)
     pub fn transpose(&self) -> Result<Self> {
+        dtype_tensor_transform_match!(
+            &self.data,
+            arr,
+            { arr.clone().reversed_axes().into_shared() },
+            self.dtype
+        )
+    }
+
+    /// Reverse the order of axes (dimensions)
+    ///
+    /// This method reverses the order of tensor dimensions. For example,
+    /// a tensor with shape [2, 3, 4] becomes [4, 3, 2] after calling this method.
+    ///
+    /// # Returns
+    ///
+    /// Returns a `Result<Self>` containing the tensor with reversed axes or an error
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use usls::tensor::Tensor;
+    ///
+    /// let tensor = Tensor::zeros(vec![2, 3, 4]);
+    /// let reversed = tensor.reversed_axes().unwrap();
+    /// assert_eq!(reversed.shape(), &[4, 3, 2]);
+    /// ```
+    pub fn reversed_axes(&self) -> Result<Self> {
         dtype_tensor_transform_match!(
             &self.data,
             arr,
@@ -1108,7 +1129,7 @@ impl Tensor {
                 }
 
                 let result = a_2d.dot(&b_2d);
-                Ok(Self::from_array(result.into_dyn()))
+                Ok(result.into_dyn().into())
             }
             _ => anyhow::bail!("matmul currently only supports F32 tensors"),
         }
@@ -1169,7 +1190,7 @@ impl Tensor {
                 }
 
                 let result = a.dot(&b.t()).into_dyn();
-                Ok(Self::from_array(result))
+                Ok(result.into())
             }
             (DTypeTensor::F64(a), DTypeTensor::F64(b)) => {
                 let a = a.as_standard_layout().into_dimensionality::<Ix2>()?;
@@ -1184,7 +1205,7 @@ impl Tensor {
                 }
 
                 let result = a.dot(&b.t()).into_dyn();
-                Ok(Self::from_array(result))
+                Ok(result.into())
             }
             (DTypeTensor::I32(a), DTypeTensor::I32(b)) => {
                 let a = a.as_standard_layout().into_dimensionality::<Ix2>()?;
@@ -1199,7 +1220,7 @@ impl Tensor {
                 }
 
                 let result = a.dot(&b.t()).into_dyn();
-                Ok(Self::from_array(result))
+                Ok(result.into())
             }
             (DTypeTensor::I64(a), DTypeTensor::I64(b)) => {
                 let a = a.as_standard_layout().into_dimensionality::<Ix2>()?;
@@ -1214,7 +1235,7 @@ impl Tensor {
                 }
 
                 let result = a.dot(&b.t()).into_dyn();
-                Ok(Self::from_array(result))
+                Ok(result.into())
             }
             _ => anyhow::bail!(
                 "dot requires matching numeric data types, got {:?} and {:?}",
@@ -1353,7 +1374,7 @@ impl Tensor {
 
         let views: Vec<_> = arrays.iter().map(|arr| arr.view()).collect();
         let result = ndarray::concatenate(ndarray::Axis(dim), &views)?;
-        Ok(Self::from_array(result))
+        Ok(result.into())
     }
 
     /// Concatenate this tensor with another tensor along dimension
@@ -1384,7 +1405,8 @@ impl Tensor {
 
                     let slice =
                         arr.slice_axis(ndarray::Axis(dim), ndarray::Slice::from(start..end));
-                    results.push(Self::from_arc_array(slice.to_owned().into_shared()));
+                    results.push(slice.to_owned().into());
+                    // results.push(Self::from_arc_array(slice.to_owned().into_shared()));
                 }
 
                 Ok(results)
@@ -1438,7 +1460,7 @@ impl Tensor {
                         _ => anyhow::bail!("Norm order must be positive, got {}", ord),
                     };
 
-                    let mut tensor = Self::from_array(result.into_dyn());
+                    let mut tensor: Tensor = result.into_dyn().into();
 
                     // If keepdims is true, insert axis back to maintain dimensionality
                     if keepdims {
@@ -1465,8 +1487,7 @@ impl Tensor {
                         _ => anyhow::bail!("Norm order must be positive, got {}", ord),
                     };
 
-                    let mut tensor =
-                        Self::from_array(ndarray::Array0::from_elem((), norm).into_dyn());
+                    let mut tensor: Tensor = ndarray::Array0::from_elem((), norm).into_dyn().into();
 
                     // If keepdims is true for global norm, maintain original dimensionality with all axes as 1
                     if keepdims {
@@ -1507,7 +1528,7 @@ impl Tensor {
                         );
                     }
                     let result = arr.sum_axis(ndarray::Axis(ax));
-                    let mut tensor = Self::from_array(result.into_dyn());
+                    let mut tensor: Tensor = result.into_dyn().into();
                     if keepdims {
                         tensor = tensor.insert_axis(ax)?;
                     }
@@ -1515,8 +1536,8 @@ impl Tensor {
                 }
                 None => {
                     let sum_val = arr.sum();
-                    let mut tensor =
-                        Self::from_array(ndarray::Array0::from_elem((), sum_val).into_dyn());
+                    let mut tensor: Tensor =
+                        ndarray::Array0::from_elem((), sum_val).into_dyn().into();
                     if keepdims {
                         for i in 0..arr.ndim() {
                             tensor = tensor.insert_axis(i)?;
@@ -1546,7 +1567,7 @@ impl Tensor {
                         );
                     }
                     let result = arr.mean_axis(ndarray::Axis(ax)).unwrap();
-                    let mut tensor = Self::from_array(result.into_dyn());
+                    let mut tensor: Tensor = result.into_dyn().into();
                     if keepdims {
                         tensor = tensor.insert_axis(ax)?;
                     }
@@ -1554,8 +1575,8 @@ impl Tensor {
                 }
                 None => {
                     let mean_val = arr.mean().unwrap_or(0.0);
-                    let mut tensor =
-                        Self::from_array(ndarray::Array0::from_elem((), mean_val).into_dyn());
+                    let mut tensor: Tensor =
+                        ndarray::Array0::from_elem((), mean_val).into_dyn().into();
                     if keepdims {
                         for i in 0..arr.ndim() {
                             tensor = tensor.insert_axis(i)?;
@@ -1586,7 +1607,7 @@ impl Tensor {
                     }
                     let result =
                         arr.fold_axis(ndarray::Axis(ax), f32::NEG_INFINITY, |&a, &b| a.max(b));
-                    let mut tensor = Self::from_array(result.into_dyn());
+                    let mut tensor: Tensor = result.into_dyn().into();
                     if keepdims {
                         tensor = tensor.insert_axis(ax)?;
                     }
@@ -1594,8 +1615,8 @@ impl Tensor {
                 }
                 None => {
                     let max_val = arr.iter().fold(f32::NEG_INFINITY, |a, &b| a.max(b));
-                    let mut tensor =
-                        Self::from_array(ndarray::Array0::from_elem((), max_val).into_dyn());
+                    let mut tensor: Tensor =
+                        ndarray::Array0::from_elem((), max_val).into_dyn().into();
                     if keepdims {
                         for i in 0..arr.ndim() {
                             tensor = tensor.insert_axis(i)?;
@@ -1633,7 +1654,7 @@ impl Tensor {
                         );
                     }
                     let result = arr.fold_axis(ndarray::Axis(ax), f32::INFINITY, |&a, &b| a.min(b));
-                    let mut tensor = Self::from_array(result.into_dyn());
+                    let mut tensor: Tensor = result.into_dyn().into();
                     if keepdims {
                         tensor = tensor.insert_axis(ax)?;
                     }
@@ -1641,8 +1662,8 @@ impl Tensor {
                 }
                 None => {
                     let min_val = arr.iter().fold(f32::INFINITY, |a, &b| a.min(b));
-                    let mut tensor =
-                        Self::from_array(ndarray::Array0::from_elem((), min_val).into_dyn());
+                    let mut tensor: Tensor =
+                        ndarray::Array0::from_elem((), min_val).into_dyn().into();
                     if keepdims {
                         for i in 0..arr.ndim() {
                             tensor = tensor.insert_axis(i)?;
@@ -1689,7 +1710,7 @@ impl Tensor {
                     }
 
                     let result = variance.mapv(|x| x.sqrt());
-                    let mut tensor = Self::from_array(result.into_dyn());
+                    let mut tensor: Tensor = result.into_dyn().into();
                     if keepdims {
                         tensor = tensor.insert_axis(ax)?;
                     }
@@ -1699,8 +1720,8 @@ impl Tensor {
                     let mean_val = arr.mean().unwrap_or(0.0);
                     let variance = arr.mapv(|x| (x - mean_val).powi(2)).mean().unwrap_or(0.0);
                     let std_val = variance.sqrt();
-                    let mut tensor =
-                        Self::from_array(ndarray::Array0::from_elem((), std_val).into_dyn());
+                    let mut tensor: Tensor =
+                        ndarray::Array0::from_elem((), std_val).into_dyn().into();
                     if keepdims {
                         for i in 0..arr.ndim() {
                             tensor = tensor.insert_axis(i)?;
@@ -1754,7 +1775,7 @@ impl Tensor {
                         variance[i] = var_val;
                     }
 
-                    let mut tensor = Self::from_array(variance.into_dyn());
+                    let mut tensor: Tensor = variance.into_dyn().into();
                     if keepdims {
                         tensor = tensor.insert_axis(ax)?;
                     }
@@ -1763,8 +1784,8 @@ impl Tensor {
                 None => {
                     let mean_val = arr.mean().unwrap_or(0.0);
                     let variance = arr.mapv(|x| (x - mean_val).powi(2)).mean().unwrap_or(0.0);
-                    let mut tensor =
-                        Self::from_array(ndarray::Array0::from_elem((), variance).into_dyn());
+                    let mut tensor: Tensor =
+                        ndarray::Array0::from_elem((), variance).into_dyn().into();
                     if keepdims {
                         for i in 0..arr.ndim() {
                             tensor = tensor.insert_axis(i)?;
@@ -1826,7 +1847,7 @@ impl Tensor {
                         result[i] = max_idx as f32;
                     }
 
-                    let mut tensor = Self::from_array(result.into_dyn());
+                    let mut tensor: Tensor = result.into_dyn().into();
                     if keepdims {
                         tensor = tensor.insert_axis(ax)?;
                     }
@@ -1840,8 +1861,9 @@ impl Tensor {
                             a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal)
                         })
                         .unwrap_or((0, &0.0));
-                    let mut tensor =
-                        Self::from_array(ndarray::Array0::from_elem((), max_idx as f32).into_dyn());
+                    let mut tensor: Tensor = ndarray::Array0::from_elem((), max_idx as f32)
+                        .into_dyn()
+                        .into();
                     if keepdims {
                         for i in 0..arr.ndim() {
                             tensor = tensor.insert_axis(i)?;
@@ -1888,7 +1910,7 @@ impl Tensor {
                         result[i] = min_idx as f32;
                     }
 
-                    let mut tensor = Self::from_array(result.into_dyn());
+                    let mut tensor: Tensor = result.into_dyn().into();
                     if keepdims {
                         tensor = tensor.insert_axis(ax)?;
                     }
@@ -1902,8 +1924,9 @@ impl Tensor {
                             a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal)
                         })
                         .unwrap_or((0, &0.0));
-                    let mut tensor =
-                        Self::from_array(ndarray::Array0::from_elem((), min_idx as f32).into_dyn());
+                    let mut tensor: Tensor = ndarray::Array0::from_elem((), min_idx as f32)
+                        .into_dyn()
+                        .into();
                     if keepdims {
                         for i in 0..arr.ndim() {
                             tensor = tensor.insert_axis(i)?;
@@ -2122,6 +2145,154 @@ impl Tensor {
                     .collect();
                 Ok(vec)
             }
+        }
+    }
+
+    /// Get slice view of tensor data for contiguous tensors
+    /// Returns None if tensor is not contiguous in memory
+    pub fn as_slice<T: TensorElement>(&self) -> Option<&[T]> {
+        use std::any::TypeId;
+        match &self.data {
+            DTypeTensor::F32(arr) if TypeId::of::<T>() == TypeId::of::<f32>() => {
+                arr.as_slice().map(|slice| unsafe {
+                    std::slice::from_raw_parts(slice.as_ptr() as *const T, slice.len())
+                })
+            }
+            DTypeTensor::F64(arr) if TypeId::of::<T>() == TypeId::of::<f64>() => {
+                arr.as_slice().map(|slice| unsafe {
+                    std::slice::from_raw_parts(slice.as_ptr() as *const T, slice.len())
+                })
+            }
+            DTypeTensor::F16(arr) if TypeId::of::<T>() == TypeId::of::<f16>() => {
+                arr.as_slice().map(|slice| unsafe {
+                    std::slice::from_raw_parts(slice.as_ptr() as *const T, slice.len())
+                })
+            }
+            DTypeTensor::Bf16(arr) if TypeId::of::<T>() == TypeId::of::<bf16>() => {
+                arr.as_slice().map(|slice| unsafe {
+                    std::slice::from_raw_parts(slice.as_ptr() as *const T, slice.len())
+                })
+            }
+            DTypeTensor::I8(arr) if TypeId::of::<T>() == TypeId::of::<i8>() => {
+                arr.as_slice().map(|slice| unsafe {
+                    std::slice::from_raw_parts(slice.as_ptr() as *const T, slice.len())
+                })
+            }
+            DTypeTensor::I16(arr) if TypeId::of::<T>() == TypeId::of::<i16>() => {
+                arr.as_slice().map(|slice| unsafe {
+                    std::slice::from_raw_parts(slice.as_ptr() as *const T, slice.len())
+                })
+            }
+            DTypeTensor::I32(arr) if TypeId::of::<T>() == TypeId::of::<i32>() => {
+                arr.as_slice().map(|slice| unsafe {
+                    std::slice::from_raw_parts(slice.as_ptr() as *const T, slice.len())
+                })
+            }
+            DTypeTensor::I64(arr) if TypeId::of::<T>() == TypeId::of::<i64>() => {
+                arr.as_slice().map(|slice| unsafe {
+                    std::slice::from_raw_parts(slice.as_ptr() as *const T, slice.len())
+                })
+            }
+            DTypeTensor::U8(arr) if TypeId::of::<T>() == TypeId::of::<u8>() => {
+                arr.as_slice().map(|slice| unsafe {
+                    std::slice::from_raw_parts(slice.as_ptr() as *const T, slice.len())
+                })
+            }
+            DTypeTensor::U16(arr) if TypeId::of::<T>() == TypeId::of::<u16>() => {
+                arr.as_slice().map(|slice| unsafe {
+                    std::slice::from_raw_parts(slice.as_ptr() as *const T, slice.len())
+                })
+            }
+            DTypeTensor::U32(arr) if TypeId::of::<T>() == TypeId::of::<u32>() => {
+                arr.as_slice().map(|slice| unsafe {
+                    std::slice::from_raw_parts(slice.as_ptr() as *const T, slice.len())
+                })
+            }
+            DTypeTensor::U64(arr) if TypeId::of::<T>() == TypeId::of::<u64>() => {
+                arr.as_slice().map(|slice| unsafe {
+                    std::slice::from_raw_parts(slice.as_ptr() as *const T, slice.len())
+                })
+            }
+            DTypeTensor::Bool(arr) if TypeId::of::<T>() == TypeId::of::<bool>() => {
+                arr.as_slice().map(|slice| unsafe {
+                    std::slice::from_raw_parts(slice.as_ptr() as *const T, slice.len())
+                })
+            }
+            _ => None,
+        }
+    }
+
+    /// Get mutable slice view of tensor data for contiguous tensors
+    /// Returns None if tensor is not contiguous in memory
+    pub fn as_slice_mut<T: TensorElement>(&mut self) -> Option<&mut [T]> {
+        use std::any::TypeId;
+        match &mut self.data {
+            DTypeTensor::F32(arr) if TypeId::of::<T>() == TypeId::of::<f32>() => {
+                arr.as_slice_mut().map(|slice| unsafe {
+                    std::slice::from_raw_parts_mut(slice.as_mut_ptr() as *mut T, slice.len())
+                })
+            }
+            DTypeTensor::F64(arr) if TypeId::of::<T>() == TypeId::of::<f64>() => {
+                arr.as_slice_mut().map(|slice| unsafe {
+                    std::slice::from_raw_parts_mut(slice.as_mut_ptr() as *mut T, slice.len())
+                })
+            }
+            DTypeTensor::F16(arr) if TypeId::of::<T>() == TypeId::of::<f16>() => {
+                arr.as_slice_mut().map(|slice| unsafe {
+                    std::slice::from_raw_parts_mut(slice.as_mut_ptr() as *mut T, slice.len())
+                })
+            }
+            DTypeTensor::Bf16(arr) if TypeId::of::<T>() == TypeId::of::<bf16>() => {
+                arr.as_slice_mut().map(|slice| unsafe {
+                    std::slice::from_raw_parts_mut(slice.as_mut_ptr() as *mut T, slice.len())
+                })
+            }
+            DTypeTensor::I8(arr) if TypeId::of::<T>() == TypeId::of::<i8>() => {
+                arr.as_slice_mut().map(|slice| unsafe {
+                    std::slice::from_raw_parts_mut(slice.as_mut_ptr() as *mut T, slice.len())
+                })
+            }
+            DTypeTensor::I16(arr) if TypeId::of::<T>() == TypeId::of::<i16>() => {
+                arr.as_slice_mut().map(|slice| unsafe {
+                    std::slice::from_raw_parts_mut(slice.as_mut_ptr() as *mut T, slice.len())
+                })
+            }
+            DTypeTensor::I32(arr) if TypeId::of::<T>() == TypeId::of::<i32>() => {
+                arr.as_slice_mut().map(|slice| unsafe {
+                    std::slice::from_raw_parts_mut(slice.as_mut_ptr() as *mut T, slice.len())
+                })
+            }
+            DTypeTensor::I64(arr) if TypeId::of::<T>() == TypeId::of::<i64>() => {
+                arr.as_slice_mut().map(|slice| unsafe {
+                    std::slice::from_raw_parts_mut(slice.as_mut_ptr() as *mut T, slice.len())
+                })
+            }
+            DTypeTensor::U8(arr) if TypeId::of::<T>() == TypeId::of::<u8>() => {
+                arr.as_slice_mut().map(|slice| unsafe {
+                    std::slice::from_raw_parts_mut(slice.as_mut_ptr() as *mut T, slice.len())
+                })
+            }
+            DTypeTensor::U16(arr) if TypeId::of::<T>() == TypeId::of::<u16>() => {
+                arr.as_slice_mut().map(|slice| unsafe {
+                    std::slice::from_raw_parts_mut(slice.as_mut_ptr() as *mut T, slice.len())
+                })
+            }
+            DTypeTensor::U32(arr) if TypeId::of::<T>() == TypeId::of::<u32>() => {
+                arr.as_slice_mut().map(|slice| unsafe {
+                    std::slice::from_raw_parts_mut(slice.as_mut_ptr() as *mut T, slice.len())
+                })
+            }
+            DTypeTensor::U64(arr) if TypeId::of::<T>() == TypeId::of::<u64>() => {
+                arr.as_slice_mut().map(|slice| unsafe {
+                    std::slice::from_raw_parts_mut(slice.as_mut_ptr() as *mut T, slice.len())
+                })
+            }
+            DTypeTensor::Bool(arr) if TypeId::of::<T>() == TypeId::of::<bool>() => {
+                arr.as_slice_mut().map(|slice| unsafe {
+                    std::slice::from_raw_parts_mut(slice.as_mut_ptr() as *mut T, slice.len())
+                })
+            }
+            _ => None,
         }
     }
 
@@ -2781,6 +2952,263 @@ impl Tensor {
     }
 }
 
+// === Split Operations ===
+impl Tensor {
+    /// Split the tensor along the specified axis at the given index
+    ///
+    /// This method splits the tensor into two parts along the specified axis.
+    /// The first tensor contains elements before the split index,
+    /// and the second tensor contains elements from the split index onwards.
+    ///
+    /// # Arguments
+    ///
+    /// * `axis` - The axis along which to split
+    /// * `index` - The index at which to split (must be within bounds)
+    ///
+    /// # Returns
+    ///
+    /// Returns a `Result<(Self, Self)>` containing the two split tensors or an error
+    ///
+    /// # Panics
+    ///
+    /// Panics if axis or index is out of bounds.
+    ///
+    pub fn split_at(&self, axis: usize, index: usize) -> Result<(Self, Self)> {
+        // Check if axis is valid
+        if axis >= self.ndim() {
+            anyhow::bail!(
+                "Axis {} is out of bounds for tensor with {} dimensions",
+                axis,
+                self.ndim()
+            );
+        }
+
+        // Check if index is valid
+        let dim_size = self.shape()[axis];
+        if index > dim_size {
+            anyhow::bail!(
+                "Index {} is out of bounds for axis {} with size {}",
+                index,
+                axis,
+                dim_size
+            );
+        }
+
+        // Use ndarray's efficient split_at method when possible
+        match &self.data {
+            DTypeTensor::F32(arr) => {
+                // Convert to view first, then use ndarray's split_at
+                let view = arr.view();
+                let (left_view, right_view) = view.split_at(Axis(axis), index);
+                Ok((
+                    Self {
+                        data: DTypeTensor::F32(left_view.to_owned().into_shared()),
+                        dtype: self.dtype,
+                        uid: Self::generate_uid(),
+                    },
+                    Self {
+                        data: DTypeTensor::F32(right_view.to_owned().into_shared()),
+                        dtype: self.dtype,
+                        uid: Self::generate_uid(),
+                    },
+                ))
+            }
+            DTypeTensor::F64(arr) => {
+                let view = arr.view();
+                let (left_view, right_view) = view.split_at(Axis(axis), index);
+                Ok((
+                    Self {
+                        data: DTypeTensor::F64(left_view.to_owned().into_shared()),
+                        dtype: self.dtype,
+                        uid: Self::generate_uid(),
+                    },
+                    Self {
+                        data: DTypeTensor::F64(right_view.to_owned().into_shared()),
+                        dtype: self.dtype,
+                        uid: Self::generate_uid(),
+                    },
+                ))
+            }
+            DTypeTensor::F16(arr) => {
+                let view = arr.view();
+                let (left_view, right_view) = view.split_at(Axis(axis), index);
+                Ok((
+                    Self {
+                        data: DTypeTensor::F16(left_view.to_owned().into_shared()),
+                        dtype: self.dtype,
+                        uid: Self::generate_uid(),
+                    },
+                    Self {
+                        data: DTypeTensor::F16(right_view.to_owned().into_shared()),
+                        dtype: self.dtype,
+                        uid: Self::generate_uid(),
+                    },
+                ))
+            }
+            DTypeTensor::Bf16(arr) => {
+                let view = arr.view();
+                let (left_view, right_view) = view.split_at(Axis(axis), index);
+                Ok((
+                    Self {
+                        data: DTypeTensor::Bf16(left_view.to_owned().into_shared()),
+                        dtype: self.dtype,
+                        uid: Self::generate_uid(),
+                    },
+                    Self {
+                        data: DTypeTensor::Bf16(right_view.to_owned().into_shared()),
+                        dtype: self.dtype,
+                        uid: Self::generate_uid(),
+                    },
+                ))
+            }
+            DTypeTensor::I8(arr) => {
+                let view = arr.view();
+                let (left_view, right_view) = view.split_at(Axis(axis), index);
+                Ok((
+                    Self {
+                        data: DTypeTensor::I8(left_view.to_owned().into_shared()),
+                        dtype: self.dtype,
+                        uid: Self::generate_uid(),
+                    },
+                    Self {
+                        data: DTypeTensor::I8(right_view.to_owned().into_shared()),
+                        dtype: self.dtype,
+                        uid: Self::generate_uid(),
+                    },
+                ))
+            }
+            DTypeTensor::I16(arr) => {
+                let view = arr.view();
+                let (left_view, right_view) = view.split_at(Axis(axis), index);
+                Ok((
+                    Self {
+                        data: DTypeTensor::I16(left_view.to_owned().into_shared()),
+                        dtype: self.dtype,
+                        uid: Self::generate_uid(),
+                    },
+                    Self {
+                        data: DTypeTensor::I16(right_view.to_owned().into_shared()),
+                        dtype: self.dtype,
+                        uid: Self::generate_uid(),
+                    },
+                ))
+            }
+            DTypeTensor::I32(arr) => {
+                let view = arr.view();
+                let (left_view, right_view) = view.split_at(Axis(axis), index);
+                Ok((
+                    Self {
+                        data: DTypeTensor::I32(left_view.to_owned().into_shared()),
+                        dtype: self.dtype,
+                        uid: Self::generate_uid(),
+                    },
+                    Self {
+                        data: DTypeTensor::I32(right_view.to_owned().into_shared()),
+                        dtype: self.dtype,
+                        uid: Self::generate_uid(),
+                    },
+                ))
+            }
+            DTypeTensor::I64(arr) => {
+                let view = arr.view();
+                let (left_view, right_view) = view.split_at(Axis(axis), index);
+                Ok((
+                    Self {
+                        data: DTypeTensor::I64(left_view.to_owned().into_shared()),
+                        dtype: self.dtype,
+                        uid: Self::generate_uid(),
+                    },
+                    Self {
+                        data: DTypeTensor::I64(right_view.to_owned().into_shared()),
+                        dtype: self.dtype,
+                        uid: Self::generate_uid(),
+                    },
+                ))
+            }
+            DTypeTensor::U8(arr) => {
+                let view = arr.view();
+                let (left_view, right_view) = view.split_at(Axis(axis), index);
+                Ok((
+                    Self {
+                        data: DTypeTensor::U8(left_view.to_owned().into_shared()),
+                        dtype: self.dtype,
+                        uid: Self::generate_uid(),
+                    },
+                    Self {
+                        data: DTypeTensor::U8(right_view.to_owned().into_shared()),
+                        dtype: self.dtype,
+                        uid: Self::generate_uid(),
+                    },
+                ))
+            }
+            DTypeTensor::U16(arr) => {
+                let view = arr.view();
+                let (left_view, right_view) = view.split_at(Axis(axis), index);
+                Ok((
+                    Self {
+                        data: DTypeTensor::U16(left_view.to_owned().into_shared()),
+                        dtype: self.dtype,
+                        uid: Self::generate_uid(),
+                    },
+                    Self {
+                        data: DTypeTensor::U16(right_view.to_owned().into_shared()),
+                        dtype: self.dtype,
+                        uid: Self::generate_uid(),
+                    },
+                ))
+            }
+            DTypeTensor::U32(arr) => {
+                let view = arr.view();
+                let (left_view, right_view) = view.split_at(Axis(axis), index);
+                Ok((
+                    Self {
+                        data: DTypeTensor::U32(left_view.to_owned().into_shared()),
+                        dtype: self.dtype,
+                        uid: Self::generate_uid(),
+                    },
+                    Self {
+                        data: DTypeTensor::U32(right_view.to_owned().into_shared()),
+                        dtype: self.dtype,
+                        uid: Self::generate_uid(),
+                    },
+                ))
+            }
+            DTypeTensor::U64(arr) => {
+                let view = arr.view();
+                let (left_view, right_view) = view.split_at(Axis(axis), index);
+                Ok((
+                    Self {
+                        data: DTypeTensor::U64(left_view.to_owned().into_shared()),
+                        dtype: self.dtype,
+                        uid: Self::generate_uid(),
+                    },
+                    Self {
+                        data: DTypeTensor::U64(right_view.to_owned().into_shared()),
+                        dtype: self.dtype,
+                        uid: Self::generate_uid(),
+                    },
+                ))
+            }
+            DTypeTensor::Bool(arr) => {
+                let view = arr.view();
+                let (left_view, right_view) = view.split_at(Axis(axis), index);
+                Ok((
+                    Self {
+                        data: DTypeTensor::Bool(left_view.to_owned().into_shared()),
+                        dtype: self.dtype,
+                        uid: Self::generate_uid(),
+                    },
+                    Self {
+                        data: DTypeTensor::Bool(right_view.to_owned().into_shared()),
+                        dtype: self.dtype,
+                        uid: Self::generate_uid(),
+                    },
+                ))
+            }
+        }
+    }
+}
+
 // === Image Processing Methods ===
 impl Tensor {
     /// Convert NHWC to NCHW format (lite builder)
@@ -2813,1720 +3241,5 @@ impl Tensor {
             }
             _ => anyhow::bail!("nchw_to_nhwc currently only supports F32 tensors"),
         }
-    }
-}
-
-// === Arithmetic Operations ===
-
-// === Element-wise Operations Between Tensors ===
-
-// Tensor + &Tensor
-impl Add<&Tensor> for Tensor {
-    type Output = Result<Tensor>;
-
-    fn add(self, other: &Tensor) -> Self::Output {
-        match (&self.data, &other.data) {
-            (DTypeTensor::F32(a), DTypeTensor::F32(b)) => {
-                // Check if shapes are exactly the same
-                if a.shape() == b.shape() {
-                    let result = (a + b).into_shared();
-                    return Ok(Tensor {
-                        data: DTypeTensor::F32(result),
-                        dtype: DType::Fp32,
-                        uid: Self::generate_uid(),
-                    });
-                }
-
-                // Try broadcasting: attempt to broadcast the smaller tensor to the larger shape
-                let (a_broadcasted, b_broadcasted) = if a.len() >= b.len() {
-                    // Broadcast b to a's shape
-                    match b.broadcast(a.raw_dim()) {
-                        Some(b_bc) => (a.clone(), b_bc.to_owned().into_shared()),
-                        None => anyhow::bail!(
-                            "Cannot broadcast shapes: {:?} and {:?}",
-                            a.shape(),
-                            b.shape()
-                        ),
-                    }
-                } else {
-                    // Broadcast a to b's shape
-                    match a.broadcast(b.raw_dim()) {
-                        Some(a_bc) => (a_bc.to_owned().into_shared(), b.clone()),
-                        None => anyhow::bail!(
-                            "Cannot broadcast shapes: {:?} and {:?}",
-                            a.shape(),
-                            b.shape()
-                        ),
-                    }
-                };
-
-                let result = (&a_broadcasted + &b_broadcasted).into_shared();
-                Ok(Tensor {
-                    data: DTypeTensor::F32(result),
-                    dtype: DType::Fp32,
-                    uid: Self::generate_uid(),
-                })
-            }
-            _ => anyhow::bail!("Element-wise addition currently only supports F32 tensors"),
-        }
-    }
-}
-
-// Tensor - &Tensor
-impl Sub<&Tensor> for Tensor {
-    type Output = Result<Tensor>;
-
-    fn sub(self, other: &Tensor) -> Self::Output {
-        match (&self.data, &other.data) {
-            (DTypeTensor::F32(a), DTypeTensor::F32(b)) => {
-                // Check if shapes are exactly the same
-                if a.shape() == b.shape() {
-                    let result = (a - b).into_shared();
-                    return Ok(Tensor {
-                        data: DTypeTensor::F32(result),
-                        dtype: DType::Fp32,
-                        uid: Self::generate_uid(),
-                    });
-                }
-
-                // Try broadcasting: attempt to broadcast the smaller tensor to the larger shape
-                let (a_broadcasted, b_broadcasted) = if a.len() >= b.len() {
-                    // Broadcast b to a's shape
-                    match b.broadcast(a.raw_dim()) {
-                        Some(b_bc) => (a.clone(), b_bc.to_owned().into_shared()),
-                        None => anyhow::bail!(
-                            "Cannot broadcast shapes: {:?} and {:?}",
-                            a.shape(),
-                            b.shape()
-                        ),
-                    }
-                } else {
-                    // Broadcast a to b's shape
-                    match a.broadcast(b.raw_dim()) {
-                        Some(a_bc) => (a_bc.to_owned().into_shared(), b.clone()),
-                        None => anyhow::bail!(
-                            "Cannot broadcast shapes: {:?} and {:?}",
-                            a.shape(),
-                            b.shape()
-                        ),
-                    }
-                };
-
-                let result = (&a_broadcasted - &b_broadcasted).into_shared();
-                Ok(Tensor {
-                    data: DTypeTensor::F32(result),
-                    dtype: DType::Fp32,
-                    uid: Self::generate_uid(),
-                })
-            }
-            _ => anyhow::bail!("Element-wise subtraction currently only supports F32 tensors"),
-        }
-    }
-}
-
-// Tensor * &Tensor
-impl Mul<&Tensor> for Tensor {
-    type Output = Result<Tensor>;
-
-    fn mul(self, other: &Tensor) -> Self::Output {
-        match (&self.data, &other.data) {
-            (DTypeTensor::F32(a), DTypeTensor::F32(b)) => {
-                // Check if shapes are exactly the same
-                if a.shape() == b.shape() {
-                    let result = (a * b).into_shared();
-                    return Ok(Tensor {
-                        data: DTypeTensor::F32(result),
-                        dtype: DType::Fp32,
-                        uid: Self::generate_uid(),
-                    });
-                }
-
-                // Try broadcasting: attempt to broadcast the smaller tensor to the larger shape
-                let (a_broadcasted, b_broadcasted) = if a.len() >= b.len() {
-                    // Broadcast b to a's shape
-                    match b.broadcast(a.raw_dim()) {
-                        Some(b_bc) => (a.clone(), b_bc.to_owned().into_shared()),
-                        None => anyhow::bail!(
-                            "Cannot broadcast shapes: {:?} and {:?}",
-                            a.shape(),
-                            b.shape()
-                        ),
-                    }
-                } else {
-                    // Broadcast a to b's shape
-                    match a.broadcast(b.raw_dim()) {
-                        Some(a_bc) => (a_bc.to_owned().into_shared(), b.clone()),
-                        None => anyhow::bail!(
-                            "Cannot broadcast shapes: {:?} and {:?}",
-                            a.shape(),
-                            b.shape()
-                        ),
-                    }
-                };
-
-                let result = (&a_broadcasted * &b_broadcasted).into_shared();
-                Ok(Tensor {
-                    data: DTypeTensor::F32(result),
-                    dtype: DType::Fp32,
-                    uid: Self::generate_uid(),
-                })
-            }
-            _ => anyhow::bail!("Element-wise multiplication currently only supports F32 tensors"),
-        }
-    }
-}
-
-// Tensor / &Tensor
-impl Div<&Tensor> for Tensor {
-    type Output = Result<Tensor>;
-
-    fn div(self, other: &Tensor) -> Self::Output {
-        // Ensure both tensors have the same dtype
-        if self.dtype != other.dtype {
-            anyhow::bail!(
-                "Cannot perform division on tensors with different dtypes: {:?} and {:?}",
-                self.dtype,
-                other.dtype
-            );
-        }
-
-        match (&self.data, &other.data) {
-            (DTypeTensor::F32(a), DTypeTensor::F32(b)) => {
-                // Check if shapes are exactly the same
-                if a.shape() == b.shape() {
-                    let result = (a / b).into_shared();
-                    return Ok(Tensor {
-                        data: DTypeTensor::F32(result),
-                        dtype: DType::Fp32,
-                        uid: Self::generate_uid(),
-                    });
-                }
-
-                // Try broadcasting: attempt to broadcast the smaller tensor to the larger shape
-                let (a_broadcasted, b_broadcasted) = if a.len() >= b.len() {
-                    // Broadcast b to a's shape
-                    match b.broadcast(a.raw_dim()) {
-                        Some(b_bc) => (a.clone(), b_bc.to_owned().into_shared()),
-                        None => anyhow::bail!(
-                            "Cannot broadcast shapes: {:?} and {:?}",
-                            a.shape(),
-                            b.shape()
-                        ),
-                    }
-                } else {
-                    // Broadcast a to b's shape
-                    match a.broadcast(b.raw_dim()) {
-                        Some(a_bc) => (a_bc.to_owned().into_shared(), b.clone()),
-                        None => anyhow::bail!(
-                            "Cannot broadcast shapes: {:?} and {:?}",
-                            a.shape(),
-                            b.shape()
-                        ),
-                    }
-                };
-
-                let result = (&a_broadcasted / &b_broadcasted).into_shared();
-                Ok(Tensor {
-                    data: DTypeTensor::F32(result),
-                    dtype: DType::Fp32,
-                    uid: Self::generate_uid(),
-                })
-            }
-            (DTypeTensor::F64(a), DTypeTensor::F64(b)) => {
-                // Check if shapes are exactly the same
-                if a.shape() == b.shape() {
-                    let result = (a / b).into_shared();
-                    return Ok(Tensor {
-                        data: DTypeTensor::F64(result),
-                        dtype: DType::Fp64,
-                        uid: Self::generate_uid(),
-                    });
-                }
-
-                // Try broadcasting: attempt to broadcast the smaller tensor to the larger shape
-                let (a_broadcasted, b_broadcasted) = if a.len() >= b.len() {
-                    // Broadcast b to a's shape
-                    match b.broadcast(a.raw_dim()) {
-                        Some(b_bc) => (a.clone(), b_bc.to_owned().into_shared()),
-                        None => anyhow::bail!(
-                            "Cannot broadcast shapes: {:?} and {:?}",
-                            a.shape(),
-                            b.shape()
-                        ),
-                    }
-                } else {
-                    // Broadcast a to b's shape
-                    match a.broadcast(b.raw_dim()) {
-                        Some(a_bc) => (a_bc.to_owned().into_shared(), b.clone()),
-                        None => anyhow::bail!(
-                            "Cannot broadcast shapes: {:?} and {:?}",
-                            a.shape(),
-                            b.shape()
-                        ),
-                    }
-                };
-
-                let result = (&a_broadcasted / &b_broadcasted).into_shared();
-                Ok(Tensor {
-                    data: DTypeTensor::F64(result),
-                    dtype: DType::Fp64,
-                    uid: Self::generate_uid(),
-                })
-            }
-            (DTypeTensor::I32(a), DTypeTensor::I32(b)) => {
-                // Check if shapes are exactly the same
-                if a.shape() == b.shape() {
-                    let result = (a / b).into_shared();
-                    return Ok(Tensor {
-                        data: DTypeTensor::I32(result),
-                        dtype: DType::Int32,
-                        uid: Self::generate_uid(),
-                    });
-                }
-
-                // Try broadcasting: attempt to broadcast the smaller tensor to the larger shape
-                let (a_broadcasted, b_broadcasted) = if a.len() >= b.len() {
-                    // Broadcast b to a's shape
-                    match b.broadcast(a.raw_dim()) {
-                        Some(b_bc) => (a.clone(), b_bc.to_owned().into_shared()),
-                        None => anyhow::bail!(
-                            "Cannot broadcast shapes: {:?} and {:?}",
-                            a.shape(),
-                            b.shape()
-                        ),
-                    }
-                } else {
-                    // Broadcast a to b's shape
-                    match a.broadcast(b.raw_dim()) {
-                        Some(a_bc) => (a_bc.to_owned().into_shared(), b.clone()),
-                        None => anyhow::bail!(
-                            "Cannot broadcast shapes: {:?} and {:?}",
-                            a.shape(),
-                            b.shape()
-                        ),
-                    }
-                };
-
-                let result = (&a_broadcasted / &b_broadcasted).into_shared();
-                Ok(Tensor {
-                    data: DTypeTensor::I32(result),
-                    dtype: DType::Int32,
-                    uid: Self::generate_uid(),
-                })
-            }
-            (DTypeTensor::I64(a), DTypeTensor::I64(b)) => {
-                // Check if shapes are exactly the same
-                if a.shape() == b.shape() {
-                    let result = (a / b).into_shared();
-                    return Ok(Tensor {
-                        data: DTypeTensor::I64(result),
-                        dtype: DType::Int64,
-                        uid: Self::generate_uid(),
-                    });
-                }
-
-                // Try broadcasting: attempt to broadcast the smaller tensor to the larger shape
-                let (a_broadcasted, b_broadcasted) = if a.len() >= b.len() {
-                    // Broadcast b to a's shape
-                    match b.broadcast(a.raw_dim()) {
-                        Some(b_bc) => (a.clone(), b_bc.to_owned().into_shared()),
-                        None => anyhow::bail!(
-                            "Cannot broadcast shapes: {:?} and {:?}",
-                            a.shape(),
-                            b.shape()
-                        ),
-                    }
-                } else {
-                    // Broadcast a to b's shape
-                    match a.broadcast(b.raw_dim()) {
-                        Some(a_bc) => (a_bc.to_owned().into_shared(), b.clone()),
-                        None => anyhow::bail!(
-                            "Cannot broadcast shapes: {:?} and {:?}",
-                            a.shape(),
-                            b.shape()
-                        ),
-                    }
-                };
-
-                let result = (&a_broadcasted / &b_broadcasted).into_shared();
-                Ok(Tensor {
-                    data: DTypeTensor::I64(result),
-                    dtype: DType::Int64,
-                    uid: Self::generate_uid(),
-                })
-            }
-            (DTypeTensor::F16(a), DTypeTensor::F16(b)) => {
-                // Check if shapes are exactly the same
-                if a.shape() == b.shape() {
-                    let result = (a / b).into_shared();
-                    return Ok(Tensor {
-                        data: DTypeTensor::F16(result),
-                        dtype: DType::Fp16,
-                        uid: Self::generate_uid(),
-                    });
-                }
-
-                // Try broadcasting: attempt to broadcast the smaller tensor to the larger shape
-                let (a_broadcasted, b_broadcasted) = if a.len() >= b.len() {
-                    // Broadcast b to a's shape
-                    match b.broadcast(a.raw_dim()) {
-                        Some(b_bc) => (a.clone(), b_bc.to_owned().into_shared()),
-                        None => anyhow::bail!(
-                            "Cannot broadcast shapes: {:?} and {:?}",
-                            a.shape(),
-                            b.shape()
-                        ),
-                    }
-                } else {
-                    // Broadcast a to b's shape
-                    match a.broadcast(b.raw_dim()) {
-                        Some(a_bc) => (a_bc.to_owned().into_shared(), b.clone()),
-                        None => anyhow::bail!(
-                            "Cannot broadcast shapes: {:?} and {:?}",
-                            a.shape(),
-                            b.shape()
-                        ),
-                    }
-                };
-
-                let result = (&a_broadcasted / &b_broadcasted).into_shared();
-                Ok(Tensor {
-                    data: DTypeTensor::F16(result),
-                    dtype: DType::Fp16,
-                    uid: Self::generate_uid(),
-                })
-            }
-            _ => anyhow::bail!(
-                "Element-wise division not supported for this tensor type combination"
-            ),
-        }
-    }
-}
-
-// === Compound Assignment Operations ===
-
-// DivAssign for scalar f32
-impl DivAssign<f32> for Tensor {
-    fn div_assign(&mut self, other: f32) {
-        match &mut self.data {
-            DTypeTensor::F32(arr) => {
-                let result = arr.view().mapv(|x| x / other);
-                self.data = DTypeTensor::F32(result.into_shared());
-                self.uid = Self::generate_uid();
-            }
-            DTypeTensor::F64(arr) => {
-                let result = arr.view().mapv(|x| x / other as f64);
-                self.data = DTypeTensor::F64(result.into_shared());
-                self.uid = Self::generate_uid();
-            }
-            DTypeTensor::F16(arr) => {
-                let result = arr.view().mapv(|x| x / half::f16::from_f32(other));
-                self.data = DTypeTensor::F16(result.into_shared());
-                self.uid = Self::generate_uid();
-            }
-            DTypeTensor::Bf16(arr) => {
-                let result = arr.view().mapv(|x| x / half::bf16::from_f32(other));
-                self.data = DTypeTensor::Bf16(result.into_shared());
-                self.uid = Self::generate_uid();
-            }
-            DTypeTensor::I8(arr) => {
-                let result = arr.view().mapv(|x| x / other as i8);
-                self.data = DTypeTensor::I8(result.into_shared());
-                self.uid = Self::generate_uid();
-            }
-            DTypeTensor::I16(arr) => {
-                let result = arr.view().mapv(|x| x / other as i16);
-                self.data = DTypeTensor::I16(result.into_shared());
-                self.uid = Self::generate_uid();
-            }
-            DTypeTensor::I32(arr) => {
-                let result = arr.view().mapv(|x| x / other as i32);
-                self.data = DTypeTensor::I32(result.into_shared());
-                self.uid = Self::generate_uid();
-            }
-            DTypeTensor::I64(arr) => {
-                let result = arr.view().mapv(|x| x / other as i64);
-                self.data = DTypeTensor::I64(result.into_shared());
-                self.uid = Self::generate_uid();
-            }
-            DTypeTensor::U8(arr) => {
-                let result = arr.view().mapv(|x| x / other as u8);
-                self.data = DTypeTensor::U8(result.into_shared());
-                self.uid = Self::generate_uid();
-            }
-            DTypeTensor::U16(arr) => {
-                let result = arr.view().mapv(|x| x / other as u16);
-                self.data = DTypeTensor::U16(result.into_shared());
-                self.uid = Self::generate_uid();
-            }
-            DTypeTensor::U32(arr) => {
-                let result = arr.view().mapv(|x| x / other as u32);
-                self.data = DTypeTensor::U32(result.into_shared());
-                self.uid = Self::generate_uid();
-            }
-            DTypeTensor::U64(arr) => {
-                let result = arr.view().mapv(|x| x / other as u64);
-                self.data = DTypeTensor::U64(result.into_shared());
-                self.uid = Self::generate_uid();
-            }
-            DTypeTensor::Bool(_) => panic!("Division assignment is not supported for Bool tensors"),
-        }
-    }
-}
-
-// DivAssign for tensor reference
-impl DivAssign<&Tensor> for Tensor {
-    fn div_assign(&mut self, other: &Tensor) {
-        let result = self.clone().div(other).expect("Division failed");
-        *self = result;
-    }
-}
-
-// MulAssign for scalar f32
-impl MulAssign<f32> for Tensor {
-    fn mul_assign(&mut self, other: f32) {
-        match &mut self.data {
-            DTypeTensor::F32(arr) => {
-                let result = arr.view().mapv(|x| x * other);
-                self.data = DTypeTensor::F32(result.into_shared());
-                self.uid = Self::generate_uid();
-            }
-            DTypeTensor::F64(arr) => {
-                let result = arr.view().mapv(|x| x * other as f64);
-                self.data = DTypeTensor::F64(result.into_shared());
-                self.uid = Self::generate_uid();
-            }
-            DTypeTensor::F16(arr) => {
-                let result = arr.view().mapv(|x| x * half::f16::from_f32(other));
-                self.data = DTypeTensor::F16(result.into_shared());
-                self.uid = Self::generate_uid();
-            }
-            DTypeTensor::Bf16(arr) => {
-                let result = arr.view().mapv(|x| x * half::bf16::from_f32(other));
-                self.data = DTypeTensor::Bf16(result.into_shared());
-                self.uid = Self::generate_uid();
-            }
-            DTypeTensor::I8(arr) => {
-                let result = arr.view().mapv(|x| x * other as i8);
-                self.data = DTypeTensor::I8(result.into_shared());
-                self.uid = Self::generate_uid();
-            }
-            DTypeTensor::I16(arr) => {
-                let result = arr.view().mapv(|x| x * other as i16);
-                self.data = DTypeTensor::I16(result.into_shared());
-                self.uid = Self::generate_uid();
-            }
-            DTypeTensor::I32(arr) => {
-                let result = arr.view().mapv(|x| x * other as i32);
-                self.data = DTypeTensor::I32(result.into_shared());
-                self.uid = Self::generate_uid();
-            }
-            DTypeTensor::I64(arr) => {
-                let result = arr.view().mapv(|x| x * other as i64);
-                self.data = DTypeTensor::I64(result.into_shared());
-                self.uid = Self::generate_uid();
-            }
-            DTypeTensor::U8(arr) => {
-                let result = arr.view().mapv(|x| x * other as u8);
-                self.data = DTypeTensor::U8(result.into_shared());
-                self.uid = Self::generate_uid();
-            }
-            DTypeTensor::U16(arr) => {
-                let result = arr.view().mapv(|x| x * other as u16);
-                self.data = DTypeTensor::U16(result.into_shared());
-                self.uid = Self::generate_uid();
-            }
-            DTypeTensor::U32(arr) => {
-                let result = arr.view().mapv(|x| x * other as u32);
-                self.data = DTypeTensor::U32(result.into_shared());
-                self.uid = Self::generate_uid();
-            }
-            DTypeTensor::U64(arr) => {
-                let result = arr.view().mapv(|x| x * other as u64);
-                self.data = DTypeTensor::U64(result.into_shared());
-                self.uid = Self::generate_uid();
-            }
-            DTypeTensor::Bool(_) => {
-                panic!("Multiplication assignment is not supported for Bool tensors")
-            }
-        }
-    }
-}
-
-// MulAssign for tensor reference
-impl MulAssign<&Tensor> for Tensor {
-    fn mul_assign(&mut self, other: &Tensor) {
-        let result = self.clone().mul(other).expect("Multiplication failed");
-        *self = result;
-    }
-}
-
-// AddAssign for scalar f32
-impl AddAssign<f32> for Tensor {
-    fn add_assign(&mut self, other: f32) {
-        match &mut self.data {
-            DTypeTensor::F32(arr) => {
-                let result = arr.view().mapv(|x| x + other);
-                self.data = DTypeTensor::F32(result.into_shared());
-                self.uid = Self::generate_uid();
-            }
-            DTypeTensor::F64(arr) => {
-                let result = arr.view().mapv(|x| x + other as f64);
-                self.data = DTypeTensor::F64(result.into_shared());
-                self.uid = Self::generate_uid();
-            }
-            DTypeTensor::F16(arr) => {
-                let result = arr.view().mapv(|x| x + half::f16::from_f32(other));
-                self.data = DTypeTensor::F16(result.into_shared());
-                self.uid = Self::generate_uid();
-            }
-            DTypeTensor::Bf16(arr) => {
-                let result = arr.view().mapv(|x| x + half::bf16::from_f32(other));
-                self.data = DTypeTensor::Bf16(result.into_shared());
-                self.uid = Self::generate_uid();
-            }
-            DTypeTensor::I8(arr) => {
-                let result = arr.view().mapv(|x| x + other as i8);
-                self.data = DTypeTensor::I8(result.into_shared());
-                self.uid = Self::generate_uid();
-            }
-            DTypeTensor::I16(arr) => {
-                let result = arr.view().mapv(|x| x + other as i16);
-                self.data = DTypeTensor::I16(result.into_shared());
-                self.uid = Self::generate_uid();
-            }
-            DTypeTensor::I32(arr) => {
-                let result = arr.view().mapv(|x| x + other as i32);
-                self.data = DTypeTensor::I32(result.into_shared());
-                self.uid = Self::generate_uid();
-            }
-            DTypeTensor::I64(arr) => {
-                let result = arr.view().mapv(|x| x + other as i64);
-                self.data = DTypeTensor::I64(result.into_shared());
-                self.uid = Self::generate_uid();
-            }
-            DTypeTensor::U8(arr) => {
-                let result = arr.view().mapv(|x| x + other as u8);
-                self.data = DTypeTensor::U8(result.into_shared());
-                self.uid = Self::generate_uid();
-            }
-            DTypeTensor::U16(arr) => {
-                let result = arr.view().mapv(|x| x + other as u16);
-                self.data = DTypeTensor::U16(result.into_shared());
-                self.uid = Self::generate_uid();
-            }
-            DTypeTensor::U32(arr) => {
-                let result = arr.view().mapv(|x| x + other as u32);
-                self.data = DTypeTensor::U32(result.into_shared());
-                self.uid = Self::generate_uid();
-            }
-            DTypeTensor::U64(arr) => {
-                let result = arr.view().mapv(|x| x + other as u64);
-                self.data = DTypeTensor::U64(result.into_shared());
-                self.uid = Self::generate_uid();
-            }
-            DTypeTensor::Bool(_) => panic!("Addition assignment is not supported for Bool tensors"),
-        }
-    }
-}
-
-/// Element-wise addition
-impl Add for Tensor {
-    type Output = Result<Self>;
-
-    fn add(self, rhs: Self) -> Self::Output {
-        match (&self.data, &rhs.data) {
-            (DTypeTensor::F32(a), DTypeTensor::F32(b)) => {
-                if a.shape() != b.shape() {
-                    anyhow::bail!(
-                        "Shape mismatch for addition: {:?} vs {:?}",
-                        a.shape(),
-                        b.shape()
-                    );
-                }
-                let result = a + b;
-                Ok(Self::from_array(result.into_dyn()))
-            }
-            (DTypeTensor::F64(a), DTypeTensor::F64(b)) => {
-                if a.shape() != b.shape() {
-                    anyhow::bail!(
-                        "Shape mismatch for addition: {:?} vs {:?}",
-                        a.shape(),
-                        b.shape()
-                    );
-                }
-                let result = a + b;
-                Ok(Self::from_array(result.into_dyn()))
-            }
-            (DTypeTensor::F16(a), DTypeTensor::F16(b)) => {
-                if a.shape() != b.shape() {
-                    anyhow::bail!(
-                        "Shape mismatch for addition: {:?} vs {:?}",
-                        a.shape(),
-                        b.shape()
-                    );
-                }
-                let result = a + b;
-                Ok(Self::from_array(result.into_dyn()))
-            }
-            (DTypeTensor::Bf16(a), DTypeTensor::Bf16(b)) => {
-                if a.shape() != b.shape() {
-                    anyhow::bail!(
-                        "Shape mismatch for addition: {:?} vs {:?}",
-                        a.shape(),
-                        b.shape()
-                    );
-                }
-                let result = a + b;
-                Ok(Self::from_array(result.into_dyn()))
-            }
-            (DTypeTensor::I8(a), DTypeTensor::I8(b)) => {
-                if a.shape() != b.shape() {
-                    anyhow::bail!(
-                        "Shape mismatch for addition: {:?} vs {:?}",
-                        a.shape(),
-                        b.shape()
-                    );
-                }
-                let result = a + b;
-                Ok(Self::from_array(result.into_dyn()))
-            }
-            (DTypeTensor::I16(a), DTypeTensor::I16(b)) => {
-                if a.shape() != b.shape() {
-                    anyhow::bail!(
-                        "Shape mismatch for addition: {:?} vs {:?}",
-                        a.shape(),
-                        b.shape()
-                    );
-                }
-                let result = a + b;
-                Ok(Self::from_array(result.into_dyn()))
-            }
-            _ => anyhow::bail!("Addition requires tensors of the same data type"),
-        }
-    }
-}
-
-/// Element-wise addition with reference
-impl Add<&Tensor> for &Tensor {
-    type Output = Result<Tensor>;
-
-    fn add(self, rhs: &Tensor) -> Self::Output {
-        match (&self.data, &rhs.data) {
-            (DTypeTensor::F32(a), DTypeTensor::F32(b)) => {
-                if a.shape() != b.shape() {
-                    anyhow::bail!(
-                        "Shape mismatch for addition: {:?} vs {:?}",
-                        a.shape(),
-                        b.shape()
-                    );
-                }
-                let result = a + b;
-                Ok(Tensor::from_array(result.into_dyn()))
-            }
-            (DTypeTensor::F64(a), DTypeTensor::F64(b)) => {
-                if a.shape() != b.shape() {
-                    anyhow::bail!(
-                        "Shape mismatch for addition: {:?} vs {:?}",
-                        a.shape(),
-                        b.shape()
-                    );
-                }
-                let result = a + b;
-                Ok(Tensor::from_array(result.into_dyn()))
-            }
-            (DTypeTensor::F16(a), DTypeTensor::F16(b)) => {
-                if a.shape() != b.shape() {
-                    anyhow::bail!(
-                        "Shape mismatch for addition: {:?} vs {:?}",
-                        a.shape(),
-                        b.shape()
-                    );
-                }
-                let result = a + b;
-                Ok(Tensor::from_array(result.into_dyn()))
-            }
-            (DTypeTensor::Bf16(a), DTypeTensor::Bf16(b)) => {
-                if a.shape() != b.shape() {
-                    anyhow::bail!(
-                        "Shape mismatch for addition: {:?} vs {:?}",
-                        a.shape(),
-                        b.shape()
-                    );
-                }
-                let result = a + b;
-                Ok(Tensor::from_array(result.into_dyn()))
-            }
-            (DTypeTensor::I8(a), DTypeTensor::I8(b)) => {
-                if a.shape() != b.shape() {
-                    anyhow::bail!(
-                        "Shape mismatch for addition: {:?} vs {:?}",
-                        a.shape(),
-                        b.shape()
-                    );
-                }
-                let result = a + b;
-                Ok(Tensor::from_array(result.into_dyn()))
-            }
-            (DTypeTensor::I16(a), DTypeTensor::I16(b)) => {
-                if a.shape() != b.shape() {
-                    anyhow::bail!(
-                        "Shape mismatch for addition: {:?} vs {:?}",
-                        a.shape(),
-                        b.shape()
-                    );
-                }
-                let result = a + b;
-                Ok(Tensor::from_array(result.into_dyn()))
-            }
-            _ => anyhow::bail!("Addition requires tensors of the same data type"),
-        }
-    }
-}
-
-/// Element-wise subtraction
-impl Sub for Tensor {
-    type Output = Result<Self>;
-
-    fn sub(self, rhs: Self) -> Self::Output {
-        match (&self.data, &rhs.data) {
-            (DTypeTensor::F32(a), DTypeTensor::F32(b)) => {
-                if a.shape() != b.shape() {
-                    anyhow::bail!(
-                        "Shape mismatch for subtraction: {:?} vs {:?}",
-                        a.shape(),
-                        b.shape()
-                    );
-                }
-                let result = a - b;
-                Ok(Self::from_array(result.into_dyn()))
-            }
-            (DTypeTensor::F64(a), DTypeTensor::F64(b)) => {
-                if a.shape() != b.shape() {
-                    anyhow::bail!(
-                        "Shape mismatch for subtraction: {:?} vs {:?}",
-                        a.shape(),
-                        b.shape()
-                    );
-                }
-                let result = a - b;
-                Ok(Self::from_array(result.into_dyn()))
-            }
-            (DTypeTensor::F16(a), DTypeTensor::F16(b)) => {
-                if a.shape() != b.shape() {
-                    anyhow::bail!(
-                        "Shape mismatch for subtraction: {:?} vs {:?}",
-                        a.shape(),
-                        b.shape()
-                    );
-                }
-                let result = a - b;
-                Ok(Self::from_array(result.into_dyn()))
-            }
-            (DTypeTensor::Bf16(a), DTypeTensor::Bf16(b)) => {
-                if a.shape() != b.shape() {
-                    anyhow::bail!(
-                        "Shape mismatch for subtraction: {:?} vs {:?}",
-                        a.shape(),
-                        b.shape()
-                    );
-                }
-                let result = a - b;
-                Ok(Self::from_array(result.into_dyn()))
-            }
-            (DTypeTensor::I8(a), DTypeTensor::I8(b)) => {
-                if a.shape() != b.shape() {
-                    anyhow::bail!(
-                        "Shape mismatch for subtraction: {:?} vs {:?}",
-                        a.shape(),
-                        b.shape()
-                    );
-                }
-                let result = a - b;
-                Ok(Self::from_array(result.into_dyn()))
-            }
-            (DTypeTensor::I16(a), DTypeTensor::I16(b)) => {
-                if a.shape() != b.shape() {
-                    anyhow::bail!(
-                        "Shape mismatch for subtraction: {:?} vs {:?}",
-                        a.shape(),
-                        b.shape()
-                    );
-                }
-                let result = a - b;
-                Ok(Self::from_array(result.into_dyn()))
-            }
-            _ => anyhow::bail!("Subtraction requires tensors of the same data type"),
-        }
-    }
-}
-
-/// Element-wise subtraction with reference
-impl Sub<&Tensor> for &Tensor {
-    type Output = Result<Tensor>;
-
-    fn sub(self, rhs: &Tensor) -> Self::Output {
-        match (&self.data, &rhs.data) {
-            (DTypeTensor::F32(a), DTypeTensor::F32(b)) => {
-                if a.shape() != b.shape() {
-                    anyhow::bail!(
-                        "Shape mismatch for subtraction: {:?} vs {:?}",
-                        a.shape(),
-                        b.shape()
-                    );
-                }
-                let result = a - b;
-                Ok(Tensor::from_array(result.into_dyn()))
-            }
-            (DTypeTensor::F64(a), DTypeTensor::F64(b)) => {
-                if a.shape() != b.shape() {
-                    anyhow::bail!(
-                        "Shape mismatch for subtraction: {:?} vs {:?}",
-                        a.shape(),
-                        b.shape()
-                    );
-                }
-                let result = a - b;
-                Ok(Tensor::from_array(result.into_dyn()))
-            }
-            (DTypeTensor::F16(a), DTypeTensor::F16(b)) => {
-                if a.shape() != b.shape() {
-                    anyhow::bail!(
-                        "Shape mismatch for subtraction: {:?} vs {:?}",
-                        a.shape(),
-                        b.shape()
-                    );
-                }
-                let result = a - b;
-                Ok(Tensor::from_array(result.into_dyn()))
-            }
-            (DTypeTensor::Bf16(a), DTypeTensor::Bf16(b)) => {
-                if a.shape() != b.shape() {
-                    anyhow::bail!(
-                        "Shape mismatch for subtraction: {:?} vs {:?}",
-                        a.shape(),
-                        b.shape()
-                    );
-                }
-                let result = a - b;
-                Ok(Tensor::from_array(result.into_dyn()))
-            }
-            (DTypeTensor::I8(a), DTypeTensor::I8(b)) => {
-                if a.shape() != b.shape() {
-                    anyhow::bail!(
-                        "Shape mismatch for subtraction: {:?} vs {:?}",
-                        a.shape(),
-                        b.shape()
-                    );
-                }
-                let result = a - b;
-                Ok(Tensor::from_array(result.into_dyn()))
-            }
-            (DTypeTensor::I16(a), DTypeTensor::I16(b)) => {
-                if a.shape() != b.shape() {
-                    anyhow::bail!(
-                        "Shape mismatch for subtraction: {:?} vs {:?}",
-                        a.shape(),
-                        b.shape()
-                    );
-                }
-                let result = a - b;
-                Ok(Tensor::from_array(result.into_dyn()))
-            }
-            _ => anyhow::bail!("Subtraction requires tensors of the same data type"),
-        }
-    }
-}
-
-/// Element-wise multiplication
-impl Mul for Tensor {
-    type Output = Result<Self>;
-
-    fn mul(self, rhs: Self) -> Self::Output {
-        match (&self.data, &rhs.data) {
-            (DTypeTensor::F32(a), DTypeTensor::F32(b)) => {
-                if a.shape() != b.shape() {
-                    anyhow::bail!(
-                        "Shape mismatch for multiplication: {:?} vs {:?}",
-                        a.shape(),
-                        b.shape()
-                    );
-                }
-                let result = a * b;
-                Ok(Self::from_arc_array(result.into_dyn().into()))
-            }
-            (DTypeTensor::F64(a), DTypeTensor::F64(b)) => {
-                if a.shape() != b.shape() {
-                    anyhow::bail!(
-                        "Shape mismatch for multiplication: {:?} vs {:?}",
-                        a.shape(),
-                        b.shape()
-                    );
-                }
-                let result = a * b;
-                Ok(Self::from_array(result.into_dyn()))
-            }
-            (DTypeTensor::F16(a), DTypeTensor::F16(b)) => {
-                if a.shape() != b.shape() {
-                    anyhow::bail!(
-                        "Shape mismatch for multiplication: {:?} vs {:?}",
-                        a.shape(),
-                        b.shape()
-                    );
-                }
-                let result = a * b;
-                Ok(Self::from_array(result.into_dyn()))
-            }
-            (DTypeTensor::Bf16(a), DTypeTensor::Bf16(b)) => {
-                if a.shape() != b.shape() {
-                    anyhow::bail!(
-                        "Shape mismatch for multiplication: {:?} vs {:?}",
-                        a.shape(),
-                        b.shape()
-                    );
-                }
-                let result = a * b;
-                Ok(Self::from_array(result.into_dyn()))
-            }
-            (DTypeTensor::I8(a), DTypeTensor::I8(b)) => {
-                if a.shape() != b.shape() {
-                    anyhow::bail!(
-                        "Shape mismatch for multiplication: {:?} vs {:?}",
-                        a.shape(),
-                        b.shape()
-                    );
-                }
-                let result = a * b;
-                Ok(Self::from_array(result.into_dyn()))
-            }
-            (DTypeTensor::I16(a), DTypeTensor::I16(b)) => {
-                if a.shape() != b.shape() {
-                    anyhow::bail!(
-                        "Shape mismatch for multiplication: {:?} vs {:?}",
-                        a.shape(),
-                        b.shape()
-                    );
-                }
-                let result = a * b;
-                Ok(Self::from_array(result.into_dyn()))
-            }
-            _ => anyhow::bail!("Multiplication requires tensors of the same data type"),
-        }
-    }
-}
-
-/// Element-wise multiplication with reference
-impl Mul<&Tensor> for &Tensor {
-    type Output = Result<Tensor>;
-
-    fn mul(self, rhs: &Tensor) -> Self::Output {
-        match (&self.data, &rhs.data) {
-            (DTypeTensor::F32(a), DTypeTensor::F32(b)) => {
-                if a.shape() != b.shape() {
-                    anyhow::bail!(
-                        "Shape mismatch for multiplication: {:?} vs {:?}",
-                        a.shape(),
-                        b.shape()
-                    );
-                }
-                let result = a * b;
-                Ok(Tensor::from_arc_array(result.into_dyn().into()))
-            }
-            (DTypeTensor::F16(a), DTypeTensor::F16(b)) => {
-                if a.shape() != b.shape() {
-                    anyhow::bail!(
-                        "Shape mismatch for multiplication: {:?} vs {:?}",
-                        a.shape(),
-                        b.shape()
-                    );
-                }
-                let result = a * b;
-                Ok(Tensor::from_array(result.into_dyn()))
-            }
-            (DTypeTensor::Bf16(a), DTypeTensor::Bf16(b)) => {
-                if a.shape() != b.shape() {
-                    anyhow::bail!(
-                        "Shape mismatch for multiplication: {:?} vs {:?}",
-                        a.shape(),
-                        b.shape()
-                    );
-                }
-                let result = a * b;
-                Ok(Tensor::from_array(result.into_dyn()))
-            }
-            (DTypeTensor::I8(a), DTypeTensor::I8(b)) => {
-                if a.shape() != b.shape() {
-                    anyhow::bail!(
-                        "Shape mismatch for multiplication: {:?} vs {:?}",
-                        a.shape(),
-                        b.shape()
-                    );
-                }
-                let result = a * b;
-                Ok(Tensor::from_array(result.into_dyn()))
-            }
-            (DTypeTensor::I16(a), DTypeTensor::I16(b)) => {
-                if a.shape() != b.shape() {
-                    anyhow::bail!(
-                        "Shape mismatch for multiplication: {:?} vs {:?}",
-                        a.shape(),
-                        b.shape()
-                    );
-                }
-                let result = a * b;
-                Ok(Tensor::from_array(result.into_dyn()))
-            }
-            _ => anyhow::bail!("Multiplication requires tensors of the same data type"),
-        }
-    }
-}
-
-/// Scalar multiplication
-impl Mul<f32> for Tensor {
-    type Output = Result<Self>;
-
-    fn mul(self, rhs: f32) -> Self::Output {
-        match &self.data {
-            DTypeTensor::F32(a) => {
-                let result = a * rhs;
-                Ok(Self::from_arc_array(result.into_dyn().into()))
-            }
-            _ => anyhow::bail!("Scalar multiplication currently only supports F32 tensors"),
-        }
-    }
-}
-
-/// Scalar multiplication with reference
-impl Mul<f32> for &Tensor {
-    type Output = Result<Tensor>;
-
-    fn mul(self, rhs: f32) -> Self::Output {
-        match &self.data {
-            DTypeTensor::F32(a) => {
-                let result = a * rhs;
-                Ok(Tensor::from_arc_array(result.into_dyn().into()))
-            }
-            _ => anyhow::bail!("Scalar multiplication currently only supports F32 tensors"),
-        }
-    }
-}
-
-/// Element-wise division
-impl Div for Tensor {
-    type Output = Result<Self>;
-
-    fn div(self, rhs: Self) -> Self::Output {
-        match (&self.data, &rhs.data) {
-            (DTypeTensor::F32(a), DTypeTensor::F32(b)) => {
-                if a.shape() != b.shape() {
-                    anyhow::bail!(
-                        "Shape mismatch for division: {:?} vs {:?}",
-                        a.shape(),
-                        b.shape()
-                    );
-                }
-                let result = a / b;
-                Ok(Self::from_arc_array(result.into_dyn().into()))
-            }
-            _ => anyhow::bail!("Division currently only supports F32 tensors"),
-        }
-    }
-}
-
-/// Element-wise division with reference
-impl Div<&Tensor> for &Tensor {
-    type Output = Result<Tensor>;
-
-    fn div(self, rhs: &Tensor) -> Self::Output {
-        match (&self.data, &rhs.data) {
-            (DTypeTensor::F32(a), DTypeTensor::F32(b)) => {
-                if a.shape() != b.shape() {
-                    anyhow::bail!(
-                        "Shape mismatch for division: {:?} vs {:?}",
-                        a.shape(),
-                        b.shape()
-                    );
-                }
-                let result = a / b;
-                Ok(Tensor::from_arc_array(result.into_dyn().into()))
-            }
-            _ => anyhow::bail!("Division currently only supports F32 tensors"),
-        }
-    }
-}
-
-/// Scalar division
-impl Div<f32> for Tensor {
-    type Output = Result<Self>;
-
-    fn div(self, rhs: f32) -> Self::Output {
-        match &self.data {
-            DTypeTensor::F32(a) => {
-                let result = a / rhs;
-                Ok(Self::from_arc_array(result.into_dyn().into()))
-            }
-            _ => anyhow::bail!("Scalar division currently only supports F32 tensors"),
-        }
-    }
-}
-
-/// Scalar division with reference
-impl Div<f32> for &Tensor {
-    type Output = Result<Tensor>;
-
-    fn div(self, rhs: f32) -> Self::Output {
-        match &self.data {
-            DTypeTensor::F32(a) => {
-                let result = a / rhs;
-                Ok(Tensor::from_array(result.into_dyn()))
-            }
-            _ => anyhow::bail!("Scalar division currently only supports F32 tensors"),
-        }
-    }
-}
-
-/// Negation
-impl Neg for Tensor {
-    type Output = Result<Self>;
-
-    fn neg(self) -> Self::Output {
-        match &self.data {
-            DTypeTensor::F32(a) => {
-                let result = -a;
-                Ok(Self::from_array(result.into_dyn()))
-            }
-            _ => anyhow::bail!("Negation currently only supports F32 tensors"),
-        }
-    }
-}
-
-/// Negation with reference
-impl Neg for &Tensor {
-    type Output = Result<Tensor>;
-
-    fn neg(self) -> Self::Output {
-        match &self.data {
-            DTypeTensor::F32(a) => {
-                let result = -a;
-                Ok(Tensor::from_array(result.into_dyn()))
-            }
-            _ => anyhow::bail!("Negation currently only supports F32 tensors"),
-        }
-    }
-}
-
-// AddAssign for tensor reference
-impl AddAssign<&Tensor> for Tensor {
-    fn add_assign(&mut self, other: &Tensor) {
-        let result = self.clone().add(other).expect("Addition failed");
-        *self = result;
-    }
-}
-
-// SubAssign for scalar f32
-impl SubAssign<f32> for Tensor {
-    fn sub_assign(&mut self, other: f32) {
-        match &mut self.data {
-            DTypeTensor::F32(arr) => {
-                let result = arr.view().mapv(|x| x - other);
-                self.data = DTypeTensor::F32(result.into_shared());
-                self.uid = Self::generate_uid();
-            }
-            DTypeTensor::F64(arr) => {
-                let result = arr.view().mapv(|x| x - other as f64);
-                self.data = DTypeTensor::F64(result.into_shared());
-                self.uid = Self::generate_uid();
-            }
-            DTypeTensor::F16(arr) => {
-                let result = arr.view().mapv(|x| x - half::f16::from_f32(other));
-                self.data = DTypeTensor::F16(result.into_shared());
-                self.uid = Self::generate_uid();
-            }
-            DTypeTensor::Bf16(arr) => {
-                let result = arr.view().mapv(|x| x - half::bf16::from_f32(other));
-                self.data = DTypeTensor::Bf16(result.into_shared());
-                self.uid = Self::generate_uid();
-            }
-            DTypeTensor::I8(arr) => {
-                let result = arr.view().mapv(|x| x - other as i8);
-                self.data = DTypeTensor::I8(result.into_shared());
-                self.uid = Self::generate_uid();
-            }
-            DTypeTensor::I16(arr) => {
-                let result = arr.view().mapv(|x| x - other as i16);
-                self.data = DTypeTensor::I16(result.into_shared());
-                self.uid = Self::generate_uid();
-            }
-            DTypeTensor::I32(arr) => {
-                let result = arr.view().mapv(|x| x - other as i32);
-                self.data = DTypeTensor::I32(result.into_shared());
-                self.uid = Self::generate_uid();
-            }
-            DTypeTensor::I64(arr) => {
-                let result = arr.view().mapv(|x| x - other as i64);
-                self.data = DTypeTensor::I64(result.into_shared());
-                self.uid = Self::generate_uid();
-            }
-            DTypeTensor::U8(arr) => {
-                let result = arr.view().mapv(|x| x - other as u8);
-                self.data = DTypeTensor::U8(result.into_shared());
-                self.uid = Self::generate_uid();
-            }
-            DTypeTensor::U16(arr) => {
-                let result = arr.view().mapv(|x| x - other as u16);
-                self.data = DTypeTensor::U16(result.into_shared());
-                self.uid = Self::generate_uid();
-            }
-            DTypeTensor::U32(arr) => {
-                let result = arr.view().mapv(|x| x - other as u32);
-                self.data = DTypeTensor::U32(result.into_shared());
-                self.uid = Self::generate_uid();
-            }
-            DTypeTensor::U64(arr) => {
-                let result = arr.view().mapv(|x| x - other as u64);
-                self.data = DTypeTensor::U64(result.into_shared());
-                self.uid = Self::generate_uid();
-            }
-            DTypeTensor::Bool(_) => {
-                panic!("Subtraction assignment is not supported for Bool tensors")
-            }
-        }
-    }
-}
-
-// SubAssign for tensor reference
-impl SubAssign<&Tensor> for Tensor {
-    fn sub_assign(&mut self, other: &Tensor) {
-        let result = self.clone().sub(other).expect("Subtraction failed");
-        *self = result;
-    }
-}
-
-impl Tensor {
-    /// Update KV cache with new key-value pairs (in-place operation for performance)
-    ///
-    /// # Arguments
-    /// * `new_kv` - New key-value tensor to append
-    /// * `cache_dim` - Dimension along which to concatenate (typically sequence dimension)
-    ///
-    /// # Returns
-    /// * Updated tensor with new KV data appended
-    ///
-    /// # Performance Notes
-    /// * This method is optimized for transformer KV cache updates
-    /// * Uses in-place operations when possible to minimize memory allocation
-    pub fn kv_cache_update(&mut self, new_kv: &Tensor, cache_dim: usize) -> Result<()> {
-        match (&mut self.data, &new_kv.data) {
-            (DTypeTensor::F32(cache), DTypeTensor::F32(new_data)) => {
-                if cache_dim >= cache.ndim() {
-                    anyhow::bail!(
-                        "Cache dimension {} out of bounds for tensor with {} dimensions",
-                        cache_dim,
-                        cache.ndim()
-                    );
-                }
-
-                // Check shape compatibility (all dims except cache_dim should match)
-                let cache_shape = cache.shape();
-                let new_shape = new_data.shape();
-
-                if cache_shape.len() != new_shape.len() {
-                    anyhow::bail!(
-                        "Dimension mismatch: cache has {} dims, new data has {} dims",
-                        cache_shape.len(),
-                        new_shape.len()
-                    );
-                }
-
-                for (i, (&cache_size, &new_size)) in
-                    cache_shape.iter().zip(new_shape.iter()).enumerate()
-                {
-                    if i != cache_dim && cache_size != new_size {
-                        anyhow::bail!(
-                            "Shape mismatch at dimension {}: cache has size {}, new data has size {}",
-                            i,
-                            cache_size,
-                            new_size
-                        );
-                    }
-                }
-
-                // Concatenate along cache dimension
-                let concatenated = ndarray::concatenate(
-                    ndarray::Axis(cache_dim),
-                    &[cache.view(), new_data.view()],
-                )?;
-
-                // Update cache with concatenated data
-                *cache = concatenated.into_shared();
-
-                // Update UID to reflect the change
-                self.uid = Self::generate_uid();
-
-                Ok(())
-            }
-            _ => anyhow::bail!("KV cache update currently only supports F32 tensors"),
-        }
-    }
-
-    /// Create a cached conversion for repeated type conversions (performance optimization)
-    ///
-    /// # Arguments
-    /// * `target_dtype` - Target data type for conversion
-    ///
-    /// # Returns
-    /// * Converted tensor with cached conversion metadata
-    ///
-    /// # Performance Notes
-    /// * This method caches conversion parameters to avoid repeated computation
-    /// * Useful for engine preprocessing where same conversion is applied repeatedly
-    pub fn with_cached_conversion(&self, target_dtype: DType) -> Result<Self> {
-        if self.dtype() == target_dtype {
-            return Ok(self.clone());
-        }
-
-        match (&self.data, target_dtype) {
-            (DTypeTensor::F32(arr), DType::Fp16) => {
-                let converted = arr.mapv(f16::from_f32);
-                Ok(Self::from_array(converted.into_dyn()))
-            }
-            (DTypeTensor::F32(arr), DType::Bf16) => {
-                let converted = arr.mapv(bf16::from_f32);
-                Ok(Self::from_array(converted.into_dyn()))
-            }
-            (DTypeTensor::F16(arr), DType::Fp32) => {
-                let converted = arr.mapv(|x| x.to_f32());
-                Ok(Self::from_array(converted.into_dyn()))
-            }
-            (DTypeTensor::Bf16(arr), DType::Fp32) => {
-                let converted = arr.mapv(|x| x.to_f32());
-                Ok(Self::from_array(converted.into_dyn()))
-            }
-            _ => {
-                // Fallback to general conversion through F32
-                let f32_tensor = self.clone().to_f32()?;
-                f32_tensor.to_dtype(target_dtype)
-            }
-        }
-    }
-
-    /// High-performance matrix multiplication with caching for repeated operations
-    ///
-    /// # Arguments
-    /// * `other` - Right-hand side tensor for matrix multiplication
-    /// * `cache_key` - Optional cache key for storing intermediate results
-    ///
-    /// # Returns
-    /// * Result of matrix multiplication
-    ///
-    /// # Performance Notes
-    /// * Uses optimized BLAS operations when available
-    /// * Caches intermediate results for repeated operations with same shapes
-    #[deprecated(
-        since = "0.1.0",
-        note = "Use `matmul()` directly - caching will be implemented transparently when needed"
-    )]
-    pub fn matmul_cached(&self, other: &Tensor, _cache_key: Option<&str>) -> Result<Self> {
-        // For now, delegate to regular matmul - caching can be added later
-        self.matmul(other)
-    }
-}
-
-/// Trait for types that can be used as tensor elements
-pub trait TensorElement: Clone + Send + Sync + 'static {
-    /// Get the corresponding DType for this element type
-    fn dtype() -> DType;
-
-    /// Convert to DTypeTensor variant
-    fn into_dtype_tensor(data: ArcArray<Self, IxDyn>) -> DTypeTensor;
-
-    /// Convert from f32 (for type casting)
-    fn from_f32(val: f32) -> Self;
-
-    /// Convert to f32 (for type casting)
-    fn to_f32(self) -> f32;
-
-    /// Get the minimum value for this type
-    fn min_value() -> Option<Self>;
-
-    /// Get the maximum value for this type
-    fn max_value() -> Option<Self>;
-}
-
-// Implement TensorElement for all supported types
-impl TensorElement for f32 {
-    fn dtype() -> DType {
-        DType::Fp32
-    }
-    fn into_dtype_tensor(data: ArcArray<Self, IxDyn>) -> DTypeTensor {
-        DTypeTensor::F32(data)
-    }
-    fn from_f32(val: f32) -> Self {
-        val
-    }
-    fn to_f32(self) -> f32 {
-        self
-    }
-    fn min_value() -> Option<Self> {
-        Some(f32::MIN)
-    }
-    fn max_value() -> Option<Self> {
-        Some(f32::MAX)
-    }
-}
-
-impl TensorElement for f64 {
-    fn dtype() -> DType {
-        DType::Fp64
-    }
-    fn into_dtype_tensor(data: ArcArray<Self, IxDyn>) -> DTypeTensor {
-        DTypeTensor::F64(data)
-    }
-    fn from_f32(val: f32) -> Self {
-        val as f64
-    }
-    fn to_f32(self) -> f32 {
-        self as f32
-    }
-    fn min_value() -> Option<Self> {
-        Some(f64::MIN)
-    }
-    fn max_value() -> Option<Self> {
-        Some(f64::MAX)
-    }
-}
-
-impl TensorElement for f16 {
-    fn dtype() -> DType {
-        DType::Fp16
-    }
-    fn into_dtype_tensor(data: ArcArray<Self, IxDyn>) -> DTypeTensor {
-        DTypeTensor::F16(data)
-    }
-    fn from_f32(val: f32) -> Self {
-        f16::from_f32(val)
-    }
-    fn to_f32(self) -> f32 {
-        self.to_f32()
-    }
-    fn min_value() -> Option<Self> {
-        Some(f16::MIN)
-    }
-    fn max_value() -> Option<Self> {
-        Some(f16::MAX)
-    }
-}
-
-impl TensorElement for bf16 {
-    fn dtype() -> DType {
-        DType::Bf16
-    }
-    fn into_dtype_tensor(data: ArcArray<Self, IxDyn>) -> DTypeTensor {
-        DTypeTensor::Bf16(data)
-    }
-    fn from_f32(val: f32) -> Self {
-        bf16::from_f32(val)
-    }
-    fn to_f32(self) -> f32 {
-        self.to_f32()
-    }
-    fn min_value() -> Option<Self> {
-        Some(bf16::MIN)
-    }
-    fn max_value() -> Option<Self> {
-        Some(bf16::MAX)
-    }
-}
-
-impl TensorElement for i8 {
-    fn dtype() -> DType {
-        DType::Int8
-    }
-    fn into_dtype_tensor(data: ArcArray<Self, IxDyn>) -> DTypeTensor {
-        DTypeTensor::I8(data)
-    }
-    fn from_f32(val: f32) -> Self {
-        val as i8
-    }
-    fn to_f32(self) -> f32 {
-        self as f32
-    }
-    fn min_value() -> Option<Self> {
-        Some(i8::MIN)
-    }
-    fn max_value() -> Option<Self> {
-        Some(i8::MAX)
-    }
-}
-
-impl TensorElement for i16 {
-    fn dtype() -> DType {
-        DType::Int16
-    }
-    fn into_dtype_tensor(data: ArcArray<Self, IxDyn>) -> DTypeTensor {
-        DTypeTensor::I16(data)
-    }
-    fn from_f32(val: f32) -> Self {
-        val as i16
-    }
-    fn to_f32(self) -> f32 {
-        self as f32
-    }
-    fn min_value() -> Option<Self> {
-        Some(i16::MIN)
-    }
-    fn max_value() -> Option<Self> {
-        Some(i16::MAX)
-    }
-}
-
-impl TensorElement for i32 {
-    fn dtype() -> DType {
-        DType::Int32
-    }
-    fn into_dtype_tensor(data: ArcArray<Self, IxDyn>) -> DTypeTensor {
-        DTypeTensor::I32(data)
-    }
-    fn from_f32(val: f32) -> Self {
-        val as i32
-    }
-    fn to_f32(self) -> f32 {
-        self as f32
-    }
-    fn min_value() -> Option<Self> {
-        Some(i32::MIN)
-    }
-    fn max_value() -> Option<Self> {
-        Some(i32::MAX)
-    }
-}
-
-impl TensorElement for i64 {
-    fn dtype() -> DType {
-        DType::Int64
-    }
-    fn into_dtype_tensor(data: ArcArray<Self, IxDyn>) -> DTypeTensor {
-        DTypeTensor::I64(data)
-    }
-    fn from_f32(val: f32) -> Self {
-        val as i64
-    }
-    fn to_f32(self) -> f32 {
-        self as f32
-    }
-    fn min_value() -> Option<Self> {
-        Some(i64::MIN)
-    }
-    fn max_value() -> Option<Self> {
-        Some(i64::MAX)
-    }
-}
-
-impl TensorElement for u8 {
-    fn dtype() -> DType {
-        DType::Uint8
-    }
-    fn into_dtype_tensor(data: ArcArray<Self, IxDyn>) -> DTypeTensor {
-        DTypeTensor::U8(data)
-    }
-    fn from_f32(val: f32) -> Self {
-        val as u8
-    }
-    fn to_f32(self) -> f32 {
-        self as f32
-    }
-    fn min_value() -> Option<Self> {
-        Some(u8::MIN)
-    }
-    fn max_value() -> Option<Self> {
-        Some(u8::MAX)
-    }
-}
-
-impl TensorElement for u16 {
-    fn dtype() -> DType {
-        DType::Uint16
-    }
-    fn into_dtype_tensor(data: ArcArray<Self, IxDyn>) -> DTypeTensor {
-        DTypeTensor::U16(data)
-    }
-    fn from_f32(val: f32) -> Self {
-        val as u16
-    }
-    fn to_f32(self) -> f32 {
-        self as f32
-    }
-    fn min_value() -> Option<Self> {
-        Some(u16::MIN)
-    }
-    fn max_value() -> Option<Self> {
-        Some(u16::MAX)
-    }
-}
-
-impl TensorElement for u32 {
-    fn dtype() -> DType {
-        DType::Uint32
-    }
-    fn into_dtype_tensor(data: ArcArray<Self, IxDyn>) -> DTypeTensor {
-        DTypeTensor::U32(data)
-    }
-    fn from_f32(val: f32) -> Self {
-        val as u32
-    }
-    fn to_f32(self) -> f32 {
-        self as f32
-    }
-    fn min_value() -> Option<Self> {
-        Some(u32::MIN)
-    }
-    fn max_value() -> Option<Self> {
-        Some(u32::MAX)
-    }
-}
-
-impl TensorElement for u64 {
-    fn dtype() -> DType {
-        DType::Uint64
-    }
-    fn into_dtype_tensor(data: ArcArray<Self, IxDyn>) -> DTypeTensor {
-        DTypeTensor::U64(data)
-    }
-    fn from_f32(val: f32) -> Self {
-        val as u64
-    }
-    fn to_f32(self) -> f32 {
-        self as f32
-    }
-    fn min_value() -> Option<Self> {
-        Some(u64::MIN)
-    }
-    fn max_value() -> Option<Self> {
-        Some(u64::MAX)
-    }
-}
-
-impl TensorElement for bool {
-    fn dtype() -> DType {
-        DType::Uint8
-    } // Bool maps to Uint8 in DType
-    fn into_dtype_tensor(data: ArcArray<Self, IxDyn>) -> DTypeTensor {
-        DTypeTensor::Bool(data)
-    }
-    fn from_f32(val: f32) -> Self {
-        val != 0.0
-    }
-    fn to_f32(self) -> f32 {
-        if self {
-            1.0
-        } else {
-            0.0
-        }
-    }
-    fn min_value() -> Option<Self> {
-        None
-    }
-    fn max_value() -> Option<Self> {
-        None
     }
 }

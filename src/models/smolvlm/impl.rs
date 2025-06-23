@@ -198,15 +198,14 @@ impl SmolVLM {
 
             // update
             input_ids = vec![token_id as f32];
-            position_ids = Tensor::from_array(
-                position_ids
-                    .slice(&[
-                        0..position_ids.shape()[0],
-                        position_ids.shape()[1] - 1..position_ids.shape()[1],
-                    ])?
-                    .to_owned()?
-                    .mapv(|x| x + 1.0),
-            );
+            position_ids = position_ids
+                .slice(&[
+                    0..position_ids.shape()[0],
+                    position_ids.shape()[1] - 1..position_ids.shape()[1],
+                ])?
+                .to_owned()?
+                .mapv(|x| x + 1.0)
+                .into();
         }
 
         // decode tokens

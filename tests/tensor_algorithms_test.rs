@@ -20,6 +20,7 @@ fn test_sum_operations() -> Result<()> {
     // Sum along dimension 0
     let sum_dim0 = tensor.sum_dim(Some(0), false)?;
     assert_eq!(sum_dim0.shape(), &[3]);
+    // assert_eq!(sum_dim0, Tensor::from(vec![5.0f32, 7., 9.]));
 
     // Sum along dimension 1 with keepdims
     let sum_dim1_keepdims = tensor.sum_dim(Some(1), true)?;
@@ -126,23 +127,6 @@ fn test_concatenation() -> Result<()> {
     Ok(())
 }
 
-// TODO: Implement stack method
-// #[test]
-// fn test_stacking() -> Result<()> {
-//     let a = Tensor::from_shape_vec(vec![2, 3], vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])?;
-//     let b = Tensor::from_shape_vec(vec![2, 3], vec![7.0, 8.0, 9.0, 10.0, 11.0, 12.0])?;
-//
-//     // Stack along dimension 0
-//     let stack_dim0 = Tensor::stack(&[a.clone(), b.clone()], 0)?;
-//     assert_eq!(stack_dim0.shape(), &[2, 2, 3]);
-//
-//     // Stack along dimension 1
-//     let stack_dim1 = Tensor::stack(&[a, b], 1)?;
-//     assert_eq!(stack_dim1.shape(), &[2, 2, 3]);
-//
-//     Ok(())
-// }
-
 #[test]
 fn test_reshape_operations() -> Result<()> {
     let data: Vec<f32> = (1..=24).map(|x| x as f32).collect();
@@ -236,7 +220,7 @@ fn test_clamp() -> Result<()> {
     let tensor = Tensor::from_shape_vec(vec![2, 3], data)?;
 
     let clamped = tensor.data.clamp_typed(-1.0f32, 2.0f32).unwrap();
-    let clamped_tensor = Tensor::from_array(clamped);
+    let clamped_tensor: Tensor = clamped.into();
     assert_eq!(clamped_tensor.shape(), &[2, 3]);
 
     Ok(())

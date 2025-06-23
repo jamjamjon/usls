@@ -1,10 +1,9 @@
 use aksr::Builder;
 use anyhow::Result;
-use ndarray::{Array, IxDyn};
 
 use crate::{
-    elapsed_module, Config, DynConf, Engine, Hbb, Image, NmsOps, Ops, Polygon, Processor,
-    SliceOrIndex, Xs, Y,
+    elapsed_module, Config, DynConf, Engine, Hbb, Image, NmsOps, Ops, Polygon, Processor, Tensor,
+    Xs, Y,
 };
 
 #[derive(Builder, Debug)]
@@ -13,7 +12,6 @@ pub struct YOLOPv2 {
     height: usize,
     width: usize,
     batch: usize,
-
     spec: String,
     processor: Processor,
     confs: DynConf,
@@ -42,7 +40,6 @@ impl YOLOPv2 {
             batch,
             confs,
             iou,
-
             processor,
             spec,
         })
@@ -57,9 +54,9 @@ impl YOLOPv2 {
     }
 
     pub fn forward(&mut self, xs: &[Image]) -> Result<Vec<Y>> {
-        let ys = elapsed_module!("yolop", "preprocess", self.preprocess(xs)?);
-        let ys = elapsed_module!("yolop", "inference", self.inference(ys)?);
-        let ys = elapsed_module!("yolop", "postprocess", self.postprocess(ys)?);
+        let ys = elapsed_module!("YOLOP", "preprocess", self.preprocess(xs)?);
+        let ys = elapsed_module!("YOLOP", "inference", self.inference(ys)?);
+        let ys = elapsed_module!("YOLOP", "postprocess", self.postprocess(ys)?);
 
         Ok(ys)
     }
@@ -81,9 +78,9 @@ impl YOLOPv2 {
             // Vehicle
             let mut y_bboxes = Vec::new();
             for x in x_det.iter_dim(0) {
-                let bbox = x.slice(vec![SliceOrIndex::Range(0..4)])?;
-                let clss = x.slice(vec![SliceOrIndex::RangeFrom(5)])?.to_owned()?;
-                let conf_tensor = x.slice(vec![SliceOrIndex::Index(4)])?.to_owned()?;
+                let bbox = x.slice((0..4,))?;
+                let clss = x.slice((5..,))?.to_owned()?;
+                let conf_tensor = x.slice((4,))?.to_owned()?;
                 let conf = conf_tensor.to_vec::<f32>()?[0];
                 let clss = (&clss * conf)?;
                 let clss_vec = clss.to_vec::<f32>()?;
@@ -117,23 +114,11 @@ impl YOLOPv2 {
             let mut y_polygons: Vec<Polygon> = Vec::new();
 
             // Drivable area
-            let x_da_0 = x_da
-                .slice(vec![
-                    SliceOrIndex::Range(0..1),
-                    SliceOrIndex::FullSlice,
-                    SliceOrIndex::FullSlice,
-                ])?
-                .to_owned()?;
-            let x_da_1 = x_da
-                .slice(vec![
-                    SliceOrIndex::Range(1..2),
-                    SliceOrIndex::FullSlice,
-                    SliceOrIndex::FullSlice,
-                ])?
-                .to_owned()?;
+            let x_da_0 = x_da.slice((0..1, .., ..))?.to_owned()?;
+            let x_da_1 = x_da.slice((1..2, .., ..))?.to_owned()?;
             let x_da = (&x_da_1 - &x_da_0)?;
             let contours = match self.get_contours_from_mask(
-                x_da.as_array().to_owned().into_dyn(),
+                x_da,
                 0.0,
                 self.width as _,
                 self.height as _,
@@ -159,7 +144,7 @@ impl YOLOPv2 {
 
             // Lane line
             let contours = match self.get_contours_from_mask(
-                x_ll.as_array().to_owned().into_dyn(),
+                x_ll,
                 0.5,
                 self.width as _,
                 self.height as _,
@@ -184,9 +169,7 @@ impl YOLOPv2 {
             };
 
             // save
-            ys.push(
-                Y::default().with_hbbs(&y_bboxes).with_polygons(&y_polygons), // .apply_nms(self.iou),
-            );
+            ys.push(Y::default().with_hbbs(&y_bboxes).with_polygons(&y_polygons));
         }
 
         Ok(ys)
@@ -194,23 +177,19 @@ impl YOLOPv2 {
 
     fn get_contours_from_mask(
         &self,
-        mask: Array<f32, IxDyn>,
+        mask: Tensor,
         thresh: f32,
         w0: f32,
         h0: f32,
         w1: f32,
         h1: f32,
     ) -> Result<Vec<imageproc::contours::Contour<i32>>> {
-        let mask = mask.mapv(|x| if x < thresh { 0u8 } else { 255u8 });
-        let mask = Ops::resize_luma8_u8(
-            &mask.into_raw_vec_and_offset().0,
-            w0,
-            h0,
-            w1,
-            h1,
-            false,
-            "Bilinear",
-        )?;
+        let mask_vec = mask.to_vec::<f32>()?;
+        let mask_u8: Vec<u8> = mask_vec
+            .iter()
+            .map(|&x| if x < thresh { 0u8 } else { 255u8 })
+            .collect();
+        let mask = Ops::resize_luma8_u8(&mask_u8, w0, h0, w1, h1, false, "Bilinear")?;
         let mask: image::ImageBuffer<image::Luma<_>, Vec<_>> =
             image::ImageBuffer::from_raw(w1 as _, h1 as _, mask)
                 .ok_or(anyhow::anyhow!("Failed to build image"))?;
