@@ -4,7 +4,7 @@ use fast_image_resize::{
     images::{CroppedImageMut, Image as FImage},
     pixels::PixelType,
 };
-use image::{DynamicImage, GrayImage, RgbImage, RgbaImage};
+use image::{DynamicImage, GrayImage, RgbImage, RgbaImage, SubImage};
 use std::path::{Path, PathBuf};
 
 use crate::{build_resizer_filter, Hub, Location, MediaType, X};
@@ -108,6 +108,21 @@ impl From<RgbaImage> for Image {
     fn from(image: RgbaImage) -> Self {
         Self {
             image: DynamicImage::from(image).to_rgb8(),
+            ..Default::default()
+        }
+    }
+}
+
+impl<I> From<SubImage<I>> for Image
+where
+    I: std::ops::Deref,
+    I::Target: image::GenericImageView<Pixel = image::Rgb<u8>> + 'static,
+{
+    fn from(sub_image: SubImage<I>) -> Self {
+        let image: RgbImage = sub_image.to_image();
+
+        Self {
+            image,
             ..Default::default()
         }
     }
