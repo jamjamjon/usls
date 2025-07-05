@@ -66,6 +66,8 @@ impl Default for DataLoader {
             with_progress_bar: false,
             #[cfg(feature = "video")]
             decoder: None,
+            #[cfg(feature = "video")]
+            frame_rate: 25.0,
         }
     }
 }
@@ -145,6 +147,9 @@ impl DataLoader {
 
         // video & stream frames
         #[cfg(feature = "video")]
+        let mut frame_rate = 0.0;
+
+        #[cfg(feature = "video")]
         if let Some(decoder) = &decoder {
             nf = match decoder.frames() {
                 Err(_) => u64::MAX,
@@ -167,6 +172,8 @@ impl DataLoader {
             paths,
             media_type,
             nf,
+            #[cfg(feature = "video")]
+            frame_rate,
             #[cfg(feature = "video")]
             decoder,
             ..Default::default()
