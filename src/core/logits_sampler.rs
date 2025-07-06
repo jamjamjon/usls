@@ -48,7 +48,7 @@ impl LogitsSampler {
             .iter()
             .enumerate()
             .reduce(|max, x| if x.1 > max.1 { x } else { max })
-            .unwrap();
+            .ok_or_else(|| anyhow::anyhow!("Empty logits array provided to argmax search"))?;
         Ok(token_id as u32)
     }
 
@@ -59,7 +59,12 @@ impl LogitsSampler {
             .enumerate()
             .map(|(i, &prob)| (i, prob))
             .collect();
-        logits.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        logits.sort_by(|a, b| {
+            b.1.partial_cmp(&a.1).unwrap_or_else(|| {
+                log::warn!("NaN or invalid value encountered in logits sorting");
+                std::cmp::Ordering::Equal
+            })
+        });
 
         // candidates
         let mut candidates: Vec<(usize, f32)> = Vec::new();

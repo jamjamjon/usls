@@ -2,7 +2,7 @@ use aksr::Builder;
 use anyhow::Result;
 use ndarray::Axis;
 
-use crate::{elapsed, Config, Engine, Image, Mask, Ops, Processor, Ts, Xs, Y};
+use crate::{elapsed_module, Config, Engine, Image, Mask, Ops, Processor, Xs, Y};
 
 #[derive(Builder, Debug)]
 pub struct DepthPro {
@@ -10,7 +10,7 @@ pub struct DepthPro {
     height: usize,
     width: usize,
     batch: usize,
-    ts: Ts,
+
     spec: String,
     processor: Processor,
 }
@@ -19,11 +19,10 @@ impl DepthPro {
     pub fn new(config: Config) -> Result<Self> {
         let engine = Engine::try_from_config(&config.model)?;
         let spec = engine.spec().to_string();
-        let (batch, height, width, ts) = (
+        let (batch, height, width) = (
             engine.batch().opt(),
             engine.try_height().unwrap_or(&512.into()).opt(),
             engine.try_width().unwrap_or(&512.into()).opt(),
-            engine.ts().clone(),
         );
         let processor = Processor::try_from_config(&config.processor)?
             .with_image_width(width as _)
@@ -34,7 +33,7 @@ impl DepthPro {
             height,
             width,
             batch,
-            ts,
+
             spec,
             processor,
         })
@@ -82,14 +81,10 @@ impl DepthPro {
     }
 
     pub fn forward(&mut self, xs: &[Image]) -> Result<Vec<Y>> {
-        let ys = elapsed!("preprocess", self.ts, { self.preprocess(xs)? });
-        let ys = elapsed!("inference", self.ts, { self.inference(ys)? });
-        let ys = elapsed!("postprocess", self.ts, { self.postprocess(ys)? });
+        let ys = elapsed_module!("DepthPro", "preprocess", self.preprocess(xs)?);
+        let ys = elapsed_module!("DepthPro", "inference", self.inference(ys)?);
+        let ys = elapsed_module!("DepthPro", "postprocess", self.postprocess(ys)?);
 
         Ok(ys)
-    }
-
-    pub fn summary(&mut self) {
-        self.ts.summary();
     }
 }

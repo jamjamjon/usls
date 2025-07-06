@@ -6,10 +6,10 @@ use rayon::prelude::*;
 use regex::Regex;
 
 use crate::{
-    elapsed,
+    elapsed_module,
     models::{BoxType, YOLOPredsFormat},
     Config, DynConf, Engine, Hbb, Image, Keypoint, Mask, NmsOps, Obb, Ops, Prob, Processor, Task,
-    Ts, Version, Xs, Y,
+    Version, Xs, Y,
 };
 
 /// YOLO (You Only Look Once) object detection model.
@@ -38,7 +38,6 @@ pub struct YOLO {
     iou: f32,
     topk: usize,
     processor: Processor,
-    ts: Ts,
     spec: String,
     classes_excluded: Vec<usize>,
     classes_retained: Vec<usize>,
@@ -61,11 +60,10 @@ impl YOLO {
     /// - Configuring task-specific settings and output formats
     pub fn new(config: Config) -> Result<Self> {
         let engine = Engine::try_from_config(&config.model)?;
-        let (batch, height, width, ts, spec) = (
+        let (batch, height, width, spec) = (
             engine.batch().opt(),
             engine.try_height().unwrap_or(&640.into()).opt(),
             engine.try_width().unwrap_or(&640.into()).opt(),
-            engine.ts.clone(),
             engine.spec().to_owned(),
         );
         let task: Option<Task> = match &config.task {
@@ -249,8 +247,8 @@ impl YOLO {
 
         // Attributes
         let topk = config.topk().unwrap_or(5);
-        let confs = DynConf::new(config.class_confs(), nc);
-        let kconfs = DynConf::new(config.keypoint_confs(), nk);
+        let confs = DynConf::new_or_default(config.class_confs(), nc);
+        let kconfs = DynConf::new_or_default(config.keypoint_confs(), nk);
         let iou = config.iou().unwrap_or(0.45);
         let classes_excluded = config.classes_excluded().to_vec();
         let classes_retained = config.classes_retained().to_vec();
@@ -293,7 +291,6 @@ impl YOLO {
             classes_excluded,
             classes_retained,
             processor,
-            ts,
             topk,
         })
     }
@@ -317,9 +314,10 @@ impl YOLO {
     /// 2. Running model inference
     /// 3. Post-processing the outputs to generate final predictions
     pub fn forward(&mut self, xs: &[Image]) -> Result<Vec<Y>> {
-        let ys = elapsed!("preprocess", self.ts, { self.preprocess(xs)? });
-        let ys = elapsed!("inference", self.ts, { self.inference(ys)? });
-        let ys = elapsed!("postprocess", self.ts, { self.postprocess(ys)? });
+        // Forward pass
+        let ys = elapsed_module!("YOLO", "preprocess", self.preprocess(xs)?);
+        let ys = elapsed_module!("YOLO", "inference", self.inference(ys)?);
+        let ys = elapsed_module!("YOLO", "postprocess", self.postprocess(ys)?);
 
         Ok(ys)
     }
@@ -647,10 +645,5 @@ impl YOLO {
             .captures(&engine.try_fetch("kpt_shape")?)
             .and_then(|caps| caps.get(1))
             .and_then(|m| m.as_str().parse::<usize>().ok())
-    }
-
-    /// Prints a summary of the model configuration and parameters.
-    pub fn summary(&mut self) {
-        self.ts.summary();
     }
 }

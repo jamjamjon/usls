@@ -1,5 +1,11 @@
 use crate::{Hbb, Obb};
 
+/// Trait for models that can provide performance summaries.
+pub trait ModelSummary {
+    /// Print performance summary for the model.
+    fn summary(&mut self);
+}
+
 /// Trait for objects that have a confidence score.
 pub trait HasScore {
     /// Returns the confidence score.

@@ -3,7 +3,7 @@ use anyhow::Result;
 use ndarray::Axis;
 use rayon::prelude::*;
 
-use crate::{elapsed, Config, DynConf, Engine, Hbb, Image, Processor, Ts, Xs, X, Y};
+use crate::{elapsed_module, Config, DynConf, Engine, Hbb, Image, Processor, Xs, X, Y};
 
 #[derive(Debug, Builder)]
 pub struct PicoDet {
@@ -14,22 +14,20 @@ pub struct PicoDet {
     spec: String,
     names: Vec<String>,
     confs: DynConf,
-    ts: Ts,
     processor: Processor,
 }
 
 impl PicoDet {
     pub fn new(config: Config) -> Result<Self> {
         let engine = Engine::try_from_config(&config.model)?;
-        let (batch, height, width, ts) = (
+        let (batch, height, width) = (
             engine.batch().opt(),
             engine.try_height().unwrap_or(&640.into()).opt(),
             engine.try_width().unwrap_or(&640.into()).opt(),
-            engine.ts.clone(),
         );
         let spec = engine.spec().to_owned();
         let names: Vec<String> = config.class_names().to_vec();
-        let confs = DynConf::new(config.class_confs(), names.len());
+        let confs = DynConf::new_or_default(config.class_confs(), names.len());
         let processor = Processor::try_from_config(&config.processor)?
             .with_image_width(width as _)
             .with_image_height(height as _);
@@ -42,7 +40,6 @@ impl PicoDet {
             spec,
             names,
             confs,
-            ts,
             processor,
         })
     }
@@ -65,17 +62,12 @@ impl PicoDet {
     }
 
     pub fn forward(&mut self, xs: &[Image]) -> Result<Vec<Y>> {
-        let ys = elapsed!("preprocess", self.ts, { self.preprocess(xs)? });
-        let ys = elapsed!("inference", self.ts, { self.inference(ys)? });
-        let ys = elapsed!("postprocess", self.ts, { self.postprocess(ys)? });
+        let ys = elapsed_module!("PicoDet", "preprocess", self.preprocess(xs)?);
+        let ys = elapsed_module!("PicoDet", "inference", self.inference(ys)?);
+        let ys = elapsed_module!("PicoDet", "postprocess", self.postprocess(ys)?);
 
         Ok(ys)
     }
-
-    pub fn summary(&mut self) {
-        self.ts.summary();
-    }
-
     fn postprocess(&mut self, xs: Xs) -> Result<Vec<Y>> {
         // ONNX models exported by paddle2onnx
         // TODO: ONNX model's batch size seems always = 1

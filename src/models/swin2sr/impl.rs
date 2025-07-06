@@ -2,14 +2,14 @@ use aksr::Builder;
 use anyhow::Result;
 use ndarray::s;
 
-use crate::{elapsed, Config, Engine, Image, Processor, Ts, Xs, Y};
+use crate::{elapsed_module, Config, Engine, Image, Processor, Xs, Y};
 
 #[derive(Debug, Builder)]
 pub struct Swin2SR {
     engine: Engine,
     batch: usize,
     spec: String,
-    ts: Ts,
+
     processor: Processor,
     up_scale: f32,
 }
@@ -18,7 +18,7 @@ impl Swin2SR {
     pub fn new(config: Config) -> Result<Self> {
         let engine = Engine::try_from_config(&config.model)?;
         let spec = engine.spec().to_string();
-        let (batch, ts) = (engine.batch().opt(), engine.ts().clone());
+        let batch = engine.batch().opt();
         let processor = Processor::try_from_config(&config.processor)?;
         let up_scale = config.processor.up_scale;
 
@@ -26,7 +26,7 @@ impl Swin2SR {
             engine,
             batch,
             spec,
-            ts,
+
             processor,
             up_scale,
         })
@@ -35,9 +35,9 @@ impl Swin2SR {
     pub fn forward(&mut self, xs: &[Image]) -> Result<Vec<Y>> {
         xs.iter()
             .map(|x| {
-                let y = elapsed!("preprocess_one", self.ts, { self.preprocess_one(x)? });
-                let y = elapsed!("inference", self.ts, { self.inference(y)? });
-                elapsed!("postprocess_one", self.ts, { self.postprocess_one(y) })
+                let y = elapsed_module!("Swin2SR", "preprocess_one", self.preprocess_one(x)?);
+                let y = elapsed_module!("Swin2SR", "inference", self.inference(y)?);
+                elapsed_module!("Swin2SR", "postprocess_one", self.postprocess_one(y))
             })
             .collect()
     }
@@ -60,9 +60,5 @@ impl Swin2SR {
         let image = Image::from_u8s(&y.into_raw_vec_and_offset().0, w as _, h as _)?;
 
         Ok(Y::default().with_images(&[image]))
-    }
-
-    pub fn summary(&mut self) {
-        self.ts.summary();
     }
 }

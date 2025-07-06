@@ -2,7 +2,7 @@ use aksr::Builder;
 use anyhow::Result;
 use ndarray::{s, Axis};
 
-use crate::{elapsed, models::BaseModelVisual, Config, Image, Keypoint, Text, Ts, Xs, Y};
+use crate::{elapsed_module, models::BaseModelVisual, Config, Image, Keypoint, Text, Xs, Y};
 
 #[derive(Builder, Debug)]
 pub struct SLANet {
@@ -10,37 +10,30 @@ pub struct SLANet {
     td_tokens: Vec<&'static str>,
     eos: usize,
     sos: usize,
-    ts: Ts,
     spec: String,
 }
 
 impl SLANet {
-    pub fn summary(&mut self) {
-        self.ts.summary();
-    }
-
     pub fn new(config: Config) -> Result<Self> {
         let base = BaseModelVisual::new(config)?;
         let spec = base.engine().spec().to_owned();
         let sos = 0;
         let eos = base.processor().vocab().len() - 1;
         let td_tokens = vec!["<td>", "<td", "<td></td>"];
-        let ts = base.ts().clone();
 
         Ok(Self {
             base,
             td_tokens,
             eos,
             sos,
-            ts,
             spec,
         })
     }
 
     pub fn forward(&mut self, xs: &[Image]) -> Result<Vec<Y>> {
-        let ys = elapsed!("preprocess", self.ts, { self.base.preprocess(xs)? });
-        let ys = elapsed!("inference", self.ts, { self.base.inference(ys)? });
-        let ys = elapsed!("postprocess", self.ts, { self.postprocess(ys)? });
+        let ys = elapsed_module!("SLANet", "preprocess", self.base.preprocess(xs)?);
+        let ys = elapsed_module!("SLANet", "inference", self.base.inference(ys)?);
+        let ys = elapsed_module!("SLANet", "postprocess", self.postprocess(ys)?);
 
         Ok(ys)
     }

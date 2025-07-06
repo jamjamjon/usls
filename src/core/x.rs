@@ -4,7 +4,7 @@ use ndarray::{Array, Dim, IntoDimension, Ix2, IxDyn, IxDynImpl};
 
 use crate::{Ops, ResizeMode};
 
-/// Wrapper over [`Array<f32, IxDyn>`]
+/// Tensor: wrapper over [`Array<f32, IxDyn>`]
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct X(pub Array<f32, IxDyn>);
 

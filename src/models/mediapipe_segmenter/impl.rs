@@ -2,7 +2,7 @@ use aksr::Builder;
 use anyhow::Result;
 use ndarray::Axis;
 
-use crate::{elapsed, Config, Engine, Image, Mask, Ops, Processor, Ts, Xs, Y};
+use crate::{elapsed_module, Config, Engine, Image, Mask, Ops, Processor, Xs, Y};
 
 #[derive(Builder, Debug)]
 pub struct MediaPipeSegmenter {
@@ -10,7 +10,6 @@ pub struct MediaPipeSegmenter {
     height: usize,
     width: usize,
     batch: usize,
-    ts: Ts,
     spec: String,
     processor: Processor,
 }
@@ -19,11 +18,10 @@ impl MediaPipeSegmenter {
     pub fn new(config: Config) -> Result<Self> {
         let engine = Engine::try_from_config(&config.model)?;
         let spec = engine.spec().to_string();
-        let (batch, height, width, ts) = (
+        let (batch, height, width) = (
             engine.batch().opt(),
             engine.try_height().unwrap_or(&256.into()).opt(),
             engine.try_width().unwrap_or(&256.into()).opt(),
-            engine.ts().clone(),
         );
         let processor = Processor::try_from_config(&config.processor)?
             .with_image_width(width as _)
@@ -34,7 +32,6 @@ impl MediaPipeSegmenter {
             height,
             width,
             batch,
-            ts,
             spec,
             processor,
         })
@@ -49,17 +46,12 @@ impl MediaPipeSegmenter {
     }
 
     pub fn forward(&mut self, xs: &[Image]) -> Result<Vec<Y>> {
-        let ys = elapsed!("preprocess", self.ts, { self.preprocess(xs)? });
-        let ys = elapsed!("inference", self.ts, { self.inference(ys)? });
-        let ys = elapsed!("postprocess", self.ts, { self.postprocess(ys)? });
+        let ys = elapsed_module!("MediaPipeSegmenter", "preprocess", self.preprocess(xs)?);
+        let ys = elapsed_module!("MediaPipeSegmenter", "inference", self.inference(ys)?);
+        let ys = elapsed_module!("MediaPipeSegmenter", "postprocess", self.postprocess(ys)?);
 
         Ok(ys)
     }
-
-    pub fn summary(&mut self) {
-        self.ts.summary();
-    }
-
     fn postprocess(&mut self, xs: Xs) -> Result<Vec<Y>> {
         let mut ys: Vec<Y> = Vec::new();
         for (idx, luma) in xs[0].axis_iter(Axis(0)).enumerate() {

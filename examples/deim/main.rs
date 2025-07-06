@@ -29,5 +29,7 @@ fn main() -> Result<()> {
         ))?;
     }
 
+    usls::perf(false);
+
     Ok(())
 }

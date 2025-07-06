@@ -3,7 +3,7 @@ use anyhow::Result;
 use ndarray::{s, Axis};
 use rayon::prelude::*;
 
-use crate::{elapsed, Config, DynConf, Engine, Hbb, Image, Processor, Ts, Xs, X, Y};
+use crate::{elapsed_module, Config, DynConf, Engine, Hbb, Image, Processor, Xs, X, Y};
 
 /// OWL-ViT v2 model for open-vocabulary object detection.
 #[derive(Debug, Builder)]
@@ -15,7 +15,6 @@ pub struct OWLv2 {
     names: Vec<String>,
     names_with_prompt: Vec<String>,
     confs: DynConf,
-    ts: Ts,
     processor: Processor,
     spec: String,
     input_ids: X,
@@ -25,11 +24,10 @@ pub struct OWLv2 {
 impl OWLv2 {
     pub fn new(config: Config) -> Result<Self> {
         let engine = Engine::try_from_config(&config.model)?;
-        let (batch, height, width, ts) = (
+        let (batch, height, width) = (
             engine.batch().opt(),
             engine.try_height().unwrap_or(&960.into()).opt(),
             engine.try_width().unwrap_or(&960.into()).opt(),
-            engine.ts.clone(),
         );
         let spec = engine.spec().to_owned();
         let names: Vec<String> = config.text_names().to_vec();
@@ -41,7 +39,7 @@ impl OWLv2 {
         let names_with_prompt: Vec<String> =
             names.iter().map(|x| format!("a photo of {}", x)).collect();
         let n = names.len();
-        let confs = DynConf::new(config.class_confs(), n);
+        let confs = DynConf::new_or_default(config.class_confs(), n);
         let processor = Processor::try_from_config(&config.processor)?
             .with_image_width(width as _)
             .with_image_height(height as _);
@@ -70,7 +68,6 @@ impl OWLv2 {
             names,
             names_with_prompt,
             confs,
-            ts,
             processor,
             input_ids,
             attention_mask,
@@ -93,9 +90,9 @@ impl OWLv2 {
     }
 
     pub fn forward(&mut self, xs: &[Image]) -> Result<Vec<Y>> {
-        let ys = elapsed!("preprocess", self.ts, { self.preprocess(xs)? });
-        let ys = elapsed!("inference", self.ts, { self.inference(ys)? });
-        let ys = elapsed!("postprocess", self.ts, { self.postprocess(ys)? });
+        let ys = elapsed_module!("OWLv2", "preprocess", self.preprocess(xs)?);
+        let ys = elapsed_module!("OWLv2", "inference", self.inference(ys)?);
+        let ys = elapsed_module!("OWLv2", "postprocess", self.postprocess(ys)?);
 
         Ok(ys)
     }
@@ -151,9 +148,5 @@ impl OWLv2 {
             .collect();
 
         Ok(ys)
-    }
-
-    pub fn summary(&mut self) {
-        self.ts.summary();
     }
 }

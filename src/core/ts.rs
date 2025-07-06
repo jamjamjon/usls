@@ -31,7 +31,13 @@ impl std::ops::Index<&str> for Ts {
     type Output = Vec<Duration>;
 
     fn index(&self, index: &str) -> &Self::Output {
-        self.map.get(index).expect("Index was not found in `Ts`")
+        self.map.get(index).unwrap_or_else(|| {
+            let available_keys: Vec<&str> = self.map.keys().map(|s| s.as_str()).collect();
+            panic!(
+                "Key '{}' was not found in Ts. Available keys: {:?}",
+                index, available_keys
+            )
+        })
     }
 }
 
@@ -42,7 +48,13 @@ impl std::ops::Index<usize> for Ts {
         self.names
             .get(index)
             .and_then(|key| self.map.get(key))
-            .expect("Index was not found in `Ts`")
+            .unwrap_or_else(|| {
+                panic!(
+                    "Index {} was not found in Ts. Available indices: 0..{}",
+                    index,
+                    self.names.len()
+                )
+            })
     }
 }
 
@@ -73,10 +85,12 @@ impl Ts {
             println!("No data available");
         } else {
             // rows
-            let mut rows = self.names.clone();
-            rows.push("(Total)".into());
-
-            let mut iter = rows.iter().peekable();
+            let total_name = "(Total)".to_string();
+            let mut iter = self
+                .names
+                .iter()
+                .chain(std::iter::once(&total_name))
+                .peekable();
             while let Some(task) = iter.next() {
                 if iter.peek().is_none() {
                     let avg = self
@@ -116,8 +130,8 @@ impl Ts {
         let mut names = Vec::new();
         let mut map: HashMap<String, Vec<Duration>> = HashMap::new();
         for x in xs.iter() {
-            names.extend_from_slice(x.names());
-            map.extend(x.map().to_owned());
+            names.extend_from_slice(x.get_names());
+            map.extend(x.get_map().to_owned());
         }
 
         Self { names, map }
@@ -217,6 +231,16 @@ impl Ts {
 
     pub fn is_empty(&self) -> bool {
         self.names.is_empty() && self.map.is_empty()
+    }
+
+    /// Get reference to the names vector
+    pub fn get_names(&self) -> &Vec<String> {
+        &self.names
+    }
+
+    /// Get reference to the internal map
+    pub fn get_map(&self) -> &HashMap<String, Vec<Duration>> {
+        &self.map
     }
 }
 

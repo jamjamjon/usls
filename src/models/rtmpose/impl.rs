@@ -4,7 +4,7 @@ use ndarray::s;
 use rayon::prelude::*;
 use std::f32::consts::PI;
 
-use crate::{elapsed, Config, DynConf, Engine, Hbb, Image, Keypoint, Processor, Ts, Xs, Y};
+use crate::{elapsed_module, Config, DynConf, Engine, Hbb, Image, Keypoint, Processor, Xs, Y};
 
 struct CentersAndScales {
     pub centers: Vec<Keypoint>,
@@ -17,7 +17,7 @@ pub struct RTMPose {
     height: usize,
     width: usize,
     batch: usize,
-    ts: Ts,
+
     spec: String,
     processor: Processor,
     nk: usize,
@@ -30,14 +30,13 @@ impl RTMPose {
     pub fn new(config: Config) -> Result<Self> {
         let engine = Engine::try_from_config(&config.model)?;
         let spec = engine.spec().to_string();
-        let (batch, height, width, ts) = (
+        let (batch, height, width) = (
             engine.batch().opt(),
             engine.try_height().unwrap_or(&256.into()).opt(),
             engine.try_width().unwrap_or(&192.into()).opt(),
-            engine.ts().clone(),
         );
         let nk = config.nk().unwrap_or(17);
-        let kconfs = DynConf::new(config.keypoint_confs(), nk);
+        let kconfs = DynConf::new_or_default(config.keypoint_confs(), nk);
         let names = config.keypoint_names().to_vec();
         let simcc_split_ratio = 2.0;
         let processor = Processor::try_from_config(&config.processor)?
@@ -49,7 +48,7 @@ impl RTMPose {
             height,
             width,
             batch,
-            ts,
+
             spec,
             processor,
             nk,
@@ -127,9 +126,9 @@ impl RTMPose {
 
     pub fn forward(&mut self, x: &Image, hbbs: Option<&[Hbb]>) -> Result<Y> {
         let (ys, centers_and_scales) =
-            elapsed!("preprocess", self.ts, { self.preprocess(x, hbbs)? });
-        let ys = elapsed!("inference", self.ts, { self.inference(ys)? });
-        let y = elapsed!("postprocess", self.ts, {
+            elapsed_module!("RTMPose", "preprocess", self.preprocess(x, hbbs)?);
+        let ys = elapsed_module!("RTMPose", "inference", self.inference(ys)?);
+        let y = elapsed_module!("RTMPose", "postprocess", {
             self.postprocess(ys, centers_and_scales)?
         });
 
@@ -183,11 +182,6 @@ impl RTMPose {
 
         Ok(Y::default().with_keypointss(&y_kpts))
     }
-
-    pub fn summary(&mut self) {
-        self.ts.summary();
-    }
-
     fn argmax_and_max(arr: &ndarray::ArrayView1<f32>) -> (usize, f32) {
         let mut max_idx = 0;
         let mut max_val = arr[0];

@@ -40,8 +40,7 @@ fn main() -> Result<()> {
                 .display(),
         ))?;
     }
-
-    model.summary();
+    usls::perf(false);
 
     Ok(())
 }

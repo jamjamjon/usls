@@ -3,7 +3,7 @@ use anyhow::Result;
 use image::GenericImageView;
 use ndarray::s;
 
-use crate::{Config, Engine, Image, LogitsSampler, Processor, Scale, Ts, Xs, X, Y};
+use crate::{Config, Engine, Image, LogitsSampler, Processor, Scale, Xs, X, Y};
 
 #[derive(Debug, Builder)]
 pub struct SmolVLM {
@@ -28,7 +28,6 @@ pub struct SmolVLM {
     width: usize,
     height: usize,
     processor: Processor,
-    ts: Ts,
 }
 
 impl SmolVLM {
@@ -50,13 +49,15 @@ impl SmolVLM {
             Some(Scale::Million(500.)) => (32, 64, 5),
             _ => unimplemented!(),
         };
-        let scale = config.scale.clone().unwrap();
-        let (batch, num_patch, height, width, ts) = (
+        let scale = config
+            .scale
+            .clone()
+            .ok_or_else(|| anyhow::anyhow!("Scale configuration is required for SmolVLM model"))?;
+        let (batch, num_patch, height, width) = (
             vision.batch().opt(),
             vision.inputs_minoptmax()[0][1].opt(),
             vision.inputs_minoptmax()[0][3].opt(),
             vision.inputs_minoptmax()[0][4].opt(),
-            vision.ts.clone(),
         );
         let processor = Processor::try_from_config(&config.processor)?
             .with_image_width(width as _)
@@ -83,7 +84,6 @@ impl SmolVLM {
             num_patch,
             height,
             width,
-            ts,
             processor,
         })
     }

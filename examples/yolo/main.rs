@@ -234,7 +234,7 @@ fn main() -> Result<()> {
     // run & annotate
     for xs in &dl {
         let ys = model.forward(&xs)?;
-        println!("ys: {:?}", ys);
+        // println!("ys: {:?}", ys);
 
         for (x, y) in xs.iter().zip(ys.iter()) {
             annotator.annotate(x, y)?.save(format!(
@@ -247,8 +247,7 @@ fn main() -> Result<()> {
         }
     }
 
-    // summary
-    model.summary();
+    usls::perf(false);
 
     Ok(())
 }

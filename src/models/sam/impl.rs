@@ -5,7 +5,8 @@ use rand::{prelude::*, rng};
 use std::str::FromStr;
 
 use crate::{
-    elapsed, Config, DynConf, Engine, Image, Mask, Ops, Polygon, Processor, SamPrompt, Ts, Xs, X, Y,
+    elapsed_module, Config, DynConf, Engine, Image, Mask, Ops, Polygon, Processor, SamPrompt, Xs,
+    X, Y,
 };
 
 /// SAM model variants for different use cases.
@@ -54,7 +55,7 @@ pub struct SAM {
     find_contours: bool,
     kind: SamKind,
     use_low_res_mask: bool,
-    ts: Ts,
+
     spec: String,
 }
 
@@ -72,10 +73,10 @@ impl SAM {
             encoder.try_height().unwrap_or(&1024.into()).opt(),
             encoder.try_width().unwrap_or(&1024.into()).opt(),
         );
-        let ts = Ts::merge(&[encoder.ts(), decoder.ts()]);
+
         let spec = encoder.spec().to_owned();
 
-        let conf = DynConf::new(config.class_confs(), 1);
+        let conf = DynConf::new_or_default(config.class_confs(), 1);
         let find_contours = config.find_contours;
         let kind = match config.sam_kind {
             Some(x) => x,
@@ -99,7 +100,6 @@ impl SAM {
             batch,
             height,
             width,
-            ts,
             processor,
             kind,
             find_contours,
@@ -114,8 +114,8 @@ impl SAM {
     /// 1. Encoding the images into embeddings
     /// 2. Decoding the embeddings with input prompts to generate segmentation masks
     pub fn forward(&mut self, xs: &[Image], prompts: &[SamPrompt]) -> Result<Vec<Y>> {
-        let ys = elapsed!("encode", self.ts, { self.encode(xs)? });
-        let ys = elapsed!("decode", self.ts, { self.decode(&ys, prompts)? });
+        let ys = elapsed_module!("SAM", "encode", self.encode(xs)?);
+        let ys = elapsed_module!("SAM", "decode", self.decode(&ys, prompts)?);
 
         Ok(ys)
     }

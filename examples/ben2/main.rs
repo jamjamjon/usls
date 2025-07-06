@@ -44,5 +44,7 @@ fn main() -> anyhow::Result<()> {
         ))?;
     }
 
+    usls::perf(false);
+
     Ok(())
 }

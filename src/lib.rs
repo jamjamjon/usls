@@ -48,13 +48,13 @@
 //! - **`azure`**: Azure Machine Learning integration
 //!
 
-mod core;
+pub mod core;
 /// Model Zoo
 #[cfg(any(feature = "ort-download-binaries", feature = "ort-load-dynamic"))]
 pub mod models;
 #[macro_use]
 mod results;
-mod viz;
+pub mod viz;
 
 pub use core::*;
 pub use minifb::Key;

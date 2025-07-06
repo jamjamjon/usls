@@ -93,9 +93,13 @@ impl Viewer<'_> {
                         (self.image_height as f32 * self.window_scale) as usize,
                     )
                 {
-                    window
-                        .update_with_buffer(&self.buffer, self.image_width, self.image_height)
-                        .expect("Failed to update buffer");
+                    if let Err(e) =
+                        window.update_with_buffer(&self.buffer, self.image_width, self.image_height)
+                    {
+                        log::error!("Failed to update buffer: {}", e);
+                        // Try to continue with regular update instead of crashing
+                        window.update();
+                    }
                 } else {
                     window.update();
                 }

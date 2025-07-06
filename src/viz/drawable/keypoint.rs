@@ -23,7 +23,7 @@ impl Drawable for Keypoint {
         canvas: &mut RgbaImage,
         style: &Style,
     ) -> Result<()> {
-        if self.confidence().is_none() || self.confidence().unwrap() == 0.0 {
+        if self.confidence().map_or(true, |conf| conf == 0.0) {
             return Ok(());
         }
 
@@ -33,7 +33,13 @@ impl Drawable for Keypoint {
                 &mut overlay,
                 (self.x() as i32, self.y() as i32),
                 style.radius() as i32,
-                Rgba(style.color().fill.unwrap().into()),
+                Rgba(
+                    style
+                        .color()
+                        .fill
+                        .expect("Fill color should be set by DrawContext")
+                        .into(),
+                ),
             );
             image::imageops::overlay(canvas, &overlay, 0, 0);
         }
@@ -43,7 +49,13 @@ impl Drawable for Keypoint {
                 canvas,
                 (self.x() as i32, self.y() as i32),
                 style.radius() as i32,
-                Rgba(style.color().outline.unwrap().into()),
+                Rgba(
+                    style
+                        .color()
+                        .outline
+                        .expect("Outline color should be set by DrawContext")
+                        .into(),
+                ),
             );
         }
 
@@ -56,7 +68,7 @@ impl Drawable for Keypoint {
         canvas: &mut RgbaImage,
         style: &Style,
     ) -> Result<()> {
-        if self.confidence().is_none() || self.confidence().unwrap() == 0.0 {
+        if self.confidence().map_or(true, |conf| conf == 0.0) {
             return Ok(());
         }
 
@@ -82,8 +94,14 @@ impl Drawable for Keypoint {
                 &label,
                 x,
                 y,
-                style.color().text.unwrap(),
-                style.color().text_bg.unwrap(),
+                style
+                    .color()
+                    .text
+                    .expect("Text color should be set by DrawContext"),
+                style
+                    .color()
+                    .text_bg
+                    .expect("Text background color should be set by DrawContext"),
             )?;
         }
 
@@ -111,10 +129,8 @@ impl Drawable for [Keypoint] {
                     let kpt1: &_ = &self[i];
                     let kpt2: &_ = &self[ii];
 
-                    if kpt1.confidence().is_none()
-                        || kpt1.confidence().unwrap() == 0.0
-                        || kpt2.confidence().is_none()
-                        || kpt2.confidence().unwrap() == 0.0
+                    if kpt1.confidence().map_or(true, |conf| conf == 0.0)
+                        || kpt2.confidence().map_or(true, |conf| conf == 0.0)
                     {
                         continue;
                     }

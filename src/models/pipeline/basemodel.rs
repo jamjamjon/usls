@@ -2,7 +2,7 @@ use aksr::Builder;
 use anyhow::Result;
 
 use crate::{
-    elapsed, Config, DType, Device, Engine, Image, Processor, Scale, Task, Ts, Version, Xs, X,
+    elapsed_module, Config, DType, Device, Engine, Image, Processor, Scale, Task, Version, Xs, X,
 };
 
 #[derive(Debug, Builder)]
@@ -12,7 +12,6 @@ pub struct BaseModelVisual {
     width: usize,
     batch: usize,
     processor: Processor,
-    ts: Ts,
     spec: String,
     name: &'static str,
     device: Device,
@@ -23,18 +22,13 @@ pub struct BaseModelVisual {
 }
 
 impl BaseModelVisual {
-    pub fn summary(&self) {
-        self.ts.summary();
-    }
-
     pub fn new(config: Config) -> Result<Self> {
         let engine = Engine::try_from_config(&config.model)?;
         let err_msg = "You need to specify the image height and image width for visual model.";
-        let (batch, height, width, ts, spec) = (
+        let (batch, height, width, spec) = (
             engine.batch().opt(),
             engine.try_height().expect(err_msg).opt(),
             engine.try_width().expect(err_msg).opt(),
-            engine.ts.clone(),
             engine.spec().to_owned(),
         );
         let processor = Processor::try_from_config(&config.processor)?
@@ -53,7 +47,6 @@ impl BaseModelVisual {
             width,
             batch,
             processor,
-            ts,
             spec,
             dtype,
             task,
@@ -76,8 +69,8 @@ impl BaseModelVisual {
     }
 
     pub fn encode(&mut self, xs: &[Image]) -> Result<X> {
-        let xs = elapsed!("visual-preprocess", self.ts, { self.preprocess(xs)? });
-        let xs = elapsed!("visual-inference", self.ts, { self.inference(xs)? });
+        let xs = elapsed_module!("BaseModelVisual", "visual-preprocess", self.preprocess(xs)?);
+        let xs = elapsed_module!("BaseModelVisual", "visual-inference", self.inference(xs)?);
 
         Ok(xs[0].to_owned())
     }
@@ -88,7 +81,6 @@ pub struct BaseModelTextual {
     engine: Engine,
     batch: usize,
     processor: Processor,
-    ts: Ts,
     spec: String,
     name: &'static str,
     device: Device,
@@ -99,17 +91,9 @@ pub struct BaseModelTextual {
 }
 
 impl BaseModelTextual {
-    pub fn summary(&self) {
-        self.ts.summary();
-    }
-
     pub fn new(config: Config) -> Result<Self> {
         let engine = Engine::try_from_config(&config.model)?;
-        let (batch, ts, spec) = (
-            engine.batch().opt(),
-            engine.ts.clone(),
-            engine.spec().to_owned(),
-        );
+        let (batch, spec) = (engine.batch().opt(), engine.spec().to_owned());
         let processor = Processor::try_from_config(&config.processor)?;
         let device = config.model.device;
         let dtype = config.model.dtype;
@@ -122,7 +106,6 @@ impl BaseModelTextual {
             engine,
             batch,
             processor,
-            ts,
             spec,
             dtype,
             task,

@@ -1,7 +1,7 @@
 use aksr::Builder;
 use anyhow::Result;
 
-use crate::{try_fetch_file_stem, DType, Device, Hub, Iiix, MinOptMax};
+use crate::{try_fetch_file_stem, DType, Device, HardwareConfig, Hub, Iiix, MinOptMax};
 
 /// ONNX Runtime configuration with device and optimization settings.
 #[derive(Builder, Debug, Clone)]
@@ -16,36 +16,8 @@ pub struct ORTConfig {
     pub graph_opt_level: Option<u8>,
     pub num_intra_threads: Option<usize>,
     pub num_inter_threads: Option<usize>,
-    // cpu
-    pub cpu_arena_allocator: bool,
-    // openvino
-    pub openvino_dynamic_shapes: bool,
-    pub openvino_opencl_throttling: bool,
-    pub openvino_qdq_optimizer: bool,
-    pub openvino_num_threads: Option<usize>,
-    // onednn
-    pub onednn_arena_allocator: bool,
-    // tensorrt
-    pub tensorrt_fp16: bool,
-    pub tensorrt_engine_cache: bool,
-    pub tensorrt_timing_cache: bool,
-    // coreml
-    pub coreml_static_input_shapes: bool,
-    pub coreml_subgraph_running: bool,
-    // cann
-    pub cann_graph_inference: bool,
-    pub cann_dump_graphs: bool,
-    pub cann_dump_om_model: bool,
-    // nnapi
-    pub nnapi_cpu_only: bool,
-    pub nnapi_disable_cpu: bool,
-    pub nnapi_fp16: bool,
-    pub nnapi_nchw: bool,
-    // armnn
-    pub armnn_arena_allocator: bool,
-    // migraphx
-    pub migraphx_fp16: bool,
-    pub migraphx_exhaustive_tune: bool,
+    // hardware configurations
+    pub hardware: HardwareConfig,
 }
 
 impl Default for ORTConfig {
@@ -60,27 +32,7 @@ impl Default for ORTConfig {
             graph_opt_level: Default::default(),
             num_intra_threads: None,
             num_inter_threads: None,
-            cpu_arena_allocator: true,
-            openvino_dynamic_shapes: true,
-            openvino_opencl_throttling: true,
-            openvino_qdq_optimizer: true,
-            openvino_num_threads: None,
-            coreml_static_input_shapes: false,
-            coreml_subgraph_running: true,
-            tensorrt_fp16: true,
-            tensorrt_engine_cache: true,
-            tensorrt_timing_cache: false,
-            cann_graph_inference: true,
-            cann_dump_graphs: false,
-            cann_dump_om_model: true,
-            onednn_arena_allocator: true,
-            nnapi_cpu_only: false,
-            nnapi_disable_cpu: false,
-            nnapi_fp16: true,
-            nnapi_nchw: false,
-            armnn_arena_allocator: true,
-            migraphx_fp16: true,
-            migraphx_exhaustive_tune: false,
+            hardware: HardwareConfig::default(),
         }
     }
 }
@@ -158,6 +110,112 @@ impl ORTConfig {
         self.iiixs.push(Iiix::from((0, 0, x)));
         self
     }
+
+    // Hardware configuration methods
+    pub fn with_cpu_arena_allocator(mut self, x: bool) -> Self {
+        self.hardware.cpu.arena_allocator = x;
+        self
+    }
+
+    pub fn with_openvino_dynamic_shapes(mut self, x: bool) -> Self {
+        self.hardware.openvino.dynamic_shapes = x;
+        self
+    }
+
+    pub fn with_openvino_opencl_throttling(mut self, x: bool) -> Self {
+        self.hardware.openvino.opencl_throttling = x;
+        self
+    }
+
+    pub fn with_openvino_qdq_optimizer(mut self, x: bool) -> Self {
+        self.hardware.openvino.qdq_optimizer = x;
+        self
+    }
+
+    pub fn with_openvino_num_threads(mut self, x: usize) -> Self {
+        self.hardware.openvino.num_threads = Some(x);
+        self
+    }
+
+    pub fn with_onednn_arena_allocator(mut self, x: bool) -> Self {
+        self.hardware.onednn.arena_allocator = x;
+        self
+    }
+
+    pub fn with_tensorrt_fp16(mut self, x: bool) -> Self {
+        self.hardware.tensorrt.fp16 = x;
+        self
+    }
+
+    pub fn with_tensorrt_engine_cache(mut self, x: bool) -> Self {
+        self.hardware.tensorrt.engine_cache = x;
+        self
+    }
+
+    pub fn with_tensorrt_timing_cache(mut self, x: bool) -> Self {
+        self.hardware.tensorrt.timing_cache = x;
+        self
+    }
+
+    pub fn with_coreml_static_input_shapes(mut self, x: bool) -> Self {
+        self.hardware.coreml.static_input_shapes = x;
+        self
+    }
+
+    pub fn with_coreml_subgraph_running(mut self, x: bool) -> Self {
+        self.hardware.coreml.subgraph_running = x;
+        self
+    }
+
+    pub fn with_cann_graph_inference(mut self, x: bool) -> Self {
+        self.hardware.cann.graph_inference = x;
+        self
+    }
+
+    pub fn with_cann_dump_graphs(mut self, x: bool) -> Self {
+        self.hardware.cann.dump_graphs = x;
+        self
+    }
+
+    pub fn with_cann_dump_om_model(mut self, x: bool) -> Self {
+        self.hardware.cann.dump_om_model = x;
+        self
+    }
+
+    pub fn with_nnapi_cpu_only(mut self, x: bool) -> Self {
+        self.hardware.nnapi.cpu_only = x;
+        self
+    }
+
+    pub fn with_nnapi_disable_cpu(mut self, x: bool) -> Self {
+        self.hardware.nnapi.disable_cpu = x;
+        self
+    }
+
+    pub fn with_nnapi_fp16(mut self, x: bool) -> Self {
+        self.hardware.nnapi.fp16 = x;
+        self
+    }
+
+    pub fn with_nnapi_nchw(mut self, x: bool) -> Self {
+        self.hardware.nnapi.nchw = x;
+        self
+    }
+
+    pub fn with_armnn_arena_allocator(mut self, x: bool) -> Self {
+        self.hardware.armnn.arena_allocator = x;
+        self
+    }
+
+    pub fn with_migraphx_fp16(mut self, x: bool) -> Self {
+        self.hardware.migraphx.fp16 = x;
+        self
+    }
+
+    pub fn with_migraphx_exhaustive_tune(mut self, x: bool) -> Self {
+        self.hardware.migraphx.exhaustive_tune = x;
+        self
+    }
 }
 
 macro_rules! impl_ort_config_methods {
@@ -197,12 +255,11 @@ macro_rules! impl_ort_config_methods {
                     self.$field = self.$field.with_num_inter_threads(x);
                     self
                 }
-                // cpu
+                // hardware configuration methods - delegate to the field's hardware methods
                 pub fn [<with_ $field _cpu_arena_allocator>](mut self, x: bool) -> Self {
                     self.$field = self.$field.with_cpu_arena_allocator(x);
                     self
                 }
-                // openvino
                 pub fn [<with_ $field _openvino_dynamic_shapes>](mut self, x: bool) -> Self {
                     self.$field = self.$field.with_openvino_dynamic_shapes(x);
                     self
@@ -219,13 +276,10 @@ macro_rules! impl_ort_config_methods {
                     self.$field = self.$field.with_openvino_num_threads(x);
                     self
                 }
-                // onednn
                 pub fn [<with_ $field _onednn_arena_allocator>](mut self, x: bool) -> Self {
                     self.$field = self.$field.with_onednn_arena_allocator(x);
                     self
                 }
-
-                // tensorrt
                 pub fn [<with_ $field _tensorrt_fp16>](mut self, x: bool) -> Self {
                     self.$field = self.$field.with_tensorrt_fp16(x);
                     self
@@ -238,7 +292,6 @@ macro_rules! impl_ort_config_methods {
                     self.$field = self.$field.with_tensorrt_timing_cache(x);
                     self
                 }
-                // coreml
                 pub fn [<with_ $field _coreml_static_input_shapes>](mut self, x: bool) -> Self {
                     self.$field = self.$field.with_coreml_static_input_shapes(x);
                     self
@@ -247,7 +300,6 @@ macro_rules! impl_ort_config_methods {
                     self.$field = self.$field.with_coreml_subgraph_running(x);
                     self
                 }
-                // cann
                 pub fn [<with_ $field _cann_graph_inference>](mut self, x: bool) -> Self {
                     self.$field = self.$field.with_cann_graph_inference(x);
                     self
@@ -260,7 +312,6 @@ macro_rules! impl_ort_config_methods {
                     self.$field = self.$field.with_cann_dump_om_model(x);
                     self
                 }
-                // nnapi
                 pub fn [<with_ $field _nnapi_cpu_only>](mut self, x: bool) -> Self {
                     self.$field = self.$field.with_nnapi_cpu_only(x);
                     self
@@ -277,12 +328,10 @@ macro_rules! impl_ort_config_methods {
                     self.$field = self.$field.with_nnapi_nchw(x);
                     self
                 }
-                // armnn
                 pub fn [<with_ $field _armnn_arena_allocator>](mut self, x: bool) -> Self {
                     self.$field = self.$field.with_armnn_arena_allocator(x);
                     self
                 }
-                // migraphx
                 pub fn [<with_ $field _migraphx_fp16>](mut self, x: bool) -> Self {
                     self.$field = self.$field.with_migraphx_fp16(x);
                     self
