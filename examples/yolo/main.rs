@@ -247,7 +247,6 @@ fn main() -> Result<()> {
         }
     }
 
-    // summary
     usls::perf(false);
 
     Ok(())

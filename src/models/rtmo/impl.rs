@@ -59,9 +59,9 @@ impl RTMO {
     }
 
     pub fn forward(&mut self, xs: &[Image]) -> Result<Vec<Y>> {
-        let ys = elapsed_module!("rtmo", "preprocess", self.preprocess(xs)?);
-        let ys = elapsed_module!("rtmo", "inference", self.inference(ys)?);
-        let ys = elapsed_module!("rtmo", "postprocess", self.postprocess(ys)?);
+        let ys = elapsed_module!("RTMO", "preprocess", self.preprocess(xs)?);
+        let ys = elapsed_module!("RTMO", "inference", self.inference(ys)?);
+        let ys = elapsed_module!("RTMO", "postprocess", self.postprocess(ys)?);
 
         Ok(ys)
     }

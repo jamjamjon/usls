@@ -114,8 +114,8 @@ impl SAM {
     /// 1. Encoding the images into embeddings
     /// 2. Decoding the embeddings with input prompts to generate segmentation masks
     pub fn forward(&mut self, xs: &[Image], prompts: &[SamPrompt]) -> Result<Vec<Y>> {
-        let ys = elapsed_module!("sam", "encode", self.encode(xs)?);
-        let ys = elapsed_module!("sam", "decode", self.decode(&ys, prompts)?);
+        let ys = elapsed_module!("SAM", "encode", self.encode(xs)?);
+        let ys = elapsed_module!("SAM", "decode", self.decode(&ys, prompts)?);
 
         Ok(ys)
     }

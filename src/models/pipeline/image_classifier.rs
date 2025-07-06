@@ -66,9 +66,9 @@ impl ImageClassifier {
     }
 
     pub fn forward(&mut self, xs: &[Image]) -> Result<Vec<Y>> {
-        let ys = elapsed_module!("image_classifier", "preprocess", self.preprocess(xs)?);
-        let ys = elapsed_module!("image_classifier", "inference", self.inference(ys)?);
-        let ys = elapsed_module!("image_classifier", "postprocess", self.postprocess(ys)?);
+        let ys = elapsed_module!("ImageClassifier", "preprocess", self.preprocess(xs)?);
+        let ys = elapsed_module!("ImageClassifier", "inference", self.inference(ys)?);
+        let ys = elapsed_module!("ImageClassifier", "postprocess", self.postprocess(ys)?);
 
         Ok(ys)
     }

@@ -90,9 +90,9 @@ impl OWLv2 {
     }
 
     pub fn forward(&mut self, xs: &[Image]) -> Result<Vec<Y>> {
-        let ys = elapsed_module!("owl", "preprocess", self.preprocess(xs)?);
-        let ys = elapsed_module!("owl", "inference", self.inference(ys)?);
-        let ys = elapsed_module!("owl", "postprocess", self.postprocess(ys)?);
+        let ys = elapsed_module!("OWLv2", "preprocess", self.preprocess(xs)?);
+        let ys = elapsed_module!("OWLv2", "inference", self.inference(ys)?);
+        let ys = elapsed_module!("OWLv2", "postprocess", self.postprocess(ys)?);
 
         Ok(ys)
     }

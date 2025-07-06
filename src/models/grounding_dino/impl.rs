@@ -104,9 +104,9 @@ impl GroundingDINO {
     }
 
     pub fn forward(&mut self, xs: &[Image]) -> Result<Vec<Y>> {
-        let ys = elapsed_module!("grounding_dino", "preprocess", self.preprocess(xs)?);
-        let ys = elapsed_module!("grounding_dino", "inference", self.inference(ys)?);
-        let ys = elapsed_module!("grounding_dino", "postprocess", self.postprocess(ys)?);
+        let ys = elapsed_module!("GroundingDINO", "preprocess", self.preprocess(xs)?);
+        let ys = elapsed_module!("GroundingDINO", "inference", self.inference(ys)?);
+        let ys = elapsed_module!("GroundingDINO", "postprocess", self.postprocess(ys)?);
 
         Ok(ys)
     }

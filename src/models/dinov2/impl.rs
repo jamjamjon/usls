@@ -54,9 +54,9 @@ impl DINOv2 {
     }
 
     pub fn encode_images(&mut self, xs: &[Image]) -> Result<X> {
-        let xs = elapsed_module!("dinov2", "visual-preprocess", self.preprocess(xs)?);
-        let xs = elapsed_module!("dinov2", "visual-inference", self.inference(xs)?);
-        let x = elapsed_module!("dinov2", "visual-postprocess", xs[0].to_owned());
+        let xs = elapsed_module!("DINOv2", "visual-preprocess", self.preprocess(xs)?);
+        let xs = elapsed_module!("DINOv2", "visual-inference", self.inference(xs)?);
+        let x = elapsed_module!("DINOv2", "visual-postprocess", xs[0].to_owned());
 
         Ok(x)
     }

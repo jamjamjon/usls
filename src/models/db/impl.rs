@@ -65,9 +65,9 @@ impl DB {
     }
 
     pub fn forward(&mut self, xs: &[Image]) -> Result<Vec<Y>> {
-        let ys = elapsed_module!("db", "preprocess", self.preprocess(xs)?);
-        let ys = elapsed_module!("db", "inference", self.inference(ys)?);
-        let ys = elapsed_module!("db", "postprocess", self.postprocess(ys)?);
+        let ys = elapsed_module!("DB", "preprocess", self.preprocess(xs)?);
+        let ys = elapsed_module!("DB", "inference", self.inference(ys)?);
+        let ys = elapsed_module!("DB", "postprocess", self.postprocess(ys)?);
 
         Ok(ys)
     }

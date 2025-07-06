@@ -111,22 +111,22 @@ impl Florence2 {
     }
 
     pub fn forward(&mut self, xs_visual: &[Image], x_textual: &Task) -> Result<Vec<Y>> {
-        let visual_embeddings = elapsed_module!("florence2", "visual-encode", {
+        let visual_embeddings = elapsed_module!("Florence2", "visual-encode", {
             let xs = self.processor.process_images(xs_visual)?;
             self.batch = xs_visual.len(); // update
             let xs = self.vision_encoder.run(xs.into())?;
             xs[0].to_owned()
         });
 
-        let textual_embedding = elapsed_module!("florence2", "textual-encode", {
+        let textual_embedding = elapsed_module!("Florence2", "textual-encode", {
             self.encode_text(x_textual, xs_visual)?
         });
 
-        let generated = elapsed_module!("florence2", "generate-then-decode", {
+        let generated = elapsed_module!("Florence2", "generate-then-decode", {
             self.generate_then_decode(&visual_embeddings, &textual_embedding)?
         });
 
-        let ys = elapsed_module!("florence2", "postprocess", {
+        let ys = elapsed_module!("Florence2", "postprocess", {
             self.postprocess(&generated, xs_visual, x_textual)?
         });
 

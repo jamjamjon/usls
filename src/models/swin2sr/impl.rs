@@ -35,9 +35,9 @@ impl Swin2SR {
     pub fn forward(&mut self, xs: &[Image]) -> Result<Vec<Y>> {
         xs.iter()
             .map(|x| {
-                let y = elapsed_module!("swin2sr", "preprocess_one", self.preprocess_one(x)?);
-                let y = elapsed_module!("swin2sr", "inference", self.inference(y)?);
-                elapsed_module!("swin2sr", "postprocess_one", self.postprocess_one(y))
+                let y = elapsed_module!("Swin2SR", "preprocess_one", self.preprocess_one(x)?);
+                let y = elapsed_module!("Swin2SR", "inference", self.inference(y)?);
+                elapsed_module!("Swin2SR", "postprocess_one", self.postprocess_one(y))
             })
             .collect()
     }

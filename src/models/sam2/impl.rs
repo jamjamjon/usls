@@ -61,8 +61,8 @@ impl SAM2 {
     /// 1. Image encoding into hierarchical features
     /// 2. Prompt-guided mask generation
     pub fn forward(&mut self, xs: &[Image], prompts: &[SamPrompt]) -> Result<Vec<Y>> {
-        let ys = elapsed_module!("sam2", "encode", self.encode(xs)?);
-        let ys = elapsed_module!("sam2", "decode", self.decode(&ys, prompts)?);
+        let ys = elapsed_module!("SAM2", "encode", self.encode(xs)?);
+        let ys = elapsed_module!("SAM2", "decode", self.decode(&ys, prompts)?);
 
         Ok(ys)
     }

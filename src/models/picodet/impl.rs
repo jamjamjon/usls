@@ -62,9 +62,9 @@ impl PicoDet {
     }
 
     pub fn forward(&mut self, xs: &[Image]) -> Result<Vec<Y>> {
-        let ys = elapsed_module!("picodet", "preprocess", self.preprocess(xs)?);
-        let ys = elapsed_module!("picodet", "inference", self.inference(ys)?);
-        let ys = elapsed_module!("picodet", "postprocess", self.postprocess(ys)?);
+        let ys = elapsed_module!("PicoDet", "preprocess", self.preprocess(xs)?);
+        let ys = elapsed_module!("PicoDet", "inference", self.inference(ys)?);
+        let ys = elapsed_module!("PicoDet", "postprocess", self.postprocess(ys)?);
 
         Ok(ys)
     }

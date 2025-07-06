@@ -315,9 +315,9 @@ impl YOLO {
     /// 3. Post-processing the outputs to generate final predictions
     pub fn forward(&mut self, xs: &[Image]) -> Result<Vec<Y>> {
         // Forward pass
-        let ys = elapsed_module!("yolo", "preprocess", self.preprocess(xs)?);
-        let ys = elapsed_module!("yolo", "inference", self.inference(ys)?);
-        let ys = elapsed_module!("yolo", "postprocess", self.postprocess(ys)?);
+        let ys = elapsed_module!("YOLO", "preprocess", self.preprocess(xs)?);
+        let ys = elapsed_module!("YOLO", "inference", self.inference(ys)?);
+        let ys = elapsed_module!("YOLO", "postprocess", self.postprocess(ys)?);
 
         Ok(ys)
     }

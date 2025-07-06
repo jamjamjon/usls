@@ -126,9 +126,9 @@ impl RTMPose {
 
     pub fn forward(&mut self, x: &Image, hbbs: Option<&[Hbb]>) -> Result<Y> {
         let (ys, centers_and_scales) =
-            elapsed_module!("rtmpose", "preprocess", self.preprocess(x, hbbs)?);
-        let ys = elapsed_module!("rtmpose", "inference", self.inference(ys)?);
-        let y = elapsed_module!("rtmpose", "postprocess", {
+            elapsed_module!("RTMPose", "preprocess", self.preprocess(x, hbbs)?);
+        let ys = elapsed_module!("RTMPose", "inference", self.inference(ys)?);
+        let y = elapsed_module!("RTMPose", "postprocess", {
             self.postprocess(ys, centers_and_scales)?
         });
 

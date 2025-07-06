@@ -1,9 +1,9 @@
 //! Performance Analysis Module
-
-use crate::core::global_ts::global_ts_manager;
 use std::time::Duration;
 
-/// High-performance monitoring interface 🚀
+use crate::global_ts_manager;
+
+/// High-performance monitoring interface
 #[derive(Debug, Clone)]
 pub struct Perf;
 
@@ -207,7 +207,7 @@ impl Perf {
 
         // Build main category data with individual models
         let mut main_data: Vec<(String, Duration)> =
-            vec![("📊 Data Loading".to_string(), dataloader_total)];
+            vec![("🔍 Data Loading".to_string(), dataloader_total)];
 
         // Add each model as a separate category
         let mut sorted_models: Vec<_> = model_totals.into_iter().collect();
@@ -265,7 +265,7 @@ impl Perf {
                         if module_name.to_lowercase() == model_filter_lower {
                             let task_name = &detail_name[module_end + 2..];
                             let formatted_task = format_task_with_emoji(task_name);
-                            // Format: " ├─ 🧠 textual-inference" or " └─ 🧠 textual-inference"
+                            // Format: " ├─ 🧬 textual-inference" or " └─ 🧬 textual-inference"
                             let tree_prefix = format!(" ├─ {}", formatted_task);
                             max_display_width = max_display_width.max(tree_prefix.chars().count());
                         }
@@ -352,7 +352,6 @@ impl Perf {
         }
 
         // Use the already calculated max_bar_length for scale line
-
         println!(
             "{:<width$}└{}",
             "",
@@ -363,7 +362,7 @@ impl Perf {
             "{:<width$}0{:>bar_width$}  {:.3?}",
             "",
             "",
-            max_value,
+            total_time,
             width = alignment_width + 1,
             bar_width = max_bar_length.saturating_sub(3), // -3 to account for the extra 2 spaces
         );
@@ -375,14 +374,15 @@ impl Perf {
 
 // Helper function to format task name with appropriate emoji
 fn format_task_with_emoji(task_name: &str) -> String {
-    let emoji = match task_name {
+    use rand::prelude::*;
+    let lower = task_name.to_lowercase();
+    let fallback_emojis = ["🔴", "🟠", "🟡", "🟢", "🔵", "🟣", "⚫️", "⚪️", "🟤"];
+    let emoji = match lower.as_str() {
         name if name.contains("preprocess") => "🔧",
-        name if name.contains("inference") => "🧠",
         name if name.contains("postprocess") => "📦",
-        name if name.contains("encode") => "🔐",
-        name if name.contains("decode") => "🔓",
-        name if name.contains("forward") => "➡️",
-        _ => "⚡",
+        name if name.contains("inference") || name.contains("forward") => "🧬",
+        name if name.contains("generate") => "🎲",
+        _ => fallback_emojis.choose(&mut rand::rng()).map_or("🟢", |v| v),
     };
     format!("{} {}", emoji, task_name)
 }
@@ -461,8 +461,6 @@ fn print_tree_breakdown(
         );
     }
 }
-
-// Public API - Simple and efficient 🚀
 
 /// Show performance data with optional table
 /// Default shows ASCII chart, set show_table=true to include detailed table

@@ -46,13 +46,9 @@ impl MediaPipeSegmenter {
     }
 
     pub fn forward(&mut self, xs: &[Image]) -> Result<Vec<Y>> {
-        let ys = elapsed_module!("mediapipe_segmenter", "preprocess", {
-            self.preprocess(xs)?
-        });
-        let ys = elapsed_module!("mediapipe_segmenter", "inference", self.inference(ys)?);
-        let ys = elapsed_module!("mediapipe_segmenter", "postprocess", {
-            self.postprocess(ys)?
-        });
+        let ys = elapsed_module!("MediaPipeSegmenter", "preprocess", self.preprocess(xs)?);
+        let ys = elapsed_module!("MediaPipeSegmenter", "inference", self.inference(ys)?);
+        let ys = elapsed_module!("MediaPipeSegmenter", "postprocess", self.postprocess(ys)?);
 
         Ok(ys)
     }

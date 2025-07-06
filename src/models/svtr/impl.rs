@@ -55,9 +55,9 @@ impl SVTR {
     }
 
     pub fn forward(&mut self, xs: &[Image]) -> Result<Vec<Y>> {
-        let ys = elapsed_module!("svtr", "preprocess", self.preprocess(xs)?);
-        let ys = elapsed_module!("svtr", "inference", self.inference(ys)?);
-        let ys = elapsed_module!("svtr", "postprocess", self.postprocess(ys)?);
+        let ys = elapsed_module!("SVTR", "preprocess", self.preprocess(xs)?);
+        let ys = elapsed_module!("SVTR", "inference", self.inference(ys)?);
+        let ys = elapsed_module!("SVTR", "postprocess", self.postprocess(ys)?);
 
         Ok(ys)
     }

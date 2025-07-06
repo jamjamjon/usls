@@ -31,9 +31,9 @@ impl SLANet {
     }
 
     pub fn forward(&mut self, xs: &[Image]) -> Result<Vec<Y>> {
-        let ys = elapsed_module!("slanet", "preprocess", self.base.preprocess(xs)?);
-        let ys = elapsed_module!("slanet", "inference", self.base.inference(ys)?);
-        let ys = elapsed_module!("slanet", "postprocess", self.postprocess(ys)?);
+        let ys = elapsed_module!("SLANet", "preprocess", self.base.preprocess(xs)?);
+        let ys = elapsed_module!("SLANet", "inference", self.base.inference(ys)?);
+        let ys = elapsed_module!("SLANet", "postprocess", self.postprocess(ys)?);
 
         Ok(ys)
     }

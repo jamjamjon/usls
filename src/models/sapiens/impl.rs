@@ -52,9 +52,9 @@ impl Sapiens {
     }
 
     pub fn forward(&mut self, xs: &[Image]) -> Result<Vec<Y>> {
-        let ys = elapsed_module!("sapiens", "preprocess", self.preprocess(xs)?);
-        let ys = elapsed_module!("sapiens", "inference", self.inference(ys)?);
-        let ys = elapsed_module!("sapiens", "postprocess", {
+        let ys = elapsed_module!("Sapiens", "preprocess", self.preprocess(xs)?);
+        let ys = elapsed_module!("Sapiens", "inference", self.inference(ys)?);
+        let ys = elapsed_module!("Sapiens", "postprocess", {
             if let Task::InstanceSegmentation = self.task {
                 self.postprocess_seg(ys)?
             } else {

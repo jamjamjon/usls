@@ -60,9 +60,9 @@ impl RTDETR {
     }
 
     pub fn forward(&mut self, xs: &[Image]) -> Result<Vec<Y>> {
-        let ys = elapsed_module!("rtdetr", "preprocess", self.preprocess(xs)?);
-        let ys = elapsed_module!("rtdetr", "inference", self.inference(ys)?);
-        let ys = elapsed_module!("rtdetr", "postprocess", self.postprocess(ys)?);
+        let ys = elapsed_module!("RTDETR", "preprocess", self.preprocess(xs)?);
+        let ys = elapsed_module!("RTDETR", "inference", self.inference(ys)?);
+        let ys = elapsed_module!("RTDETR", "postprocess", self.postprocess(ys)?);
 
         Ok(ys)
     }

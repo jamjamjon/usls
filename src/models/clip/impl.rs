@@ -39,17 +39,17 @@ impl Clip {
     }
 
     pub fn encode_images(&mut self, xs: &[Image]) -> Result<X> {
-        let xs = elapsed_module!("clip", "visual-preprocess", {
+        let xs = elapsed_module!("CLIP", "visual-preprocess", {
             self.processor.process_images(xs)?
         });
-        let xs = elapsed_module!("clip", "visual-inference", self.visual.run(xs.into())?);
-        let x = elapsed_module!("clip", "visual-postprocessssss", xs[0].to_owned());
+        let xs = elapsed_module!("CLIP", "visual-inference", self.visual.run(xs.into())?);
+        let x = elapsed_module!("CLIP", "visual-postprocess", xs[0].to_owned());
 
         Ok(x)
     }
 
     pub fn encode_texts(&mut self, xs: &[&str]) -> Result<X> {
-        let xs = elapsed_module!("clip", "textual-preprocess", {
+        let xs = elapsed_module!("CLIP", "textual-preprocess", {
             let encodings: Vec<f32> = self
                 .processor
                 .encode_texts_ids(xs, true)?
@@ -63,10 +63,10 @@ impl Clip {
 
             x
         });
-        let xs = elapsed_module!("clip", "textual-inference", {
+        let xs = elapsed_module!("CLIP", "textual-inference", {
             self.textual.run(xs.into())?
         });
-        let x = elapsed_module!("clip", "textual-postprocess", xs[0].to_owned());
+        let x = elapsed_module!("CLIP", "textual-postprocess", xs[0].to_owned());
 
         Ok(x)
     }

@@ -46,9 +46,9 @@ impl MODNet {
     }
 
     pub fn forward(&mut self, xs: &[Image]) -> Result<Vec<Y>> {
-        let ys = elapsed_module!("modnet", "preprocess", self.preprocess(xs)?);
-        let ys = elapsed_module!("modnet", "inference", self.inference(ys)?);
-        let ys = elapsed_module!("modnet", "postprocess", self.postprocess(ys)?);
+        let ys = elapsed_module!("MODNet", "preprocess", self.preprocess(xs)?);
+        let ys = elapsed_module!("MODNet", "inference", self.inference(ys)?);
+        let ys = elapsed_module!("MODNet", "postprocess", self.postprocess(ys)?);
 
         Ok(ys)
     }

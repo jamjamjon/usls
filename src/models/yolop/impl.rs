@@ -56,9 +56,9 @@ impl YOLOPv2 {
     }
 
     pub fn forward(&mut self, xs: &[Image]) -> Result<Vec<Y>> {
-        let ys = elapsed_module!("yolop", "preprocess", self.preprocess(xs)?);
-        let ys = elapsed_module!("yolop", "inference", self.inference(ys)?);
-        let ys = elapsed_module!("yolop", "postprocess", self.postprocess(ys)?);
+        let ys = elapsed_module!("YOLOPv2", "preprocess", self.preprocess(xs)?);
+        let ys = elapsed_module!("YOLOPv2", "inference", self.inference(ys)?);
+        let ys = elapsed_module!("YOLOPv2", "postprocess", self.postprocess(ys)?);
 
         Ok(ys)
     }

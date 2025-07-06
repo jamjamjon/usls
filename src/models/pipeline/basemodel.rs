@@ -69,8 +69,8 @@ impl BaseModelVisual {
     }
 
     pub fn encode(&mut self, xs: &[Image]) -> Result<X> {
-        let xs = elapsed_module!("basemodel", "visual-preprocess", self.preprocess(xs)?);
-        let xs = elapsed_module!("basemodel", "visual-inference", self.inference(xs)?);
+        let xs = elapsed_module!("BaseModelVisual", "visual-preprocess", self.preprocess(xs)?);
+        let xs = elapsed_module!("BaseModelVisual", "visual-inference", self.inference(xs)?);
 
         Ok(xs[0].to_owned())
     }

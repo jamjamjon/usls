@@ -45,9 +45,9 @@ impl RMBG {
     }
 
     pub fn forward(&mut self, xs: &[Image]) -> Result<Vec<Y>> {
-        let ys = elapsed_module!("rmbg", "preprocess", self.preprocess(xs)?);
-        let ys = elapsed_module!("rmbg", "inference", self.inference(ys)?);
-        let ys = elapsed_module!("rmbg", "postprocess", self.postprocess(ys)?);
+        let ys = elapsed_module!("RMBG", "preprocess", self.preprocess(xs)?);
+        let ys = elapsed_module!("RMBG", "inference", self.inference(ys)?);
+        let ys = elapsed_module!("RMBG", "postprocess", self.postprocess(ys)?);
 
         Ok(ys)
     }

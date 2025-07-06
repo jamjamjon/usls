@@ -77,9 +77,9 @@ impl DepthAnything {
     }
 
     pub fn forward(&mut self, xs: &[Image]) -> Result<Vec<Y>> {
-        let ys = elapsed_module!("depth_anything", "preprocess", self.preprocess(xs)?);
-        let ys = elapsed_module!("depth_anything", "inference", self.inference(ys)?);
-        let ys = elapsed_module!("depth_anything", "postprocess", self.postprocess(ys)?);
+        let ys = elapsed_module!("DepthAnything", "preprocess", self.preprocess(xs)?);
+        let ys = elapsed_module!("DepthAnything", "inference", self.inference(ys)?);
+        let ys = elapsed_module!("DepthAnything", "postprocess", self.postprocess(ys)?);
 
         Ok(ys)
     }

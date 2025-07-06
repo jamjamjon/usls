@@ -60,8 +60,8 @@ impl Blip {
     }
 
     pub fn forward(&mut self, images: &[Image], text: Option<&str>) -> Result<Vec<Y>> {
-        let image_embeds = elapsed_module!("blip", "encode_images", self.encode_images(images)?);
-        let ys = elapsed_module!("blip", "generate", self.generate(&image_embeds, text)?);
+        let image_embeds = elapsed_module!("BLIP", "encode_images", self.encode_images(images)?);
+        let ys = elapsed_module!("BLIP", "generate", self.generate(&image_embeds, text)?);
 
         Ok(ys)
     }

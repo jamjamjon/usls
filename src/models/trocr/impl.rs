@@ -150,11 +150,11 @@ impl TrOCR {
     /// # Errors
     /// Returns an error if any step in the forward pass fails.
     pub fn forward(&mut self, xs: &[Image]) -> Result<Vec<Y>> {
-        let encoder_hidden_states = elapsed_module!("trocr", "encode", self.encode(xs)?);
-        let generated = elapsed_module!("trocr", "generate", {
+        let encoder_hidden_states = elapsed_module!("TrOCR", "encode", self.encode(xs)?);
+        let generated = elapsed_module!("TrOCR", "generate", {
             self.generate(&encoder_hidden_states)?
         });
-        let ys = elapsed_module!("trocr", "decode", self.decode(generated)?);
+        let ys = elapsed_module!("TrOCR", "decode", self.decode(generated)?);
 
         Ok(ys)
     }
