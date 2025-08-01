@@ -18,7 +18,7 @@ ab_glyph = { version = "0.2.29" }
 image = { version = "0.25" }
 imageproc = { version = "0.25" }
 ndarray = { version = "0.16.1", features = ["rayon", "serde"] }
-indicatif = { version = "0.17.11" }
+indicatif = { version = "0.18.0" }
 log = "0.4.26"
 minifb = { version = "0.28.0" }
 rand = { version = "0.9" }
