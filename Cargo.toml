@@ -30,7 +30,7 @@ rayon = { version = "1.10.0" }
 glob = "0.3.2"
 dirs = "6.0.0"
 natord = "1.0.9"
-geo = "0.30.0"
+geo = "0.31.0"
 chrono = "0.4.40"
 regex = "1.11.1"
 tempfile = "3.19.1"
