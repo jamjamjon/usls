@@ -23,7 +23,7 @@ impl Drawable for Keypoint {
         canvas: &mut RgbaImage,
         style: &Style,
     ) -> Result<()> {
-        if self.confidence().map_or(true, |conf| conf == 0.0) {
+        if self.confidence().is_none_or(|conf| conf == 0.0) {
             return Ok(());
         }
 
@@ -68,7 +68,7 @@ impl Drawable for Keypoint {
         canvas: &mut RgbaImage,
         style: &Style,
     ) -> Result<()> {
-        if self.confidence().map_or(true, |conf| conf == 0.0) {
+        if self.confidence().is_none_or(|conf| conf == 0.0) {
             return Ok(());
         }
 
@@ -129,8 +129,8 @@ impl Drawable for [Keypoint] {
                     let kpt1: &_ = &self[i];
                     let kpt2: &_ = &self[ii];
 
-                    if kpt1.confidence().map_or(true, |conf| conf == 0.0)
-                        || kpt2.confidence().map_or(true, |conf| conf == 0.0)
+                    if kpt1.confidence().is_none_or(|conf| conf == 0.0)
+                        || kpt2.confidence().is_none_or(|conf| conf == 0.0)
                     {
                         continue;
                     }
