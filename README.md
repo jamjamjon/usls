@@ -66,6 +66,7 @@ usls = "latest-version"
 | [MobileOne](https://github.com/apple/ml-mobileone) | Image Classification | [demo](examples/mobileone) |
 | [DeiT](https://github.com/facebookresearch/deit) | Image Classification | [demo](examples/deit) |
 | [DINOv2](https://github.com/facebookresearch/dinov2) | Vision Embedding | [demo](examples/dinov2) |
+| [DINOv3](https://github.com/facebookresearch/dinov3) | Vision Embedding | [demo](examples/dinov3) |
 | [YOLOv5](https://github.com/ultralytics/yolov5) | Image Classification<br />Object Detection<br />Instance Segmentation | [demo](examples/yolo) |
 | [YOLOv6](https://github.com/meituan/YOLOv6) | Object Detection | [demo](examples/yolo) |
 | [YOLOv7](https://github.com/WongKinYiu/yolov7) | Object Detection | [demo](examples/yolo) |
