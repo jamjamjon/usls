@@ -43,7 +43,7 @@ struct Args {
     #[argh(option, default = "1")]
     batch_size: usize,
 
-    /// bin batch size: For TensorRT
+    /// min batch size: For TensorRT
     #[argh(option, default = "1")]
     min_batch_size: usize,
 
