@@ -138,7 +138,7 @@ impl Config {
         Self::yoloe()
             .with_version(11.into())
             .with_scale(Scale::M)
-            .with_model_file("yoloe-v8m-seg-pf.onnx")
+            .with_model_file("yoloe-11m-seg-pf.onnx")
     }
 
     pub fn yoloe_11l_seg_pf() -> Self {
