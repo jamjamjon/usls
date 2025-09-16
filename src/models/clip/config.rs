@@ -108,4 +108,44 @@ impl crate::Config {
             .with_textual_file("blt-textual.onnx")
             .with_visual_file("blt-visual.onnx")
     }
+
+    pub fn mobileclip2() -> Self {
+        Self::mobileclip().with_name("mobileclip2")
+    }
+
+    pub fn mobileclip2_s0() -> Self {
+        Self::mobileclip2()
+            .with_textual_file("s0-textual.onnx")
+            .with_visual_file("s0-visual.onnx")
+    }
+
+    pub fn mobileclip2_s2() -> Self {
+        Self::mobileclip2()
+            .with_textual_file("s2-textual.onnx")
+            .with_visual_file("s2-visual.onnx")
+    }
+
+    pub fn mobileclip2_s3() -> Self {
+        Self::mobileclip2()
+            .with_textual_file("s3-textual.onnx")
+            .with_visual_file("s3-visual.onnx")
+    }
+
+    pub fn mobileclip2_s4() -> Self {
+        Self::mobileclip2()
+            .with_textual_file("s4-textual.onnx")
+            .with_visual_file("s4-visual.onnx")
+    }
+
+    pub fn mobileclip2_b() -> Self {
+        Self::mobileclip2()
+            .with_textual_file("b-textual.onnx")
+            .with_visual_file("b-visual.onnx")
+    }
+
+    pub fn mobileclip2_l_14() -> Self {
+        Self::mobileclip2()
+            .with_textual_file("l-14-textual.onnx")
+            .with_visual_file("l-14-visual.onnx")
+    }
 }
