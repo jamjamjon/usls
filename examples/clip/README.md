@@ -3,7 +3,7 @@ This demo showcases how to use [CLIP](https://github.com/openai/CLIP) to compute
 ## Quick Start
 
 ```shell
-cargo run -r -F cuda --example clip -- --device cuda:0
+cargo run -r -F cuda --example clip -- --device cuda:0 --dtype q4f16
 ```
 
 ## Results

@@ -95,7 +95,7 @@ usls = "latest-version"
 | [CLIP](https://github.com/openai/CLIP) | Vision-Language Embedding | [demo](examples/clip) |
 | [jina-clip-v1](https://huggingface.co/jinaai/jina-clip-v1) | Vision-Language Embedding | [demo](examples/clip) |
 | [jina-clip-v2](https://huggingface.co/jinaai/jina-clip-v2) | Vision-Language Embedding | [demo](examples/clip) |
-| [mobileclip](https://github.com/apple/ml-mobileclip) | Vision-Language Embedding | [demo](examples/clip) |
+| [mobileclip & mobileclip2](https://github.com/apple/ml-mobileclip) | Vision-Language Embedding | [demo](examples/clip) |
 | [BLIP](https://github.com/salesforce/BLIP) | Image Captioning | [demo](examples/blip) |
 | [DB(PaddleOCR-Det)](https://arxiv.org/abs/1911.08947) | Text Detection | [demo](examples/db) |
 | [FAST](https://github.com/czczup/FAST) | Text Detection | [demo](examples/fast) |

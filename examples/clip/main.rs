@@ -22,8 +22,8 @@ fn main() -> Result<()> {
     let args: Args = argh::from_env();
 
     // build model
-    let config = Config::mobileclip_s0()
-        // mobileclip_blt()
+    let config = Config::mobileclip2_s0()
+        // mobileclip_s0()
         // clip_vit_b16()
         // clip_vit_l14()
         // clip_vit_b32()
