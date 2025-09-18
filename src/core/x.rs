@@ -64,6 +64,12 @@ impl std::ops::Deref for X {
     }
 }
 
+impl std::ops::DerefMut for X {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
 impl std::ops::Mul<f32> for X {
     type Output = Self;
 

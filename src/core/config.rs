@@ -62,6 +62,7 @@ pub struct Config {
     pub db_binary_thresh: Option<f32>,
     pub sam_kind: Option<SamKind>,
     pub sam_low_res_mask: Option<bool>,
+    pub max_tokens: Option<usize>,
 }
 
 impl Default for Config {
@@ -75,6 +76,7 @@ impl Default for Config {
             text_confs: vec![0.25f32],
             apply_softmax: Some(false),
             num_classes: None,
+            max_tokens: None,
             num_keypoints: None,
             num_masks: None,
             iou: None,
