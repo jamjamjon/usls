@@ -23,6 +23,10 @@ struct Args {
     /// max_tokens
     #[argh(option, default = "1024")]
     max_tokens: usize,
+
+    /// dtype
+    #[argh(option, default = "String::from(\"fp16\")")]
+    dtype: String,
 }
 
 fn main() -> Result<()> {
@@ -38,6 +42,7 @@ fn main() -> Result<()> {
         _ => unimplemented!(),
     }
     .with_device_all(args.device.parse()?)
+    .with_dtype_all(args.dtype.parse()?)
     .with_batch_size_all(args.source.len())
     .with_max_tokens(args.max_tokens)
     .commit()?;
