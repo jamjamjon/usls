@@ -1,4 +1,3 @@
-use once_cell::sync::Lazy;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
@@ -299,7 +298,8 @@ impl GlobalTsManager {
 }
 
 /// Global singleton instance
-static GLOBAL_TS_MANAGER: Lazy<GlobalTsManager> = Lazy::new(GlobalTsManager::new);
+static GLOBAL_TS_MANAGER: std::sync::LazyLock<GlobalTsManager> =
+    std::sync::LazyLock::new(GlobalTsManager::new);
 
 /// Get the global Ts manager instance
 pub fn global_ts_manager() -> &'static GlobalTsManager {

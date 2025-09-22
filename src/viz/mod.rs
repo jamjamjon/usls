@@ -15,4 +15,5 @@ pub use draw_ctx::*;
 pub use drawable::*;
 pub use styles::*;
 pub use text_renderer::*;
+#[cfg(feature = "viewer")]
 pub use viewer::*;
