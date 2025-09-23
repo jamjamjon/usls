@@ -23,55 +23,39 @@ pub(crate) struct Release {
     pub assets: Vec<Asset>,
 }
 
-// / Manages interactions with a GitHub repository's releases
-/// Provides an interface for managing GitHub releases, including downloading assets,
-/// fetching release tags and file information, and handling caching.
+/// Manages interactions with GitHub repository releases and Hugging Face repositories
 ///
-/// The `Hub` struct simplifies interactions with a GitHub repository by allowing users
-/// to specify a repository owner and name, download files from releases, and manage
-/// cached data to reduce redundant network requests.
+/// # Format Rules
+/// - **GitHub Release**
+///   - Use `<tag>/<file>` format.
+///   - Example: `"yolo/v5-n-det.onnx"`.
 ///
-/// # Fields
-/// - `owner`: The owner of the GitHub repository (e.g., `"jamjamjon"`).
-/// - `repo`: The name of the GitHub repository (e.g., `"assets"`).
-/// - `to`: The directory where downloaded files are stored, determined from a prioritized list
-///   of available directories (e.g., cache, home, config, or current directory).
-/// - `timeout`: Timeout duration for network requests, in seconds.
-/// - `ttl`: Time-to-live duration for cached data, defining how long cache files remain valid.
-/// - `max_attempts`: The maximum number of retry attempts for failed downloads or network operations.
+/// - **Hugging Face**
+///   - With `Hub::from_hf(owner, repo)`: File paths are interpreted relative to the repo root.
+///     - Example: `"sentencepiece.bpe.model"`, `"onnx/tokenizer.json"`.
+///   - With `Hub::default()`: Paths with three segments are interpreted as `<owner>/<repo>/<file>`.
+///     - Example: `"BAAI/bge-m3/sentencepiece.bpe.model"`.
 ///
-/// # Example
+/// # Examples
 ///
-/// ## 1. Download from a default GitHub release
-/// Download a file by specifying its path relative to the release:
+/// ## GitHub Release Download
 /// ```rust,ignore
-/// let path = Hub::default().try_fetch("images/bus.jpg")?;
-/// println!("Fetched image to: {:?}", path);
+/// let mut hub = Hub::default();
+/// // let mut hub = Hub::new(owner, repo);  // Optional: Specify owner and repo if not using default
+/// let path = hub.try_fetch("images/bus.jpg")?; // <tag>/<file> format
 /// ```
 ///
-/// ## 2. Download from a specific GitHub release URL
-/// Fetch a file directly using its full GitHub release URL:
+/// ## Hugging Face Download (Dedicated Hub)
 /// ```rust,ignore
-/// let path = Hub::default()
-///     .try_fetch("https://github.com/jamjamjon/assets/releases/download/images/bus.jpg")?;
-/// println!("Fetched file to: {:?}", path);
+/// let mut hub = Hub::from_hf("BAAI", "bge-m3")?;
+/// let path = hub.try_fetch("sentencepiece.bpe.model")?; // Any format works
+/// let path = hub.try_fetch("onnx/tokenizer.json")?; // Any format works
 /// ```
 ///
-/// ## 3. Fetch available tags and files in a repository
-/// List all release tags and the files associated with each tag:
+/// ## Hugging Face Download (Temporary)
 /// ```rust,ignore
-/// let hub = Hub::default().with_owner("jamjamjon").with_repo("usls");
-/// for tag in hub.tags().iter() {
-///     let files = hub.files(tag);
-///     println!("Tag: {}, Files: {:?}", tag, files);
-/// }
+/// let mut hub = Hub::default().try_fetch("BAAI/bge-m3/tokenizer_config.json")?; // <owner>/<repo>/<file> format
 /// ```
-///
-/// # Default Behavior
-/// By default, `Hub` interacts with the `jamjamjon/assets` repository, stores downloads in
-/// an accessible directory, and applies a 10-minute cache expiration time. These settings
-/// can be customized using the builder-like methods `with_owner`, `with_repo`, `with_ttl`,
-/// `with_timeout`, and `with_max_attempts`.
 ///
 /// # Errors
 /// Methods in `Hub` return `Result` types. Errors may occur due to invalid paths, failed
@@ -93,12 +77,19 @@ pub struct Hub {
 
     /// The maximum number of retry attempts for failed downloads or network operations
     max_attempts: u32,
+
+    /// HF Endpoint
+    hf_endpoint: String,
+
+    /// HF Api Repo
+    hf_repo: Option<hf_hub::api::sync::ApiRepo>,
 }
 
 impl Default for Hub {
     fn default() -> Self {
         let owner = "jamjamjon".to_string();
         let repo = "assets".to_string();
+        let max_attempts = 3;
         let to = [Dir::Cache, Dir::Home, Dir::Config, Dir::Current]
             .into_iter()
             .find(|dir| dir.crate_dir_default().is_ok())
@@ -109,11 +100,16 @@ impl Default for Hub {
                 \n3. Insufficient permissions to access"
             );
 
+        let hf_endpoint =
+            std::env::var("HF_ENDPOINT").unwrap_or_else(|_| "https://huggingface.co".to_string());
+
         Self {
             owner,
             repo,
             to,
-            max_attempts: 3,
+            max_attempts,
+            hf_endpoint,
+            hf_repo: None,
             ttl: Duration::from_secs(10 * 60),
         }
     }
@@ -128,18 +124,39 @@ impl Hub {
         }
     }
 
-    /// Attempts to fetch a file from a local path or a GitHub release.
+    pub fn from_hf(owner: &str, repo: &str) -> Result<Self> {
+        let mut self_ = Self::new(owner, repo);
+        let hf_api = hf_hub::api::sync::ApiBuilder::new()
+            .with_cache_dir(
+                self_
+                    .to
+                    .crate_dir_default()
+                    .expect("Faild to get cache dir"),
+            )
+            .with_endpoint(self_.hf_endpoint.clone())
+            .with_retries(self_.max_attempts as usize)
+            .with_progress(true)
+            .build()?;
+        self_.hf_repo = Some(hf_api.model(format!("{}/{}", owner, repo)));
+
+        Ok(self_)
+    }
+
+    /// Attempts to fetch a file from a local path, GitHub release, or Hugging Face repository.
     ///
-    /// The `try_fetch` method supports three main scenarios:
+    /// The `try_fetch` method supports multiple scenarios:
     /// 1. **Local file**: If the provided string is a valid file path, the file is returned without downloading.
     /// 2. **GitHub release URL**: If the input matches a valid GitHub release URL, the corresponding file is downloaded.
-    /// 3. **Default repository**: If no explicit URL is provided, the method uses the default or configured repository.
+    /// 3. **Hugging Face repository**: If the hub is configured for HF or the path contains HF format, files are downloaded from HF.
+    /// 4. **Default repository**: If no explicit URL is provided, the method uses the default or configured repository.
     ///
     /// # Parameters
     /// - `s`: A string representing the file to fetch. This can be:
     ///   - A local file path.
     ///   - A GitHub release URL (e.g., `https://github.com/owner/repo/releases/download/tag/file`).
-    ///   - A `<tag>/<file>` format for fetching from the default repository.
+    ///   - A `<tag>/<file>` format for fetching from the default GitHub repository.
+    ///   - A HF repository file path (e.g., `"sentencepiece.bpe.model"` when using `from_hf`).
+    ///   - A temporary HF path format (e.g., `"BAAI/bge-m3/sentencepiece.bpe.model"`).
     ///
     /// # Returns
     /// - `Result<String>`: On success, returns the path to the fetched file.
@@ -149,8 +166,9 @@ impl Hub {
     ///   - The file cannot be found locally.
     ///   - The URL or tag is invalid.
     ///   - Network operations fail after the maximum retry attempts.
+    ///   - HF repository access fails.
     ///
-    /// # Example
+    /// # Examples
     /// ```rust,ignore
     /// let mut hub = Hub::default();
     ///
@@ -161,8 +179,16 @@ impl Hub {
     /// let url_path = hub.try_fetch("https://github.com/owner/repo/releases/download/tag/file")
     ///     .expect("Failed to fetch file");
     ///
-    /// // Fetch a file using the default repository
-    /// let default_repo_path = hub.try_fetch("v1.0.0/file").expect("Failed to fetch file");
+    /// // Fetch a file using the default GitHub repository
+    /// let default_repo_path = hub.try_fetch("yolo/v5-n-det.onnx").expect("Failed to fetch file");
+    ///
+    /// // Method 1: Fetch from HF repository using dedicated hub
+    /// let mut hf_hub = Hub::from_hf("BAAI", "bge-m3")?;
+    /// let hf_path = hf_hub.try_fetch("sentencepiece.bpe.model").expect("Failed to fetch HF file");
+    ///
+    /// // Method 2: Fetch from HF repository using temporary path (doesn't change hub's owner/repo)
+    /// let temp_hf_path = Hub::default().try_fetch("BAAI/bge-m3/sentencepiece.bpe.model")
+    ///     .expect("Failed to fetch HF file");
     /// ```
     pub fn try_fetch(&mut self, s: &str) -> Result<String> {
         #[derive(Default, Debug, aksr::Builder)]
@@ -181,39 +207,59 @@ impl Hub {
         let saveout = if p.exists() {
             // => Local file
             p
-        } else if let Some((owner_, repo_, tag_, file_name_)) = Self::is_valid_github_release_url(s)
-        {
-            // => Valid GitHub release URL
-            // keep original owner, repo and tag
-            let saveout = self
-                .to
-                .crate_dir_default_with_subs(&[&owner_, &repo_, &tag_])?
-                .join(&file_name_);
-
-            pack = pack.with_url(s).with_tag(&tag_).with_file_name(&file_name_);
-            if let Some(n) = retry!(self.max_attempts, self.fetch_get_response(s))?
-                .headers()
-                .get(http::header::CONTENT_LENGTH)
-                .and_then(|v| v.to_str().ok()?.parse::<u64>().ok())
-            {
-                pack = pack.with_file_size(n);
-            }
-
-            saveout
         } else {
-            // => Default hub
+            match &self.hf_repo {
+                Some(hf_repo) => hf_repo.get(s)?, // from hf repo
+                None => {
+                    let parts: Vec<&str> = s.split('/').filter(|x| !x.is_empty()).collect();
+                    if parts.len() > 2 {
+                        // from hf repo
+                        // Note: this does not update self.owner or self.repo; they are only used temporarily.
+                        let hf_api = hf_hub::api::sync::ApiBuilder::new()
+                            .with_cache_dir(
+                                self.to.crate_dir_default().expect("Faild to get cache dir"),
+                            )
+                            .with_endpoint(self.hf_endpoint.clone())
+                            .with_progress(true)
+                            .with_retries(self.max_attempts as usize)
+                            .build()?;
+                        let hf_repo = hf_api.model(format!("{}/{}", parts[0], parts[1]));
+                        hf_repo.get(&parts[2..].join("/"))?
+                    } else if let Some((owner_, repo_, tag_, file_name_)) =
+                        Self::is_valid_github_release_url(s)
+                    {
+                        // => Valid GitHub release URL
+                        // keep original owner, repo and tag
+                        let saveout = self
+                            .to
+                            .crate_dir_default_with_subs(&[&owner_, &repo_, &tag_])?
+                            .join(&file_name_);
 
-            // Fetch releases
-            let releases = match self.get_releases(&self.owner, &self.repo, &self.to, &self.ttl) {
-                Err(err) => anyhow::bail!(
-                    "Failed to download: No releases found in this repo. Error: {}",
-                    err
-                ),
-                Ok(releases) => releases,
-            };
+                        pack = pack.with_url(s).with_tag(&tag_).with_file_name(&file_name_);
+                        if let Some(n) = retry!(self.max_attempts, self.fetch_get_response(s))?
+                            .headers()
+                            .get(http::header::CONTENT_LENGTH)
+                            .and_then(|v| v.to_str().ok()?.parse::<u64>().ok())
+                        {
+                            pack = pack.with_file_size(n);
+                        }
 
-            // Check remote
-            match s.split_once('/') {
+                        saveout
+                    } else {
+                        // => Default hub
+
+                        // Fetch releases
+                        let releases =
+                            match self.get_releases(&self.owner, &self.repo, &self.to, &self.ttl) {
+                                Err(err) => anyhow::bail!(
+                                    "Failed to download: No releases found in this repo. Error: {}",
+                                    err
+                                ),
+                                Ok(releases) => releases,
+                            };
+
+                        // Check remote
+                        match s.split_once('/') {
                 Some((tag_, file_name_)) => {
                     // Validate the tag
                     let tags: Vec<String> = releases.iter().map(|x| x.tag_name.clone()).collect();
@@ -258,6 +304,9 @@ impl Hub {
                     "Failed to download file from github releases due to invalid format. Expected: <tag>/<file>, got: {}",
                     s
                 ),
+            }
+                    }
+                }
             }
         };
 
@@ -519,6 +568,15 @@ impl Hub {
         self
     }
 
+    pub fn with_hf_owner_repo(self, owner: &str, repo: &str) -> Result<Self> {
+        Self::from_hf(owner, repo)
+    }
+
+    pub fn with_hf_endpoint(mut self, x: &str) -> Self {
+        self.hf_endpoint = x.to_string();
+        self
+    }
+
     pub fn with_ttl(mut self, x: u64) -> Self {
         self.ttl = std::time::Duration::from_secs(x);
         self
@@ -527,5 +585,122 @@ impl Hub {
     pub fn with_max_attempts(mut self, x: u32) -> Self {
         self.max_attempts = x;
         self
+    }
+
+    /// Displays repository information including files and releases.
+    ///
+    /// For Hugging Face repositories, shows commit SHA and file tree.
+    /// For GitHub repositories, shows releases with file counts and provides usage examples.
+    pub fn info(&self) -> Result<()> {
+        println!("Repository: {}/{}", self.owner, self.repo);
+
+        match &self.hf_repo {
+            Some(hf_repo) => {
+                let info = hf_repo.info()?;
+
+                println!("Type: Hugging Face Repository");
+                println!("Commit SHA: {}", info.sha);
+
+                println!("\nFiles ({} total):", info.siblings.len());
+                let mut files: Vec<_> =
+                    info.siblings.iter().map(|s| s.rfilename.as_str()).collect();
+                files.sort();
+
+                Self::print_tree(&files, "");
+            }
+            None => {
+                println!("Type: GitHub Release Repository");
+                let tags = self.tags();
+
+                if tags.is_empty() {
+                    println!("No releases found in this repository.");
+                } else {
+                    println!("\nReleases ({} total):", tags.len());
+                    for tag in &tags {
+                        let files = self.files(tag);
+                        println!("  {} ({} files):", tag, files.len());
+
+                        if files.is_empty() {
+                            println!("    (no files)");
+                        } else if files.len() <= 5 {
+                            // Show all files if 5 or fewer
+                            let file_refs: Vec<&str> = files.iter().map(|s| s.as_str()).collect();
+                            Self::print_tree(&file_refs, "    ");
+                        } else {
+                            // Show first 5 files and indicate there are more
+                            let file_refs: Vec<&str> =
+                                files.iter().take(5).map(|s| s.as_str()).collect();
+                            Self::print_tree(&file_refs, "    ");
+                            println!("    ... and {} more files", files.len() - 5);
+                        }
+                        println!();
+                    }
+
+                    println!(
+                        "\nTip: Use the following code to get complete file list for all tags:"
+                    );
+                    println!("\n```rust");
+                    println!(
+                        "let hub = Hub::default().with_owner(\"jamjamjon\").with_repo(\"assets\");"
+                    );
+                    println!("for tag in hub.tags().iter() {{");
+                    println!("    let files = hub.files(tag);");
+                    println!("    println!(\"Tag: {{}}, Files: {{:?}}\", tag, files);");
+                    println!("}}");
+                    println!("```\n");
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    fn print_tree(files: &[&str], prefix: &str) {
+        use std::collections::HashMap;
+
+        #[derive(Default)]
+        struct TreeNode {
+            children: HashMap<String, TreeNode>,
+            is_file: bool,
+        }
+
+        let mut root = TreeNode::default();
+
+        // Build tree structure
+        for file_path in files {
+            let parts: Vec<&str> = file_path.split('/').collect();
+            let mut current = &mut root;
+
+            for (i, part) in parts.iter().enumerate() {
+                let is_last = i == parts.len() - 1;
+                current = current.children.entry(part.to_string()).or_default();
+                if is_last {
+                    current.is_file = true;
+                }
+            }
+        }
+
+        // Print tree
+        fn print_node(node: &TreeNode, name: &str, prefix: &str, is_last: bool, is_root: bool) {
+            if !is_root {
+                let connector = if is_last { "└── " } else { "├── " };
+                println!("{}{}{}", prefix, connector, name);
+            }
+
+            let mut children: Vec<_> = node.children.iter().collect();
+            children.sort_by_key(|(name, child)| (!child.is_file, name.as_str()));
+
+            for (i, (child_name, child_node)) in children.iter().enumerate() {
+                let is_last_child = i == children.len() - 1;
+                let new_prefix = if is_root {
+                    prefix.to_string()
+                } else {
+                    format!("{}{}   ", prefix, if is_last { " " } else { "│" })
+                };
+                print_node(child_node, child_name, &new_prefix, is_last_child, false);
+            }
+        }
+
+        print_node(&root, "", prefix, true, true);
     }
 }
