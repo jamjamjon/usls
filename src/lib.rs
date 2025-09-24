@@ -27,7 +27,8 @@
 //! ## ⚡ Cargo Features
 //! - **`ort-download-binaries`** (**default**): Automatically downloads prebuilt ONNXRuntime binaries for supported platforms
 //! - **`ort-load-dynamic`**: Dynamic linking to ONNXRuntime libraries ([Guide](https://ort.pyke.io/setup/linking#dynamic-linking))
-//! - **`video`**: Enable video stream reading and writing (via [video-rs](https://github.com/oddity-ai/video-rs) and [minifb](https://github.com/emoon/rust_minifb))
+//! - **`video`**: Enable video stream reading and writing (via [video-rs](https://github.com/oddity-ai/video-rs)
+//! - **`viewer`**: Enable image and video stream visualization (via [minifb](https://github.com/emoon/rust_minifb))
 //! - **`cuda`**: NVIDIA CUDA GPU acceleration support
 //! - **`tensorrt`**: NVIDIA TensorRT optimization for inference acceleration
 //! - **`coreml`**: Apple CoreML acceleration for macOS/iOS devices
@@ -49,7 +50,6 @@
 //!
 
 pub mod core;
-/// Model Zoo
 #[cfg(any(feature = "ort-download-binaries", feature = "ort-load-dynamic"))]
 pub mod models;
 #[macro_use]
@@ -57,6 +57,7 @@ mod results;
 pub mod viz;
 
 pub use core::*;
+#[cfg(feature = "viewer")]
 pub use minifb::Key;
 #[cfg(any(feature = "ort-download-binaries", feature = "ort-load-dynamic"))]
 pub use models::*;
