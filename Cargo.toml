@@ -1,7 +1,7 @@
 [package]
 name = "usls"
 edition = "2021"
-version = "0.1.0-rc.1"
+version = "0.1.0"
 rust-version = "1.85"
 description = "A Rust library integrated with ONNXRuntime, providing a collection of ML models."
 repository = "https://github.com/jamjamjon/usls"
