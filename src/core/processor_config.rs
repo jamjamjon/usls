@@ -4,6 +4,14 @@ use tokenizers::{PaddingParams, PaddingStrategy, Tokenizer, TruncationParams};
 
 use crate::{Hub, ResizeMode};
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ImageTensorLayout {
+    NCHW, // (batch, channel, height, width)
+    NHWC, // (batch, height, width, channel)
+    CHW,  // (channel, height, width)
+    HWC,  // (height, width, channel)
+}
+
 /// Configuration for image and text processing pipelines.
 #[derive(Builder, Debug, Clone)]
 pub struct ProcessorConfig {
@@ -36,6 +44,8 @@ pub struct ProcessorConfig {
     pub pad_size: usize,
     /// Up-scaling factor for super resolution.
     pub up_scale: f32,
+    /// Image tensor layout format.
+    pub image_tensor_layout: ImageTensorLayout,
 
     // Text
     /// Maximum sequence length for tokenization.
@@ -69,6 +79,7 @@ impl Default for ProcessorConfig {
             resize_mode: ResizeMode::FitExact,
             resize_filter: Some("Bilinear"),
             padding_value: 114,
+            image_tensor_layout: ImageTensorLayout::NCHW,
             normalize: true,
             image_std: vec![],
             image_mean: vec![],
@@ -240,6 +251,13 @@ macro_rules! impl_processor_config_methods {
             }
             pub fn with_up_scale(mut self, up_scale: f32) -> Self {
                 self.$field = self.$field.with_up_scale(up_scale);
+                self
+            }
+            pub fn with_image_tensor_layout(
+                mut self,
+                image_tensor_layout: $crate::ImageTensorLayout,
+            ) -> Self {
+                self.$field = self.$field.with_image_tensor_layout(image_tensor_layout);
                 self
             }
             pub fn with_model_max_length(mut self, model_max_length: u64) -> Self {

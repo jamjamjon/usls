@@ -1,4 +1,5 @@
-use ndarray::{ArrayBase, ArrayView, Axis, Dim, IxDyn, IxDynImpl, ViewRepr};
+use slsl::s;
+use slsl::TensorView;
 
 use crate::Task;
 
@@ -49,7 +50,7 @@ pub struct YOLOPredsFormat {
     pub apply_nms: bool,
     pub apply_softmax: bool,
     // ------------------------------------------------
-    // pub is_concatenated: bool, // TODO: how to tell which parts?
+    // pub is_concatenated: bool,
 }
 
 impl Default for YOLOPredsFormat {
@@ -227,64 +228,74 @@ impl YOLOPredsFormat {
     }
 
     #[allow(clippy::type_complexity)]
-    pub fn parse_preds<'a>(
-        &'a self,
-        x: ArrayBase<ViewRepr<&'a f32>, Dim<IxDynImpl>>,
+    pub fn parse_preds_view_internal<'a>(
+        &self,
+        x: TensorView<'a>,
         nc: usize,
-    ) -> (
-        Option<ArrayView<'a, f32, IxDyn>>,
-        Option<ArrayView<'a, f32, IxDyn>>,
-        ArrayView<'a, f32, IxDyn>,
-        Option<ArrayView<'a, f32, IxDyn>>,
-        Option<ArrayView<'a, f32, IxDyn>>,
-        Option<ArrayView<'a, f32, IxDyn>>,
-        Option<ArrayView<'a, f32, IxDyn>>,
-    ) {
+    ) -> anyhow::Result<(
+        Option<TensorView<'a>>, // bboxes
+        Option<TensorView<'a>>, // ids
+        TensorView<'a>,         // clss
+        Option<TensorView<'a>>, // confs
+        Option<TensorView<'a>>, // kpts
+        Option<TensorView<'a>>, // coefs
+        Option<TensorView<'a>>, // radians
+    )> {
         match self.task() {
-            Task::ImageClassification => (None, None, x, None, None, None, None),
+            Task::ImageClassification => Ok((None, None, x, None, None, None, None)),
             _ => {
                 let x = if self.is_anchors_first() {
                     x
                 } else {
-                    x.reversed_axes()
+                    x.flip_dims()?
                 };
 
-                // each tasks slices
-                let (slice_bboxes, xs) = x.split_at(Axis(1), 4);
-                let (slice_id, slice_clss, slice_confs, xs) = match self.clss {
+                // Use slice operations to avoid lifetime issues
+                let slice_bboxes = x.slice(s![.., 0..4, ..]);
+                let (slice_id, slice_clss, slice_confs, remaining_start) = match self.clss {
                     ClssType::ConfClss => {
-                        let (confs, xs) = xs.split_at(Axis(1), 1);
-                        let (clss, xs) = xs.split_at(Axis(1), nc);
-                        (None, clss, Some(confs), xs)
+                        let confs = x.slice(s![.., 4..5, ..]);
+                        let clss = x.slice(s![.., 5..5 + nc, ..]);
+                        (None, clss, Some(confs), 5 + nc)
                     }
                     ClssType::ClssConf => {
-                        let (clss, xs) = xs.split_at(Axis(1), nc);
-                        let (confs, xs) = xs.split_at(Axis(1), 1);
-                        (None, clss, Some(confs), xs)
+                        let clss = x.slice(s![.., 4..4 + nc, ..]);
+                        let confs = x.slice(s![.., 4 + nc..4 + nc + 1, ..]);
+                        (None, clss, Some(confs), 4 + nc + 1)
                     }
                     ClssType::ConfCls => {
-                        let (clss, xs) = xs.split_at(Axis(1), 1);
-                        let (ids, xs) = xs.split_at(Axis(1), 1);
-                        (Some(ids), clss, None, xs)
+                        let clss = x.slice(s![.., 4..5, ..]);
+                        let ids = x.slice(s![.., 5..6, ..]);
+                        (Some(ids), clss, None, 6)
                     }
                     ClssType::ClsConf => {
-                        let (ids, xs) = xs.split_at(Axis(1), 1);
-                        let (clss, xs) = xs.split_at(Axis(1), 1);
-                        (Some(ids), clss, None, xs)
+                        let ids = x.slice(s![.., 4..5, ..]);
+                        let clss = x.slice(s![.., 5..6, ..]);
+                        (Some(ids), clss, None, 6)
                     }
                     ClssType::Clss => {
-                        let (clss, xs) = xs.split_at(Axis(1), nc);
-                        (None, clss, None, xs)
+                        let clss = x.slice(s![.., 4..4 + nc, ..]);
+                        (None, clss, None, 4 + nc)
                     }
                 };
+
                 let (slice_kpts, slice_coefs, slice_radians) = match self.task() {
-                    Task::Pose | Task::KeypointsDetection => (Some(xs), None, None),
-                    Task::InstanceSegmentation => (None, Some(xs), None),
-                    Task::Obb | Task::OrientedObjectDetection => (None, None, Some(xs)),
+                    Task::Pose | Task::KeypointsDetection => {
+                        let kpts = x.slice(s![.., remaining_start.., ..]);
+                        (Some(kpts), None, None)
+                    }
+                    Task::InstanceSegmentation => {
+                        let coefs = x.slice(s![.., remaining_start.., ..]);
+                        (None, Some(coefs), None)
+                    }
+                    Task::OrientedObjectDetection => {
+                        let radians = x.slice(s![.., remaining_start.., ..]);
+                        (None, None, Some(radians))
+                    }
                     _ => (None, None, None),
                 };
 
-                (
+                Ok((
                     Some(slice_bboxes),
                     slice_id,
                     slice_clss,
@@ -292,7 +303,7 @@ impl YOLOPredsFormat {
                     slice_kpts,
                     slice_coefs,
                     slice_radians,
-                )
+                ))
             }
         }
     }

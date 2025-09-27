@@ -35,6 +35,7 @@ impl TextRenderer {
         let system_font_paths = [
             "/System/Library/Fonts/Arial.ttf",                 // macOS
             "/System/Library/Fonts/Helvetica.ttc",             // macOS
+            "/System/Library/Fonts/Apple\\ Braille.ttf",       // macOS
             "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", // Linux
             "C:\\Windows\\Fonts\\arial.ttf",                   // Windows
         ];

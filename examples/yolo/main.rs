@@ -171,7 +171,7 @@ fn main() -> Result<()> {
         .with_topk(args.topk)
         .retain_classes(&args.retain_classes)
         .exclude_classes(&args.exclude_classes)
-        .with_model_num_dry_run(2);
+        .with_model_num_dry_run(5);
     if args.use_coco_80_classes {
         config = config.with_class_names(&NAMES_COCO_80);
     }

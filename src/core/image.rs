@@ -388,7 +388,8 @@ impl Image {
         }
     }
 
-    pub fn pad(&self, window_size: usize) -> Result<(RgbImage, ImageTransformInfo)> {
+    /// Pad the image to the nearest multiple of window_size
+    pub fn pad(&self, window_size: usize) -> Result<(Self, ImageTransformInfo)> {
         let (width, height) = self.image.dimensions();
         let (w_old, h_old) = (width as usize, height as usize);
 
@@ -456,13 +457,20 @@ impl Image {
             .with_height_pad(h_pad_total as f32)
             .with_width_pad(w_pad_total as f32);
 
-        Ok((padded, images_transform_info))
+        Ok((Self::from(padded), images_transform_info))
     }
 
     pub fn to_ndarray(&self) -> Result<X> {
         X::from_shape_vec(
             &[self.height() as usize, self.width() as usize, 3],
             self.to_f32s(),
+        )
+    }
+
+    pub fn to_tensor(&self) -> Result<slsl::Tensor> {
+        slsl::Tensor::from_vec(
+            self.to_f32s(),
+            (self.height() as usize, self.width() as usize, 3),
         )
     }
 }
