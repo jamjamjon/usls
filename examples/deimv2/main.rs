@@ -1,5 +1,21 @@
 use anyhow::Result;
-use usls::{models::DFINE, Annotator, Config, DataLoader};
+use usls::{models::RTDETR, Annotator, Config, DataLoader};
+
+#[derive(argh::FromArgs)]
+/// Example
+struct Args {
+    /// model file
+    #[argh(option)]
+    model: Option<String>,
+
+    /// device
+    #[argh(option, default = "String::from(\"cpu:0\")")]
+    device: String,
+
+    /// dtype
+    #[argh(option, default = "String::from(\"fp16\")")]
+    dtype: String,
+}
 
 fn main() -> Result<()> {
     tracing_subscriber::fmt()
@@ -7,8 +23,17 @@ fn main() -> Result<()> {
         .with_timer(tracing_subscriber::fmt::time::ChronoLocal::rfc_3339())
         .init();
 
+    let args: Args = argh::from_env();
+
     // config
-    let mut model = DFINE::new(Config::d_fine_n_coco().commit()?)?;
+    let config = match &args.model {
+        Some(m) => Config::deimv2().with_model_file(m),
+        None => Config::deim_v2_n_coco(),
+    }
+    .with_model_dtype(args.dtype.parse()?)
+    .with_device_all(args.device.parse()?)
+    .commit()?;
+    let mut model = RTDETR::new(config)?;
 
     // load
     let xs = DataLoader::try_read_n(&["./assets/bus.jpg"])?;
@@ -28,6 +53,7 @@ fn main() -> Result<()> {
                 .display(),
         ))?;
     }
+
     usls::perf(false);
 
     Ok(())

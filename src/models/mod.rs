@@ -7,6 +7,7 @@ mod convnext;
 mod d_fine;
 mod db;
 mod deim;
+mod deimv2;
 mod deit;
 mod depth_anything;
 mod depth_pro;
@@ -45,7 +46,10 @@ mod yolop;
 
 pub use blip::*;
 pub use clip::*;
+pub use d_fine::*;
 pub use db::*;
+pub use deim::*;
+pub use deimv2::*;
 pub use depth_anything::*;
 pub use depth_pro::*;
 pub use dinov2::*;

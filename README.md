@@ -80,6 +80,7 @@ usls = "latest-version"
 | [DocLayout-YOLO](https://github.com/opendatalab/DocLayout-YOLO) | Object Detection | [demo](examples/picodet-layout) |
 | [D-FINE](https://github.com/manhbd-22022602/D-FINE) | Object Detection | [demo](examples/d-fine) |
 | [DEIM](https://github.com/ShihuaHuang95/DEIM) | Object Detection | [demo](examples/deim) |
+| [DEIMv2](https://github.com/Intellindust-AI-Lab/DEIMv2) | Object Detection | [demo](examples/deimv2) |
 | [RTMPose](https://github.com/open-mmlab/mmpose/tree/dev-1.x/projects/rtmpose) | Keypoint Detection | [demo](examples/rtmpose) |
 | [DWPose](https://github.com/IDEA-Research/DWPose) | Keypoint Detection | [demo](examples/dwpose) |
 | [RTMW](https://arxiv.org/abs/2407.08634) | Keypoint Detection | [demo](examples/rtmw) |
