@@ -578,6 +578,7 @@ impl OrtEngine {
             feature = "azure"
         ))]
         let compile_help = "Please compile ONNXRuntime with #EP";
+        #[allow(unused)]
         let feature_help = "#EP EP requires the features: `#FEATURE`. \
             \nConsider enabling them by passing, e.g., `--features #FEATURE`";
 

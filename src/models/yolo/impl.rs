@@ -360,17 +360,10 @@ impl YOLO {
                 );
                 let ratio = self.processor.images_transform_info[idx].height_scale;
 
-                // Other tasks
-                let bbox_tensor = match slice_bboxes {
-                    Some(tensor) => tensor,
-                    None => return None,
-                };
-                // let bbox_shape = bbox_tensor.shape();
-                // let num_boxes = bbox_shape[0];
-                // let box_dim = bbox_shape[1];
-
-                let (y_hbbs, y_obbs) = bbox_tensor
+                // ObjectDetection
+                let (y_hbbs, y_obbs) = slice_bboxes?
                     .iter_dim(0)
+                    .par_iter()
                     .enumerate()
                     .filter_map(|(i, hbb)| {
                         // confidence & class_id
@@ -381,18 +374,13 @@ impl YOLO {
                                 (class_id, confidence)
                             }
                             None => {
-                                // Find max confidence class using direct indexing
-                                // TODO
-                                let cls_dim = slice_clss.shape()[1];
-                                let mut confidence = f32::NEG_INFINITY;
-                                let mut class_id = 0;
-                                for j in 0..cls_dim {
-                                    let conf: f32 = slice_clss.at([i, j]);
-                                    if conf > confidence {
-                                        confidence = conf;
-                                        class_id = j;
-                                    }
-                                }
+                                let (class_id, &confidence) = slice_clss
+                                    .slice(s![i, ..])
+                                    .iter::<f32>()
+                                    .enumerate()
+                                    .max_by(|a, b| {
+                                        a.1.partial_cmp(b.1).unwrap_or(std::cmp::Ordering::Equal)
+                                    })?;
 
                                 match &slice_confs {
                                     None => (class_id, confidence),
@@ -425,10 +413,7 @@ impl YOLO {
                         }
 
                         // Bboxes
-                        // let hbb: Vec<f32> = hbb_slice.iter().map(|x| x / ratio).collect();
-                        let hbb: Vec<f32> =
-                            hbb.map(|x: &f32| x / ratio).ok()?.to_flat_vec().ok()?;
-
+                        let hbb: Vec<f32> = hbb.iter::<f32>().map(|x| x / ratio).collect();
                         let hbb = if self.layout.is_bbox_normalized {
                             (
                                 hbb[0] * self.width() as f32,
