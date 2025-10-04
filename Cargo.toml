@@ -35,7 +35,7 @@ chrono = "0.4.40"
 regex = "1.11.1"
 tempfile = "3.19.1"
 video-rs = { version = "0.10.3", features = ["ndarray"], optional = true }
-fast_image_resize = { version = "=5.1.2", features = ["image"] }
+fast_image_resize = { version = "=5.1.4", features = ["image", "rayon"] }
 ndarray-npy = "0.9.1"
 half = { version = "2.6.0", features = ["bytemuck", "num-traits"] }
 prost = "0.14.1"

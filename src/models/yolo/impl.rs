@@ -337,13 +337,9 @@ impl YOLO {
                 // ImageClassifcation
                 if let Task::ImageClassification = self.task {
                     let x_vec = if self.layout.apply_softmax {
-                        let slice_data: &[f32] = slice_clss.as_slice().ok()?;
-                        let exps: Vec<f32> = slice_data.iter().map(|x| x.exp()).collect();
-                        let sum: f32 = exps.iter().sum();
-                        exps.iter().map(|x| x / sum).collect()
+                        slice_clss.softmax(0).ok()?.to_flat_vec().ok()?
                     } else {
-                        let slice_data: &[f32] = slice_clss.as_slice().ok()?;
-                        slice_data.to_vec()
+                        slice_clss.to_flat_vec().ok()?
                     };
                     let probs = Prob::new_probs(
                         &x_vec,
@@ -393,6 +389,11 @@ impl YOLO {
                             }
                         };
 
+                        // filter by conf
+                        if confidence < self.confs[class_id] {
+                            return None;
+                        }
+
                         // filter out class id
                         if !self.classes_excluded.is_empty()
                             && self.classes_excluded.contains(&class_id)
@@ -404,11 +405,6 @@ impl YOLO {
                         if !self.classes_retained.is_empty()
                             && !self.classes_retained.contains(&class_id)
                         {
-                            return None;
-                        }
-
-                        // filter by conf
-                        if confidence < self.confs[class_id] {
                             return None;
                         }
 
@@ -521,7 +517,6 @@ impl YOLO {
                             .into_par_iter()
                             .filter_map(|hbb| {
                                 let uid = hbb.uid();
-
                                 let kpts = (0..self.nk)
                                     .into_par_iter()
                                     .filter_map(|i| {
@@ -568,16 +563,17 @@ impl YOLO {
                                 let (nm, mh, mw) = (proto_shape[0], proto_shape[1], proto_shape[2]);
 
                                 // contiguous way
-                                // let coefs_vec = coefs_slice.to_flat_vec::<f32>().ok()?;
-                                // let proto_vec = proto.to_flat_vec::<f32>().ok()?;
-                                // let coefs_tensor = Tensor::from_vec(coefs_vec, (1,nm)).ok()?;
-                                // let proto_tensor = Tensor::from_vec(proto_vec, (nm, mh * mw)).ok()?;
-                                // let mask_tensor = coefs_tensor.matmul(&proto_tensor).ok()?;
+                                let coefs_vec = coefs_slice.to_flat_vec::<f32>().ok()?;
+                                let proto_vec = proto.to_flat_vec::<f32>().ok()?;
+                                let coefs_tensor = Tensor::from_vec(coefs_vec, (1, nm)).ok()?;
+                                let proto_tensor =
+                                    Tensor::from_vec(proto_vec, (nm, mh * mw)).ok()?;
+                                let mask_tensor = coefs_tensor.matmul(&proto_tensor).ok()?;
 
-                                // non-contiguous way, much better
-                                let coefs_slice = coefs_slice.unsqueeze(0).ok()?;
-                                let proto = proto.reshape((nm, mh * mw)).ok()?;
-                                let mask_tensor = coefs_slice.matmul(&proto).ok()?;
+                                // non-contiguous way
+                                // let coefs_slice = coefs_slice.unsqueeze(0).ok()?;
+                                // let proto = proto.reshape((nm, mh * mw)).ok()?;
+                                // let mask_tensor = coefs_slice.matmul(&proto).ok()?;
 
                                 // Resize mask from (mh, mw) to (image_height, image_width)
                                 let mask_resized = Ops::resize_lumaf32_u8(
