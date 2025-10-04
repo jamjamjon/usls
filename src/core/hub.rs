@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
+use tempfile::NamedTempFile;
 
 use crate::{retry, Dir};
 
@@ -234,7 +235,6 @@ impl Hub {
                             .to
                             .crate_dir_default_with_subs(&[&owner_, &repo_, &tag_])?
                             .join(&file_name_);
-
                         pack = pack.with_url(s).with_tag(&tag_).with_file_name(&file_name_);
                         if let Some(n) = retry!(self.max_attempts, self.fetch_get_response(s))?
                             .headers()
@@ -248,63 +248,70 @@ impl Hub {
                     } else {
                         // => Default hub
 
-                        // Fetch releases
-                        let releases =
-                            match self.get_releases(&self.owner, &self.repo, &self.to, &self.ttl) {
-                                Err(err) => anyhow::bail!(
-                                    "Failed to download: No releases found in this repo. Error: {}",
-                                    err
-                                ),
-                                Ok(releases) => releases,
-                            };
-
                         // Check remote
                         match s.split_once('/') {
-                Some((tag_, file_name_)) => {
-                    // Validate the tag
-                    let tags: Vec<String> = releases.iter().map(|x| x.tag_name.clone()).collect();
-                    if !tags.contains(&tag_.to_string()) {
-                        anyhow::bail!(
-                            "Failed to download: Tag `{}` not found in GitHub releases. Available tags: {:?}",
-                            tag_,
-                            tags
-                        );
-                    } else {
-                        // Validate the file
-                        if let Some(release) = releases.iter().find(|r| r.tag_name == tag_) {
-                            let files: Vec<&str> =
-                                release.assets.iter().map(|x| x.name.as_str()).collect();
-                            if !files.contains(&file_name_) {
-                                anyhow::bail!(
-                                    "Failed to download: The file `{}` is missing in tag `{}`. Available files: {:?}",
-                                    file_name_,
-                                    tag_,
-                                    files
-                                );
-                            } else {
-                                for f_ in release.assets.iter() {
-                                    if f_.name.as_str() == file_name_ {
-                                        pack = pack
-                                            .with_url(&f_.browser_download_url)
-                                            .with_tag(tag_)
-                                            .with_file_name(file_name_)
-                                            .with_file_size(f_.size);
-                                        break;
+                            Some((tag_, file_name_)) => {
+                                let dst = self.to
+                                    .crate_dir_default_with_subs(&[tag_])?
+                                    .join(file_name_);
+
+                                // check if is cached
+                                if !dst.is_file() {
+                                    log::debug!("File not cached, fetching from remote: {}", dst.display());
+
+                                    // Fetch releases
+                                    let releases =
+                                    match self.get_releases(&self.owner, &self.repo, &self.to, &self.ttl) {
+                                        Err(err) => anyhow::bail!(
+                                            "Failed to download: No releases found in this repo. Error: {}",
+                                            err
+                                        ),
+                                        Ok(releases) => releases,
+                                    };
+
+                                    // Validate the tag
+                                    let tags: Vec<String> = releases.iter().map(|x| x.tag_name.clone()).collect();
+                                    if !tags.contains(&tag_.to_string()) {
+                                        anyhow::bail!(
+                                            "Failed to download: Tag `{}` not found in GitHub releases. Available tags: {:?}",
+                                            tag_,
+                                            tags
+                                        );
+                                    } else {
+                                        // Validate the file
+                                        if let Some(release) = releases.iter().find(|r| r.tag_name == tag_) {
+                                            let files: Vec<&str> =
+                                                release.assets.iter().map(|x| x.name.as_str()).collect();
+                                            if !files.contains(&file_name_) {
+                                                anyhow::bail!(
+                                                    "Failed to download: The file `{}` is missing in tag `{}`. Available files: {:?}",
+                                                    file_name_,
+                                                    tag_,
+                                                    files
+                                                );
+                                            } else {
+                                                for f_ in release.assets.iter() {
+                                                    if f_.name.as_str() == file_name_ {
+                                                        pack = pack
+                                                            .with_url(&f_.browser_download_url)
+                                                            .with_tag(tag_)
+                                                            .with_file_name(file_name_)
+                                                            .with_file_size(f_.size);
+                                                        break;
+                                                    }
+                                                }
+                                            }
+                                        }
                                     }
                                 }
+                                log::debug!("Using cached file: {}", dst.display());
+                                dst
                             }
+                            _ => anyhow::bail!(
+                                "Failed to download file from github releases due to invalid format. Expected: <tag>/<file>, got: {}",
+                                s
+                            ),
                         }
-
-                        self.to
-                            .crate_dir_default_with_subs(&[tag_])?
-                            .join(file_name_)
-                    }
-                }
-                _ => anyhow::bail!(
-                    "Failed to download file from github releases due to invalid format. Expected: <tag>/<file>, got: {}",
-                    s
-                ),
-            }
                     }
                 }
             }
@@ -312,49 +319,60 @@ impl Hub {
 
         // Commit the downloaded file, downloading if necessary
         if !pack.url.is_empty() {
-            // Download if the file does not exist or if the size of file does not match
-            if saveout.is_file() {
-                match pack.file_size {
-                    None => {
-                        log::warn!(
-                            "Failed to retrieve the remote file size. \
-                            Download will be skipped, which may cause issues. \
-                            Please verify your network connection or ensure the local file is valid and complete."
-                        );
-                    }
-                    Some(file_size) => {
-                        if std::fs::metadata(&saveout)?.len() != file_size {
-                            log::debug!(
-                                "Local file size does not match remote. Starting download."
-                            );
-                            retry!(
-                                self.max_attempts,
-                                1000,
-                                3000,
-                                self.download(
-                                    &pack.url,
-                                    &saveout,
-                                    Some(&format!("{}/{}", pack.tag, pack.file_name)),
-                                )
-                            )?;
-                        } else {
-                            log::debug!("Local file size matches remote. No download required.");
-                        }
-                    }
-                }
-            } else {
-                log::debug!("Starting remote file download...");
-                retry!(
-                    self.max_attempts,
-                    1000,
-                    3000,
-                    self.download(
-                        &pack.url,
-                        &saveout,
-                        Some(&format!("{}/{}", pack.tag, pack.file_name)),
-                    )
-                )?;
-            }
+            log::debug!("Starting remote file download...");
+            retry!(
+                self.max_attempts,
+                1000,
+                3000,
+                self.download(
+                    &pack.url,
+                    &saveout,
+                    Some(&format!("{}/{}", pack.tag, pack.file_name)),
+                )
+            )?;
+            // // Download if the file does not exist or if the size of file does not match
+            // if saveout.is_file() {
+            //     match pack.file_size {
+            //         None => {
+            //             log::warn!(
+            //                 "Failed to retrieve the remote file size. \
+            //                 Download will be skipped, which may cause issues. \
+            //                 Please verify your network connection or ensure the local file is valid and complete."
+            //             );
+            //         }
+            //         Some(file_size) => {
+            //             if std::fs::metadata(&saveout)?.len() != file_size {
+            //                 log::debug!(
+            //                     "Local file size does not match remote. Starting download."
+            //                 );
+            //                 retry!(
+            //                     self.max_attempts,
+            //                     1000,
+            //                     3000,
+            //                     self.download(
+            //                         &pack.url,
+            //                         &saveout,
+            //                         Some(&format!("{}/{}", pack.tag, pack.file_name)),
+            //                     )
+            //                 )?;
+            //             } else {
+            //                 log::debug!("Local file size matches remote. No download required.");
+            //             }
+            //         }
+            //     }
+            // } else {
+            //     log::debug!("Starting remote file download...");
+            //     retry!(
+            //         self.max_attempts,
+            //         1000,
+            //         3000,
+            //         self.download(
+            //             &pack.url,
+            //             &saveout,
+            //             Some(&format!("{}/{}", pack.tag, pack.file_name)),
+            //         )
+            //     )?;
+            // }
         }
 
         saveout
@@ -444,12 +462,21 @@ impl Hub {
         dst: P,
         message: Option<&str>,
     ) -> Result<()> {
+        let dst_path = dst.as_ref();
+
+        // Ensure parent directory exists for the final destination
+        if let Some(parent_dir) = dst_path.parent() {
+            std::fs::create_dir_all(parent_dir)
+                .with_context(|| format!("Failed to create parent directory: {:?}", parent_dir))?;
+        }
+
         let resp = self.fetch_get_response(src)?;
         let ntotal = resp
             .headers()
             .get(http::header::CONTENT_LENGTH)
             .and_then(|v| v.to_str().ok()?.parse::<u64>().ok())
             .context("Content-Length header is missing or invalid")?;
+
         let pb = crate::build_progress_bar(
             ntotal,
             "Fetching",
@@ -457,27 +484,44 @@ impl Hub {
             "{prefix:.cyan.bold} {msg} |{bar}| ({percent_precise}%, {binary_bytes}/{binary_total_bytes}, {binary_bytes_per_sec})",
         )?;
 
+        // Create temporary file in system temp directory (more secure and reliable)
+        let mut temp_file = NamedTempFile::new()
+            .context("Failed to create temporary download file in system temp directory")?;
+
         let mut reader = resp.into_body().into_reader();
         const BUFFER_SIZE: usize = 64 * 1024;
         let mut buffer = [0; BUFFER_SIZE];
         let mut downloaded_bytes = 0usize;
-        let mut file = std::fs::File::create(&dst)
-            .with_context(|| format!("Failed to create destination file: {:?}", dst))?;
 
+        // Download to temporary file
         loop {
             let bytes_read = reader.read(&mut buffer)?;
             if bytes_read == 0 {
                 break;
             }
-            file.write_all(&buffer[..bytes_read])
-                .context("Failed to write to file")?;
+            temp_file
+                .write_all(&buffer[..bytes_read])
+                .context("Failed to write to temporary file")?;
             downloaded_bytes += bytes_read;
             pb.inc(bytes_read as u64);
         }
 
+        // Verify download completeness
         if downloaded_bytes as u64 != ntotal {
-            anyhow::bail!("The downloaded file is incomplete.");
+            anyhow::bail!(
+                "The downloaded file is incomplete. Expected: {} bytes, got: {} bytes",
+                ntotal,
+                downloaded_bytes
+            );
         }
+
+        // Only persist the temporary file to the final destination if download is complete
+        temp_file.persist(dst_path).with_context(|| {
+            format!(
+                "Failed to move temporary file to final destination: {:?}",
+                dst_path
+            )
+        })?;
 
         // Update the progress bar
         pb.set_prefix("Downloaded");
@@ -486,6 +530,7 @@ impl Hub {
         )?);
         pb.finish();
 
+        log::debug!("Successfully downloaded and verified file: {:?}", dst_path);
         Ok(())
     }
 
