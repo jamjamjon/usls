@@ -2,6 +2,7 @@ use aksr::Builder;
 use anyhow::Result;
 use ndarray::{s, Array};
 use rayon::prelude::*;
+use slsl::{Tensor, UninitVec};
 use std::sync::Mutex;
 use tokenizers::{Encoding, Tokenizer};
 
@@ -114,7 +115,7 @@ impl Processor {
 
     pub fn hwc_to_chw(input: &[f32], h: usize, w: usize) -> Vec<f32> {
         let hw = h * w;
-        slsl::UninitVec::new(input.len()).init_with(|dst| {
+        UninitVec::new(input.len()).init_with(|dst| {
             dst.par_chunks_mut(hw).enumerate().for_each(|(c, plane)| {
                 plane.iter_mut().enumerate().for_each(|(idx, out)| {
                     let i = idx / w;
@@ -125,12 +126,12 @@ impl Processor {
         })
     }
 
-    pub fn process_images_f32(&mut self, xs: &[Image]) -> Result<slsl::Tensor> {
+    pub fn process_images_f32(&mut self, xs: &[Image]) -> Result<Tensor> {
         if xs.is_empty() {
             anyhow::bail!("Found no input images.");
         }
 
-        let process_one = |image: &Image| -> Result<(slsl::Tensor, ImageTransformInfo)> {
+        let process_one = |image: &Image| -> Result<(Tensor, ImageTransformInfo)> {
             let (image_processed, trans_info) = if self.pad_image {
                 image.pad(self.pad_size)?
             } else if self.do_resize {
@@ -174,12 +175,12 @@ impl Processor {
                         self.image_height as usize,
                         self.image_width as usize,
                     );
-                    slsl::Tensor::from_vec(
+                    Tensor::from_vec(
                         vec,
                         (1, 3, self.image_height as usize, self.image_width as usize),
                     )?
                 }
-                ImageTensorLayout::NHWC => slsl::Tensor::from_vec(
+                ImageTensorLayout::NHWC => Tensor::from_vec(
                     vec,
                     (1, self.image_height as usize, self.image_width as usize, 3),
                 )?,
@@ -189,12 +190,12 @@ impl Processor {
                         self.image_height as usize,
                         self.image_width as usize,
                     );
-                    slsl::Tensor::from_vec(
+                    Tensor::from_vec(
                         vec,
                         (3, self.image_height as usize, self.image_width as usize),
                     )?
                 }
-                ImageTensorLayout::HWC => slsl::Tensor::from_vec(
+                ImageTensorLayout::HWC => Tensor::from_vec(
                     vec,
                     (self.image_height as usize, self.image_width as usize, 3),
                 )?,
@@ -233,12 +234,12 @@ impl Processor {
                     anyhow::bail!("When pad_image is true, only one image is allowed.");
                 }
 
-                let results: Result<Vec<(slsl::Tensor, ImageTransformInfo)>> =
+                let results: Result<Vec<(Tensor, ImageTransformInfo)>> =
                     xs.par_iter().map(process_one).collect();
 
                 let results = results?;
                 let (tensors, trans_infos): (Vec<_>, Vec<_>) = results.into_iter().unzip();
-                let combined_tensor = slsl::Tensor::cat(&tensors, 0)?;
+                let combined_tensor = Tensor::cat(&tensors, 0)?;
                 self.images_transform_info = trans_infos;
 
                 Ok(combined_tensor)

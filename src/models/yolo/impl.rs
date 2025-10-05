@@ -321,6 +321,8 @@ impl YOLO {
             .enumerate()
             .filter_map(|(idx, tensor)| {
                 let mut y = Y::default();
+
+                // parse preds
                 let (
                     slice_bboxes,
                     slice_id,
@@ -329,10 +331,7 @@ impl YOLO {
                     slice_kpts,
                     slice_coefs,
                     slice_radians,
-                ) = self
-                    .layout
-                    .parse_preds_view_internal(tensor, self.nc)
-                    .ok()?;
+                ) = self.layout.parse_preds(tensor, self.nc).ok()?;
 
                 // ImageClassifcation
                 if let Task::ImageClassification = self.task {

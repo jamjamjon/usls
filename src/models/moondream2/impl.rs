@@ -5,8 +5,8 @@ use ndarray::{s, Array, Array2, Array3, Axis, IxDyn};
 use ndarray_npy::ReadNpyExt;
 
 use crate::{
-    Config, DType, Engine, Hbb, Hub, Image, Keypoint, LogitsSampler, Processor, Scale, Task, Xs, X,
-    Y,
+    elapsed_module, Config, DType, Engine, Hbb, Hub, Image, Keypoint, LogitsSampler, Processor,
+    Scale, Task, Xs, X, Y,
 };
 
 #[derive(Builder, Debug)]
@@ -79,8 +79,16 @@ impl Moondream2 {
     }
 
     pub fn encode_image(&mut self, x: &Image) -> Result<X> {
-        let patches_emb = self.encode(x)?.clone().insert_axis(0)?;
-        let image_embedding = self.vision_projection.run(patches_emb.into())?[0].to_owned();
+        let patches_emb = elapsed_module!(
+            "Moondream2",
+            "preprocess_image",
+            self.encode(x)?.clone().insert_axis(0)?
+        );
+        let image_embedding = elapsed_module!(
+            "Moondream2",
+            "encode_image",
+            self.vision_projection.run(patches_emb.into())?[0].to_owned()
+        );
 
         Ok(image_embedding)
     }

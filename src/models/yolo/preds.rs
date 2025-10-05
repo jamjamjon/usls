@@ -228,7 +228,7 @@ impl YOLOPredsFormat {
     }
 
     #[allow(clippy::type_complexity)]
-    pub fn parse_preds_view_internal<'a>(
+    pub fn parse_preds<'a>(
         &self,
         x: TensorView<'a>,
         nc: usize,
