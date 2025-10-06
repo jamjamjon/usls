@@ -117,10 +117,155 @@ impl Processor {
         let hw = h * w;
         UninitVec::new(input.len()).init_with(|dst| {
             dst.par_chunks_mut(hw).enumerate().for_each(|(c, plane)| {
-                plane.iter_mut().enumerate().for_each(|(idx, out)| {
+                plane.par_iter_mut().enumerate().for_each(|(idx, out)| {
                     let i = idx / w;
                     let j = idx % w;
                     *out = input[(i * w + j) * 3 + c];
+                });
+            });
+        })
+    }
+
+    pub fn hwc_to_chw_with_normalize_and_unsigned(input: &[f32], h: usize, w: usize) -> Vec<f32> {
+        let hw = h * w;
+        UninitVec::new(input.len()).init_with(|dst| {
+            dst.par_chunks_mut(hw).enumerate().for_each(|(c, plane)| {
+                plane.par_iter_mut().enumerate().for_each(|(idx, out)| {
+                    let i = idx / w;
+                    let j = idx % w;
+                    let val = input[(i * w + j) * 3 + c];
+                    *out = val.max(0.0f32) / 255.0f32;
+                });
+            });
+        })
+    }
+
+    pub fn hwc_to_chw_with_normalize(input: &[f32], h: usize, w: usize) -> Vec<f32> {
+        let hw = h * w;
+        UninitVec::new(input.len()).init_with(|dst| {
+            dst.par_chunks_mut(hw).enumerate().for_each(|(c, plane)| {
+                plane.par_iter_mut().enumerate().for_each(|(idx, out)| {
+                    let i = idx / w;
+                    let j = idx % w;
+                    let val = input[(i * w + j) * 3 + c];
+                    *out = val / 255.0f32;
+                });
+            });
+        })
+    }
+
+    pub fn hwc_to_chw_with_unsigned(input: &[f32], h: usize, w: usize) -> Vec<f32> {
+        let hw = h * w;
+        UninitVec::new(input.len()).init_with(|dst| {
+            dst.par_chunks_mut(hw).enumerate().for_each(|(c, plane)| {
+                plane.par_iter_mut().enumerate().for_each(|(idx, out)| {
+                    let i = idx / w;
+                    let j = idx % w;
+                    let val = input[(i * w + j) * 3 + c];
+                    *out = val.max(0.0f32);
+                });
+            });
+        })
+    }
+
+    pub fn hwc_to_chw_with_all_transforms(
+        input: &[f32],
+        h: usize,
+        w: usize,
+        do_normalize: bool,
+        unsigned: bool,
+        mean: &[f32],
+        std: &[f32],
+    ) -> Vec<f32> {
+        let hw = h * w;
+        UninitVec::new(input.len()).init_with(|dst| {
+            dst.par_chunks_mut(hw).enumerate().for_each(|(c, plane)| {
+                let mean_c = mean[c];
+                let std_c = std[c];
+                plane.par_iter_mut().enumerate().for_each(|(idx, out)| {
+                    let i = idx / w;
+                    let j = idx % w;
+                    let mut val = input[(i * w + j) * 3 + c];
+
+                    // Apply all transformations in a single pass
+                    if unsigned {
+                        val = val.max(0.0f32);
+                    }
+                    if do_normalize {
+                        val /= 255.0f32;
+                    }
+                    // Standardize: (x - mean) / std
+                    val = (val - mean_c) / std_c;
+
+                    *out = val;
+                });
+            });
+        })
+    }
+
+    pub fn hwc_to_chw_with_normalize_and_standardize(
+        input: &[f32],
+        h: usize,
+        w: usize,
+        mean: &[f32],
+        std: &[f32],
+    ) -> Vec<f32> {
+        let hw = h * w;
+        UninitVec::new(input.len()).init_with(|dst| {
+            dst.par_chunks_mut(hw).enumerate().for_each(|(c, plane)| {
+                let mean_c = mean[c];
+                let std_c = std[c];
+                plane.par_iter_mut().enumerate().for_each(|(idx, out)| {
+                    let i = idx / w;
+                    let j = idx % w;
+                    let mut val = input[(i * w + j) * 3 + c];
+                    val = (val / 255.0f32 - mean_c) / std_c;
+                    *out = val;
+                });
+            });
+        })
+    }
+
+    pub fn hwc_to_chw_with_unsigned_and_standardize(
+        input: &[f32],
+        h: usize,
+        w: usize,
+        mean: &[f32],
+        std: &[f32],
+    ) -> Vec<f32> {
+        let hw = h * w;
+        UninitVec::new(input.len()).init_with(|dst| {
+            dst.par_chunks_mut(hw).enumerate().for_each(|(c, plane)| {
+                let mean_c = mean[c];
+                let std_c = std[c];
+                plane.par_iter_mut().enumerate().for_each(|(idx, out)| {
+                    let i = idx / w;
+                    let j = idx % w;
+                    let mut val = input[(i * w + j) * 3 + c];
+                    val = (val.max(0.0f32) - mean_c) / std_c;
+                    *out = val;
+                });
+            });
+        })
+    }
+
+    pub fn hwc_to_chw_with_standardize(
+        input: &[f32],
+        h: usize,
+        w: usize,
+        mean: &[f32],
+        std: &[f32],
+    ) -> Vec<f32> {
+        let hw = h * w;
+        UninitVec::new(input.len()).init_with(|dst| {
+            dst.par_chunks_mut(hw).enumerate().for_each(|(c, plane)| {
+                let mean_c = mean[c];
+                let std_c = std[c];
+                plane.par_iter_mut().enumerate().for_each(|(idx, out)| {
+                    let i = idx / w;
+                    let j = idx % w;
+                    let val = input[(i * w + j) * 3 + c];
+                    *out = (val - mean_c) / std_c;
                 });
             });
         })
@@ -152,72 +297,243 @@ impl Processor {
                 )
             };
 
-            let mut vec = image_processed.to_f32s();
+            // Convert image to Vec<f32>
+            let vec = image_processed.to_f32s();
+            let do_standardize = !self.image_std.is_empty() && !self.image_mean.is_empty();
 
-            // Apply transformations
-            match (self.do_normalize, self.unsigned) {
-                (true, true) => vec.iter_mut().for_each(|x| {
-                    *x = (*x).max(0.0f32);
-                    *x /= 255.0f32;
-                }),
-                (true, false) => vec.iter_mut().for_each(|x| *x /= 255.0f32),
-                (false, true) => vec.iter_mut().for_each(|x| {
-                    *x = (*x).max(0.0f32);
-                }),
-                (false, false) => (),
-            }
-
-            // image tensor layout
-            let mut tensor = match self.image_tensor_layout {
+            // Transformation
+            let tensor = match self.image_tensor_layout {
                 ImageTensorLayout::NCHW => {
-                    let vec = Self::hwc_to_chw(
-                        &vec,
-                        self.image_height as usize,
-                        self.image_width as usize,
-                    );
+                    let vec = match (self.do_normalize, self.unsigned, do_standardize) {
+                        (true, true, true) => Self::hwc_to_chw_with_all_transforms(
+                            &vec,
+                            self.image_height as usize,
+                            self.image_width as usize,
+                            true,
+                            true,
+                            &self.image_mean,
+                            &self.image_std,
+                        ),
+                        (true, false, true) => Self::hwc_to_chw_with_normalize_and_standardize(
+                            &vec,
+                            self.image_height as usize,
+                            self.image_width as usize,
+                            &self.image_mean,
+                            &self.image_std,
+                        ),
+                        (false, true, true) => Self::hwc_to_chw_with_unsigned_and_standardize(
+                            &vec,
+                            self.image_height as usize,
+                            self.image_width as usize,
+                            &self.image_mean,
+                            &self.image_std,
+                        ),
+                        (false, false, true) => Self::hwc_to_chw_with_standardize(
+                            &vec,
+                            self.image_height as usize,
+                            self.image_width as usize,
+                            &self.image_mean,
+                            &self.image_std,
+                        ),
+                        (true, true, false) => Self::hwc_to_chw_with_normalize_and_unsigned(
+                            &vec,
+                            self.image_height as usize,
+                            self.image_width as usize,
+                        ),
+                        (true, false, false) => Self::hwc_to_chw_with_normalize(
+                            &vec,
+                            self.image_height as usize,
+                            self.image_width as usize,
+                        ),
+                        (false, true, false) => Self::hwc_to_chw_with_unsigned(
+                            &vec,
+                            self.image_height as usize,
+                            self.image_width as usize,
+                        ),
+                        (false, false, false) => Self::hwc_to_chw(
+                            &vec,
+                            self.image_height as usize,
+                            self.image_width as usize,
+                        ),
+                    };
                     Tensor::from_vec(
                         vec,
                         (1, 3, self.image_height as usize, self.image_width as usize),
                     )?
                 }
-                ImageTensorLayout::NHWC => Tensor::from_vec(
-                    vec,
-                    (1, self.image_height as usize, self.image_width as usize, 3),
-                )?,
+                ImageTensorLayout::NHWC => {
+                    let mut vec = vec;
+                    match (self.do_normalize, self.unsigned, do_standardize) {
+                        (true, true, true) => {
+                            vec.par_chunks_mut(3).for_each(|pixel| {
+                                pixel.par_iter_mut().enumerate().for_each(|(c, val)| {
+                                    *val = (*val).max(0.0f32) / 255.0f32;
+                                    *val = (*val - self.image_mean[c]) / self.image_std[c];
+                                });
+                            });
+                        }
+                        (true, false, true) => {
+                            vec.par_chunks_mut(3).for_each(|pixel| {
+                                pixel.par_iter_mut().enumerate().for_each(|(c, val)| {
+                                    *val /= 255.0f32;
+                                    *val = (*val - self.image_mean[c]) / self.image_std[c];
+                                });
+                            });
+                        }
+                        (false, true, true) => {
+                            vec.par_chunks_mut(3).for_each(|pixel| {
+                                pixel.par_iter_mut().enumerate().for_each(|(c, val)| {
+                                    *val = (*val).max(0.0f32);
+                                    *val = (*val - self.image_mean[c]) / self.image_std[c];
+                                });
+                            });
+                        }
+                        (false, false, true) => {
+                            vec.par_chunks_mut(3).for_each(|pixel| {
+                                pixel.par_iter_mut().enumerate().for_each(|(c, val)| {
+                                    *val = (*val - self.image_mean[c]) / self.image_std[c];
+                                });
+                            });
+                        }
+                        (true, true, false) => {
+                            vec.par_iter_mut().for_each(|x| {
+                                *x = (*x).max(0.0f32);
+                                *x /= 255.0f32;
+                            });
+                        }
+                        (true, false, false) => {
+                            vec.par_iter_mut().for_each(|x| *x /= 255.0f32);
+                        }
+                        (false, true, false) => {
+                            vec.par_iter_mut().for_each(|x| {
+                                *x = (*x).max(0.0f32);
+                            });
+                        }
+                        (false, false, false) => {
+                            // No transformations needed
+                        }
+                    }
+                    Tensor::from_vec(
+                        vec,
+                        (1, self.image_height as usize, self.image_width as usize, 3),
+                    )?
+                }
                 ImageTensorLayout::CHW => {
-                    let vec = Self::hwc_to_chw(
-                        &vec,
-                        self.image_height as usize,
-                        self.image_width as usize,
-                    );
+                    let vec = match (self.do_normalize, self.unsigned, do_standardize) {
+                        (true, true, true) => Self::hwc_to_chw_with_all_transforms(
+                            &vec,
+                            self.image_height as usize,
+                            self.image_width as usize,
+                            true,
+                            true,
+                            &self.image_mean,
+                            &self.image_std,
+                        ),
+                        (true, false, true) => Self::hwc_to_chw_with_normalize_and_standardize(
+                            &vec,
+                            self.image_height as usize,
+                            self.image_width as usize,
+                            &self.image_mean,
+                            &self.image_std,
+                        ),
+                        (false, true, true) => Self::hwc_to_chw_with_unsigned_and_standardize(
+                            &vec,
+                            self.image_height as usize,
+                            self.image_width as usize,
+                            &self.image_mean,
+                            &self.image_std,
+                        ),
+                        (false, false, true) => Self::hwc_to_chw_with_standardize(
+                            &vec,
+                            self.image_height as usize,
+                            self.image_width as usize,
+                            &self.image_mean,
+                            &self.image_std,
+                        ),
+                        (true, true, false) => Self::hwc_to_chw_with_normalize_and_unsigned(
+                            &vec,
+                            self.image_height as usize,
+                            self.image_width as usize,
+                        ),
+                        (true, false, false) => Self::hwc_to_chw_with_normalize(
+                            &vec,
+                            self.image_height as usize,
+                            self.image_width as usize,
+                        ),
+                        (false, true, false) => Self::hwc_to_chw_with_unsigned(
+                            &vec,
+                            self.image_height as usize,
+                            self.image_width as usize,
+                        ),
+                        (false, false, false) => Self::hwc_to_chw(
+                            &vec,
+                            self.image_height as usize,
+                            self.image_width as usize,
+                        ),
+                    };
                     Tensor::from_vec(
                         vec,
                         (3, self.image_height as usize, self.image_width as usize),
                     )?
                 }
-                ImageTensorLayout::HWC => Tensor::from_vec(
-                    vec,
-                    (self.image_height as usize, self.image_width as usize, 3),
-                )?,
-            };
-
-            // standardize
-            if !self.image_std.is_empty() && !self.image_mean.is_empty() {
-                match self.image_tensor_layout {
-                    ImageTensorLayout::NCHW => {
-                        tensor = tensor.standardize(&self.image_mean, &self.image_std, 1)?;
+                ImageTensorLayout::HWC => {
+                    let mut vec = vec;
+                    match (self.do_normalize, self.unsigned, do_standardize) {
+                        (true, true, true) => {
+                            vec.par_chunks_mut(3).for_each(|pixel| {
+                                pixel.par_iter_mut().enumerate().for_each(|(c, val)| {
+                                    *val = (*val).max(0.0f32) / 255.0f32;
+                                    *val = (*val - self.image_mean[c]) / self.image_std[c];
+                                });
+                            });
+                        }
+                        (true, false, true) => {
+                            vec.par_chunks_mut(3).for_each(|pixel| {
+                                pixel.par_iter_mut().enumerate().for_each(|(c, val)| {
+                                    *val /= 255.0f32;
+                                    *val = (*val - self.image_mean[c]) / self.image_std[c];
+                                });
+                            });
+                        }
+                        (false, true, true) => {
+                            vec.par_chunks_mut(3).for_each(|pixel| {
+                                pixel.par_iter_mut().enumerate().for_each(|(c, val)| {
+                                    *val = (*val).max(0.0f32);
+                                    *val = (*val - self.image_mean[c]) / self.image_std[c];
+                                });
+                            });
+                        }
+                        (false, false, true) => {
+                            vec.par_chunks_mut(3).for_each(|pixel| {
+                                pixel.par_iter_mut().enumerate().for_each(|(c, val)| {
+                                    *val = (*val - self.image_mean[c]) / self.image_std[c];
+                                });
+                            });
+                        }
+                        (true, true, false) => {
+                            vec.par_iter_mut().for_each(|x| {
+                                *x = (*x).max(0.0f32);
+                                *x /= 255.0f32;
+                            });
+                        }
+                        (true, false, false) => {
+                            vec.par_iter_mut().for_each(|x| *x /= 255.0f32);
+                        }
+                        (false, true, false) => {
+                            vec.par_iter_mut().for_each(|x| {
+                                *x = (*x).max(0.0f32);
+                            });
+                        }
+                        (false, false, false) => {
+                            // No transformations needed
+                        }
                     }
-                    ImageTensorLayout::NHWC => {
-                        tensor = tensor.standardize(&self.image_mean, &self.image_std, 3)?;
-                    }
-                    ImageTensorLayout::CHW => {
-                        tensor = tensor.standardize(&self.image_mean, &self.image_std, 0)?;
-                    }
-                    ImageTensorLayout::HWC => {
-                        tensor = tensor.standardize(&self.image_mean, &self.image_std, 2)?;
-                    }
+                    Tensor::from_vec(
+                        vec,
+                        (self.image_height as usize, self.image_width as usize, 3),
+                    )?
                 }
-            }
+            };
 
             Ok((tensor, trans_info))
         };
@@ -236,7 +552,6 @@ impl Processor {
 
                 let results: Result<Vec<(Tensor, ImageTransformInfo)>> =
                     xs.par_iter().map(process_one).collect();
-
                 let results = results?;
                 let (tensors, trans_infos): (Vec<_>, Vec<_>) = results.into_iter().unzip();
                 let combined_tensor = Tensor::cat(&tensors, 0)?;
