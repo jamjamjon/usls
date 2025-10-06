@@ -1,9 +1,9 @@
 use anyhow::Result;
-use ndarray::Axis;
+use slsl::Tensor;
 use usls::{models::Clip, Config, DataLoader};
 
-#[derive(argh::FromArgs)]
 /// CLIP Example
+#[derive(argh::FromArgs)]
 struct Args {
     /// device
     #[argh(option, default = "String::from(\"cpu:0\")")]
@@ -44,22 +44,29 @@ fn main() -> Result<()> {
         "There is a doll with red hair and a clock on a table.",
         "Some people holding wine glasses in a restaurant.",
     ];
-    let feats_text = model.encode_texts(&texts)?.norm(1)?;
+
+    // encode texts
+    let feats_text = model.encode_texts(&texts)?;
+    let feats_text_norm = feats_text.norm_l2_keepdim(-1)?.to_dtype::<f32>()?;
+    let feats_text = (feats_text / feats_text_norm).t()?;
 
     // load images
     let dl = DataLoader::new("./examples/clip/images")?.build()?;
 
     // run
     for images in &dl {
-        let feats_image = model.encode_images(&images)?.norm(1)?;
+        // encode image
+        let feats_image: Tensor = model.encode_images(&images)?;
+        let feats_image_norm = feats_image.norm_l2_keepdim(-1)?.to_dtype::<f32>()?;
+        let feats_image = feats_image / feats_image_norm;
 
         // use image to query texts
-        let matrix = (feats_image * 100.).dot2(&feats_text)?.softmax(1)?;
+        let matrix = (feats_image * 100.0f32).matmul(&feats_text)?.softmax(-1)?;
 
         // Process each image's matching scores
-        for (i, row) in matrix.axis_iter(Axis(0)).enumerate() {
+        for (i, row) in matrix.iter_dim(0).enumerate() {
             let (id, &score) = row
-                .iter()
+                .iter::<f32>()
                 .enumerate()
                 .max_by(|a, b| a.1.partial_cmp(b.1).unwrap())
                 .unwrap();
@@ -72,6 +79,7 @@ fn main() -> Result<()> {
             );
         }
     }
+
     usls::perf(false);
 
     Ok(())

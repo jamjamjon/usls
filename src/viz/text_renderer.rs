@@ -18,8 +18,11 @@ impl Default for TextRenderer {
     fn default() -> Self {
         Self {
             font: Self::load_font(None).unwrap_or_else(|err| {
-                log::error!("Failed to load default font: {}, using fallback", err);
-                Self::create_fallback_font()
+                log::info!("Failed to load online font: {err}, try using system font.");
+                Self::create_fallback_font().unwrap_or_else(|err| {
+                    log::error!("Failed to create fallback font: {}", err);
+                    panic!("{}", err);
+                })
             }),
             font_size: 24.0,
             _scale: 6.666667,
@@ -29,108 +32,92 @@ impl Default for TextRenderer {
 
 impl TextRenderer {
     /// Create a fallback font when default font loading fails
-    fn create_fallback_font() -> FontArc {
-        // Try to load a system font or use embedded minimal font
-        // First try common system font paths
+    fn create_fallback_font() -> Result<FontArc> {
+        // Try to load a preferred system font first
         let system_font_paths = [
-            "/System/Library/Fonts/Arial.ttf",                 // macOS
-            "/System/Library/Fonts/Helvetica.ttc",             // macOS
-            "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", // Linux
-            "C:\\Windows\\Fonts\\arial.ttf",                   // Windows
+            // macOS fonts
+            "/System/Library/Fonts/Monaco.ttf",
+            "/System/Library/Fonts/SFNSMono.ttf",
+            "/System/Library/Fonts/Menlo.ttc",
+            // Linux fonts
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+            "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+            "/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf",
+            // Windows fonts
+            "C:\\Windows\\Fonts\\arial.ttf",
+            "C:\\Windows\\Fonts\\segoeui.ttf",
+            "C:\\Windows\\Fonts\\calibri.ttf",
         ];
-
         for path in &system_font_paths {
             if let Ok(font_data) = std::fs::read(path) {
                 if let Ok(font) = FontArc::try_from_vec(font_data) {
                     log::info!("Using system font: {}", path);
-                    return font;
+                    return Ok(font);
+                }
+            }
+        }
+        log::info!("No preferred system fonts available, try to scan all system fonts");
+
+        // Get system font directories for the current platform
+        // - macOS: `/System/Library/Fonts/`
+        // - Linux: `/usr/share/fonts/truetype/`
+        // - Windows: `C:\Windows\Fonts\`, `C:\Program Files\Common Files\Microsoft Shared\Fonts\`
+        let font_directory = {
+            #[cfg(target_os = "macos")]
+            {
+                "/System/Library/Fonts/"
+            }
+            #[cfg(target_os = "linux")]
+            {
+                "/usr/share/fonts/truetype/"
+            }
+            #[cfg(target_os = "windows")]
+            {
+                "C:\\Windows\\Fonts\\"
+            }
+            #[cfg(not(any(target_os = "macos", target_os = "linux", target_os = "windows")))]
+            {
+                anyhow::bail!("Unsupported platform: font scanning not available")
+            }
+        };
+        log::debug!("Scanning system font directories: {:?}", font_directory);
+
+        // Scan all system fonts: TTF, OTF, TTC
+        let mut font_paths = Vec::new();
+        Self::collect_font_paths_recursive(font_directory, &mut font_paths);
+
+        // Then try to load fonts from collected paths
+        for font_path in font_paths {
+            if let Ok(font_data) = std::fs::read(&font_path) {
+                if let Ok(font) = FontArc::try_from_vec(font_data) {
+                    log::info!("Successfully loaded system font: {}", font_path.display());
+                    return Ok(font);
                 }
             }
         }
 
-        log::warn!("No system fonts available, text rendering may not work properly");
-        // Create a minimal font that won't crash but may not render properly
-        Self::create_minimal_font()
+        anyhow::bail!(
+            "No system fonts available. Please use Annotator::default().with_font(\"path/to/font.ttf\") to specify a custom font."
+        )
     }
 
-    /// Create minimal font that won't crash the application
-    fn create_minimal_font() -> FontArc {
-        // This creates a very basic font structure that ab_glyph can handle
-        // It won't render text properly but won't crash
-        let minimal_font_data = Self::create_minimal_ttf_data();
-        FontArc::try_from_vec(minimal_font_data).unwrap_or_else(|_| {
-            // If even this fails, we need to handle it gracefully
-            log::error!("Critical: Cannot create minimal font, trying alternative approach");
-            // Try with a different minimal font data
-            let alternative_data = vec![
-                0x00, 0x01, 0x00, 0x00, // sfnt version (TrueType)
-                0x00, 0x00, // numTables = 0 (minimal)
-                0x00, 0x00, // searchRange
-                0x00, 0x00, // entrySelector
-                0x00, 0x00, // rangeShift
-            ];
-            FontArc::try_from_vec(alternative_data).unwrap_or_else(|e| {
-                log::error!("Critical: All font creation methods failed: {}", e);
-                // This is a last resort - create a dummy font that won't crash
-                // but may not render text properly
-                FontArc::try_from_vec(vec![0; 32]).unwrap_or_else(|_| {
-                    // If even this fails, we have a serious problem
-                    // but we still shouldn't panic
-                    log::error!("Absolute fallback: creating minimal font structure");
-                    // Create the most minimal possible font
-                    FontArc::try_from_vec(vec![
-                        0x00, 0x01, 0x00, 0x00, // sfnt version
-                        0x00, 0x00, // numTables
-                        0x00, 0x00, 0x00, 0x00, // padding
-                    ])
-                    .unwrap_or_else(|_| {
-                        // This should theoretically never happen
-                        // Create a minimal valid font structure instead of using unsafe zeroed
-                        log::error!("Critical font creation failure - using emergency fallback");
-                        // Use a known working minimal font data
-                        let minimal_font_data = vec![
-                            0x00, 0x01, 0x00, 0x00, // sfnt version (TrueType)
-                            0x00, 0x01, // numTables = 1
-                            0x00, 0x10, // searchRange
-                            0x00, 0x00, // entrySelector
-                            0x00, 0x00, // rangeShift
-                            // Table directory entry for 'cmap'
-                            b'c', b'm', b'a', b'p', // tag
-                            0x00, 0x00, 0x00, 0x00, // checksum
-                            0x00, 0x00, 0x00, 0x28, // offset
-                            0x00, 0x00, 0x00, 0x04, // length
-                            // Minimal cmap table
-                            0x00, 0x00, 0x00, 0x00, // version and numTables
-                        ];
-                        FontArc::try_from_vec(minimal_font_data).unwrap_or_else(|_| {
-                            // If all else fails, create the simplest possible font
-                            // This is still unsafe but more controlled
-                            panic!("Absolutely cannot create any font - system may be corrupted")
-                        })
-                    })
-                })
-            })
-        })
-    }
+    /// Recursively collect font file paths from a directory
+    fn collect_font_paths_recursive(dir_path: &str, font_paths: &mut Vec<std::path::PathBuf>) {
+        if let Ok(entries) = std::fs::read_dir(dir_path) {
+            for entry in entries.flatten() {
+                let path = entry.path();
 
-    /// Create minimal TTF font data
-    fn create_minimal_ttf_data() -> Vec<u8> {
-        // This is a minimal but valid TTF font structure
-        // It's a very basic font that should be parseable by ab_glyph
-        vec![
-            0x00, 0x01, 0x00, 0x00, // sfnt version
-            0x00, 0x01, // numTables
-            0x00, 0x10, // searchRange
-            0x00, 0x00, // entrySelector
-            0x00, 0x00, // rangeShift
-            // Table directory entry for 'cmap'
-            b'c', b'm', b'a', b'p', // tag
-            0x00, 0x00, 0x00, 0x00, // checkSum
-            0x00, 0x00, 0x00, 0x20, // offset
-            0x00, 0x00, 0x00, 0x04, // length
-            // Minimal cmap table
-            0x00, 0x00, 0x00, 0x00, // version and numTables
-        ]
+                if path.is_dir() {
+                    // Recursively scan subdirectories
+                    Self::collect_font_paths_recursive(&path.to_string_lossy(), font_paths);
+                } else if let Some(extension) = path.extension() {
+                    let ext_str = extension.to_string_lossy().to_lowercase();
+                    if matches!(ext_str.as_str(), "ttf" | "otf" | "ttc") {
+                        font_paths.push(path);
+                    }
+                }
+            }
+        }
     }
 
     /// Load custom font

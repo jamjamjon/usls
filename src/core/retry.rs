@@ -128,7 +128,7 @@ macro_rules! retry {
                         err,
                     );
                     if max_attempts > 0 && n >= max_attempts {
-                        log::error!("{} Stopping after {} attempts.", message, n);
+                        log::warn!("{} Stopping after {} attempts.", message, n);
                         anyhow::bail!(err);
                     }
 

@@ -23,6 +23,8 @@ mod names;
 #[allow(clippy::all)]
 pub(crate) mod onnx;
 mod ops;
+#[cfg(any(feature = "ort-download-binaries", feature = "ort-load-dynamic"))]
+mod ort_engine;
 pub mod perf;
 mod processor;
 mod retry;
@@ -43,6 +45,8 @@ pub use dtype::DType;
 pub use dynconf::DynConf;
 #[cfg(any(feature = "ort-download-binaries", feature = "ort-load-dynamic"))]
 pub use engine::*;
+#[cfg(any(feature = "ort-download-binaries", feature = "ort-load-dynamic"))]
+pub use ort_engine::*;
 pub use perf::*;
 // Macros are exported at crate root via #[macro_export]
 pub use global_ts::*;
@@ -57,7 +61,7 @@ pub use names::*;
 pub use ops::*;
 pub use ort_config::ORTConfig;
 pub use processor::*;
-pub use processor_config::ProcessorConfig;
+pub use processor_config::{ImageTensorLayout, ProcessorConfig};
 pub use scale::Scale;
 pub use task::Task;
 pub use traits::*;

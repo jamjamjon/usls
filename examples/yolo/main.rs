@@ -171,7 +171,7 @@ fn main() -> Result<()> {
         .with_topk(args.topk)
         .retain_classes(&args.retain_classes)
         .exclude_classes(&args.exclude_classes)
-        .with_model_num_dry_run(2);
+        .with_model_num_dry_run(5);
     if args.use_coco_80_classes {
         config = config.with_class_names(&NAMES_COCO_80);
     }
@@ -234,7 +234,7 @@ fn main() -> Result<()> {
     // run & annotate
     for xs in &dl {
         let ys = model.forward(&xs)?;
-        // println!("ys: {:?}", ys);
+        println!("ys: {:?}", ys);
 
         for (x, y) in xs.iter().zip(ys.iter()) {
             annotator.annotate(x, y)?.save(format!(

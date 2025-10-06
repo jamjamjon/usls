@@ -1,7 +1,7 @@
 [package]
 name = "usls"
 edition = "2021"
-version = "0.1.0"
+version = "0.1.1"
 rust-version = "1.85"
 description = "A Rust library integrated with ONNXRuntime, providing a collection of ML models."
 repository = "https://github.com/jamjamjon/usls"
@@ -18,7 +18,7 @@ ab_glyph = { version = "0.2.29" }
 image = { version = "0.25" }
 imageproc = { version = "0.25" }
 ndarray = { version = "0.16.1", features = ["rayon", "serde"] }
-indicatif = { version = "0.17.11" }
+indicatif = { version = "0.18" }
 log = "0.4.26"
 minifb = { version = "0.28.0", optional = true }
 rand = { version = "0.9" }
@@ -30,12 +30,12 @@ rayon = { version = "1.10.0" }
 glob = "0.3.2"
 dirs = "6.0.0"
 natord = "1.0.9"
-geo = "0.30.0"
+geo = "0.31.0"
 chrono = "0.4.40"
 regex = "1.11.1"
 tempfile = "3.19.1"
 video-rs = { version = "0.10.3", features = ["ndarray"], optional = true }
-fast_image_resize = { version = "=5.1.2", features = ["image"] }
+fast_image_resize = { version = "=5.1.4", features = ["image", "rayon"] }
 ndarray-npy = "0.9.1"
 half = { version = "2.6.0", features = ["bytemuck", "num-traits"] }
 prost = "0.14.1"
@@ -47,6 +47,7 @@ ort = { version = "=2.0.0-rc.10", default-features = false, optional = true, fea
 hf-hub = { version = "0.4.3", default-features = false, features = ["ureq", "native-tls"] }
 tokenizers = { version = "0.21.1" }
 paste = "1.0.15"
+slsl = { version = "0.0.5", features = ["rayon"] }
 
 
 [dev-dependencies]

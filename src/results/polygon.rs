@@ -173,7 +173,7 @@ impl Polygon {
     }
 
     pub fn simplify(mut self, eps: f64) -> Self {
-        self.polygon = self.polygon.simplify(&eps);
+        self.polygon = self.polygon.simplify(eps);
         self
     }
 
