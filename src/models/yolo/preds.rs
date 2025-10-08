@@ -244,52 +244,47 @@ impl YOLOPredsFormat {
         match self.task() {
             Task::ImageClassification => Ok((None, None, x, None, None, None, None)),
             _ => {
-                let x = if self.is_anchors_first() {
-                    x
-                } else {
-                    x.flip_dims()?
-                };
+                let x = if self.is_anchors_first() { x } else { x.t()? };
 
-                // Use slice operations to avoid lifetime issues
-                let slice_bboxes = x.slice(s![.., 0..4, ..]);
-                let (slice_id, slice_clss, slice_confs, remaining_start) = match self.clss {
+                let slice_bboxes = x.slice(s![.., 0..4]);
+                let (slice_id, slice_clss, slice_confs, n) = match self.clss {
                     ClssType::ConfClss => {
-                        let confs = x.slice(s![.., 4..5, ..]);
-                        let clss = x.slice(s![.., 5..5 + nc, ..]);
+                        let confs = x.slice(s![.., 4..5]);
+                        let clss = x.slice(s![.., 5..5 + nc]);
                         (None, clss, Some(confs), 5 + nc)
                     }
                     ClssType::ClssConf => {
-                        let clss = x.slice(s![.., 4..4 + nc, ..]);
-                        let confs = x.slice(s![.., 4 + nc..4 + nc + 1, ..]);
+                        let clss = x.slice(s![.., 4..4 + nc]);
+                        let confs = x.slice(s![.., 4 + nc..4 + nc + 1]);
                         (None, clss, Some(confs), 4 + nc + 1)
                     }
                     ClssType::ConfCls => {
-                        let clss = x.slice(s![.., 4..5, ..]);
-                        let ids = x.slice(s![.., 5..6, ..]);
+                        let clss = x.slice(s![.., 4..5]);
+                        let ids = x.slice(s![.., 5..6]);
                         (Some(ids), clss, None, 6)
                     }
                     ClssType::ClsConf => {
-                        let ids = x.slice(s![.., 4..5, ..]);
-                        let clss = x.slice(s![.., 5..6, ..]);
+                        let ids = x.slice(s![.., 4..5]);
+                        let clss = x.slice(s![.., 5..6]);
                         (Some(ids), clss, None, 6)
                     }
                     ClssType::Clss => {
-                        let clss = x.slice(s![.., 4..4 + nc, ..]);
+                        let clss = x.slice(s![.., 4..4 + nc]);
                         (None, clss, None, 4 + nc)
                     }
                 };
 
                 let (slice_kpts, slice_coefs, slice_radians) = match self.task() {
                     Task::Pose | Task::KeypointsDetection => {
-                        let kpts = x.slice(s![.., remaining_start.., ..]);
+                        let kpts = x.slice(s![.., n..]);
                         (Some(kpts), None, None)
                     }
                     Task::InstanceSegmentation => {
-                        let coefs = x.slice(s![.., remaining_start.., ..]);
+                        let coefs = x.slice(s![.., n..]);
                         (None, Some(coefs), None)
                     }
                     Task::OrientedObjectDetection => {
-                        let radians = x.slice(s![.., remaining_start.., ..]);
+                        let radians = x.slice(s![.., n..]);
                         (None, None, Some(radians))
                     }
                     _ => (None, None, None),

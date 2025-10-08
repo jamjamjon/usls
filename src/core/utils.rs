@@ -177,3 +177,230 @@ pub fn timestamp(delimiter: Option<&str>) -> String {
     let format = format!("%Y{0}%m{0}%d{0}%H{0}%M{0}%S{0}%f", delimiter);
     chrono::Local::now().format(&format).to_string()
 }
+
+/// Natural sort comparison for strings (handles embedded numbers correctly)
+///
+/// Compares strings by breaking them into chunks of digits and non-digits,
+/// comparing digit chunks numerically and text chunks lexicographically.
+///
+/// # Examples
+/// ```ignore
+/// use usls::natural_compare;
+///
+/// assert!(natural_compare("file1.txt", "file2.txt") == std::cmp::Ordering::Less);
+/// assert!(natural_compare("file2.txt", "file10.txt") == std::cmp::Ordering::Less);
+/// assert!(natural_compare("img001.jpg", "img100.jpg") == std::cmp::Ordering::Less);
+/// ```
+pub fn natural_compare(a: &str, b: &str) -> std::cmp::Ordering {
+    use std::cmp::Ordering;
+
+    let mut a_chars = a.chars().peekable();
+    let mut b_chars = b.chars().peekable();
+
+    loop {
+        match (a_chars.peek(), b_chars.peek()) {
+            (None, None) => return Ordering::Equal,
+            (None, Some(_)) => return Ordering::Less,
+            (Some(_), None) => return Ordering::Greater,
+            (Some(&ca), Some(&cb)) => {
+                // Both are digits - compare numerically
+                if ca.is_ascii_digit() && cb.is_ascii_digit() {
+                    // Extract full number from both strings
+                    let mut num_a = String::new();
+                    let mut num_b = String::new();
+
+                    while let Some(&c) = a_chars.peek() {
+                        if c.is_ascii_digit() {
+                            num_a.push(c);
+                            a_chars.next();
+                        } else {
+                            break;
+                        }
+                    }
+
+                    while let Some(&c) = b_chars.peek() {
+                        if c.is_ascii_digit() {
+                            num_b.push(c);
+                            b_chars.next();
+                        } else {
+                            break;
+                        }
+                    }
+
+                    // Compare as numbers
+                    // Handle potential parsing errors by falling back to string comparison
+                    match (num_a.parse::<u64>(), num_b.parse::<u64>()) {
+                        (Ok(na), Ok(nb)) => match na.cmp(&nb) {
+                            Ordering::Equal => continue,
+                            other => return other,
+                        },
+                        // If numbers are too large for u64, compare string length first
+                        // then lexicographically (maintains correct ordering for large numbers)
+                        _ => match num_a.len().cmp(&num_b.len()) {
+                            Ordering::Equal => match num_a.cmp(&num_b) {
+                                Ordering::Equal => continue,
+                                other => return other,
+                            },
+                            other => return other,
+                        },
+                    }
+                } else {
+                    // At least one is not a digit - compare lexicographically
+                    a_chars.next();
+                    b_chars.next();
+                    match ca.cmp(&cb) {
+                        Ordering::Equal => continue,
+                        other => return other,
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::cmp::Ordering;
+
+    #[test]
+    fn test_natural_compare_basic() {
+        assert_eq!(natural_compare("file1.txt", "file2.txt"), Ordering::Less);
+        assert_eq!(natural_compare("file2.txt", "file10.txt"), Ordering::Less);
+        assert_eq!(
+            natural_compare("file10.txt", "file2.txt"),
+            Ordering::Greater
+        );
+        assert_eq!(natural_compare("file5.txt", "file5.txt"), Ordering::Equal);
+    }
+
+    #[test]
+    fn test_natural_compare_leading_zeros() {
+        assert_eq!(natural_compare("img001.jpg", "img002.jpg"), Ordering::Less);
+        assert_eq!(natural_compare("img001.jpg", "img100.jpg"), Ordering::Less);
+        assert_eq!(natural_compare("img099.jpg", "img100.jpg"), Ordering::Less);
+
+        // Leading zeros are preserved in text but compared numerically
+        assert_eq!(natural_compare("img01.jpg", "img1.jpg"), Ordering::Equal); // 01 == 1
+    }
+
+    #[test]
+    fn test_natural_compare_version_numbers() {
+        assert_eq!(natural_compare("v1.0.1", "v1.0.2"), Ordering::Less);
+        assert_eq!(natural_compare("v1.0.9", "v1.0.10"), Ordering::Less);
+        assert_eq!(natural_compare("v1.9.0", "v1.10.0"), Ordering::Less);
+        assert_eq!(natural_compare("v2.0.0", "v1.99.99"), Ordering::Greater);
+    }
+
+    #[test]
+    fn test_natural_compare_mixed_content() {
+        assert_eq!(natural_compare("test", "test123"), Ordering::Less);
+        assert_eq!(natural_compare("test123", "test"), Ordering::Greater);
+        assert_eq!(natural_compare("abc123def", "abc123def"), Ordering::Equal);
+        assert_eq!(natural_compare("abc123def", "abc124def"), Ordering::Less);
+    }
+
+    #[test]
+    fn test_natural_compare_edge_cases() {
+        // Empty strings
+        assert_eq!(natural_compare("", ""), Ordering::Equal);
+        assert_eq!(natural_compare("", "a"), Ordering::Less);
+        assert_eq!(natural_compare("a", ""), Ordering::Greater);
+
+        // Pure numbers
+        assert_eq!(natural_compare("1", "2"), Ordering::Less);
+        assert_eq!(natural_compare("9", "10"), Ordering::Less);
+        assert_eq!(natural_compare("100", "99"), Ordering::Greater);
+
+        // Pure text
+        assert_eq!(natural_compare("apple", "banana"), Ordering::Less);
+        assert_eq!(natural_compare("zebra", "apple"), Ordering::Greater);
+    }
+
+    #[test]
+    fn test_natural_compare_complex_filenames() {
+        // Common image sequence patterns
+        assert_eq!(
+            natural_compare("frame_0001.png", "frame_0010.png"),
+            Ordering::Less
+        );
+        assert_eq!(
+            natural_compare("shot1_take5.mp4", "shot1_take15.mp4"),
+            Ordering::Less
+        );
+        assert_eq!(
+            natural_compare("scene2_v3.mov", "scene10_v1.mov"),
+            Ordering::Less
+        );
+
+        // Dataset naming
+        assert_eq!(
+            natural_compare("data_batch_1", "data_batch_10"),
+            Ordering::Less
+        );
+        assert_eq!(
+            natural_compare("train_001.jpg", "train_1000.jpg"),
+            Ordering::Less
+        );
+    }
+
+    #[test]
+    fn test_natural_compare_large_numbers() {
+        // Numbers larger than u64::MAX
+        let large_a = "file99999999999999999999.txt";
+        let large_b = "file100000000000000000000.txt";
+        assert_eq!(natural_compare(large_a, large_b), Ordering::Less);
+
+        // Same length, different values
+        assert_eq!(
+            natural_compare(
+                "file12345678901234567890.txt",
+                "file12345678901234567891.txt"
+            ),
+            Ordering::Less
+        );
+    }
+
+    #[test]
+    fn test_natural_compare_multiple_numbers() {
+        // Multiple number sequences in one string
+        assert_eq!(natural_compare("v1.2.3", "v1.2.10"), Ordering::Less);
+        assert_eq!(
+            natural_compare("chapter1_page5", "chapter1_page15"),
+            Ordering::Less
+        );
+        assert_eq!(natural_compare("2024_01_05", "2024_01_15"), Ordering::Less);
+        assert_eq!(natural_compare("2024_12_31", "2025_01_01"), Ordering::Less);
+    }
+
+    #[test]
+    fn test_natural_compare_case_sensitivity() {
+        // Case-sensitive comparison (standard behavior)
+        assert_eq!(natural_compare("File1.txt", "file1.txt"), Ordering::Less); // 'F' < 'f'
+        assert_eq!(natural_compare("ABC", "abc"), Ordering::Less);
+    }
+
+    #[test]
+    fn test_natural_sorting() {
+        let mut files = vec![
+            "file10.txt",
+            "file2.txt",
+            "file1.txt",
+            "file20.txt",
+            "file3.txt",
+        ];
+
+        files.sort_by(|a, b| natural_compare(a, b));
+
+        assert_eq!(
+            files,
+            vec![
+                "file1.txt",
+                "file2.txt",
+                "file3.txt",
+                "file10.txt",
+                "file20.txt"
+            ]
+        );
+    }
+}

@@ -315,8 +315,8 @@ impl Florence2 {
                                 image_width,
                                 image_height,
                             );
-                            y = y.with_polygons(&[Polygon::default()
-                                .with_points(&points)
+                            y = y.with_polygons(&[Polygon::try_from(points)
+                                .unwrap_or_default()
                                 .with_id(0)]);
                         }
                         Task::OcrWithRegion => {
@@ -330,9 +330,9 @@ impl Florence2 {
                                         image_width,
                                         image_height,
                                     );
-                                    Polygon::default()
+                                    Polygon::try_from(points)
+                                        .unwrap_or_default()
                                         .with_name(&elem[0])
-                                        .with_points(&points)
                                         .with_id(i as _)
                                 })
                                 .collect();

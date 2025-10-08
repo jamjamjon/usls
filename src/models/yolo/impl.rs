@@ -315,6 +315,13 @@ impl YOLO {
 
     /// Post-processes model outputs to generate final predictions.
     fn postprocess(&self, xs: &[Tensor]) -> Result<Vec<Y>> {
+        // Convert to FP32 to avoid data corruption
+        let xs = xs
+            .iter()
+            .map(|x| x.to_dtype::<f32>())
+            .collect::<Result<Vec<_>>>()?;
+
+        // postprocess
         let ys: Vec<Y> = xs[0]
             .iter_dim(0)
             .par_iter()
@@ -553,26 +560,23 @@ impl YOLO {
                 if let Some(coefs) = slice_coefs {
                     if let Some(hbbs) = y.hbbs() {
                         let protos = &xs[1];
+                        let proto = protos.slice(s![idx, .., .., ..]);
+                        let proto_shape = proto.shape();
+                        let (nm, mh, mw) = (proto_shape[0], proto_shape[1], proto_shape[2]);
+
+                        // contiguous way
+                        let proto_vec = proto.to_flat_vec::<f32>().ok()?;
+                        let proto_tensor = Tensor::from_vec(proto_vec, (nm, mh * mw)).ok()?;
+
                         let y_masks = hbbs
                             .into_par_iter()
                             .filter_map(|hbb| {
                                 let coefs_slice = coefs.slice(s![hbb.uid(), ..]);
-                                let proto = protos.slice(s![idx, .., .., ..]);
-                                let proto_shape = proto.shape();
-                                let (nm, mh, mw) = (proto_shape[0], proto_shape[1], proto_shape[2]);
 
                                 // contiguous way
                                 let coefs_vec = coefs_slice.to_flat_vec::<f32>().ok()?;
-                                let proto_vec = proto.to_flat_vec::<f32>().ok()?;
                                 let coefs_tensor = Tensor::from_vec(coefs_vec, (1, nm)).ok()?;
-                                let proto_tensor =
-                                    Tensor::from_vec(proto_vec, (nm, mh * mw)).ok()?;
                                 let mask_tensor = coefs_tensor.matmul(&proto_tensor).ok()?;
-
-                                // non-contiguous way
-                                // let coefs_slice = coefs_slice.unsqueeze(0).ok()?;
-                                // let proto = proto.reshape((nm, mh * mw)).ok()?;
-                                // let mask_tensor = coefs_slice.matmul(&proto).ok()?;
 
                                 // Resize mask from (mh, mw) to (image_height, image_width)
                                 let mask_resized = Ops::resize_lumaf32_u8(
