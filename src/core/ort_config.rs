@@ -32,7 +32,7 @@ impl Default for ORTConfig {
             graph_opt_level: Default::default(),
             num_intra_threads: None,
             num_inter_threads: None,
-            hardware: HardwareConfig::default(),
+            hardware: HardwareConfig::new(),
         }
     }
 }

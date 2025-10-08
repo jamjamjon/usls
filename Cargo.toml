@@ -1,7 +1,7 @@
 [package]
 name = "usls"
 edition = "2021"
-version = "0.1.1"
+version = "0.1.2"
 rust-version = "1.85"
 description = "A Rust library integrated with ONNXRuntime, providing a collection of ML models."
 repository = "https://github.com/jamjamjon/usls"
@@ -45,7 +45,7 @@ ort = { version = "=2.0.0-rc.10", default-features = false, optional = true, fea
 ] }
 hf-hub = { version = "0.4.3", default-features = false, features = ["ureq", "native-tls"] }
 tokenizers = { version = "0.21.1" }
-slsl = { version = "0.0.5", features = ["rayon"] }
+slsl = { version = "0.0.6", features = ["rayon"] }
 
 
 [dev-dependencies]
