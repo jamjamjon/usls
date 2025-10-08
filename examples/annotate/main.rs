@@ -169,7 +169,7 @@ fn main() -> anyhow::Result<()> {
     ];
 
     let polygons = vec![
-        Polygon::from_xys(&[
+        Polygon::try_from(vec![
             [13.0, 251.0],
             [12.0, 251.0],
             [11.0, 251.0],
@@ -348,11 +348,11 @@ fn main() -> anyhow::Result<()> {
             [14.0, 253.0],
             [13.0, 252.0],
             [13.0, 251.0],
-        ])
+        ])?
         .with_id(11)
         .with_name("stop sign")
         .with_confidence(0.5555),
-        Polygon::from_xys(&[
+        Polygon::try_from(vec![
             [485.0, 149.0],
             [484.0, 150.0],
             [484.0, 151.0],
@@ -608,7 +608,7 @@ fn main() -> anyhow::Result<()> {
             [487.0, 149.0],
             [486.0, 149.0],
             [485.0, 149.0],
-        ])
+        ])?
         .with_id(9)
         .with_name("traffic light")
         .with_confidence(0.777777),

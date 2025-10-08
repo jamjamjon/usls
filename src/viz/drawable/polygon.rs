@@ -33,16 +33,16 @@ impl Drawable for Polygon {
 
         // filled
         if style.draw_fill() {
-            let polygon_i32 = self
-                .polygon()
-                .exterior()
-                .points()
-                .take(if self.is_closed() {
-                    self.count() - 1
-                } else {
-                    self.count()
-                })
-                .map(|p| imageproc::point::Point::new(p.x() as i32, p.y() as i32))
+            let exterior = self.exterior();
+            let n = if self.is_closed() {
+                self.count() - 1
+            } else {
+                self.count()
+            };
+            let polygon_i32 = exterior
+                .iter()
+                .take(n)
+                .map(|p| imageproc::point::Point::new(p[0] as i32, p[1] as i32))
                 .collect::<Vec<_>>();
 
             imageproc::drawing::draw_polygon_mut(
@@ -55,16 +55,16 @@ impl Drawable for Polygon {
 
         // contour
         if style.draw_outline() {
-            let polygon_f32 = self
-                .polygon()
-                .exterior()
-                .points()
-                .take(if self.is_closed() {
-                    self.count() - 1
-                } else {
-                    self.count()
-                })
-                .map(|p| imageproc::point::Point::new(p.x() as f32, p.y() as f32))
+            let exterior = self.exterior();
+            let n = if self.is_closed() {
+                self.count() - 1
+            } else {
+                self.count()
+            };
+            let polygon_f32 = exterior
+                .iter()
+                .take(n)
+                .map(|p| imageproc::point::Point::new(p[0], p[1]))
                 .collect::<Vec<_>>();
 
             imageproc::drawing::draw_hollow_polygon_mut(

@@ -95,6 +95,7 @@ fn main() -> Result<()> {
         );
 
     for (x, y) in xs.iter().zip(ys.iter()) {
+        // println!("y: {:?}", y);
         annotator.annotate(x, y)?.save(format!(
             "{}.jpg",
             usls::Dir::Current

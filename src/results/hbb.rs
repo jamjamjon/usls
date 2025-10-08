@@ -1,6 +1,6 @@
 use aksr::Builder;
 
-use crate::{InstanceMeta, Keypoint, Style};
+use crate::{InstanceMeta, Keypoint, Polygon, Style};
 
 /// Horizontal bounding box with position, size, and metadata.
 #[derive(Builder, Clone, Default)]
@@ -221,9 +221,25 @@ impl Hbb {
             && self.ymax() >= other.ymax()
     }
 
-    pub fn to_json() {
-        // Display?
-        todo!()
+    pub fn to_polygon(&self) -> Polygon {
+        let mut polygon = Polygon::try_from(vec![
+            [self.xmin(), self.ymin()],
+            [self.xmax(), self.ymin()],
+            [self.xmax(), self.ymax()],
+            [self.xmin(), self.ymax()],
+        ])
+        .expect("HBB always has 4 vertices");
+        if let Some(id) = self.id() {
+            polygon = polygon.with_id(id);
+        }
+        if let Some(name) = self.name() {
+            polygon = polygon.with_name(name);
+        }
+        if let Some(confidence) = self.confidence() {
+            polygon = polygon.with_confidence(confidence);
+        }
+
+        polygon
     }
 }
 

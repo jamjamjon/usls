@@ -12,6 +12,7 @@ exclude = ["assets/*", "examples/*", "runs/*", "benches/*", "tests/*"]
 
 
 [dependencies]
+paste = "1.0.15"
 anyhow = { version = "1" }
 aksr = { version = "0.0.3" }
 ab_glyph = { version = "0.2.29" }
@@ -29,8 +30,6 @@ serde_json = "1.0"
 rayon = { version = "1.10.0" }
 glob = "0.3.2"
 dirs = "6.0.0"
-natord = "1.0.9"
-geo = "0.31.0"
 chrono = "0.4.40"
 regex = "1.11.1"
 tempfile = "3.19.1"
@@ -46,7 +45,6 @@ ort = { version = "=2.0.0-rc.10", default-features = false, optional = true, fea
 ] }
 hf-hub = { version = "0.4.3", default-features = false, features = ["ureq", "native-tls"] }
 tokenizers = { version = "0.21.1" }
-paste = "1.0.15"
 slsl = { version = "0.0.5", features = ["rayon"] }
 
 

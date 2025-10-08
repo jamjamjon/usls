@@ -71,9 +71,11 @@ impl Mask {
             return None;
         }
 
-        polygons
-            .into_iter()
-            .max_by(|x, y| x.area().total_cmp(&y.area()))
+        polygons.into_iter().max_by(|x, y| {
+            x.area()
+                .partial_cmp(&y.area())
+                .unwrap_or(std::cmp::Ordering::Equal)
+        })
     }
 
     pub fn polygons(&self) -> Vec<Polygon> {
@@ -87,9 +89,16 @@ impl Mask {
                 {
                     return None;
                 }
-                let mut polygon = Polygon::default()
-                    .with_points_imageproc(&contour.points)
-                    .verify();
+                let coords: Vec<[f32; 2]> = contour
+                    .points
+                    .iter()
+                    .map(|p| [p.x as f32, p.y as f32])
+                    .collect();
+
+                let mut polygon = match Polygon::try_from(coords) {
+                    Ok(p) => p.verify(),
+                    Err(_) => return None,
+                };
                 if let Some(x) = self.name() {
                     polygon = polygon.with_name(x);
                 }

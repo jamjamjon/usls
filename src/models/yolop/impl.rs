@@ -129,9 +129,11 @@ impl YOLOPv2 {
             if let Some(polygon) = contours
                 .iter()
                 .map(|x| {
-                    Polygon::default()
+                    let coords: Vec<[f32; 2]> =
+                        x.points.iter().map(|p| [p.x as f32, p.y as f32]).collect();
+                    Polygon::try_from(coords)
+                        .unwrap_or_default()
                         .with_id(0)
-                        .with_points_imageproc(&x.points)
                         .with_name("Drivable area")
                         .verify()
                 })
@@ -155,9 +157,11 @@ impl YOLOPv2 {
             if let Some(polygon) = contours
                 .iter()
                 .map(|x| {
-                    Polygon::default()
+                    let coords: Vec<[f32; 2]> =
+                        x.points.iter().map(|p| [p.x as f32, p.y as f32]).collect();
+                    Polygon::try_from(coords)
+                        .unwrap_or_default()
                         .with_id(1)
-                        .with_points_imageproc(&x.points)
                         .with_name("Lane line")
                         .verify()
                 })

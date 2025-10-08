@@ -45,16 +45,16 @@ impl Drawable for Obb {
 
         if style.draw_fill() {
             let polygon = self.to_polygon();
-            let polygon_i32 = polygon
-                .polygon()
-                .exterior()
-                .points()
-                .take(if polygon.is_closed() {
-                    polygon.count() - 1
-                } else {
-                    polygon.count()
-                })
-                .map(|p| imageproc::point::Point::new(p.x() as i32, p.y() as i32))
+            let exterior = polygon.exterior();
+            let n = if polygon.is_closed() {
+                polygon.count() - 1
+            } else {
+                polygon.count()
+            };
+            let polygon_i32 = exterior
+                .iter()
+                .take(n)
+                .map(|p| imageproc::point::Point::new(p[0] as i32, p[1] as i32))
                 .collect::<Vec<_>>();
 
             imageproc::drawing::draw_polygon_mut(

@@ -414,7 +414,7 @@ impl DataLoader {
             let a = a.file_name().and_then(|s| s.to_str());
             let b = b.file_name().and_then(|s| s.to_str());
             match (a, b) {
-                (Some(a), Some(b)) => natord::compare(a, b),
+                (Some(a), Some(b)) => crate::natural_compare(a, b),
                 _ => std::cmp::Ordering::Equal,
             }
         });
@@ -437,7 +437,7 @@ impl DataLoader {
                 let a = a.file_name().and_then(|s| s.to_str());
                 let b = b.file_name().and_then(|s| s.to_str());
                 match (a, b) {
-                    (Some(a), Some(b)) => natord::compare(a, b),
+                    (Some(a), Some(b)) => crate::natural_compare(a, b),
                     _ => std::cmp::Ordering::Equal,
                 }
             });
