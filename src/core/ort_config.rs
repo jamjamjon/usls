@@ -7,6 +7,7 @@ use crate::{try_fetch_file_stem, DType, Device, HardwareConfig, Hub, Iiix, MinOp
 #[derive(Builder, Debug, Clone)]
 pub struct ORTConfig {
     pub file: String,
+    pub external_data_file: bool,
     pub device: Device,
     pub iiixs: Vec<Iiix>,
     pub num_dry_run: usize,
@@ -24,6 +25,7 @@ impl Default for ORTConfig {
     fn default() -> Self {
         Self {
             file: Default::default(),
+            external_data_file: false,
             device: Default::default(),
             iiixs: Default::default(),
             spec: Default::default(),
@@ -78,19 +80,32 @@ impl ORTConfig {
 
                     let stem = try_fetch_file_stem(&self.file)?;
                     self.spec = format!("{}/{}", name, stem);
-                    self.file = Hub::default().try_fetch(&format!("{}/{}", name, self.file))?;
+
+                    let parts: Vec<&str> = self.file.split('/').filter(|x| !x.is_empty()).collect();
+                    if parts.len() > 1 {
+                        self.file = Hub::default().try_fetch(&self.file)?;
+                    } else {
+                        self.file = Hub::default().try_fetch(&format!("{}/{}", name, self.file))?;
+                    }
 
                     // try fetch external data file if it exists
-                    match Hub::default().try_fetch(&format!("{}_data", self.file)) {
-                        Ok(external_data_file) => {
-                            log::debug!(
-                                "Successfully fetched external data file: {}",
-                                external_data_file
-                            );
+                    if self.external_data_file {
+                        let external_data_file = format!("{}_data", self.file);
+                        log::info!("Trying to fetch external data file {}", external_data_file);
+
+                        match Hub::default().try_fetch(&external_data_file) {
+                            Ok(external_data_file) => {
+                                log::info!(
+                                    "Successfully fetched external data file: {}",
+                                    external_data_file
+                                );
+                            }
+                            Err(_) => {
+                                log::warn!("No external data file found for model {}", self.file);
+                            }
                         }
-                        Err(_) => {
-                            log::debug!("No external data file found for model {}", self.file);
-                        }
+                    } else {
+                        log::info!("External data file is not enabled for model {}", self.file);
                     }
                 }
             }
@@ -224,6 +239,10 @@ macro_rules! impl_ort_config_methods {
             paste::paste! {
                 pub fn [<with_ $field _file>](mut self, file: &str) -> Self {
                     self.$field = self.$field.with_file(file);
+                    self
+                }
+                pub fn [<with_ $field _external_data_file>](mut self, x: bool) -> Self {
+                    self.$field = self.$field.with_external_data_file(x);
                     self
                 }
                 pub fn [<with_ $field _dtype>](mut self, dtype: $crate::DType) -> Self {
