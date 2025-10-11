@@ -70,3 +70,63 @@ impl std::fmt::Debug for Y {
         f.finish()
     }
 }
+
+impl Y {
+    pub fn is_empty(&self) -> bool {
+        if let Some(xs) = &self.texts {
+            if !xs.is_empty() {
+                return false;
+            }
+        }
+
+        if let Some(xs) = &self.probs {
+            if !xs.is_empty() {
+                return false;
+            }
+        }
+
+        if let Some(xs) = &self.hbbs {
+            if !xs.is_empty() {
+                return false;
+            }
+        }
+
+        if let Some(xs) = &self.obbs {
+            if !xs.is_empty() {
+                return false;
+            }
+        }
+
+        if let Some(xs) = &self.keypoints {
+            if !xs.is_empty() {
+                return false;
+            }
+        }
+
+        if let Some(xs) = &self.keypointss {
+            if !xs.is_empty() {
+                return false;
+            }
+        }
+
+        if let Some(xs) = &self.polygons {
+            if !xs.is_empty() {
+                return false;
+            }
+        }
+
+        if let Some(xs) = &self.masks {
+            if !xs.is_empty() {
+                return false;
+            }
+        }
+
+        if let Some(xs) = &self.images {
+            if !xs.is_empty() {
+                return false;
+            }
+        }
+
+        true
+    }
+}

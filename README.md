@@ -73,7 +73,8 @@ usls = "latest-version"
 | [YOLOv8<br />YOLO11](https://github.com/ultralytics/ultralytics) | Object Detection<br />Instance Segmentation<br />Image Classification<br />Oriented Object Detection<br />Keypoint Detection | [demo](examples/yolo) |
 | [YOLOv9](https://github.com/WongKinYiu/yolov9) | Object Detection | [demo](examples/yolo) |
 | [YOLOv10](https://github.com/THU-MIG/yolov10) | Object Detection | [demo](examples/yolo) |
-| [YOLOv12](https://github.com/sunsmarterjie/yolov12) | Object Detection | [demo](examples/yolo) |
+| [YOLOv12](https://github.com/sunsmarterjie/yolov12) | Image Classification<br />Object Detection<br />Instance Segmentation | [demo](examples/yolo) |
+| [YOLOv13](https://github.com/iMoonLab/yolov13) | Object Detection | [demo](examples/yolo) |
 | [RT-DETR](https://github.com/lyuwenyu/RT-DETR) | Object Detection | [demo](examples/rtdetr) |
 | [RF-DETR](https://github.com/roboflow/rf-detr) | Object Detection | [demo](examples/rfdetr) |
 | [PP-PicoDet](https://github.com/PaddlePaddle/PaddleDetection/tree/release/2.8/configs/picodet) | Object Detection | [demo](examples/picodet-layout) |
@@ -92,6 +93,7 @@ usls = "latest-version"
 | [SAM-HQ](https://github.com/SysCV/sam-hq) | Segment Anything | [demo](examples/sam) |
 | [FastSAM](https://github.com/CASIA-IVA-Lab/FastSAM) | Instance Segmentation | [demo](examples/yolo) |
 | [YOLO-World](https://github.com/AILab-CVC/YOLO-World) | Open-Set Detection With Language | [demo](examples/yolo) |
+| [YOLOE](https://github.com/THU-MIG/yoloe) | Open-Set Detection And Segmentation | [demo-prompt-free](examples/yoloe)<br />[demo-text-prompt](examples/yoloe-text-prompt) |
 | [GroundingDINO](https://github.com/IDEA-Research/GroundingDINO) | Open-Set Detection With Language | [demo](examples/grounding-dino) |
 | [CLIP](https://github.com/openai/CLIP) | Vision-Language Embedding | [demo](examples/clip) |
 | [jina-clip-v1](https://huggingface.co/jinaai/jina-clip-v1) | Vision-Language Embedding | [demo](examples/clip) |

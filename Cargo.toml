@@ -45,7 +45,7 @@ ort = { version = "=2.0.0-rc.10", default-features = false, optional = true, fea
 ] }
 hf-hub = { version = "0.4.3", default-features = false, features = ["ureq", "native-tls"] }
 tokenizers = { version = "0.21.1" }
-slsl = { version = "0.0.6", features = ["rayon"] }
+slsl = { version = "0.0.7", features = ["rayon"] }
 
 
 [dev-dependencies]

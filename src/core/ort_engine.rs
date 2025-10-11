@@ -9,7 +9,6 @@ use ort::{
     value::{DynValue, Value},
 };
 use prost::Message;
-use rayon::prelude::*;
 use slsl::Tensor;
 use std::collections::HashSet;
 
@@ -283,8 +282,8 @@ impl OrtEngine {
             let xs_ = elapsed_global!(&format!("[{}] ort_preprocessing", self.spec), {
                 onnx.inputs
                     .dtypes
-                    .par_iter()
-                    .zip(tensors.into_par_iter())
+                    .iter()
+                    .zip(tensors.into_iter())
                     .map(|(dtype, tensor)| {
                         Self::preprocess(&tensor, dtype).map(Into::<SessionInputValue<'_>>::into)
                     })

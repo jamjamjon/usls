@@ -41,6 +41,7 @@ pub struct YOLO {
     spec: String,
     classes_excluded: Vec<usize>,
     classes_retained: Vec<usize>,
+    textual: Option<OrtEngine>,
 }
 
 impl TryFrom<Config> for YOLO {
@@ -59,6 +60,7 @@ impl YOLO {
     /// - Setting up input dimensions and processing parameters
     /// - Configuring task-specific settings and output formats
     pub fn new(config: Config) -> Result<Self> {
+        let textual = OrtEngine::try_from_config(&config.textual).ok();
         let engine = OrtEngine::try_from_config(&config.model)?;
         let (batch, height, width, spec) = (
             engine.batch().opt(),
@@ -66,6 +68,7 @@ impl YOLO {
             engine.try_width().unwrap_or(&640.into()).opt(),
             engine.spec().to_owned(),
         );
+
         let task: Option<Task> = match &config.task {
             Some(task) => Some(task.clone()),
             None => match engine.try_fetch("task") {
@@ -115,9 +118,10 @@ impl YOLO {
                         (Task::ImageClassification, Version(5, 0, _)) => {
                             YOLOPredsFormat::n_clss().apply_softmax(true)
                         }
-                        (Task::ImageClassification, Version(8, 0, _) | Version(11, 0, _)) => {
-                            YOLOPredsFormat::n_clss()
-                        }
+                        (
+                            Task::ImageClassification,
+                            Version(8, 0, _) | Version(11, 0, _) | Version(12, 0, _),
+                        ) => YOLOPredsFormat::n_clss(),
                         (
                             Task::ObjectDetection,
                             Version(5, 0, _) | Version(6, 0, _) | Version(7, 0, _),
@@ -127,7 +131,8 @@ impl YOLO {
                             Version(8, 0, _)
                             | Version(9, 0, _)
                             | Version(11, 0, _)
-                            | Version(12, 0, _),
+                            | Version(12, 0, _)
+                            | Version(13, 0, _),
                         ) => YOLOPredsFormat::n_cxcywh_clss_a(),
                         (Task::ObjectDetection, Version(10, 0, _)) => {
                             YOLOPredsFormat::n_a_xyxy_confcls().apply_nms(false)
@@ -140,7 +145,10 @@ impl YOLO {
                         }
                         (
                             Task::InstanceSegmentation,
-                            Version(8, 0, _) | Version(9, 0, _) | Version(11, 0, _),
+                            Version(8, 0, _)
+                            | Version(9, 0, _)
+                            | Version(11, 0, _)
+                            | Version(12, 0, _),
                         ) => YOLOPredsFormat::n_cxcywh_clss_coefs_a(),
                         (Task::OrientedObjectDetection, Version(8, 0, _) | Version(11, 0, _)) => {
                             YOLOPredsFormat::n_cxcywh_clss_r_a()
@@ -158,7 +166,6 @@ impl YOLO {
                         Version(6, 0, _) | Version(7, 0, _) => {
                             YOLOPredsFormat::n_a_cxcywh_confclss()
                         }
-                        Version(9, 0, _) | Version(12, 0, _) => YOLOPredsFormat::n_cxcywh_clss_a(),
                         Version(10, 0, _) => YOLOPredsFormat::n_a_xyxy_confcls().apply_nms(false),
                         _ => {
                             anyhow::bail!(
@@ -203,14 +210,17 @@ impl YOLO {
         let nc = match config.nc() {
             None => names.len(),
             Some(n) => {
-                if names.len() != n {
+                if names.is_empty() {
+                    n
+                } else if names.len() != n {
                     anyhow::bail!(
                         "The lengths of class names: {} and user-defined num_classes: {} do not match.",
                         names.len(),
                         n,
                     )
+                } else {
+                    n
                 }
-                n
             }
         };
         if nc == 0 && names.is_empty() {
@@ -292,7 +302,80 @@ impl YOLO {
             classes_retained,
             processor,
             topk,
+            textual,
         })
+    }
+
+    /// Encodes text embeddings for the provided class names.
+    pub fn encode_class_names(&mut self, class_names: &[&str]) -> Result<Tensor> {
+        if class_names.len() > self.nc {
+            anyhow::bail!(
+                "The length of provided class names: {} exceeds the configured number of classes: {}.",
+                class_names.len(),
+                self.nc,
+            );
+        }
+        self.names = class_names.iter().map(|x| x.to_string()).collect();
+        let x = elapsed_module!("YOLO", "textual-preprocess", {
+            let encodings: Vec<f32> = self
+                .processor
+                .encode_texts_ids(
+                    &self.names.iter().map(|x| x.as_str()).collect::<Vec<_>>(),
+                    true,
+                )?
+                .into_iter()
+                .flatten()
+                .collect();
+            let shape = (self.names.len(), encodings.len() / self.names.len());
+            Tensor::from_vec(encodings, shape)?
+        });
+
+        let xs = elapsed_module!(
+            "YOLO",
+            "textual-inference",
+            self.textual
+                .as_mut()
+                .expect("No textual model loaded.")
+                .run(vec![x])?
+        );
+        elapsed_module!("YOLO", "textual-postprocess", {
+            let x = &xs[0];
+            let (n, dim) = (x.dims()[0], x.dims()[1]);
+            let n_pad = self.nc.saturating_sub(n);
+            let x = if n_pad > 0 {
+                let x_zeros = Tensor::zeros::<f32>((n_pad, dim))?;
+                Tensor::cat(&[x.clone(), x_zeros], 0)?
+            } else {
+                x.clone()
+            };
+
+            Ok(x)
+        })
+    }
+
+    /// Performs model inference on the pre-processed input with text embeddings.
+    pub fn forward_with_te(&mut self, images: &[Image], te: &Tensor) -> Result<Vec<Y>> {
+        let xs_images = elapsed_module!(
+            "YOLO",
+            "visual-preprocess",
+            self.processor.process_images_f32(images)?
+        );
+
+        let te = elapsed_module!("YOLO", "textual-postprocess", {
+            let dim = te.dims()[1];
+            te.unsqueeze(0)?
+                .broadcast_to((images.len(), self.nc, dim))?
+                .to_owned()?
+        });
+
+        let ys = elapsed_module!("YOLO", "inference", {
+            match self.textual {
+                Some(_) => self.inference(vec![xs_images, te])?,
+                None => anyhow::bail!("No textual model loaded."),
+            }
+        });
+
+        elapsed_module!("YOLO", "postprocess", self.postprocess(&ys))
     }
 
     /// Pre-processes input images before model inference.
@@ -621,6 +704,9 @@ impl YOLO {
                                 }
                                 if let Some(name) = hbb.name() {
                                     mask = mask.with_name(name);
+                                }
+                                if let Some(confidence) = hbb.confidence() {
+                                    mask = mask.with_confidence(confidence);
                                 }
 
                                 Some(mask)
