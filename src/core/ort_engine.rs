@@ -694,7 +694,7 @@ impl OrtEngine {
                         .with_static_input_shapes(self.hardware.coreml.static_input_shapes)
                         .with_subgraphs(self.hardware.coreml.subgraph_running)
                         .with_compute_units(ort::execution_providers::coreml::CoreMLComputeUnits::All)
-                        .with_model_format(ort::execution_providers::coreml::CoreMLModelFormat::MLProgram)
+                        // .with_model_format(ort::execution_providers::coreml::CoreMLModelFormat::MLProgram)
                         .with_specialization_strategy(
                             ort::execution_providers::coreml::CoreMLSpecializationStrategy::FastPrediction,
                         );

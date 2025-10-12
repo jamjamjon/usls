@@ -126,7 +126,6 @@ impl ORTConfig {
         self
     }
 
-    // Hardware configuration methods
     pub fn with_cpu_arena_allocator(mut self, x: bool) -> Self {
         self.hardware.cpu.arena_allocator = x;
         self

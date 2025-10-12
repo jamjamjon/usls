@@ -180,205 +180,57 @@ impl Config {
 
     fn yoloe_seg_tp() -> Self {
         Self::yolo()
-            .with_num_dry_run_all(0) // TODO: The text encoder must align with the number of classes; running a dry run will cause an error.
             .with_batch_size_all(1)
+            .with_nc(80)
+            .with_model_ixx(1, 1, (1, 80, 300).into()) // max_text_classes
             .with_task(Task::InstanceSegmentation)
             .with_textual_file("mobileclip/blt-textual.onnx")
             .with_model_max_length(77)
+            .with_textual_ixx(0, 1, 77.into())
             .with_tokenizer_file("clip/tokenizer.json")
             .with_tokenizer_config_file("clip/tokenizer_config.json")
             .with_special_tokens_map_file("clip/special_tokens_map.json")
     }
 
-    pub fn yoloe_v8s_seg_tp_80() -> Self {
+    pub fn yoloe_v8s_seg_tp() -> Self {
         Self::yoloe_seg_tp()
             .with_version(8.into())
             .with_scale(Scale::S)
-            .with_nc(80)
-            .with_model_file("yoloe-v8s-seg-tp-80.onnx")
+            .with_model_file("yoloe-v8s-seg-tp.onnx")
     }
 
-    pub fn yoloe_v8m_seg_tp_80() -> Self {
+    pub fn yoloe_v8m_seg_tp() -> Self {
         Self::yoloe_seg_tp()
             .with_version(8.into())
             .with_scale(Scale::M)
-            .with_nc(80)
-            .with_model_file("yoloe-v8m-seg-tp-80.onnx")
+            .with_model_file("yoloe-v8m-seg-tp.onnx")
     }
 
-    pub fn yoloe_v8l_seg_tp_80() -> Self {
+    pub fn yoloe_v8l_seg_tp() -> Self {
         Self::yoloe_seg_tp()
             .with_version(8.into())
             .with_scale(Scale::L)
-            .with_nc(80)
-            .with_model_file("yoloe-v8l-seg-tp-80.onnx")
+            .with_model_file("yoloe-v8l-seg-tp.onnx")
     }
 
-    pub fn yoloe_v8s_seg_tp_300() -> Self {
-        Self::yoloe_seg_tp()
-            .with_version(8.into())
-            .with_scale(Scale::S)
-            .with_nc(300)
-            .with_model_file("yoloe-v8s-seg-tp-300.onnx")
-    }
-
-    pub fn yoloe_v8m_seg_tp_300() -> Self {
-        Self::yoloe_seg_tp()
-            .with_version(8.into())
-            .with_scale(Scale::M)
-            .with_nc(300)
-            .with_model_file("yoloe-v8m-seg-tp-300.onnx")
-    }
-
-    pub fn yoloe_v8l_seg_tp_300() -> Self {
-        Self::yoloe_seg_tp()
-            .with_version(8.into())
-            .with_scale(Scale::L)
-            .with_nc(300)
-            .with_model_file("yoloe-v8l-seg-tp-300.onnx")
-    }
-
-    pub fn yoloe_v8s_seg_tp_500() -> Self {
-        Self::yoloe_seg_tp()
-            .with_version(8.into())
-            .with_scale(Scale::S)
-            .with_nc(500)
-            .with_model_file("yoloe-v8s-seg-tp-500.onnx")
-    }
-
-    pub fn yoloe_v8m_seg_tp_500() -> Self {
-        Self::yoloe_seg_tp()
-            .with_version(8.into())
-            .with_scale(Scale::M)
-            .with_nc(500)
-            .with_model_file("yoloe-v8m-seg-tp-500.onnx")
-    }
-
-    pub fn yoloe_v8l_seg_tp_500() -> Self {
-        Self::yoloe_seg_tp()
-            .with_version(8.into())
-            .with_scale(Scale::L)
-            .with_nc(500)
-            .with_model_file("yoloe-v8l-seg-tp-500.onnx")
-    }
-
-    pub fn yoloe_v8s_seg_tp_2000() -> Self {
-        Self::yoloe_seg_tp()
-            .with_version(8.into())
-            .with_scale(Scale::S)
-            .with_nc(2000)
-            .with_model_file("yoloe-v8s-seg-tp-2000.onnx")
-    }
-
-    pub fn yoloe_v8m_seg_tp_2000() -> Self {
-        Self::yoloe_seg_tp()
-            .with_version(8.into())
-            .with_scale(Scale::M)
-            .with_nc(2000)
-            .with_model_file("yoloe-v8m-seg-tp-2000.onnx")
-    }
-
-    pub fn yoloe_v8l_seg_tp_2000() -> Self {
-        Self::yoloe_seg_tp()
-            .with_version(8.into())
-            .with_scale(Scale::L)
-            .with_nc(2000)
-            .with_model_file("yoloe-v8l-seg-tp-2000.onnx")
-    }
-
-    pub fn yoloe_11s_seg_tp_80() -> Self {
+    pub fn yoloe_11s_seg_tp() -> Self {
         Self::yoloe_seg_tp()
             .with_version(11.into())
             .with_scale(Scale::S)
-            .with_nc(80)
-            .with_model_file("yoloe-11s-seg-tp-80.onnx")
+            .with_model_file("yoloe-11s-seg-tp.onnx")
     }
 
-    pub fn yoloe_11m_seg_tp_80() -> Self {
+    pub fn yoloe_11m_seg_tp() -> Self {
         Self::yoloe_seg_tp()
             .with_version(11.into())
             .with_scale(Scale::M)
-            .with_nc(80)
-            .with_model_file("yoloe-11m-seg-tp-80.onnx")
+            .with_model_file("yoloe-11m-seg-tp.onnx")
     }
 
-    pub fn yoloe_11l_seg_tp_80() -> Self {
+    pub fn yoloe_11l_seg_tp() -> Self {
         Self::yoloe_seg_tp()
             .with_version(11.into())
             .with_scale(Scale::L)
-            .with_nc(80)
-            .with_model_file("yoloe-11l-seg-tp-80.onnx")
-    }
-
-    pub fn yoloe_11s_seg_tp_300() -> Self {
-        Self::yoloe_seg_tp()
-            .with_version(11.into())
-            .with_scale(Scale::S)
-            .with_nc(300)
-            .with_model_file("yoloe-11s-seg-tp-300.onnx")
-    }
-
-    pub fn yoloe_11m_seg_tp_300() -> Self {
-        Self::yoloe_seg_tp()
-            .with_version(11.into())
-            .with_scale(Scale::M)
-            .with_nc(300)
-            .with_model_file("yoloe-11m-seg-tp-300.onnx")
-    }
-
-    pub fn yoloe_11l_seg_tp_300() -> Self {
-        Self::yoloe_seg_tp()
-            .with_version(11.into())
-            .with_scale(Scale::L)
-            .with_nc(300)
-            .with_model_file("yoloe-11l-seg-tp-300.onnx")
-    }
-
-    pub fn yoloe_11s_seg_tp_500() -> Self {
-        Self::yoloe_seg_tp()
-            .with_version(11.into())
-            .with_scale(Scale::S)
-            .with_nc(500)
-            .with_model_file("yoloe-11s-seg-tp-500.onnx")
-    }
-
-    pub fn yoloe_11m_seg_tp_500() -> Self {
-        Self::yoloe_seg_tp()
-            .with_version(11.into())
-            .with_scale(Scale::M)
-            .with_nc(500)
-            .with_model_file("yoloe-11m-seg-tp-500.onnx")
-    }
-
-    pub fn yoloe_11l_seg_tp_500() -> Self {
-        Self::yoloe_seg_tp()
-            .with_version(11.into())
-            .with_scale(Scale::L)
-            .with_nc(500)
-            .with_model_file("yoloe-11l-seg-tp-500.onnx")
-    }
-
-    pub fn yoloe_11s_seg_tp_2000() -> Self {
-        Self::yoloe_seg_tp()
-            .with_version(11.into())
-            .with_scale(Scale::S)
-            .with_nc(2000)
-            .with_model_file("yoloe-11s-seg-tp-2000.onnx")
-    }
-
-    pub fn yoloe_11m_seg_tp_2000() -> Self {
-        Self::yoloe_seg_tp()
-            .with_version(11.into())
-            .with_scale(Scale::M)
-            .with_nc(2000)
-            .with_model_file("yoloe-11m-seg-tp-2000.onnx")
-    }
-
-    pub fn yoloe_11l_seg_tp_2000() -> Self {
-        Self::yoloe_seg_tp()
-            .with_version(11.into())
-            .with_scale(Scale::L)
-            .with_nc(2000)
-            .with_model_file("yoloe-11l-seg-tp-2000.onnx")
+            .with_model_file("yoloe-11l-seg-tp.onnx")
     }
 }
