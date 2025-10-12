@@ -198,6 +198,33 @@ impl Config {
         self
     }
 
+    pub fn with_batch_size_all_min_opt_max(mut self, min: usize, opt: usize, max: usize) -> Self {
+        self.visual = self.visual.with_ixx(0, 0, (min, opt, max).into());
+        self.textual = self.textual.with_ixx(0, 0, (min, opt, max).into());
+        self.model = self.model.with_ixx(0, 0, (min, opt, max).into());
+        self.encoder = self.encoder.with_ixx(0, 0, (min, opt, max).into());
+        self.decoder = self.decoder.with_ixx(0, 0, (min, opt, max).into());
+        self.visual_encoder = self.visual_encoder.with_ixx(0, 0, (min, opt, max).into());
+        self.textual_encoder = self.textual_encoder.with_ixx(0, 0, (min, opt, max).into());
+        self.visual_decoder = self.visual_decoder.with_ixx(0, 0, (min, opt, max).into());
+        self.textual_decoder = self.textual_decoder.with_ixx(0, 0, (min, opt, max).into());
+        self.textual_decoder_merged =
+            self.textual_decoder_merged
+                .with_ixx(0, 0, (min, opt, max).into());
+        self.size_encoder = self.size_encoder.with_ixx(0, 0, (min, opt, max).into());
+        self.size_decoder = self.size_decoder.with_ixx(0, 0, (min, opt, max).into());
+        self.coord_encoder = self.coord_encoder.with_ixx(0, 0, (min, opt, max).into());
+        self.coord_decoder = self.coord_decoder.with_ixx(0, 0, (min, opt, max).into());
+        self.visual_projection = self
+            .visual_projection
+            .with_ixx(0, 0, (min, opt, max).into());
+        self.textual_projection = self
+            .textual_projection
+            .with_ixx(0, 0, (min, opt, max).into());
+
+        self
+    }
+
     pub fn with_batch_size_all(mut self, batch_size: usize) -> Self {
         self.visual = self.visual.with_ixx(0, 0, batch_size.into());
         self.textual = self.textual.with_ixx(0, 0, batch_size.into());

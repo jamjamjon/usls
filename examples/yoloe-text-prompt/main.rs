@@ -21,14 +21,18 @@ struct Args {
         option,
         default = "vec![
             String::from(\"person\"),
-            String::from(\"bus\"),
             String::from(\"dog\"),
+            String::from(\"bus\"),
             String::from(\"cat\"),
             String::from(\"sign\"),
             String::from(\"tree\"),
         ]"
     )]
     labels: Vec<String>,
+
+    /// batch size
+    #[argh(option, default = "1")]
+    batch_size: usize,
 }
 
 fn main() -> Result<()> {
@@ -39,10 +43,11 @@ fn main() -> Result<()> {
     let args: Args = argh::from_env();
 
     // config
-    let config = Config::yoloe_v8l_seg_tp_80()
+    let config = Config::yoloe_v8m_seg_tp()
+        .with_batch_size_all_min_opt_max(1, args.batch_size, 8)
         .with_model_dtype(args.dtype.as_str().parse()?)
-        .with_model_device(args.device.as_str().parse()?)
-        .with_batch_size_all(1)
+        .with_textual_dtype("fp16".parse()?) // Use FP32 when TensorRT is enabled
+        .with_device_all(args.device.as_str().parse()?)
         .commit()?;
     let mut model = YOLO::new(config)?;
 
