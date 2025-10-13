@@ -150,7 +150,7 @@ impl Viewer<'_> {
             )?;
             self.position = self
                 .position
-                .aligned_with(Time::from_secs(1.0/self.fps))
+                .aligned_with(Time::from_secs(1.0 / self.fps))
                 .add();
         }
 
