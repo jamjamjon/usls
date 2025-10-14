@@ -17,7 +17,7 @@ pub struct Viewer<'a> {
     image_height: usize,
     image_width: usize,
     #[cfg(feature = "video")]
-    fps: usize,
+    fps: f32,
     #[cfg(feature = "video")]
     video_encoder: Option<Encoder>,
     #[cfg(feature = "video")]
@@ -36,7 +36,7 @@ impl Default for Viewer<'_> {
             image_height: 0,
             image_width: 0,
             #[cfg(feature = "video")]
-            fps: 25,
+            fps: 25.0,
             #[cfg(feature = "video")]
             video_encoder: None,
             #[cfg(feature = "video")]
@@ -150,7 +150,7 @@ impl Viewer<'_> {
             )?;
             self.position = self
                 .position
-                .aligned_with(Time::from_nth_of_a_second(self.fps))
+                .aligned_with(Time::from_secs(1.0 / self.fps))
                 .add();
         }
 
@@ -243,7 +243,7 @@ impl Viewer<'_> {
     }
 
     #[cfg(feature = "video")]
-    pub fn with_fps(mut self, x: usize) -> Self {
+    pub fn with_fps(mut self, x: f32) -> Self {
         self.fps = x;
         self
     }
