@@ -19,13 +19,13 @@ pub struct Annotator {
 impl Default for Annotator {
     fn default() -> Self {
         Self {
-            text_renderer: TextRenderer::default(),
             prob_style: Some(Style::prob()),
             hbb_style: Some(Style::hbb()),
             obb_style: Some(Style::obb()),
             keypoint_style: Some(Style::keypoint()),
             polygon_style: Some(Style::polygon()),
             mask_style: Some(Style::mask()),
+            text_renderer: TextRenderer::default(),
         }
     }
 }
@@ -53,6 +53,7 @@ impl Annotator {
 
     pub fn with_font(mut self, path: &str) -> Result<Self> {
         self.text_renderer = self.text_renderer.with_font(path)?;
+        println!("font: {:?}", path);
         Ok(self)
     }
 

@@ -93,7 +93,7 @@ usls = "latest-version"
 | [SAM-HQ](https://github.com/SysCV/sam-hq) | Segment Anything | [demo](examples/sam) |
 | [FastSAM](https://github.com/CASIA-IVA-Lab/FastSAM) | Instance Segmentation | [demo](examples/yolo) |
 | [YOLO-World](https://github.com/AILab-CVC/YOLO-World) | Open-Set Detection With Language | [demo](examples/yolo) |
-| [YOLOE](https://github.com/THU-MIG/yoloe) | Open-Set Detection And Segmentation | [demo-prompt-free](examples/yoloe)<br />[demo-text-prompt](examples/yoloe-text-prompt) |
+| [YOLOE](https://github.com/THU-MIG/yoloe) | Open-Set Detection And Segmentation | [demo-prompt-free](examples/yoloe-prompt-free)<br />[demo-text-prompt(visual & textual)](examples/yoloe-prompt) |
 | [GroundingDINO](https://github.com/IDEA-Research/GroundingDINO) | Open-Set Detection With Language | [demo](examples/grounding-dino) |
 | [CLIP](https://github.com/openai/CLIP) | Vision-Language Embedding | [demo](examples/clip) |
 | [jina-clip-v1](https://huggingface.co/jinaai/jina-clip-v1) | Vision-Language Embedding | [demo](examples/clip) |

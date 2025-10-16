@@ -42,6 +42,7 @@ mod svtr;
 mod swin2sr;
 mod trocr;
 mod yolo;
+mod yoloe;
 mod yolop;
 
 pub use blip::*;

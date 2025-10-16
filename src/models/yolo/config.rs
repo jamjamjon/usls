@@ -1,7 +1,6 @@
 use crate::{
     models::YOLOPredsFormat, Config, ResizeMode, Scale, Task, NAMES_COCO_80,
-    NAMES_COCO_KEYPOINTS_17, NAMES_DOTA_V1_15, NAMES_IMAGENET_1K, NAMES_YOLOE_4585,
-    NAMES_YOLO_DOCLAYOUT_10,
+    NAMES_COCO_KEYPOINTS_17, NAMES_DOTA_V1_15, NAMES_IMAGENET_1K, NAMES_YOLO_DOCLAYOUT_10,
 };
 
 impl Config {
@@ -90,64 +89,6 @@ impl Config {
             .with_model_file("doclayout-docstructbench.onnx") // TODO: batch_size > 1
     }
 
-    /// Creates a base YOLOE configuration with 4585 classes.
-    ///
-    /// Configures the model for instance segmentation with a large class vocabulary.
-    pub fn yoloe() -> Self {
-        Self::yolo()
-            .with_task(Task::InstanceSegmentation)
-            .with_class_names(&NAMES_YOLOE_4585)
-    }
-    /// Creates a configuration for YOLOE-v8s segmentation model.
-    /// Uses the small variant of YOLOv8 architecture.
-    pub fn yoloe_v8s_seg_pf() -> Self {
-        Self::yoloe()
-            .with_version(8.into())
-            .with_scale(Scale::S)
-            .with_model_file("yoloe-v8s-seg-pf.onnx")
-    }
-
-    /// Creates a configuration for YOLOE-v8m segmentation model.
-    /// Uses the medium variant of YOLOv8 architecture.
-    pub fn yoloe_v8m_seg_pf() -> Self {
-        Self::yoloe()
-            .with_version(8.into())
-            .with_scale(Scale::M)
-            .with_model_file("yoloe-v8m-seg-pf.onnx")
-    }
-
-    /// Creates a configuration for YOLOE-v8l segmentation model.
-    /// Uses the large variant of YOLOv8 architecture.
-    pub fn yoloe_v8l_seg_pf() -> Self {
-        Self::yoloe()
-            .with_version(8.into())
-            .with_scale(Scale::L)
-            .with_model_file("yoloe-v8l-seg-pf.onnx")
-    }
-
-    /// Creates a configuration for YOLOE-11s segmentation model.
-    /// Uses the small variant of YOLOv11 architecture.
-    pub fn yoloe_11s_seg_pf() -> Self {
-        Self::yoloe()
-            .with_version(11.into())
-            .with_scale(Scale::S)
-            .with_model_file("yoloe-11s-seg-pf.onnx")
-    }
-
-    pub fn yoloe_11m_seg_pf() -> Self {
-        Self::yoloe()
-            .with_version(11.into())
-            .with_scale(Scale::M)
-            .with_model_file("yoloe-11m-seg-pf.onnx")
-    }
-
-    pub fn yoloe_11l_seg_pf() -> Self {
-        Self::yoloe()
-            .with_version(11.into())
-            .with_scale(Scale::L)
-            .with_model_file("yoloe-11l-seg-pf.onnx")
-    }
-
     pub fn fastsam_s() -> Self {
         Self::yolo_segment()
             .with_class_names(&["object"])
@@ -176,61 +117,5 @@ impl Config {
             .with_yolo_preds_format(YOLOPredsFormat::n_a_cxcywh_clss_n())
             .with_scale(Scale::X)
             .with_model_file("rtdetr-x.onnx")
-    }
-
-    fn yoloe_seg_tp() -> Self {
-        Self::yolo()
-            .with_batch_size_all(1)
-            .with_nc(80)
-            .with_model_ixx(1, 1, (1, 80, 300).into()) // max_text_classes
-            .with_task(Task::InstanceSegmentation)
-            .with_textual_file("mobileclip/blt-textual.onnx")
-            .with_model_max_length(77)
-            .with_textual_ixx(0, 1, 77.into())
-            .with_tokenizer_file("clip/tokenizer.json")
-            .with_tokenizer_config_file("clip/tokenizer_config.json")
-            .with_special_tokens_map_file("clip/special_tokens_map.json")
-    }
-
-    pub fn yoloe_v8s_seg_tp() -> Self {
-        Self::yoloe_seg_tp()
-            .with_version(8.into())
-            .with_scale(Scale::S)
-            .with_model_file("yoloe-v8s-seg-tp.onnx")
-    }
-
-    pub fn yoloe_v8m_seg_tp() -> Self {
-        Self::yoloe_seg_tp()
-            .with_version(8.into())
-            .with_scale(Scale::M)
-            .with_model_file("yoloe-v8m-seg-tp.onnx")
-    }
-
-    pub fn yoloe_v8l_seg_tp() -> Self {
-        Self::yoloe_seg_tp()
-            .with_version(8.into())
-            .with_scale(Scale::L)
-            .with_model_file("yoloe-v8l-seg-tp.onnx")
-    }
-
-    pub fn yoloe_11s_seg_tp() -> Self {
-        Self::yoloe_seg_tp()
-            .with_version(11.into())
-            .with_scale(Scale::S)
-            .with_model_file("yoloe-11s-seg-tp.onnx")
-    }
-
-    pub fn yoloe_11m_seg_tp() -> Self {
-        Self::yoloe_seg_tp()
-            .with_version(11.into())
-            .with_scale(Scale::M)
-            .with_model_file("yoloe-11m-seg-tp.onnx")
-    }
-
-    pub fn yoloe_11l_seg_tp() -> Self {
-        Self::yoloe_seg_tp()
-            .with_version(11.into())
-            .with_scale(Scale::L)
-            .with_model_file("yoloe-11l-seg-tp.onnx")
     }
 }

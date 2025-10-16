@@ -41,7 +41,8 @@ pub struct YOLO {
     spec: String,
     classes_excluded: Vec<usize>,
     classes_retained: Vec<usize>,
-    textual: Option<OrtEngine>,
+    textual_encoder: Option<OrtEngine>,
+    visual_encoder: Option<OrtEngine>,
 }
 
 impl TryFrom<Config> for YOLO {
@@ -60,7 +61,6 @@ impl YOLO {
     /// - Setting up input dimensions and processing parameters
     /// - Configuring task-specific settings and output formats
     pub fn new(config: Config) -> Result<Self> {
-        let textual = OrtEngine::try_from_config(&config.textual).ok();
         let engine = OrtEngine::try_from_config(&config.model)?;
         let (batch, height, width, spec) = (
             engine.batch().opt(),
@@ -68,6 +68,32 @@ impl YOLO {
             engine.try_width().unwrap_or(&640.into()).opt(),
             engine.spec().to_owned(),
         );
+
+        let textual_encoder = OrtEngine::try_from_config(&config.textual_encoder).ok();
+        let visual_encoder = OrtEngine::try_from_config(&config.visual_encoder).ok();
+
+        // YOLOE: visual and textual encoders are mutually exclusive
+        if textual_encoder.is_some() && visual_encoder.is_some() {
+            anyhow::bail!("YOLOE supports either visual or textual encoder, not both");
+        }
+
+        // Validate visual encoder dimensions match model input size
+        if let Some(visual_encoder) = &visual_encoder {
+            if visual_encoder.try_height().unwrap_or(&640.into()).opt() != height {
+                anyhow::bail!(
+                    "Visual encoder height mismatch: {} vs model {}",
+                    visual_encoder.try_height().unwrap_or(&640.into()).opt(),
+                    height
+                );
+            }
+            if visual_encoder.try_width().unwrap_or(&640.into()).opt() != width {
+                anyhow::bail!(
+                    "Visual encoder width mismatch: {} vs model {}",
+                    visual_encoder.try_width().unwrap_or(&640.into()).opt(),
+                    width
+                );
+            }
+        }
 
         let task: Option<Task> = match &config.task {
             Some(task) => Some(task.clone()),
@@ -302,7 +328,8 @@ impl YOLO {
             classes_retained,
             processor,
             topk,
-            textual,
+            textual_encoder,
+            visual_encoder,
         })
     }
 
@@ -316,7 +343,7 @@ impl YOLO {
             );
         }
         self.names = class_names.iter().map(|x| x.to_string()).collect();
-        let x = elapsed_module!("YOLO", "textual-preprocess", {
+        let x = elapsed_module!("YOLO", "textual-encoder-preprocess", {
             let encodings: Vec<f32> = self
                 .processor
                 .encode_texts_ids(
@@ -332,13 +359,13 @@ impl YOLO {
 
         let xs = elapsed_module!(
             "YOLO",
-            "textual-inference",
-            self.textual
+            "textual-encoder-inference",
+            self.textual_encoder
                 .as_mut()
-                .expect("No textual model loaded.")
+                .expect("YOLOE textual encoder not loaded")
                 .run(vec![x])?
         );
-        elapsed_module!("YOLO", "textual-postprocess", {
+        elapsed_module!("YOLO", "textual-encoder-postprocess", {
             let x = &xs[0];
             let (n, dim) = (x.dims()[0], x.dims()[1]);
             let n_pad = self.nc.saturating_sub(n);
@@ -353,28 +380,125 @@ impl YOLO {
         })
     }
 
-    /// Performs model inference on the pre-processed input with text embeddings.
-    pub fn forward_with_te(&mut self, images: &[Image], te: &Tensor) -> Result<Vec<Y>> {
+    pub fn encode_visual_prompt(
+        &mut self,
+        prompt_image: Image,
+        hbbs: &[Hbb],
+        // _masks: &[Mask],  // TODO
+    ) -> Result<Tensor> {
+        let (image_embedding, mask) = elapsed_module!("YOLO", "visual-encoder-preprocess", {
+            let image_embedding = self.processor.process_images_f32(&[prompt_image])?;
+            let ratio = self.processor.images_transform_info[0].height_scale;
+
+            // process hbbs coordinates, scale from original image to processed image, downsample to 1/8
+            let downsample_scale = 8.0;
+            let scale_factor = ratio / downsample_scale;
+            let (prompt_height, prompt_width) = (
+                self.height as f32 / downsample_scale,
+                self.width as f32 / downsample_scale,
+            );
+
+            let mask_h = prompt_height as usize;
+            let mask_w = prompt_width as usize;
+            let mask_w_f32 = mask_w as f32;
+            let mask_h_f32 = mask_h as f32;
+            let min_size = 1.0;
+
+            #[allow(clippy::type_complexity)]
+            let mut class_groups: Vec<(&str, Vec<(usize, usize, usize, usize)>)> =
+                Vec::with_capacity(hbbs.len());
+            self.names.clear();
+            self.names.reserve(hbbs.len());
+
+            for hbb in hbbs {
+                let class_name = hbb.name().unwrap_or("untitled");
+                let (x, y, w, h) = hbb.xywh();
+                let x1_f = (x * scale_factor).max(0.0).min(mask_w_f32 - 1.0);
+                let y1_f = (y * scale_factor).max(0.0).min(mask_h_f32 - 1.0);
+                let x2_f = ((x + w) * scale_factor).max(0.0).min(mask_w_f32);
+                let y2_f = ((y + h) * scale_factor).max(0.0).min(mask_h_f32);
+                let x2_f = x2_f.max(x1_f + min_size);
+                let y2_f = y2_f.max(y1_f + min_size);
+
+                let coords = (x1_f as usize, y1_f as usize, x2_f as usize, y2_f as usize);
+
+                if let Some((_, boxes)) = class_groups
+                    .iter_mut()
+                    .find(|(name, _)| *name == class_name)
+                {
+                    boxes.push(coords);
+                } else {
+                    self.names.push(class_name.to_string());
+                    class_groups.push((class_name, vec![coords]));
+                }
+            }
+
+            self.nc = class_groups.len();
+            let mask_size = mask_h * mask_w;
+
+            let mut mask_data = vec![0.0f32; self.nc * mask_size];
+            mask_data
+                .par_chunks_mut(mask_size)
+                .zip(class_groups.par_iter())
+                .for_each(|(mask_slice, (_class_name, boxes))| {
+                    for &(x1, y1, x2, y2) in boxes {
+                        for row in y1..y2 {
+                            let row_start = row * mask_w + x1;
+                            let row_end = row * mask_w + x2;
+                            mask_slice[row_start..row_end].fill(1.0);
+                        }
+                    }
+                });
+
+            (
+                image_embedding,
+                Tensor::from_vec(mask_data, (1, self.nc, mask_h, mask_w))?,
+            )
+        });
+
+        Ok(elapsed_module!("YOLO", "visual-encoder-inference", {
+            self.visual_encoder
+                .as_mut()
+                .expect("YOLOE visual encoder not loaded")
+                .run(vec![image_embedding, mask])?[0]
+                .clone()
+        }))
+    }
+
+    pub fn forward_with_embedding(
+        &mut self,
+        images: &[Image],
+        embedding: &Tensor,
+    ) -> Result<Vec<Y>> {
+        // preprocess
         let xs_images = elapsed_module!(
             "YOLO",
-            "visual-preprocess",
+            "preprocess",
             self.processor.process_images_f32(images)?
         );
 
-        let te = elapsed_module!("YOLO", "textual-postprocess", {
-            let dim = te.dims()[1];
-            te.unsqueeze(0)?
-                .broadcast_to((images.len(), self.nc, dim))?
-                .to_owned()?
-        });
-
+        // inference with text-prompt embedd or visual-prompt embedd
         let ys = elapsed_module!("YOLO", "inference", {
-            match self.textual {
-                Some(_) => self.inference(vec![xs_images, te])?,
-                None => anyhow::bail!("No textual model loaded."),
+            match (&self.visual_encoder, &self.textual_encoder) {
+                (Some(_), None) => self.inference(vec![xs_images, embedding.clone()])?,
+                (None, Some(_)) => {
+                    let embedding = elapsed_module!("YOLO", "textual-encoder-postprocess", {
+                        let dim = embedding.dims()[1];
+                        embedding
+                            .unsqueeze(0)?
+                            .broadcast_to((images.len(), self.nc, dim))?
+                            .to_owned()?
+                    });
+                    self.inference(vec![xs_images, embedding])?
+                }
+                (Some(_), Some(_)) => {
+                    anyhow::bail!("YOLOE supports either visual or textual encoder, not both")
+                }
+                (None, None) => anyhow::bail!("YOLOE requires either visual or textual encoder"),
             }
         });
 
+        // postprocess
         elapsed_module!("YOLO", "postprocess", self.postprocess(&ys))
     }
 

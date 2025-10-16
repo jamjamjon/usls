@@ -76,7 +76,7 @@ impl ProbTextRenderer {
             style.decimal_places(),
         );
 
-        let (tw, th) = ctx.text_renderer.text_size(&label);
+        let (tw, th) = ctx.text_renderer.text_size(&label)?;
         let (tw, th) = (tw as f32, th as f32);
         let rx = style.text_x_pos();
         let ry = style.text_y_pos();
