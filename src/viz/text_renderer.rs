@@ -2,6 +2,7 @@ use ab_glyph::{FontArc, PxScale};
 use aksr::Builder;
 use anyhow::Result;
 use image::{Rgba, RgbaImage};
+use std::sync::OnceLock;
 
 use crate::{Color, Hub};
 
@@ -9,21 +10,18 @@ use crate::{Color, Hub};
 #[derive(Builder, Clone, Debug)]
 pub struct TextRenderer {
     #[args(except(setter))]
-    font: FontArc,
+    font: Option<FontArc>,
     font_size: f32,
     _scale: f32,
 }
 
+// Global font cache using OnceLock for lazy initialization
+static DEFAULT_FONT: OnceLock<FontArc> = OnceLock::new();
+
 impl Default for TextRenderer {
     fn default() -> Self {
         Self {
-            font: Self::load_font(None).unwrap_or_else(|err| {
-                log::info!("Failed to load online font: {err}, try using system font.");
-                Self::create_fallback_font().unwrap_or_else(|err| {
-                    log::error!("Failed to create fallback font: {}", err);
-                    panic!("{}", err);
-                })
-            }),
+            font: None,
             font_size: 24.0,
             _scale: 6.666667,
         }
@@ -31,6 +29,30 @@ impl Default for TextRenderer {
 }
 
 impl TextRenderer {
+    /// Get the font, loading it lazily if needed
+    fn get_font(&self) -> Result<&FontArc> {
+        // First try to get user-specified font
+        if let Some(ref font) = self.font {
+            return Ok(font);
+        }
+
+        // If no user font, try to get from global cache
+        if let Some(font) = DEFAULT_FONT.get() {
+            return Ok(font);
+        }
+
+        // Load default font and cache it globally
+        let font = Self::load_font(None).or_else(|err| {
+            log::info!("Failed to load online font: {err}, try using system font.");
+            Self::create_fallback_font()
+        })?;
+
+        DEFAULT_FONT
+            .set(font)
+            .map_err(|_| anyhow::anyhow!("Failed to cache font"))?;
+        Ok(DEFAULT_FONT.get().unwrap())
+    }
+
     /// Create a fallback font when default font loading fails
     fn create_fallback_font() -> Result<FontArc> {
         // Try to load a preferred system font first
@@ -133,17 +155,17 @@ impl TextRenderer {
     }
 
     pub fn with_font(mut self, path: &str) -> Result<Self> {
-        self.font = Self::load_font(Some(path))?;
-
+        self.font = Some(Self::load_font(Some(path))?);
         Ok(self)
     }
 
-    pub fn text_size(&self, text: &str) -> (u32, u32) {
+    pub fn text_size(&self, text: &str) -> Result<(u32, u32)> {
+        let font = self.get_font()?;
         let scale = PxScale::from(self.font_size);
-        let (text_w, text_h) = imageproc::drawing::text_size(scale, &self.font, text);
+        let (text_w, text_h) = imageproc::drawing::text_size(scale, font, text);
         let text_h = text_h + text_h / 3;
 
-        (text_w, text_h)
+        Ok((text_w, text_h))
     }
 
     pub fn render(
@@ -159,8 +181,9 @@ impl TextRenderer {
             return Ok(());
         }
 
+        let font = self.get_font()?;
         let scale = PxScale::from(self.font_size);
-        let (text_w, text_h) = imageproc::drawing::text_size(scale, &self.font, text);
+        let (text_w, text_h) = imageproc::drawing::text_size(scale, font, text);
         let text_h = text_h + text_h / 3;
         let (left, top) = self.calculate_position(x, y, text_w, text_h, img.width());
 
@@ -176,7 +199,7 @@ impl TextRenderer {
             left,
             top + self.calculate_text_offset(),
             scale,
-            &self.font,
+            font,
             text,
         );
 
