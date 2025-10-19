@@ -12,12 +12,21 @@ pub struct Polygon {
 
 impl std::fmt::Debug for Polygon {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Polygon")
-            .field("n_points", &self.count())
-            .field("id", &self.meta.id())
-            .field("name", &self.meta.name())
-            .field("confidence", &self.meta.confidence())
-            .finish()
+        let mut f = f.debug_struct("Polygon");
+        f.field("n_points", &self.count());
+        if let Some(id) = &self.meta.id() {
+            f.field("id", id);
+        }
+        if let Some(name) = &self.meta.name() {
+            f.field("name", name);
+        }
+        if let Some(confidence) = &self.meta.confidence() {
+            f.field("confidence", confidence);
+        }
+        if let Some(track_id) = &self.meta.track_id() {
+            f.field("track_id", track_id);
+        }
+        f.finish()
     }
 }
 

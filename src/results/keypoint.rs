@@ -20,12 +20,21 @@ pub struct Keypoint {
 
 impl std::fmt::Debug for Keypoint {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Keypoint")
-            .field("xy", &[self.x, self.y])
-            .field("id", &self.meta.id())
-            .field("name", &self.meta.name())
-            .field("confidence", &self.meta.confidence())
-            .finish()
+        let mut f = f.debug_struct("Keypoint");
+        f.field("xy", &[self.x, self.y]);
+        if let Some(id) = &self.meta.id() {
+            f.field("id", id);
+        }
+        if let Some(name) = &self.meta.name() {
+            f.field("name", name);
+        }
+        if let Some(confidence) = &self.meta.confidence() {
+            f.field("confidence", confidence);
+        }
+        if let Some(track_id) = &self.meta.track_id() {
+            f.field("track_id", track_id);
+        }
+        f.finish()
     }
 }
 

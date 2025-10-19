@@ -30,7 +30,7 @@ fn main() -> anyhow::Result<()> {
         viewer.imshow(&images[0])?;
 
         // check out key event
-        if let Some(key) = viewer.wait_key(1) {
+        if let Some(key) = viewer.wait_key(1000) {
             if key == usls::Key::Escape {
                 break;
             }

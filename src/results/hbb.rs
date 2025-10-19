@@ -16,12 +16,24 @@ pub struct Hbb {
 
 impl std::fmt::Debug for Hbb {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Hbb")
-            .field("xyxy", &[self.x, self.y, self.xmax(), self.ymax()])
-            .field("id", &self.meta.id())
-            .field("name", &self.meta.name())
-            .field("confidence", &self.meta.confidence())
-            .finish()
+        let mut f = f.debug_struct("Hbb");
+        f.field("xyxy", &[self.x, self.y, self.xmax(), self.ymax()]);
+        if let Some(id) = &self.meta.id() {
+            f.field("id", id);
+        }
+        if let Some(name) = &self.meta.name() {
+            f.field("name", name);
+        }
+        if let Some(confidence) = &self.meta.confidence() {
+            f.field("confidence", confidence);
+        }
+        if let Some(track_id) = &self.meta.track_id() {
+            f.field("track_id", track_id);
+        }
+        if let Some(keypoints) = &self.keypoints {
+            f.field("keypoints", keypoints);
+        }
+        f.finish()
     }
 }
 
@@ -184,6 +196,11 @@ impl Hbb {
 
     pub fn cxywh(&self) -> (f32, f32, f32, f32) {
         (self.cx(), self.cy(), self.w, self.h)
+    }
+
+    /// Returns: (center_x, center_y, aspect_ratio, height)
+    pub fn cxcyah(&self) -> (f32, f32, f32, f32) {
+        (self.cx(), self.cy(), self.w / self.h, self.h)
     }
 
     pub fn area(&self) -> f32 {

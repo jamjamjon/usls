@@ -5,6 +5,7 @@ pub struct InstanceMeta {
     id: Option<usize>,
     confidence: Option<f32>,
     name: Option<String>,
+    track_id: Option<usize>,
 }
 
 impl Default for InstanceMeta {
@@ -18,6 +19,7 @@ impl Default for InstanceMeta {
             id: None,
             confidence: None,
             name: None,
+            track_id: None,
         }
     }
 }
@@ -29,6 +31,7 @@ impl std::fmt::Debug for InstanceMeta {
             .field("id", &self.id)
             .field("name", &self.name)
             .field("confidence", &self.confidence)
+            .field("track_id", &self.track_id)
             .finish()
     }
 }
@@ -43,6 +46,13 @@ impl InstanceMeta {
     ) -> String {
         // Format: #id name confidence. e.g.: #0 Person 0.932
         let mut label = String::new();
+
+        // track_id
+        if let Some(track_id) = self.track_id {
+            label.push('[');
+            label.push_str(track_id.to_string().as_str());
+            label.push_str("] ");
+        }
 
         //  id
         if let Some(id) = self.id {
@@ -81,6 +91,13 @@ impl InstanceMeta {
 
 macro_rules! impl_meta_methods {
     () => {
+        pub fn with_track_id(mut self, track_id: usize) -> Self {
+            self.meta = self.meta.with_track_id(track_id);
+            self
+        }
+        pub fn track_id(&self) -> Option<usize> {
+            self.meta.track_id()
+        }
         pub fn with_uid(mut self, uid: usize) -> Self {
             self.meta = self.meta.with_uid(uid);
             self
