@@ -23,6 +23,9 @@ impl std::fmt::Debug for Text {
         if let Some(confidence) = &self.meta.confidence() {
             f.field("confidence", confidence);
         }
+        if let Some(track_id) = &self.meta.track_id() {
+            f.field("track_id", track_id);
+        }
         f.finish()
     }
 }

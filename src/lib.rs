@@ -54,6 +54,7 @@ pub mod core;
 pub mod models;
 #[macro_use]
 mod results;
+pub mod mot;
 pub mod viz;
 
 pub use core::*;
@@ -61,5 +62,6 @@ pub use core::*;
 pub use minifb::Key;
 #[cfg(any(feature = "ort-download-binaries", feature = "ort-load-dynamic"))]
 pub use models::*;
+pub use mot::*;
 pub use results::*;
 pub use viz::*;
