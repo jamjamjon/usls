@@ -80,11 +80,11 @@ pub struct Engine {
     pub spec: String,
     /// Execution device.
     pub device: Device,
-    #[args(inc)]
+    #[args(extend)]
     pub iiixs: Vec<Iiix>,
-    #[args(aka = "parameters")]
+    #[args(alias = "parameters")]
     pub params: Option<usize>,
-    #[args(aka = "memory")]
+    #[args(alias = "memory")]
     pub wbmems: Option<usize>,
     /// Input min-opt-max configurations.
     pub inputs_minoptmax: Vec<Vec<MinOptMax>>,

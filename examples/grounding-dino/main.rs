@@ -48,7 +48,7 @@ fn main() -> Result<()> {
     let config = Config::grounding_dino_tiny()
         .with_model_dtype(args.dtype.parse()?)
         .with_model_device(args.device.parse()?)
-        .with_text_names(&args.labels.iter().map(|x| x.as_str()).collect::<Vec<_>>())
+        .with_text_names_owned(&args.labels)
         .with_class_confs(&[0.25])
         .with_text_confs(&[0.25])
         .commit()?;
