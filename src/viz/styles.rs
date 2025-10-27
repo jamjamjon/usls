@@ -27,11 +27,11 @@ pub struct Style {
     skeleton: Option<Skeleton>,           // For Keypoints
     colormap256: Option<ColorMap256>,     // For Masks
     decimal_places: usize,
-    #[args(set_pre = "show")]
+    #[args(setter_prefix = "show")]
     confidence: bool,
-    #[args(set_pre = "show")]
+    #[args(setter_prefix = "show")]
     name: bool,
-    #[args(set_pre = "show")]
+    #[args(setter_prefix = "show")]
     id: bool,
 }
 

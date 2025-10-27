@@ -51,7 +51,7 @@ fn main() -> Result<()> {
         // owlv2_base()
         .with_model_dtype(args.dtype.parse()?)
         .with_model_device(args.device.parse()?)
-        .with_text_names(&args.labels.iter().map(|x| x.as_str()).collect::<Vec<_>>())
+        .with_text_names_owned(&args.labels)
         .commit()?;
     let mut model = OWLv2::new(config)?;
 
