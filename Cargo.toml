@@ -14,7 +14,7 @@ exclude = ["assets/*", "examples/*", "runs/*", "benches/*", "tests/*"]
 [dependencies]
 paste = "1.0.15"
 anyhow = { version = "1" }
-aksr = { version = "0.0.4" }
+aksr = { version = "0.0.6" }
 ab_glyph = { version = "0.2.29" }
 image = { version = "0.25" }
 imageproc = { version = "0.25" }
