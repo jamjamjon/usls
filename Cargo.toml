@@ -8,16 +8,6 @@ repository = "https://github.com/jamjamjon/usls"
 authors = ["Jamjamjon <xxyydzml@outlook.com>"]
 license = "MIT"
 readme = "README.md"
-keywords = [
-    "onnx",
-    "onnxruntime",
-    "yolo",
-    "inference",
-    "machine-learning",
-]
-categories = [
-    "science::machine-learning",
-]
 exclude = ["assets/*", "examples/*", "runs/*", "benches/*", "tests/*"]
 
 
