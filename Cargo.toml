@@ -12,14 +12,8 @@ keywords = [
     "onnx",
     "onnxruntime",
     "yolo",
-    "ai",
     "inference",
-    "computer-vision",
-    "vision-language",
-    "deep-learning",
     "machine-learning",
-    "neural-network",
-    "image-processing",
 ]
 categories = [
     "science::machine-learning",
