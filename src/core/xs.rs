@@ -1,6 +1,5 @@
 use aksr::Builder;
 use anyhow::Result;
-use image::DynamicImage;
 use std::collections::HashMap;
 use std::ops::{Deref, Index};
 
@@ -11,9 +10,6 @@ use crate::{generate_random_string, X};
 pub struct Xs {
     map: HashMap<String, X>,
     names: Vec<String>,
-    // TODO: move to Processor
-    pub images: Vec<Vec<DynamicImage>>,
-    pub texts: Vec<Vec<DynamicImage>>,
 }
 
 impl From<X> for Xs {
@@ -45,7 +41,6 @@ impl Xs {
         Self {
             map: Default::default(),
             names: Default::default(),
-            ..self.clone()
         }
     }
 

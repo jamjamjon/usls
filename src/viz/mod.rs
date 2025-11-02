@@ -6,6 +6,7 @@ mod draw_ctx;
 mod drawable;
 mod styles;
 mod text_renderer;
+#[cfg(feature = "viewer")]
 mod viewer;
 
 pub use annotator::*;

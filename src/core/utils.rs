@@ -1,18 +1,18 @@
 /// The name of the current crate.
-pub const CRATE_NAME: &str = env!("CARGO_PKG_NAME");
+pub(crate) const CRATE_NAME: &str = env!("CARGO_PKG_NAME");
 /// Standard prefix length for progress bar formatting.
-pub const PREFIX_LENGTH: usize = 12;
+pub(crate) const PREFIX_LENGTH: usize = 12;
 /// Progress bar style for completion with iteration count.
-pub const PROGRESS_BAR_STYLE_FINISH: &str =
+pub(crate) const PROGRESS_BAR_STYLE_FINISH: &str =
     "{prefix:>12.green.bold} {msg} for {human_len} iterations in {elapsed}";
 /// Progress bar style for completion with multiplier format.
-pub const PROGRESS_BAR_STYLE_FINISH_2: &str =
+pub(crate) const PROGRESS_BAR_STYLE_FINISH_2: &str =
     "{prefix:>12.green.bold} {msg} x{human_len} in {elapsed}";
 /// Progress bar style for completion with byte size information.
-pub const PROGRESS_BAR_STYLE_FINISH_3: &str =
+pub(crate) const PROGRESS_BAR_STYLE_FINISH_3: &str =
     "{prefix:>12.green.bold} {msg} ({binary_total_bytes}) in {elapsed}";
 /// Progress bar style for ongoing operations with position indicator.
-pub const PROGRESS_BAR_STYLE_CYAN_2: &str =
+pub(crate) const PROGRESS_BAR_STYLE_CYAN_2: &str =
     "{prefix:>12.cyan.bold} {human_pos}/{human_len} |{bar}| {msg}";
 
 pub(crate) fn build_resizer_filter(
@@ -78,7 +78,8 @@ pub(crate) fn build_progress_bar(
 /// let formatted = human_bytes_decimal(size, 2);
 /// assert_eq!(formatted, "1.50 MB");
 /// ```
-pub fn human_bytes_decimal(size: f64, decimal_places: usize) -> String {
+#[allow(dead_code)]
+pub(crate) fn human_bytes_decimal(size: f64, decimal_places: usize) -> String {
     const DECIMAL_UNITS: [&str; 7] = ["B", "KB", "MB", "GB", "TB", "PB", "EB"];
     format_bytes_internal(size, 1000.0, &DECIMAL_UNITS, decimal_places)
 }
@@ -98,7 +99,7 @@ pub fn human_bytes_decimal(size: f64, decimal_places: usize) -> String {
 /// let formatted = human_bytes_binary(size, 2);
 /// assert_eq!(formatted, "1.00 MiB");
 /// ```
-pub fn human_bytes_binary(size: f64, decimal_places: usize) -> String {
+pub(crate) fn human_bytes_binary(size: f64, decimal_places: usize) -> String {
     const BINARY_UNITS: [&str; 7] = ["B", "KiB", "MiB", "GiB", "TiB", "PiB", "EiB"];
     format_bytes_internal(size, 1024.0, &BINARY_UNITS, decimal_places)
 }
@@ -139,7 +140,7 @@ fn format_bytes_internal(
 /// // Each character in the string will be alphanumeric
 /// assert!(random.chars().all(|c| c.is_ascii_alphanumeric()));
 /// ```
-pub fn generate_random_string(length: usize) -> String {
+pub(crate) fn generate_random_string(length: usize) -> String {
     use rand::{distr::Alphanumeric, rng, Rng};
     if length == 0 {
         return String::new();
@@ -191,7 +192,7 @@ pub fn timestamp(delimiter: Option<&str>) -> String {
 /// assert!(natural_compare("file2.txt", "file10.txt") == std::cmp::Ordering::Less);
 /// assert!(natural_compare("img001.jpg", "img100.jpg") == std::cmp::Ordering::Less);
 /// ```
-pub fn natural_compare(a: &str, b: &str) -> std::cmp::Ordering {
+pub(crate) fn natural_compare(a: &str, b: &str) -> std::cmp::Ordering {
     use std::cmp::Ordering;
 
     let mut a_chars = a.chars().peekable();

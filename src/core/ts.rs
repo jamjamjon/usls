@@ -1,8 +1,10 @@
+#![allow(dead_code)]
 use std::collections::HashMap;
 use std::time::Duration;
 
 /// A macro to measure the execution time of a given code block and optionally log the result.
 #[macro_export]
+#[doc(hidden)]
 macro_rules! elapsed {
     ($code:expr) => {{
         let t = std::time::Instant::now();

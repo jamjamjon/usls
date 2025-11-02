@@ -2,9 +2,9 @@ use aksr::Builder;
 use anyhow::Result;
 use ndarray::{s, Array};
 use rayon::prelude::*;
+#[cfg(feature = "slsl")]
 use slsl::{Tensor, UninitVec};
 use std::sync::Mutex;
-use tokenizers::{Encoding, Tokenizer};
 
 use crate::{
     Hub, Image, ImageTensorLayout, ImageTransformInfo, LogitsSampler, ProcessorConfig, ResizeMode,
@@ -25,7 +25,8 @@ pub struct Processor {
     pub image_std: Vec<f32>,
     pub nchw: bool, // TODO: remove this field
     pub image_tensor_layout: ImageTensorLayout,
-    pub tokenizer: Option<Tokenizer>,
+    #[cfg(feature = "tokenizers")]
+    pub tokenizer: Option<tokenizers::Tokenizer>,
     pub vocab: Vec<String>,
     pub unsigned: bool,
     pub logits_sampler: Option<LogitsSampler>,
@@ -49,7 +50,8 @@ impl Default for Processor {
             image_std: vec![],
             nchw: true,
             image_tensor_layout: ImageTensorLayout::NCHW,
-            tokenizer: Default::default(),
+            #[cfg(feature = "tokenizers")]
+            tokenizer: None,
             vocab: vec![],
             unsigned: false,
             logits_sampler: None,
@@ -68,6 +70,7 @@ impl Processor {
             .with_topp(config.topp);
 
         // try to build tokenizer
+        #[cfg(feature = "tokenizers")]
         let tokenizer = config.try_build_tokenizer()?;
 
         // try to build vocab from `vocab.txt`
@@ -102,6 +105,7 @@ impl Processor {
             pad_image: config.pad_image,
             pad_size: config.pad_size,
             up_scale: config.up_scale,
+            #[cfg(feature = "tokenizers")]
             tokenizer,
             vocab,
             logits_sampler: Some(logits_sampler),
@@ -113,6 +117,7 @@ impl Processor {
         self.images_transform_info.clear();
     }
 
+    #[cfg(feature = "slsl")]
     pub fn hwc_to_chw(input: &[f32], h: usize, w: usize) -> Vec<f32> {
         let hw = h * w;
         UninitVec::new(input.len()).init_with(|dst| {
@@ -126,6 +131,7 @@ impl Processor {
         })
     }
 
+    #[cfg(feature = "slsl")]
     pub fn hwc_to_chw_with_normalize_and_unsigned(input: &[f32], h: usize, w: usize) -> Vec<f32> {
         let hw = h * w;
         UninitVec::new(input.len()).init_with(|dst| {
@@ -140,6 +146,7 @@ impl Processor {
         })
     }
 
+    #[cfg(feature = "slsl")]
     pub fn hwc_to_chw_with_normalize(input: &[f32], h: usize, w: usize) -> Vec<f32> {
         let hw = h * w;
         UninitVec::new(input.len()).init_with(|dst| {
@@ -154,6 +161,7 @@ impl Processor {
         })
     }
 
+    #[cfg(feature = "slsl")]
     pub fn hwc_to_chw_with_unsigned(input: &[f32], h: usize, w: usize) -> Vec<f32> {
         let hw = h * w;
         UninitVec::new(input.len()).init_with(|dst| {
@@ -168,6 +176,7 @@ impl Processor {
         })
     }
 
+    #[cfg(feature = "slsl")]
     pub fn hwc_to_chw_with_all_transforms(
         input: &[f32],
         h: usize,
@@ -203,6 +212,7 @@ impl Processor {
         })
     }
 
+    #[cfg(feature = "slsl")]
     pub fn hwc_to_chw_with_normalize_and_standardize(
         input: &[f32],
         h: usize,
@@ -226,6 +236,7 @@ impl Processor {
         })
     }
 
+    #[cfg(feature = "slsl")]
     pub fn hwc_to_chw_with_unsigned_and_standardize(
         input: &[f32],
         h: usize,
@@ -249,6 +260,7 @@ impl Processor {
         })
     }
 
+    #[cfg(feature = "slsl")]
     pub fn hwc_to_chw_with_standardize(
         input: &[f32],
         h: usize,
@@ -271,6 +283,7 @@ impl Processor {
         })
     }
 
+    #[cfg(feature = "slsl")]
     pub fn process_images_f32(&mut self, xs: &[Image]) -> Result<Tensor> {
         if xs.is_empty() {
             anyhow::bail!("Found no input images.");
@@ -658,7 +671,8 @@ impl Processor {
         }
     }
 
-    pub fn encode_text(&self, x: &str, skip_special_tokens: bool) -> Result<Encoding> {
+    #[cfg(feature = "tokenizers")]
+    pub fn encode_text(&self, x: &str, skip_special_tokens: bool) -> Result<tokenizers::Encoding> {
         let tokenizer = self.tokenizer.as_ref().ok_or_else(|| {
             anyhow::anyhow!(
                 "No tokenizer configured in Processor. Please initialize with a tokenizer."
@@ -674,7 +688,12 @@ impl Processor {
         })
     }
 
-    pub fn encode_texts(&self, xs: &[&str], skip_special_tokens: bool) -> Result<Vec<Encoding>> {
+    #[cfg(feature = "tokenizers")]
+    pub fn encode_texts(
+        &self,
+        xs: &[&str],
+        skip_special_tokens: bool,
+    ) -> Result<Vec<tokenizers::Encoding>> {
         let tokenizer = self.tokenizer.as_ref().ok_or_else(|| {
             anyhow::anyhow!(
                 "No tokenizer configured in Processor. Please initialize with a tokenizer."
@@ -686,6 +705,7 @@ impl Processor {
             .map_err(|err| anyhow::anyhow!("Failed to encode batch of {} texts: {}", xs.len(), err))
     }
 
+    #[cfg(feature = "tokenizers")]
     pub fn encode_text_ids(&self, x: &str, skip_special_tokens: bool) -> Result<Vec<f32>> {
         let ids: Vec<f32> = if x.is_empty() {
             vec![0.0f32]
@@ -700,6 +720,7 @@ impl Processor {
         Ok(ids)
     }
 
+    #[cfg(feature = "tokenizers")]
     pub fn encode_texts_ids(
         &self,
         xs: &[&str],
@@ -717,6 +738,7 @@ impl Processor {
         Ok(ids)
     }
 
+    #[cfg(feature = "tokenizers")]
     pub fn encode_text_tokens(&self, x: &str, skip_special_tokens: bool) -> Result<Vec<String>> {
         Ok(self
             .encode_text(x, skip_special_tokens)?
@@ -724,6 +746,7 @@ impl Processor {
             .to_vec())
     }
 
+    #[cfg(feature = "tokenizers")]
     pub fn encode_texts_tokens(
         &self,
         xs: &[&str],
@@ -736,6 +759,7 @@ impl Processor {
             .collect())
     }
 
+    #[cfg(feature = "tokenizers")]
     pub fn decode_tokens(&self, ids: &[u32], skip_special_tokens: bool) -> Result<String> {
         let tokenizer = self.tokenizer.as_ref().ok_or_else(|| {
             anyhow::anyhow!(
@@ -748,6 +772,7 @@ impl Processor {
             .map_err(|err| anyhow::anyhow!("Failed to decode {} token IDs: {}", ids.len(), err))
     }
 
+    #[cfg(feature = "tokenizers")]
     pub fn decode_tokens_batch2(
         &self,
         ids: &[&[u32]],
@@ -770,6 +795,7 @@ impl Processor {
             })
     }
 
+    #[cfg(feature = "tokenizers")]
     pub fn decode_tokens_batch(
         &self,
         ids: &[Vec<u32>],

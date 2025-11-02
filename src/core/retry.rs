@@ -78,6 +78,7 @@
 /// }
 /// ```
 #[macro_export]
+#[doc(hidden)]
 macro_rules! retry {
     ($code:expr) => {
         retry!(0, 80, 1000, $code)
