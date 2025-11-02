@@ -1,3 +1,14 @@
+//! Core functionality for vision and vision-language model inference.
+//!
+//! This module provides essential components for:
+//! - **Configuration**: Model and processor configuration management
+//! - **Data Loading**: Image and batch data loading utilities
+//! - **Image Processing**: Image manipulation and transformation pipelines
+//! - **Model Hub**: Downloading models from GitHub releases and Hugging Face
+//! - **Inference Engine**: ONNX Runtime integration for model execution
+//! - **Performance Monitoring**: Timing and profiling utilities
+//! - **Utilities**: Helper functions for file operations, text processing, etc.
+
 #[macro_use]
 mod ort_config;
 #[macro_use]
@@ -10,7 +21,7 @@ mod dtype;
 mod dynconf;
 #[cfg(any(feature = "ort-download-binaries", feature = "ort-load-dynamic"))]
 mod engine;
-pub mod global_ts;
+mod global_ts;
 mod hardware_config;
 mod hub;
 mod iiix;
@@ -23,7 +34,10 @@ mod names;
 #[allow(clippy::all)]
 pub(crate) mod onnx;
 mod ops;
-#[cfg(any(feature = "ort-download-binaries", feature = "ort-load-dynamic"))]
+#[cfg(all(
+    any(feature = "ort-download-binaries", feature = "ort-load-dynamic"),
+    feature = "slsl"
+))]
 mod ort_engine;
 pub mod perf;
 mod processor;
@@ -31,7 +45,7 @@ mod retry;
 mod scale;
 mod task;
 mod traits;
-pub mod ts;
+mod ts;
 mod utils;
 mod version;
 mod x;
@@ -45,11 +59,14 @@ pub use dtype::DType;
 pub use dynconf::DynConf;
 #[cfg(any(feature = "ort-download-binaries", feature = "ort-load-dynamic"))]
 pub use engine::*;
-#[cfg(any(feature = "ort-download-binaries", feature = "ort-load-dynamic"))]
+#[cfg(all(
+    any(feature = "ort-download-binaries", feature = "ort-load-dynamic"),
+    feature = "slsl"
+))]
 pub use ort_engine::*;
 pub use perf::*;
 // Macros are exported at crate root via #[macro_export]
-pub use global_ts::*;
+pub(crate) use global_ts::*;
 pub use hardware_config::*;
 pub use hub::*;
 pub(crate) use iiix::Iiix;
@@ -65,8 +82,8 @@ pub use processor_config::{ImageTensorLayout, ProcessorConfig};
 pub use scale::Scale;
 pub use task::Task;
 pub use traits::*;
-pub use ts::Ts;
-pub use utils::*;
+pub use utils::timestamp;
+pub(crate) use utils::*;
 pub use version::Version;
 pub use x::X;
 pub use xs::Xs;

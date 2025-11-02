@@ -467,6 +467,7 @@ impl Image {
         )
     }
 
+    #[cfg(feature = "slsl")]
     pub fn to_tensor(&self) -> Result<slsl::Tensor> {
         slsl::Tensor::from_vec(
             self.to_f32s(),

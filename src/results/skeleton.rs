@@ -1,10 +1,11 @@
+#![allow(dead_code)]
 use crate::Color;
 
 /// Connection between two keypoints with optional color.
 #[derive(Debug, Clone, PartialEq, Default)]
-pub struct Connection {
-    pub indices: (usize, usize),
-    pub color: Option<Color>,
+pub(crate) struct Connection {
+    pub(crate) indices: (usize, usize),
+    pub(crate) color: Option<Color>,
 }
 
 impl From<(usize, usize)> for Connection {
@@ -28,19 +29,45 @@ impl From<(usize, usize, Color)> for Connection {
 /// Skeleton structure containing keypoint connections.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct Skeleton {
-    pub connections: Vec<Connection>,
-}
-
-impl std::ops::Deref for Skeleton {
-    type Target = Vec<Connection>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.connections
-    }
+    pub(crate) connections: Vec<Connection>,
 }
 
 impl Skeleton {
-    pub fn with_connections<C: Into<Connection> + Clone>(mut self, connections: &[C]) -> Self {
+    /// Get an iterator over the connections.
+    pub(crate) fn iter(&self) -> std::slice::Iter<'_, Connection> {
+        self.connections.iter()
+    }
+
+    /// Set connections from tuples of keypoint indices.
+    pub fn with_connections(mut self, connections: &[(usize, usize)]) -> Self {
+        self.connections = connections.iter().map(|&c| c.into()).collect();
+        self
+    }
+
+    /// Set connections from tuples of keypoint indices with colors.
+    pub fn with_connections_and_colors(
+        mut self,
+        connections: &[(usize, usize)],
+        colors: &[Color],
+    ) -> Self {
+        self.connections = connections
+            .iter()
+            .enumerate()
+            .map(|(i, &(a, b))| {
+                if i < colors.len() {
+                    (a, b, colors[i]).into()
+                } else {
+                    (a, b).into()
+                }
+            })
+            .collect();
+        self
+    }
+
+    pub(crate) fn with_connections_internal<C: Into<Connection> + Clone>(
+        mut self,
+        connections: &[C],
+    ) -> Self {
         self.connections = connections.iter().cloned().map(|c| c.into()).collect();
         self
     }

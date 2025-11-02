@@ -1,5 +1,18 @@
 use std::str::FromStr;
 
+/// Task types for various vision and vision-language model inference tasks.
+///
+/// This enum defines all supported tasks including:
+/// - **Classification**: Image classification and tagging
+/// - **Detection**: Object detection, oriented object detection, region proposals
+/// - **Segmentation**: Instance segmentation, semantic segmentation
+/// - **Keypoints**: Keypoint detection, pose estimation
+/// - **Generation**: Image-to-image, text-to-image generation
+/// - **Vision-Language**: Captioning, VQA, OCR, grounding
+/// - **Other**: Depth estimation, super-resolution, denoising, inpainting
+///
+/// Each variant may contain task-specific parameters (e.g., query strings for open-set tasks,
+/// detail levels for captioning, region coordinates for region-based tasks).
 #[derive(Debug, Clone, Ord, Eq, PartialOrd, PartialEq)]
 pub enum Task {
     /// Image classification task.

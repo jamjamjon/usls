@@ -1,9 +1,11 @@
 use aksr::Builder;
 
-use crate::{
-    models::{SamKind, YOLOPredsFormat},
-    ORTConfig, ProcessorConfig, Scale, Task, Version,
-};
+#[cfg(feature = "sam")]
+use crate::models::SamKind;
+#[cfg(feature = "yolo")]
+use crate::models::YOLOPredsFormat;
+
+use crate::{ORTConfig, ProcessorConfig, Scale, Task, Version};
 
 /// Configuration for model inference including engines, processors, and task settings.
 #[derive(Builder, Debug, Clone)]
@@ -44,15 +46,16 @@ pub struct Config {
     pub text_confs: Vec<f32>,
     pub apply_softmax: Option<bool>,
     pub topk: Option<usize>,
-    #[args(aka = "nc")]
+    #[args(alias = "nc")]
     pub num_classes: Option<usize>,
-    #[args(aka = "nk")]
+    #[args(alias = "nk")]
     pub num_keypoints: Option<usize>,
-    #[args(aka = "nm")]
+    #[args(alias = "nm")]
     pub num_masks: Option<usize>,
     pub iou: Option<f32>,
     pub apply_nms: Option<bool>,
     pub find_contours: bool,
+    #[cfg(feature = "yolo")]
     pub yolo_preds_format: Option<YOLOPredsFormat>,
     pub classes_excluded: Vec<usize>,
     pub classes_retained: Vec<usize>,
@@ -60,7 +63,9 @@ pub struct Config {
     pub min_height: Option<f32>,
     pub db_unclip_ratio: Option<f32>,
     pub db_binary_thresh: Option<f32>,
+    #[cfg(feature = "sam")]
     pub sam_kind: Option<SamKind>,
+    #[cfg(feature = "sam")]
     pub sam_low_res_mask: Option<bool>,
     pub max_tokens: Option<usize>,
 }
@@ -81,6 +86,7 @@ impl Default for Config {
             num_masks: None,
             iou: None,
             find_contours: false,
+            #[cfg(feature = "yolo")]
             yolo_preds_format: None,
             classes_excluded: vec![],
             classes_retained: vec![],
@@ -89,7 +95,9 @@ impl Default for Config {
             min_height: None,
             db_unclip_ratio: Some(1.5),
             db_binary_thresh: Some(0.2),
+            #[cfg(feature = "sam")]
             sam_kind: None,
+            #[cfg(feature = "sam")]
             sam_low_res_mask: None,
             topk: None,
             model: Default::default(),

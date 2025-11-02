@@ -334,6 +334,7 @@ impl YOLO {
     }
 
     /// Encodes text embeddings for the provided class names.
+    #[cfg(feature = "yoloe")]
     pub fn encode_class_names(&mut self, class_names: &[&str]) -> Result<Tensor> {
         if class_names.len() > self.nc {
             anyhow::bail!(
@@ -380,6 +381,7 @@ impl YOLO {
         })
     }
 
+    #[cfg(feature = "yoloe")]
     pub fn encode_visual_prompt(
         &mut self,
         prompt_image: Image,
@@ -465,6 +467,7 @@ impl YOLO {
         }))
     }
 
+    #[cfg(feature = "yoloe")]
     pub fn forward_with_embedding(
         &mut self,
         images: &[Image],

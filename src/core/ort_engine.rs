@@ -18,6 +18,21 @@ use crate::{
     PROGRESS_BAR_STYLE_FINISH,
 };
 
+/// ONNX Runtime inference engine with high-performance tensor operations.
+///
+/// This engine provides efficient model inference using ONNX Runtime with:
+/// - **Tensor optimization**: Uses SLSL tensors for fast preprocessing/postprocessing
+/// - **Device support**: CPU, CUDA, TensorRT, CoreML, OpenVINO, and more
+/// - **Hardware acceleration**: Configurable execution providers for optimal performance
+/// - **Memory management**: Efficient tensor allocation and reuse
+/// - **Batch processing**: Optimized batch inference with parallel processing
+///
+/// The engine handles model loading, session management, input/output tensor conversion,
+/// and provides high-level APIs for running inference with minimal overhead.
+///
+/// # Requirements
+/// - Requires `slsl` feature (automatically enabled with `yolo` or `clip` features)
+/// - Requires `ort-download-binaries` or `ort-load-dynamic` feature
 #[derive(Debug, Builder)]
 pub struct OrtEngine {
     /// Model file path.

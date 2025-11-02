@@ -35,7 +35,6 @@ impl Perf {
     }
 
     /// Export performance data as JSON
-    #[cfg(feature = "serde")]
     pub fn export_json() -> Result<String, Box<dyn std::error::Error>> {
         use serde_json::json;
         let stats = Self::stats();
@@ -504,7 +503,6 @@ pub fn clear() {
 }
 
 /// Export performance data to JSON
-#[cfg(feature = "serde")]
 pub fn export_json() -> Result<String, Box<dyn std::error::Error>> {
     Perf::export_json()
 }

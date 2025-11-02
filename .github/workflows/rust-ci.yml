@@ -73,7 +73,7 @@ jobs:
         uses: dtolnay/rust-toolchain@nightly
 
       - name: Test
-        run: cargo +nightly test --all-features --all-targets 
+        run: cargo +nightly test --all-features --all-targets
 
   build-linux:
     needs: test

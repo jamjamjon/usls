@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
@@ -302,22 +303,23 @@ static GLOBAL_TS_MANAGER: std::sync::LazyLock<GlobalTsManager> =
     std::sync::LazyLock::new(GlobalTsManager::new);
 
 /// Get the global Ts manager instance
-pub fn global_ts_manager() -> &'static GlobalTsManager {
+pub(crate) fn global_ts_manager() -> &'static GlobalTsManager {
     &GLOBAL_TS_MANAGER
 }
 
 /// Convenient access to global Ts
-pub fn global_ts() -> Arc<Mutex<Ts>> {
+pub(crate) fn global_ts() -> Arc<Mutex<Ts>> {
     global_ts_manager().global()
 }
 
 /// Convenient access to module Ts
-pub fn module_ts(module_name: &str) -> Arc<Mutex<Ts>> {
+pub(crate) fn module_ts(module_name: &str) -> Arc<Mutex<Ts>> {
     global_ts_manager().module(module_name)
 }
 
 /// High-performance global timing macro with zero overhead when disabled
 #[macro_export]
+#[doc(hidden)]
 macro_rules! elapsed_global {
     ($label:expr, $code:expr) => {{
         let manager = $crate::global_ts_manager();
@@ -335,6 +337,7 @@ macro_rules! elapsed_global {
 
 /// High-performance module timing macro with zero overhead when disabled
 #[macro_export]
+#[doc(hidden)]
 macro_rules! elapsed_module {
     ($module:expr, $label:expr, $code:expr) => {{
         let manager = $crate::global_ts_manager();
@@ -352,6 +355,7 @@ macro_rules! elapsed_module {
 
 /// Dataloader-specific timing macro
 #[macro_export]
+#[doc(hidden)]
 macro_rules! elapsed_dataloader {
     ($label:expr, $code:expr) => {{
         $crate::elapsed_module!("DATALOADER", $label, $code)
@@ -360,6 +364,7 @@ macro_rules! elapsed_dataloader {
 
 /// Annotator-specific timing macro
 #[macro_export]
+#[doc(hidden)]
 macro_rules! elapsed_annotator {
     ($label:expr, $code:expr) => {{
         $crate::elapsed_module!("ANNOTATOR", $label, $code)
@@ -368,6 +373,7 @@ macro_rules! elapsed_annotator {
 
 /// Engine-specific timing macro
 #[macro_export]
+#[doc(hidden)]
 macro_rules! elapsed_engine {
     ($label:expr, $code:expr) => {{
         $crate::elapsed_module!("ENGINE", $label, $code)

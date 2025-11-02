@@ -10,7 +10,6 @@ pub struct DepthPro {
     height: usize,
     width: usize,
     batch: usize,
-
     spec: String,
     processor: Processor,
 }
@@ -33,7 +32,6 @@ impl DepthPro {
             height,
             width,
             batch,
-
             spec,
             processor,
         })

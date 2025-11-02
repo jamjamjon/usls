@@ -79,10 +79,12 @@ pub struct Hub {
     /// The maximum number of retry attempts for failed downloads or network operations
     max_attempts: u32,
 
-    /// HF Endpoint
+    /// HF Endpoint (only used when hf-hub feature is enabled)
+    #[cfg(feature = "hf-hub")]
     hf_endpoint: String,
 
-    /// HF Api Repo
+    /// HF Api Repo (only used when hf-hub feature is enabled)
+    #[cfg(feature = "hf-hub")]
     hf_repo: Option<hf_hub::api::sync::ApiRepo>,
 }
 
@@ -101,15 +103,15 @@ impl Default for Hub {
                 \n3. Insufficient permissions to access"
             );
 
-        let hf_endpoint =
-            std::env::var("HF_ENDPOINT").unwrap_or_else(|_| "https://huggingface.co".to_string());
-
         Self {
             owner,
             repo,
             to,
             max_attempts,
-            hf_endpoint,
+            #[cfg(feature = "hf-hub")]
+            hf_endpoint: std::env::var("HF_ENDPOINT")
+                .unwrap_or_else(|_| "https://huggingface.co".to_string()),
+            #[cfg(feature = "hf-hub")]
             hf_repo: None,
             ttl: Duration::from_secs(10 * 60),
         }
@@ -125,6 +127,7 @@ impl Hub {
         }
     }
 
+    #[cfg(feature = "hf-hub")]
     pub fn from_hf(owner: &str, repo: &str) -> Result<Self> {
         let mut self_ = Self::new(owner, repo);
         let hf_api = hf_hub::api::sync::ApiBuilder::new()
@@ -141,6 +144,11 @@ impl Hub {
         self_.hf_repo = Some(hf_api.model(format!("{}/{}", owner, repo)));
 
         Ok(self_)
+    }
+
+    #[cfg(not(feature = "hf-hub"))]
+    pub fn from_hf(_owner: &str, _repo: &str) -> Result<Self> {
+        anyhow::bail!("HF hub support is not enabled. Please enable the 'hf-hub' feature.")
     }
 
     /// Attempts to fetch a file from a local path, GitHub release, or Hugging Face repository.
@@ -209,9 +217,33 @@ impl Hub {
             // => Local file
             p
         } else {
-            match &self.hf_repo {
-                Some(hf_repo) => hf_repo.get(s)?, // from hf repo
-                None => {
+            // First, check if it's a valid GitHub release URL
+            // This must be checked BEFORE HF path check, because GitHub URLs also have parts.len() > 2
+            if let Some((owner_, repo_, tag_, file_name_)) = Self::is_valid_github_release_url(s) {
+                // => Valid GitHub release URL
+                // keep original owner, repo and tag
+                let saveout = self
+                    .to
+                    .crate_dir_default_with_subs(&[&owner_, &repo_, &tag_])?
+                    .join(&file_name_);
+                pack = pack.with_url(s).with_tag(&tag_).with_file_name(&file_name_);
+                if let Some(n) = retry!(self.max_attempts, self.fetch_get_response(s))?
+                    .headers()
+                    .get(http::header::CONTENT_LENGTH)
+                    .and_then(|v| v.to_str().ok()?.parse::<u64>().ok())
+                {
+                    pack = pack.with_file_size(n);
+                }
+
+                saveout
+            } else {
+                // Check for HF repo usage (only after confirming it's not a GitHub URL)
+                #[cfg(feature = "hf-hub")]
+                {
+                    if let Some(hf_repo) = &self.hf_repo {
+                        return Ok(hf_repo.get(s)?.to_str().unwrap().to_string());
+                        // from hf repo
+                    }
                     let parts: Vec<&str> = s.split('/').filter(|x| !x.is_empty()).collect();
                     if parts.len() > 2 {
                         // from hf repo
@@ -225,31 +257,25 @@ impl Hub {
                             .with_retries(self.max_attempts as usize)
                             .build()?;
                         let hf_repo = hf_api.model(format!("{}/{}", parts[0], parts[1]));
-                        hf_repo.get(&parts[2..].join("/"))?
-                    } else if let Some((owner_, repo_, tag_, file_name_)) =
-                        Self::is_valid_github_release_url(s)
-                    {
-                        // => Valid GitHub release URL
-                        // keep original owner, repo and tag
-                        let saveout = self
-                            .to
-                            .crate_dir_default_with_subs(&[&owner_, &repo_, &tag_])?
-                            .join(&file_name_);
-                        pack = pack.with_url(s).with_tag(&tag_).with_file_name(&file_name_);
-                        if let Some(n) = retry!(self.max_attempts, self.fetch_get_response(s))?
-                            .headers()
-                            .get(http::header::CONTENT_LENGTH)
-                            .and_then(|v| v.to_str().ok()?.parse::<u64>().ok())
-                        {
-                            pack = pack.with_file_size(n);
-                        }
+                        return Ok(hf_repo
+                            .get(&parts[2..].join("/"))?
+                            .to_str()
+                            .unwrap()
+                            .to_string());
+                    }
+                }
+                #[cfg(not(feature = "hf-hub"))]
+                {
+                    let parts: Vec<&str> = s.split('/').filter(|x| !x.is_empty()).collect();
+                    if parts.len() > 2 {
+                        anyhow::bail!("HF hub support is not enabled. Please enable the 'hf-hub' feature to download from Hugging Face repositories.")
+                    }
+                }
 
-                        saveout
-                    } else {
-                        // => Default hub
+                // => Default hub (GitHub release tag/file format)
 
-                        // Check remote
-                        match s.split_once('/') {
+                // Check remote
+                match s.split_once('/') {
                             Some((tag_, file_name_)) => {
                                 let dst = self.to
                                     .crate_dir_default_with_subs(&[tag_])?
@@ -312,8 +338,6 @@ impl Hub {
                                 s
                             ),
                         }
-                    }
-                }
             }
         };
 
@@ -613,10 +637,12 @@ impl Hub {
         self
     }
 
+    #[cfg(feature = "hf-hub")]
     pub fn with_hf_owner_repo(self, owner: &str, repo: &str) -> Result<Self> {
         Self::from_hf(owner, repo)
     }
 
+    #[cfg(feature = "hf-hub")]
     pub fn with_hf_endpoint(mut self, x: &str) -> Self {
         self.hf_endpoint = x.to_string();
         self
@@ -639,8 +665,9 @@ impl Hub {
     pub fn info(&self) -> Result<()> {
         println!("Repository: {}/{}", self.owner, self.repo);
 
-        match &self.hf_repo {
-            Some(hf_repo) => {
+        #[cfg(feature = "hf-hub")]
+        {
+            if let Some(hf_repo) = &self.hf_repo {
                 let info = hf_repo.info()?;
 
                 println!("Type: Hugging Face Repository");
@@ -652,49 +679,44 @@ impl Hub {
                 files.sort();
 
                 Self::print_tree(&files, "");
+                return Ok(());
             }
-            None => {
-                println!("Type: GitHub Release Repository");
-                let tags = self.tags();
+        }
 
-                if tags.is_empty() {
-                    println!("No releases found in this repository.");
+        println!("Type: GitHub Release Repository");
+        let tags = self.tags();
+
+        if tags.is_empty() {
+            println!("No releases found in this repository.");
+        } else {
+            println!("\nReleases ({} total):", tags.len());
+            for tag in &tags {
+                let files = self.files(tag);
+                println!("  {} ({} files):", tag, files.len());
+
+                if files.is_empty() {
+                    println!("    (no files)");
+                } else if files.len() <= 5 {
+                    // Show all files if 5 or fewer
+                    let file_refs: Vec<&str> = files.iter().map(|s| s.as_str()).collect();
+                    Self::print_tree(&file_refs, "    ");
                 } else {
-                    println!("\nReleases ({} total):", tags.len());
-                    for tag in &tags {
-                        let files = self.files(tag);
-                        println!("  {} ({} files):", tag, files.len());
-
-                        if files.is_empty() {
-                            println!("    (no files)");
-                        } else if files.len() <= 5 {
-                            // Show all files if 5 or fewer
-                            let file_refs: Vec<&str> = files.iter().map(|s| s.as_str()).collect();
-                            Self::print_tree(&file_refs, "    ");
-                        } else {
-                            // Show first 5 files and indicate there are more
-                            let file_refs: Vec<&str> =
-                                files.iter().take(5).map(|s| s.as_str()).collect();
-                            Self::print_tree(&file_refs, "    ");
-                            println!("    ... and {} more files", files.len() - 5);
-                        }
-                        println!();
-                    }
-
-                    println!(
-                        "\nTip: Use the following code to get complete file list for all tags:"
-                    );
-                    println!("\n```rust");
-                    println!(
-                        "let hub = Hub::default().with_owner(\"jamjamjon\").with_repo(\"assets\");"
-                    );
-                    println!("for tag in hub.tags().iter() {{");
-                    println!("    let files = hub.files(tag);");
-                    println!("    println!(\"Tag: {{}}, Files: {{:?}}\", tag, files);");
-                    println!("}}");
-                    println!("```\n");
+                    // Show first 5 files and indicate there are more
+                    let file_refs: Vec<&str> = files.iter().take(5).map(|s| s.as_str()).collect();
+                    Self::print_tree(&file_refs, "    ");
+                    println!("    ... and {} more files", files.len() - 5);
                 }
+                println!();
             }
+
+            println!("\nTip: Use the following code to get complete file list for all tags:");
+            println!("\n```rust");
+            println!("let hub = Hub::default().with_owner(\"jamjamjon\").with_repo(\"assets\");");
+            println!("for tag in hub.tags().iter() {{");
+            println!("    let files = hub.files(tag);");
+            println!("    println!(\"Tag: {{}}, Files: {{:?}}\", tag, files);");
+            println!("}}");
+            println!("```\n");
         }
 
         Ok(())
