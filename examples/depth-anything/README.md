@@ -1,7 +1,7 @@
 ## Quick Start
 
 ```shell
-cargo run -r --example depth-anything
+cargo run -r -F depth-anything --example depth-anything
 ```
 
 

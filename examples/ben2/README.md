@@ -1,5 +1,5 @@
 ## Quick Start
 
 ```shell
-cargo run -r --example ben2 
+cargo run -r -F ben2 --example ben2 
 ```

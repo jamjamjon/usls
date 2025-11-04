@@ -1,7 +1,7 @@
 ## Quick Start
 
 ```shell
-cargo run -r --example rtdetr
+cargo run -r -F rtdetr --example rtdetr
 ```
 
 ## Results

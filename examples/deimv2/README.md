@@ -1,7 +1,7 @@
 ## Quick Start
 
 ```shell
-cargo run -r --example deimv2
+cargo run -r -F rtdetr --example deimv2
 ```
 
 

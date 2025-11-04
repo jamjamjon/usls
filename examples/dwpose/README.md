@@ -1,7 +1,7 @@
 ## Quick Start
 
 ```shell
-cargo run -r --example dwpose
+cargo run -r -F rtmpose --example dwpose
 ```
 
 ## Results

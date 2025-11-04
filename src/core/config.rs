@@ -39,6 +39,7 @@ pub struct Config {
 
     // Others
     pub class_names: Vec<String>,
+    pub class_names2: Vec<String>,
     pub keypoint_names: Vec<String>,
     pub text_names: Vec<String>,
     pub class_confs: Vec<f32>,
@@ -74,6 +75,7 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             class_names: vec![],
+            class_names2: vec![],
             keypoint_names: vec![],
             text_names: vec![],
             class_confs: vec![0.25f32],

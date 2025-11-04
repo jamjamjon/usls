@@ -1,7 +1,7 @@
 ## Quick Start
 
 ```shell
-cargo run -r -F cuda --example svtr -- --device cuda
+cargo run -r -F svtr -F cuda --example svtr -- --device cuda
 ```
 
 ## Results

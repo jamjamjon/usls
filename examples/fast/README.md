@@ -1,6 +1,6 @@
 ## Quick Start
 
 ```shell
-cargo run -r --example fast
+cargo run -r -F db --example fast
 ```
 
