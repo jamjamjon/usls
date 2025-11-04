@@ -167,6 +167,7 @@ usls = { version = "latest-version", features = [ "cuda" ] }
 | [MediaPipe: Selfie-segmentation](https://ai.google.dev/edge/mediapipe/solutions/vision/image_segmenter) | Image Segmentation | `mediapipe-segmenter` | [demo](examples/mediapipe-selfie-segmentation) |
 | [Swin2SR](https://github.com/mv-lab/swin2sr) | Image Super-Resolution and Restoration | `swin2sr` | [demo](examples/swin2sr) |
 | [APISR](https://github.com/Kiteretsu77/APISR) | Real-World Anime Super-Resolution | `apisr` | [demo](examples/apisr) |
+| [RAM & RAM++](https://github.com/xinyu1205/recognize-anything) | Image Tagging | `ram` | [demo](examples/ram) |
 
 </details>
 

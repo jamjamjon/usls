@@ -1,7 +1,7 @@
 [package]
 name = "usls"
 edition = "2021"
-version = "0.1.7"
+version = "0.1.8"
 rust-version = "1.85"
 description = "A Rust library integrated with ONNXRuntime, providing a collection of ML models."
 repository = "https://github.com/jamjamjon/usls"
@@ -141,6 +141,7 @@ trocr = ["tokenizers"]
 yolo = ["slsl"]
 yoloe = ["yolo", "tokenizers"]
 yolop = []
+ram = []
 
 # Enable all models
 all-models = [
@@ -177,6 +178,7 @@ all-models = [
     "trocr",
     "yolop",
     "mot",
+    "ram",
 ]
 
 
@@ -375,3 +377,7 @@ required-features = ["yoloe"]
 [[example]]
 name = "yolop"
 required-features = ["yolop"]
+
+[[example]]
+name = "ram"
+required-features = ["ram"]

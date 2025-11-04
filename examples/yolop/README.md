@@ -1,7 +1,7 @@
 ## Quick Start
 
 ```shell
-cargo run -r --example yolop
+cargo run -r -F yolop --example yolop
 ```
 
 ## Results

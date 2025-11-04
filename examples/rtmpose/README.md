@@ -1,7 +1,7 @@
 ## Quick Start
 
 ```shell
-cargo run -r --example rtmpose -- --is-coco true
+cargo run -r -F rtmpose -F yolo --example rtmpose -- --is-coco true
 ```
 
 ## Results

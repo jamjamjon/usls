@@ -1,7 +1,7 @@
 ## Quick Start
 
 ```shell
-cargo run -r --example apisr
+cargo run -r -F apisr --example apisr
 ```
 
 # Results

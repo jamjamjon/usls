@@ -1,7 +1,7 @@
 ## Quick Start
 
 ```shell
-cargo run -r -F cuda --example db -- --device cuda --dtype fp16
+cargo run -r -F db -F cuda --example db -- --device cuda --dtype fp16
 ```
 
 ## Results

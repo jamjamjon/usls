@@ -1,7 +1,7 @@
 ## Quick Start
 
 ```shell
-cargo run -r --example rmbg -- --ver 1.4 --dtype fp16
+cargo run -r -F rmbg --example rmbg -- --ver 1.4 --dtype fp16
 ```
 
 ## Results

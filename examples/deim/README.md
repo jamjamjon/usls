@@ -1,7 +1,7 @@
 ## Quick Start
 
 ```shell
-cargo run -r --example deim
+cargo run -r -F rtdetr --example deim
 ```
 
 

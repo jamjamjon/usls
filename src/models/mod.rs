@@ -145,6 +145,12 @@ mod deim;
 #[cfg(feature = "rtdetr")]
 mod deimv2;
 
+#[cfg(feature = "ram")]
+mod ram;
+
+#[cfg(feature = "ram")]
+pub use ram::*;
+
 #[cfg(feature = "yolo")]
 pub use yolo::*;
 
