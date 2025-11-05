@@ -17,7 +17,7 @@ use crate::{
 /// A versatile deep learning model that can perform multiple computer vision tasks including:
 /// - Object Detection
 /// - Instance Segmentation
-/// - Keypoint Detection  
+/// - Keypoint Detection
 /// - Image Classification
 /// - Oriented Object Detection
 #[derive(Debug, Builder)]
@@ -728,8 +728,9 @@ impl YOLO {
                 // KeypointsDetection
                 if let Some(pred_kpts) = slice_kpts {
                     let kpt_step = self.layout.kpt_step().unwrap_or(3);
-                    if let Some(hbbs) = y.hbbs() {
-                        let y_kpts = hbbs
+                    if !y.hbbs().is_empty() {
+                        let y_kpts = y
+                            .hbbs()
                             .into_par_iter()
                             .filter_map(|hbb| {
                                 let uid = hbb.uid();
@@ -768,7 +769,7 @@ impl YOLO {
 
                 // InstanceSegmentation
                 if let Some(coefs) = slice_coefs {
-                    if let Some(hbbs) = y.hbbs() {
+                    if !y.hbbs().is_empty() {
                         let protos = &xs[1];
                         let proto = protos.slice(s![idx, .., .., ..]);
                         let proto_shape = proto.shape();
@@ -778,7 +779,8 @@ impl YOLO {
                         let proto_vec = proto.to_flat_vec::<f32>().ok()?;
                         let proto_tensor = Tensor::from_vec(proto_vec, (nm, mh * mw)).ok()?;
 
-                        let y_masks = hbbs
+                        let y_masks = y
+                            .hbbs()
                             .into_par_iter()
                             .filter_map(|hbb| {
                                 let coefs_slice = coefs.slice(s![hbb.uid(), ..]);
