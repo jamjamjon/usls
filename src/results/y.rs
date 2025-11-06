@@ -23,22 +23,37 @@ pub struct Y {
 
 impl std::fmt::Debug for Y {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut f = f.debug_struct("Y");
-        let fields: &[(&'static str, &dyn std::fmt::Debug)] = &[
-            ("Texts", &self.texts),
-            ("Probs", &self.probs),
-            ("Hbbs", &self.hbbs),
-            ("Obbs", &self.obbs),
-            ("Kpts", &self.keypoints),
-            ("Kptss", &self.keypointss),
-            ("Polys", &self.polygons),
-            ("Masks", &self.masks),
-            ("Images", &self.images),
-        ];
-        for (name, value) in fields {
-            f.field(name, value);
+        let mut s = f.debug_struct("Y");
+
+        if !self.texts.is_empty() {
+            s.field("Texts", &self.texts);
         }
-        f.finish()
+        if !self.probs.is_empty() {
+            s.field("Probs", &self.probs);
+        }
+        if !self.hbbs.is_empty() {
+            s.field("Hbbs", &self.hbbs);
+        }
+        if !self.obbs.is_empty() {
+            s.field("Obbs", &self.obbs);
+        }
+        if !self.keypoints.is_empty() {
+            s.field("Kpts", &self.keypoints);
+        }
+        if !self.keypointss.is_empty() {
+            s.field("Kptss", &self.keypointss);
+        }
+        if !self.polygons.is_empty() {
+            s.field("Polys", &self.polygons);
+        }
+        if !self.masks.is_empty() {
+            s.field("Masks", &self.masks);
+        }
+        if !self.images.is_empty() {
+            s.field("Images", &self.images);
+        }
+
+        s.finish()
     }
 }
 

@@ -43,7 +43,8 @@ fn main() -> Result<()> {
 
     // save
     for y in ys {
-        if let Some(images) = y.images() {
+        let images = y.images();
+        if !images.is_empty() {
             for image in images.iter() {
                 image.save(format!(
                     "{}.png",

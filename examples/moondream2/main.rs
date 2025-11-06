@@ -62,7 +62,8 @@ fn main() -> Result<()> {
         Task::Caption(_) => {
             println!("{}:", task);
             for (i, y) in ys.iter().enumerate() {
-                if let Some(texts) = y.texts() {
+                let texts = y.texts();
+                if !texts.is_empty() {
                     println!("Image {}: {:?}\n", i, texts[0]);
                 }
             }
@@ -70,7 +71,8 @@ fn main() -> Result<()> {
         Task::Vqa(query) => {
             println!("Question: {}", query);
             for (i, y) in ys.iter().enumerate() {
-                if let Some(texts) = y.texts() {
+                let texts = y.texts();
+                if !texts.is_empty() {
                     println!("Image {}: {:?}\n", i, texts[0]);
                 }
             }

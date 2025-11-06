@@ -158,11 +158,10 @@ fn main() -> Result<()> {
         }
 
         let ys = model.forward(&xs)?;
-        // println!("ys: {:?}", ys);
 
-        if let Some(hbbs) = ys[0].hbbs() {
+        let hbbs = ys[0].hbbs();
+        if !hbbs.is_empty() {
             let tracked_hbbs = tracker.update(hbbs)?;
-            println!("tracked_hbbs: {:?}", tracked_hbbs);
 
             // annnotate
             let image_annotated = annotator.annotate(&xs[0], &tracked_hbbs)?;
