@@ -10,123 +10,63 @@ use crate::{Hbb, Image, Keypoint, Mask, Obb, Polygon, Prob, Text};
 ///
 #[derive(Builder, Clone, Default)]
 pub struct Y {
-    texts: Option<Vec<Text>>,
-    probs: Option<Vec<Prob>>,
-    keypoints: Option<Vec<Keypoint>>,
-    keypointss: Option<Vec<Vec<Keypoint>>>,
-    hbbs: Option<Vec<Hbb>>,
-    obbs: Option<Vec<Obb>>,
-    polygons: Option<Vec<Polygon>>,
-    masks: Option<Vec<Mask>>,
-    images: Option<Vec<Image>>,
+    pub texts: Vec<Text>,
+    pub probs: Vec<Prob>,
+    pub keypoints: Vec<Keypoint>,
+    pub keypointss: Vec<Vec<Keypoint>>,
+    pub hbbs: Vec<Hbb>,
+    pub obbs: Vec<Obb>,
+    pub polygons: Vec<Polygon>,
+    pub masks: Vec<Mask>,
+    pub images: Vec<Image>,
 }
 
 impl std::fmt::Debug for Y {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut f = f.debug_struct("Y");
-        if let Some(xs) = &self.texts {
-            if !xs.is_empty() {
-                f.field("Texts", &xs);
-            }
+        let mut s = f.debug_struct("Y");
+
+        if !self.texts.is_empty() {
+            s.field("Texts", &self.texts);
         }
-        if let Some(xs) = &self.probs {
-            f.field("Probs", &xs);
+        if !self.probs.is_empty() {
+            s.field("Probs", &self.probs);
         }
-        if let Some(xs) = &self.hbbs {
-            if !xs.is_empty() {
-                f.field("Hbbs", &xs);
-            }
+        if !self.hbbs.is_empty() {
+            s.field("Hbbs", &self.hbbs);
         }
-        if let Some(xs) = &self.obbs {
-            if !xs.is_empty() {
-                f.field("Obbs", &xs);
-            }
+        if !self.obbs.is_empty() {
+            s.field("Obbs", &self.obbs);
         }
-        if let Some(xs) = &self.keypoints {
-            if !xs.is_empty() {
-                f.field("Kpts", &xs);
-            }
+        if !self.keypoints.is_empty() {
+            s.field("Kpts", &self.keypoints);
         }
-        if let Some(xs) = &self.keypointss {
-            if !xs.is_empty() {
-                f.field("Kptss", &xs);
-            }
+        if !self.keypointss.is_empty() {
+            s.field("Kptss", &self.keypointss);
         }
-        if let Some(xs) = &self.polygons {
-            if !xs.is_empty() {
-                f.field("Polys", &xs);
-            }
+        if !self.polygons.is_empty() {
+            s.field("Polys", &self.polygons);
         }
-        if let Some(xs) = &self.masks {
-            if !xs.is_empty() {
-                f.field("Masks", &xs);
-            }
+        if !self.masks.is_empty() {
+            s.field("Masks", &self.masks);
         }
-        if let Some(xs) = &self.images {
-            if !xs.is_empty() {
-                f.field("Images", &xs);
-            }
+        if !self.images.is_empty() {
+            s.field("Images", &self.images);
         }
-        f.finish()
+
+        s.finish()
     }
 }
 
 impl Y {
     pub fn is_empty(&self) -> bool {
-        if let Some(xs) = &self.texts {
-            if !xs.is_empty() {
-                return false;
-            }
-        }
-
-        if let Some(xs) = &self.probs {
-            if !xs.is_empty() {
-                return false;
-            }
-        }
-
-        if let Some(xs) = &self.hbbs {
-            if !xs.is_empty() {
-                return false;
-            }
-        }
-
-        if let Some(xs) = &self.obbs {
-            if !xs.is_empty() {
-                return false;
-            }
-        }
-
-        if let Some(xs) = &self.keypoints {
-            if !xs.is_empty() {
-                return false;
-            }
-        }
-
-        if let Some(xs) = &self.keypointss {
-            if !xs.is_empty() {
-                return false;
-            }
-        }
-
-        if let Some(xs) = &self.polygons {
-            if !xs.is_empty() {
-                return false;
-            }
-        }
-
-        if let Some(xs) = &self.masks {
-            if !xs.is_empty() {
-                return false;
-            }
-        }
-
-        if let Some(xs) = &self.images {
-            if !xs.is_empty() {
-                return false;
-            }
-        }
-
-        true
+        self.texts.is_empty()
+            && self.probs.is_empty()
+            && self.hbbs.is_empty()
+            && self.obbs.is_empty()
+            && self.keypoints.is_empty()
+            && self.keypointss.is_empty()
+            && self.polygons.is_empty()
+            && self.masks.is_empty()
+            && self.images.is_empty()
     }
 }

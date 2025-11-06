@@ -55,7 +55,8 @@ fn main() -> Result<()> {
     let ys = model.forward(&xs, &args.prompt)?;
 
     for y in ys.iter() {
-        if let Some(texts) = y.texts() {
+        let texts = y.texts();
+        if !texts.is_empty() {
             for text in texts {
                 println!("\n[User]: {}\n[Assistant]:{:?}", args.prompt, text);
             }

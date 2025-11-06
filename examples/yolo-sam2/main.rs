@@ -44,7 +44,8 @@ fn main() -> Result<()> {
     // run & annotate
     let ys_det = yolo.forward(&xs)?;
     for y_det in ys_det.iter() {
-        if let Some(hbbs) = y_det.hbbs() {
+        let hbbs = y_det.hbbs();
+        if !hbbs.is_empty() {
             // collect hhbs
             let mut prompt = SamPrompt::default();
             for hbb in hbbs {

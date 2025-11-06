@@ -55,7 +55,8 @@ fn main() -> Result<()> {
 
     // results
     for (x, y) in xs.iter().zip(ys.iter()) {
-        if let Some(texts) = y.texts() {
+        let texts = y.texts();
+        if !texts.is_empty() {
             println!("Image: {:?}", x);
             println!("Texts: {:?}", texts);
         }

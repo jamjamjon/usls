@@ -75,7 +75,7 @@ fn main() -> Result<()> {
 
         // RTMPose infer
         for (x, y_det) in xs.iter().zip(ys_det.iter()) {
-            let y = rtmpose.forward(x, y_det.hbbs())?;
+            let y = rtmpose.forward(x, Some(y_det.hbbs()))?;
 
             // Annotate
             annotator.annotate(x, &y)?.save(format!(
