@@ -10,6 +10,17 @@
 //!
 //! Each model is available as a separate feature flag for minimal dependencies.
 
+pub mod names;
+pub use names::*;
+
+#[cfg(feature = "rtmo")]
+mod rtmo;
+
+#[cfg(feature = "rtmpose")]
+mod rtmpose;
+#[cfg(feature = "rtmpose")]
+mod rtmw;
+
 #[cfg(feature = "yolo")]
 mod yolo;
 
@@ -97,14 +108,6 @@ mod rmbg;
 
 #[cfg(feature = "rtdetr")]
 mod rtdetr;
-
-#[cfg(feature = "rtmo")]
-mod rtmo;
-
-#[cfg(feature = "rtmpose")]
-mod rtmpose;
-#[cfg(feature = "rtmpose")]
-mod rtmw;
 
 #[cfg(feature = "sapiens")]
 mod sapiens;
@@ -237,6 +240,9 @@ pub use trocr::*;
 
 #[cfg(feature = "yolop")]
 pub use yolop::*;
+
+#[cfg(feature = "yoloe")]
+pub use yoloe::*;
 
 #[cfg(feature = "sam")]
 pub use sam2::*;

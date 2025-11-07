@@ -14,7 +14,7 @@ exclude = ["assets/*", "examples/*", "runs/*", "benches/*", "tests/*"]
 [dependencies]
 anyhow = { version = "1" }
 slsl = { version = "0.0.7", features = ["rayon"], optional = true }
-aksr = { version = "0.0.6" }
+aksr = { version = "0.0.7" }
 ab_glyph = { version = "0.2.32" }
 image = { version = "0.25" }
 imageproc = { version = "0.25" }

@@ -1,3 +1,5 @@
+use crate::NAMES_COCO_KEYPOINTS_17;
+
 /// Model configuration for `RTMO`
 impl crate::Config {
     pub fn rtmo() -> Self {
@@ -13,7 +15,7 @@ impl crate::Config {
             .with_nk(17)
             .with_class_confs(&[0.3])
             .with_keypoint_confs(&[0.5])
-            .with_keypoint_names(&crate::NAMES_COCO_KEYPOINTS_17)
+            .with_keypoint_names(&NAMES_COCO_KEYPOINTS_17)
     }
 
     pub fn rtmo_t() -> Self {

@@ -29,7 +29,6 @@ pub mod image;
 mod logits_sampler;
 mod media;
 mod min_opt_max;
-mod names;
 #[cfg(any(feature = "ort-download-binaries", feature = "ort-load-dynamic"))]
 #[allow(clippy::all)]
 pub(crate) mod onnx;
@@ -74,7 +73,6 @@ pub use image::*;
 pub use logits_sampler::LogitsSampler;
 pub use media::*;
 pub use min_opt_max::MinOptMax;
-pub use names::*;
 pub use ops::*;
 pub use ort_config::ORTConfig;
 pub use processor::*;

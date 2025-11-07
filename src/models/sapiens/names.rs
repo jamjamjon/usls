@@ -1,0 +1,33 @@
+//! Sapiens human body-part segmentation labels.
+
+/// 28 body region classes aligned with the Sapiens segmentation output.
+pub const NAMES_BODY_PARTS_28: [&str; 28] = [
+    "Background",
+    "Apparel",
+    "Face Neck",
+    "Hair",
+    "Left Foot",
+    "Left Hand",
+    "Left Lower Arm",
+    "Left Lower Leg",
+    "Left Shoe",
+    "Left Sock",
+    "Left Upper Arm",
+    "Left Upper Leg",
+    "Lower Clothing",
+    "Right Foot",
+    "Right Hand",
+    "Right Lower Arm",
+    "Right Lower Leg",
+    "Right Shoe",
+    "Right Sock",
+    "Right Upper Arm",
+    "Right Upper Leg",
+    "Torso",
+    "Upper Clothing",
+    "Lower Lip",
+    "Upper Lip",
+    "Lower Teeth",
+    "Upper Teeth",
+    "Tongue",
+];
