@@ -51,8 +51,6 @@ fn main() -> Result<()> {
 
     // run
     let ys = model.forward(&xs)?;
-
-    // extract bboxes
     println!("{:?}", ys);
 
     // annotate

@@ -121,7 +121,8 @@ usls = { version = "latest-version", features = [ "cuda" ] }
 | [YOLOv10](https://github.com/THU-MIG/yolov10) | Object Detection | `yolo` | [demo](examples/yolo) |
 | [YOLOv12](https://github.com/sunsmarterjie/yolov12) | Image Classification<br />Object Detection<br />Instance Segmentation | `yolo` | [demo](examples/yolo) |
 | [YOLOv13](https://github.com/iMoonLab/yolov13) | Object Detection | `yolo` | [demo](examples/yolo) |
-| [RT-DETR](https://github.com/lyuwenyu/RT-DETR) | Object Detection | `rtdetr` | [demo](examples/rtdetr) |
+| [RT-DETRv1, v2](https://github.com/lyuwenyu/RT-DETR) | Object Detection | `rtdetr` | [demo](examples/rtdetr) |
+| [RT-DETRv4](https://github.com/RT-DETRs/RT-DETRv4) | Object Detection | `rtdetr` | [demo](examples/rtdetr) |
 | [RF-DETR](https://github.com/roboflow/rf-detr) | Object Detection | `rfdetr` | [demo](examples/rfdetr) |
 | [PP-PicoDet](https://github.com/PaddlePaddle/PaddleDetection/tree/release/2.8/configs/picodet) | Object Detection | `picodet` | [demo](examples/picodet-layout) |
 | [DocLayout-YOLO](https://github.com/opendatalab/DocLayout-YOLO) | Object Detection | `picodet` | [demo](examples/picodet-layout) |
