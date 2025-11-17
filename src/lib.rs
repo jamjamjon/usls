@@ -62,16 +62,49 @@ pub use core::*;
 pub use core::{
     Config, DType, DataLoader, Device, Dir, DynConf, HardwareConfig, Hub, Image, ImageTensorLayout,
     Location, LogitsSampler, MediaType, ORTConfig, Processor, ProcessorConfig, ResizeMode, Scale,
-    Task, Version, Xs, NAMES_BODY_PARTS_28, NAMES_COCO_133, NAMES_COCO_80, NAMES_COCO_91,
-    NAMES_COCO_KEYPOINTS_17, NAMES_DOTA_V1_15, NAMES_DOTA_V1_5_16, NAMES_HALPE_KEYPOINTS_26,
-    NAMES_HAND_21, NAMES_IMAGENET_1K, NAMES_OBJECT365_366, NAMES_PICODET_LAYOUT_17,
-    NAMES_PICODET_LAYOUT_3, NAMES_PICODET_LAYOUT_5, NAMES_YOLOE_4585, NAMES_YOLO_DOCLAYOUT_10, X,
+    Task, Version, Xs, X,
 };
 #[cfg(feature = "viewer")]
 pub use minifb::Key;
 #[cfg(any(feature = "ort-download-binaries", feature = "ort-load-dynamic"))]
+#[doc(inline)]
+pub use models::names::{
+    NAMES_COCO_80, NAMES_COCO_91, NAMES_COCO_KEYPOINTS_133, NAMES_COCO_KEYPOINTS_17,
+    NAMES_HAND_KEYPOINTS_21, NAMES_IMAGENET_1K, NAMES_OBJECT365, NAMES_OBJECT365_366,
+};
+#[cfg(all(
+    any(feature = "ort-download-binaries", feature = "ort-load-dynamic"),
+    feature = "sapiens"
+))]
+#[doc(inline)]
+pub use models::NAMES_BODY_PARTS_28;
+#[cfg(all(
+    any(feature = "ort-download-binaries", feature = "ort-load-dynamic"),
+    feature = "rtmpose"
+))]
+#[doc(inline)]
+pub use models::NAMES_HALPE_KEYPOINTS_26;
+#[cfg(all(
+    any(feature = "ort-download-binaries", feature = "ort-load-dynamic"),
+    feature = "yoloe"
+))]
+#[doc(inline)]
+pub use models::NAMES_YOLOE_4585;
+#[cfg(any(feature = "ort-download-binaries", feature = "ort-load-dynamic"))]
 #[doc(hidden)]
 pub use models::*;
+#[cfg(all(
+    any(feature = "ort-download-binaries", feature = "ort-load-dynamic"),
+    feature = "yolo"
+))]
+#[doc(inline)]
+pub use models::{NAMES_DOTA_V1_15, NAMES_DOTA_V1_5_16, NAMES_YOLO_DOCLAYOUT_10};
+#[cfg(all(
+    any(feature = "ort-download-binaries", feature = "ort-load-dynamic"),
+    feature = "picodet"
+))]
+#[doc(inline)]
+pub use models::{NAMES_PICODET_LAYOUT_17, NAMES_PICODET_LAYOUT_3, NAMES_PICODET_LAYOUT_5};
 #[cfg(feature = "mot")]
 #[doc(hidden)]
 pub use mot::*;

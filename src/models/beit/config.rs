@@ -1,3 +1,5 @@
+use crate::NAMES_IMAGENET_1K;
+
 /// Model configuration for `BEiT`
 impl crate::Config {
     pub fn beit() -> Self {
@@ -11,7 +13,7 @@ impl crate::Config {
             .with_image_std(&[0.5, 0.5, 0.5])
             .with_normalize(true)
             .with_apply_softmax(true)
-            .with_class_names(&crate::NAMES_IMAGENET_1K)
+            .with_class_names(&NAMES_IMAGENET_1K)
     }
 
     pub fn beit_base() -> Self {

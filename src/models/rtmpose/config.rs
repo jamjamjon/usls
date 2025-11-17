@@ -1,3 +1,5 @@
+use crate::{NAMES_COCO_KEYPOINTS_17, NAMES_HALPE_KEYPOINTS_26};
+
 /// Model configuration for `RTMPose`
 impl crate::Config {
     pub fn rtmpose() -> Self {
@@ -16,7 +18,7 @@ impl crate::Config {
     pub fn rtmpose_17() -> Self {
         Self::rtmpose()
             .with_nk(17)
-            .with_keypoint_names(&crate::NAMES_COCO_KEYPOINTS_17)
+            .with_keypoint_names(&NAMES_COCO_KEYPOINTS_17)
     }
 
     pub fn rtmpose_17_t() -> Self {
@@ -46,7 +48,7 @@ impl crate::Config {
     pub fn rtmpose_26() -> Self {
         Self::rtmpose()
             .with_nk(26)
-            .with_keypoint_names(&crate::NAMES_HALPE_KEYPOINTS_26)
+            .with_keypoint_names(&NAMES_HALPE_KEYPOINTS_26)
     }
 
     pub fn rtmpose_26_t() -> Self {
