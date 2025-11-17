@@ -9,7 +9,7 @@ struct Args {
     device: String,
 
     /// scale
-    #[argh(option, default = "String::from(\"s\")")]
+    #[argh(option, default = "String::from(\"r18-obj365\")")]
     scale: String,
 
     /// dtype
