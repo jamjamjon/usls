@@ -4,6 +4,10 @@ use usls::{models::GroundingDINO, Annotator, Config, DataLoader};
 #[derive(argh::FromArgs)]
 /// Example
 struct Args {
+    /// source image
+    #[argh(option, default = "vec![String::from(\"./assets/bus.jpg\")]")]
+    source: Vec<String>,
+
     /// dtype
     #[argh(option, default = "String::from(\"q8\")")]
     dtype: String,
@@ -12,29 +16,30 @@ struct Args {
     #[argh(option, default = "String::from(\"cpu:0\")")]
     device: String,
 
-    /// source image
-    #[argh(option, default = "vec![String::from(\"./assets/bus.jpg\")]")]
-    source: Vec<String>,
-
-    /// open class names
+    /// captions
     #[argh(
         option,
         default = "vec![
             String::from(\"person\"),
-            String::from(\"a hand\"),
-            String::from(\"a shoe\"),
             String::from(\"bus\"),
-            String::from(\"dog\"),
+            String::from(\"a dog\"),
             String::from(\"cat\"),
-            String::from(\"sign\"),
+            String::from(\"stop sign\"),
             String::from(\"tie\"),
-            String::from(\"monitor\"),
-            String::from(\"glasses\"),
+            String::from(\"eye glasses\"),
             String::from(\"tree\"),
-            String::from(\"head\"),
+            String::from(\"camera\"),
+            String::from(\"hand\"),
+            String::from(\"a shoe\"),
+            String::from(\"balcony\"),
+            String::from(\"window\"),
         ]"
     )]
     labels: Vec<String>,
+
+    /// token level class
+    #[argh(option, default = "false")]
+    token_level_class: bool,
 }
 
 fn main() -> Result<()> {
@@ -42,17 +47,19 @@ fn main() -> Result<()> {
         .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
         .with_timer(tracing_subscriber::fmt::time::ChronoLocal::rfc_3339())
         .init();
-
     let args: Args = argh::from_env();
 
-    let config = Config::grounding_dino_tiny()
+    let config = Config::llmdet_tiny()
+        // mm_gdino_base_all()
+        // grounding_dino_tiny()
         .with_model_dtype(args.dtype.parse()?)
         .with_model_device(args.device.parse()?)
         .with_text_names_owned(&args.labels)
-        .with_class_confs(&[0.25])
+        .with_class_confs(&[0.35])
         .with_text_confs(&[0.25])
+        .with_model_num_dry_run(0)
+        .with_token_level_class(args.token_level_class)
         .commit()?;
-
     let mut model = GroundingDINO::new(config)?;
 
     // load images

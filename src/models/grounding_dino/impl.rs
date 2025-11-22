@@ -6,8 +6,8 @@ use std::fmt::Write;
 
 use crate::{elapsed_module, Config, DynConf, Engine, Hbb, Image, Processor, Xs, X, Y};
 
-#[derive(Builder, Debug)]
 /// Grounding DINO model for open-vocabulary object detection.
+#[derive(Builder, Debug)]
 pub struct GroundingDINO {
     pub engine: Engine,
     height: usize,
@@ -19,9 +19,9 @@ pub struct GroundingDINO {
     class_ids_map: Vec<Option<usize>>,
     tokens: Vec<String>,
     token_ids: Vec<f32>,
-
     processor: Processor,
     spec: String,
+    token_level_class: bool,
 }
 
 impl GroundingDINO {
@@ -44,18 +44,38 @@ impl GroundingDINO {
                 "No valid class names were provided in the config. Ensure the 'text_names' field is non-empty and contains valid class names."
             );
         }
+        let token_level_class = config.token_level_class;
         let text_prompt = class_names.iter().fold(String::new(), |mut acc, text| {
             write!(&mut acc, "{}.", text).unwrap();
             acc
         });
-        let confs_visual = DynConf::new_or_default(config.class_confs(), class_names.len());
-        let confs_textual = DynConf::new_or_default(config.text_confs(), class_names.len());
         let processor = Processor::try_from_config(&config.processor)?
             .with_image_width(width as _)
             .with_image_height(height as _);
         let token_ids = processor.encode_text_ids(&text_prompt, true)?;
         let tokens = processor.encode_text_tokens(&text_prompt, true)?;
-        let class_ids_map = Self::process_class_ids(&tokens);
+
+        // classes
+        let (class_names, class_ids_map, confs_visual, confs_textual) = if token_level_class {
+            // Token-level - each valid token is a separate class
+            let (token_class_names, token_class_ids_map) =
+                Self::process_token_level_classes(&tokens);
+            let num_token_classes = token_class_names.len();
+            let confs_visual = DynConf::new_or_default(config.class_confs(), num_token_classes);
+            let confs_textual = DynConf::new_or_default(config.text_confs(), num_token_classes);
+            (
+                token_class_names,
+                token_class_ids_map,
+                confs_visual,
+                confs_textual,
+            )
+        } else {
+            // Phrase-level - original behavior
+            let class_ids_map = Self::process_phrase_level_classes(&tokens);
+            let confs_visual = DynConf::new_or_default(config.class_confs(), class_names.len());
+            let confs_textual = DynConf::new_or_default(config.text_confs(), class_names.len());
+            (class_names, class_ids_map, confs_visual, confs_textual)
+        };
 
         Ok(Self {
             engine,
@@ -70,33 +90,26 @@ impl GroundingDINO {
             processor,
             spec,
             class_ids_map,
+            token_level_class,
         })
     }
 
     fn preprocess(&mut self, xs: &[Image]) -> Result<Xs> {
-        // encode images
         let image_embeddings = self.processor.process_images(xs)?;
-
-        // encode texts
+        self.batch = xs.len();
         let input_ids = X::from(self.token_ids.clone())
             .insert_axis(0)?
             .repeat(0, self.batch)?;
-        let token_type_ids = X::zeros(&[self.batch, self.tokens.len()]);
-        let attention_mask = X::ones(&[self.batch, self.tokens.len()]);
         let (text_self_attention_masks, position_ids) =
             Self::gen_text_attn_masks_and_pos_ids(&self.token_ids)?;
         let text_self_attention_masks = text_self_attention_masks
             .insert_axis(0)?
             .repeat(0, self.batch)?;
         let position_ids = position_ids.insert_axis(0)?.repeat(0, self.batch)?;
-
-        // inputs
         let xs = Xs::from(vec![
             image_embeddings,
             input_ids,
-            attention_mask,
             position_ids,
-            token_type_ids,
             text_self_attention_masks,
         ]);
 
@@ -110,6 +123,7 @@ impl GroundingDINO {
 
         Ok(ys)
     }
+
     fn inference(&mut self, xs: Xs) -> Result<Xs> {
         self.engine.run(xs)
     }
@@ -130,16 +144,26 @@ impl GroundingDINO {
                     .into_par_iter()
                     .enumerate()
                     .filter_map(|(i, clss)| {
-                        let (class_id, &conf) = clss
-                            .mapv(|x| 1. / ((-x).exp() + 1.))
+                        let clss_probs = clss.mapv(|x| 1. / ((-x).exp() + 1.));
+                        let (class_id, &max_conf) = clss_probs
                             .iter()
                             .enumerate()
                             .max_by(|a, b| a.1.total_cmp(b.1))?;
 
-                        if conf < self.confs_visual[0] {
+                        // Stage 1: box threshold - filter by max confidence
+                        if max_conf < self.confs_visual[0] {
                             return None;
                         }
 
+                        // Stage 2: text threshold - check token-level probability
+                        // let token_conf = clss_probs[class_id]; // max_conf
+                        let c = self.class_ids_map[class_id]?;
+                        let token_conf = max_conf;
+                        if token_conf < self.confs_textual[c] {
+                            return None;
+                        }
+
+                        // Compute bbox coordinates
                         let bbox = xs["boxes"].slice(s![idx, i, ..]).mapv(|x| x / ratio);
                         let cx = bbox[0] * self.width as f32;
                         let cy = bbox[1] * self.height as f32;
@@ -150,15 +174,21 @@ impl GroundingDINO {
                         let x = x.max(0.0).min(image_width as _);
                         let y = y.max(0.0).min(image_height as _);
 
-                        self.class_ids_map[class_id].map(|c| {
-                            let mut bbox =
-                                Hbb::default().with_xywh(x, y, w, h).with_confidence(conf);
+                        // Use token-level confidence as the final score
+                        // In token-level mode, display the actual token; in phrase mode, display the phrase
+                        let name = if self.token_level_class {
+                            &self.tokens[class_id]
+                        } else {
+                            &self.class_names[c]
+                        };
 
-                            if conf > self.confs_textual[c] {
-                                bbox = bbox.with_name(&self.class_names[c]).with_id(c as _);
-                            }
-                            bbox
-                        })
+                        Some(
+                            Hbb::default()
+                                .with_xywh(x, y, w, h)
+                                .with_confidence(token_conf)
+                                .with_name(name)
+                                .with_id(c as _),
+                        )
                     })
                     .collect();
 
@@ -223,7 +253,9 @@ impl GroundingDINO {
         Ok((X::from(attn.into_dyn()), X::from(pos_ids)))
     }
 
-    fn process_class_ids(tokens: &[String]) -> Vec<Option<usize>> {
+    /// Phrase-level classes (original behavior)
+    /// Maps tokens to phrase indices, separated by '.'
+    fn process_phrase_level_classes(tokens: &[String]) -> Vec<Option<usize>> {
         let mut result = Vec::with_capacity(tokens.len());
         let mut idx = 0;
         for token in tokens {
@@ -237,5 +269,24 @@ impl GroundingDINO {
             }
         }
         result
+    }
+
+    /// Token-level classes
+    /// Each valid token becomes its own class
+    fn process_token_level_classes(tokens: &[String]) -> (Vec<String>, Vec<Option<usize>>) {
+        let mut class_names = Vec::new();
+        let mut class_ids_map = Vec::with_capacity(tokens.len());
+
+        for token in tokens {
+            if token == "[CLS]" || token == "[SEP]" || token == "." {
+                class_ids_map.push(None);
+            } else {
+                let class_id = class_names.len();
+                class_names.push(token.clone());
+                class_ids_map.push(Some(class_id));
+            }
+        }
+
+        (class_names, class_ids_map)
     }
 }
