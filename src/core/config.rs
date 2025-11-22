@@ -4,7 +4,6 @@ use aksr::Builder;
 use crate::models::SamKind;
 #[cfg(feature = "yolo")]
 use crate::models::YOLOPredsFormat;
-
 use crate::{ORTConfig, ProcessorConfig, Scale, Task, Version};
 
 /// Configuration for model inference including engines, processors, and task settings.
@@ -69,6 +68,7 @@ pub struct Config {
     #[cfg(feature = "sam")]
     pub sam_low_res_mask: Option<bool>,
     pub max_tokens: Option<usize>,
+    pub token_level_class: bool,
 }
 
 impl Default for Config {
@@ -102,6 +102,7 @@ impl Default for Config {
             #[cfg(feature = "sam")]
             sam_low_res_mask: None,
             topk: None,
+            token_level_class: false,
             model: Default::default(),
             encoder: Default::default(),
             decoder: Default::default(),

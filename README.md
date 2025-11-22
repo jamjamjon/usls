@@ -142,6 +142,8 @@ usls = { version = "latest-version", features = [ "cuda" ] }
 | [YOLO-World](https://github.com/AILab-CVC/YOLO-World) | Open-Set Detection With Language | `yolo` | [demo](examples/yolo) |
 | [YOLOE](https://github.com/THU-MIG/yoloe) | Open-Set Detection And Segmentation | `yoloe` | [demo-prompt-free](examples/yoloe-prompt-free)<br />[demo-prompt(visual & textual)](examples/yoloe-prompt) |
 | [GroundingDINO](https://github.com/IDEA-Research/GroundingDINO) | Open-Set Detection With Language | `grounding-dino` | [demo](examples/grounding-dino) |
+| [MM-GDINO](https://github.com/open-mmlab/mmdetection/blob/main/configs/mm_grounding_dino/README.md) | Open-Set Detection With Language | `grounding-dino` | [demo](examples/grounding-dino) |
+| [LLMDet](https://github.com/iSEE-Laboratory/LLMDet) | Open-Set Detection With Language | `grounding-dino` | [demo](examples/grounding-dino) |
 | [CLIP](https://github.com/openai/CLIP) | Vision-Language Embedding | `clip` | [demo](examples/clip) |
 | [jina-clip-v1](https://huggingface.co/jinaai/jina-clip-v1) | Vision-Language Embedding | `clip` | [demo](examples/clip) |
 | [jina-clip-v2](https://huggingface.co/jinaai/jina-clip-v2) | Vision-Language Embedding | `clip` | [demo](examples/clip) |
