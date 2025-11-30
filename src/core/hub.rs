@@ -151,6 +151,7 @@ impl Hub {
         anyhow::bail!("HF hub support is not enabled. Please enable the 'hf-hub' feature.")
     }
 
+    #[cfg(not(feature = "http"))]
     pub fn try_fetch(&mut self, s: &str) -> Result<String> {
         unimplemented!("'http' feature not enabled, ureq compiled out")
     }
