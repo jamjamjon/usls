@@ -136,6 +136,9 @@ mod yoloe;
 #[cfg(feature = "sam")]
 mod sam2;
 
+#[cfg(feature = "sam3")]
+mod sam3;
+
 #[cfg(feature = "rtdetr")]
 mod d_fine;
 
@@ -159,6 +162,12 @@ pub use yolo::*;
 
 #[cfg(feature = "sam")]
 pub use sam::*;
+
+#[cfg(feature = "sam")]
+pub use sam2::*;
+
+#[cfg(feature = "sam3")]
+pub use sam3::*;
 
 #[cfg(feature = "clip")]
 pub use clip::*;
@@ -243,9 +252,6 @@ pub use yolop::*;
 
 #[cfg(feature = "yoloe")]
 pub use yoloe::*;
-
-#[cfg(feature = "sam")]
-pub use sam2::*;
 
 #[cfg(feature = "rtdetr")]
 pub use d_fine::*;

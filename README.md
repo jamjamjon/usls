@@ -134,7 +134,8 @@ usls = { version = "latest-version", features = [ "cuda" ] }
 | [RTMW](https://arxiv.org/abs/2407.08634) | Keypoint Detection | `rtmpose` | [demo](examples/rtmw) |
 | [RTMO](https://github.com/open-mmlab/mmpose/tree/main/projects/rtmo) | Keypoint Detection | `rtmo` | [demo](examples/rtmo) |
 | [SAM](https://github.com/facebookresearch/segment-anything) | Segment Anything | `sam` | [demo](examples/sam) |
-| [SAM2](https://github.com/facebookresearch/segment-anything-2) | Segment Anything | `sam` | [demo](examples/sam) |
+| [SAM2](https://github.com/facebookresearch/segment-anything-2) | Segment Anything | `sam2` | [demo](examples/sam2) |
+| [SAM3](https://github.com/facebookresearch/segment-anything-3) | Segment Anything | `sam3` | [demo](examples/sam3) |
 | [MobileSAM](https://github.com/ChaoningZhang/MobileSAM) | Segment Anything | `sam` | [demo](examples/sam) |
 | [EdgeSAM](https://github.com/chongzhou96/EdgeSAM) | Segment Anything | `sam` | [demo](examples/sam) |
 | [SAM-HQ](https://github.com/SysCV/sam-hq) | Segment Anything | `sam` | [demo](examples/sam) |
