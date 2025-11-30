@@ -16,8 +16,8 @@ anyhow = { version = "1" }
 slsl = { version = "0.0.7", features = ["rayon"], optional = true }
 aksr = { version = "0.0.7" }
 ab_glyph = { version = "0.2.32" }
-image = { version = "0.25" }
-imageproc = { version = "0.25" }
+image = { version = "0.25", default-features = false, features = ["rayon"] }
+imageproc = { version = "0.25", default-features = false, features = ["rayon"] }
 ndarray = { version = "0.16.1", features = ["rayon"] }
 half = { version = "2.7.1", features = ["bytemuck", "num-traits"] }
 indicatif = { version = "0.18" }
@@ -26,7 +26,7 @@ prost = { version = "0.14.1" }
 paste = { version = "1.0.15" }
 rand = { version = "0.9" }
 http = { version = "1.3" }
-ureq = { version = "3" }
+ureq = { version = "3", optional = true }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0" }
 rayon = { version = "1.10.0" }
@@ -66,11 +66,12 @@ debug = false
 
 
 [features]
-default = ["ort-download-binaries", "yolo"]
+default = ["ort-download-binaries", "yolo", "http", "image-default-formats"]
 
 # Utility features
 video = ["dep:video-rs"]
 viewer = ["dep:minifb"]
+image-default-formats = ["image/default-formats"]
 
 # ONNX Runtime features
 ort-download-binaries = ["ort", "ort/download-binaries"]
@@ -102,6 +103,8 @@ tokenizers = ["dep:tokenizers"]
 
 # Hugging Face hub support (for downloading models from Hugging Face)
 hf-hub = ["dep:hf-hub"]
+# HTTP(S) request support (for downloading models from other sources)
+http = ["dep:ureq"]
 
 # SLSL tensor library (used by yolo and clip)
 slsl = ["dep:slsl"]
