@@ -96,6 +96,25 @@ impl FromStr for DataLoader {
 }
 
 impl DataLoader {
+    /// Create DataLoader from multiple paths
+    pub fn from_paths<P: AsRef<Path>>(paths: &[P]) -> Result<Self> {
+        let paths: VecDeque<PathBuf> = paths.iter().map(|p| p.as_ref().to_path_buf()).collect();
+        let nf = paths.len() as u64;
+
+        if paths.is_empty() {
+            anyhow::bail!("No paths provided");
+        }
+
+        info!("Found {:?} x{}", MediaType::Image(Location::Local), nf);
+
+        Ok(Self {
+            paths: Some(paths),
+            media_type: MediaType::Image(Location::Local),
+            nf,
+            ..Default::default()
+        })
+    }
+
     pub fn new(source: &str) -> Result<Self> {
         // paths & media_type
         let (paths, media_type) = Self::try_load_all(source)?;

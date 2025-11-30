@@ -1,7 +1,7 @@
 [package]
 name = "usls"
 edition = "2021"
-version = "0.1.10"
+version = "0.1.11"
 rust-version = "1.85"
 description = "A Rust library integrated with ONNXRuntime, providing a collection of ML models."
 repository = "https://github.com/jamjamjon/usls"
@@ -131,7 +131,8 @@ rfdetr = []
 rtdetr = []
 rtmo = []
 rtmpose = []
-sam = []
+sam = []  # SAM, SAM2
+sam3 = ["tokenizers"]  # SAM3
 slanet = ["pipeline"]
 smolvlm = ["tokenizers"]
 sapiens = []
@@ -148,6 +149,7 @@ all-models = [
     "yolo",
     "yoloe",
     "sam",
+    "sam3",
     "clip",
     "apisr",
     "image-classifier",
@@ -329,6 +331,10 @@ required-features = ["sam"]
 [[example]]
 name = "sam2"
 required-features = ["sam"]
+
+[[example]]
+name = "sam3"
+required-features = ["sam3"]
 
 [[example]]
 name = "sapiens"
