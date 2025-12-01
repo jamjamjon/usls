@@ -2,6 +2,7 @@ use aksr::Builder;
 use anyhow::Result;
 use ndarray::{s, Array1};
 use rayon::prelude::*;
+use std::collections::{HashMap, VecDeque};
 
 use crate::{elapsed_module, Config, DynConf, Engine, Hbb, Image, Mask, Ops, Processor, Xs, X, Y};
 
@@ -184,7 +185,22 @@ pub struct SAM3 {
     decoder: Engine,
     processor: Processor,
     conf: DynConf,
+    /// Image batch size (for vision encoder)
     batch: usize,
+    /// Text batch size (for text encoder)
+    text_batch: usize,
+    /// Maximum cache size (number of texts)
+    #[args(skip)]
+    text_cache_max_size: usize,
+    /// Enable prompt batching for geometry encoder and decoder
+    #[args(skip)]
+    enable_prompt_batching: bool,
+    /// Text feature cache: text -> (features, mask)
+    #[args(skip)]
+    text_feature_cache: HashMap<String, (X, X)>,
+    /// LRU tracking: least recently used texts
+    #[args(skip)]
+    text_cache_lru: VecDeque<String>,
     names: Vec<String>,
     spec: String,
 }
@@ -196,6 +212,7 @@ impl SAM3 {
         let geometry_encoder = Engine::try_from_config(&config.encoder)?;
         let decoder = Engine::try_from_config(&config.decoder)?;
         let batch = visual_encoder.batch().opt();
+        let text_batch = textual_encoder.batch().opt();
         let height = visual_encoder.try_height().unwrap_or(&1008.into()).opt();
         let width = visual_encoder.try_width().unwrap_or(&1008.into()).opt();
         let conf = DynConf::new_or_default(config.class_confs(), 1);
@@ -208,12 +225,64 @@ impl SAM3 {
             textual_encoder,
             geometry_encoder,
             decoder,
-            conf,
             processor,
+            conf,
             batch,
+            text_batch,
+            text_cache_max_size: 100, // Default: cache up to 100 unique texts
+            enable_prompt_batching: false, // Default: disabled (broadcast cost > benefit)
+            text_feature_cache: HashMap::new(),
+            text_cache_lru: VecDeque::new(),
             names: vec![],
             spec: "sam3".to_string(),
         })
+    }
+
+    /// Configure text cache max size
+    pub fn with_cache_size(mut self, max_size: usize) -> Self {
+        self.text_cache_max_size = max_size;
+        self
+    }
+
+    /// Enable/disable prompt batching (geometry + decoder)
+    pub fn with_prompt_batching_enabled(mut self, enable: bool) -> Self {
+        self.enable_prompt_batching = enable;
+        self
+    }
+
+    /// Clear text feature cache
+    pub fn clear_text_cache(&mut self) {
+        self.text_feature_cache.clear();
+        self.text_cache_lru.clear();
+    }
+
+    /// Get cache statistics: (cached_texts_count, estimated_memory_mb)
+    pub fn cache_stats(&self) -> (usize, usize) {
+        let count = self.text_feature_cache.len();
+        // Rough estimation: each text feature ~ 256 seq_len * 256 dims * 4 bytes * 2 (feat + mask)
+        let estimated_mb = count * 256 * 256 * 4 * 2 / 1024 / 1024;
+        (count, estimated_mb)
+    }
+
+    /// Update LRU on cache access (move to back = most recently used)
+    fn touch_cache_entry(&mut self, text: &str) {
+        // Remove old position if exists
+        if let Some(pos) = self.text_cache_lru.iter().position(|t| t == text) {
+            self.text_cache_lru.remove(pos);
+        }
+        // Add to back (most recently used)
+        self.text_cache_lru.push_back(text.to_string());
+    }
+
+    /// Evict least recently used entries if cache is full
+    fn evict_lru_if_needed(&mut self) {
+        while self.text_feature_cache.len() >= self.text_cache_max_size {
+            if let Some(lru_text) = self.text_cache_lru.pop_front() {
+                self.text_feature_cache.remove(&lru_text);
+            } else {
+                break;
+            }
+        }
     }
 
     /// Image encoding - extract FPN features
@@ -231,58 +300,65 @@ impl SAM3 {
             return Ok(vec![]);
         }
 
-        let batch_size = texts.len();
+        // Split texts into chunks based on text_batch size
+        let mut all_results = Vec::with_capacity(texts.len());
 
-        // Tokenize with automatic padding/truncation (add_special_tokens=true)
-        let encodings = self.processor.encode_texts(texts, true)?;
+        for chunk in texts.chunks(self.text_batch) {
+            let batch_size = chunk.len();
 
-        // Build batched input_ids tensor
-        let seq_len = encodings[0].get_ids().len();
-        let all_ids: Vec<f32> = encodings
-            .iter()
-            .flat_map(|e| e.get_ids().iter().map(|&id| id as f32))
-            .collect();
+            // Tokenize with automatic padding/truncation (add_special_tokens=true)
+            let encodings = self.processor.encode_texts(chunk, true)?;
 
-        // Build attention_mask: 1 for real tokens, 0 for padding
-        let all_masks: Vec<f32> = encodings
-            .iter()
-            .flat_map(|e| e.get_attention_mask().iter().map(|&m| m as f32))
-            .collect();
+            // Build batched input_ids tensor
+            let seq_len = encodings[0].get_ids().len();
+            let all_ids: Vec<f32> = encodings
+                .iter()
+                .flat_map(|e| e.get_ids().iter().map(|&id| id as f32))
+                .collect();
 
-        let input_ids = X::from_shape_vec(&[batch_size, seq_len], all_ids)?;
-        let attention_mask = X::from_shape_vec(&[batch_size, seq_len], all_masks)?;
+            // Build attention_mask: 1 for real tokens, 0 for padding
+            let all_masks: Vec<f32> = encodings
+                .iter()
+                .flat_map(|e| e.get_attention_mask().iter().map(|&m| m as f32))
+                .collect();
 
-        // Run batched text encoder
-        let ys = elapsed_module!("SAM3", "text-encoder-batch", {
-            self.textual_encoder
-                .run(Xs::from(vec![input_ids, attention_mask]))?
-        });
+            let input_ids = X::from_shape_vec(&[batch_size, seq_len], all_ids)?;
+            let attention_mask = X::from_shape_vec(&[batch_size, seq_len], all_masks)?;
 
-        // Split batch results: text_features [batch, seq, 256], text_mask [batch, seq]
-        let text_features = &ys[0];
-        let text_mask = &ys[1];
+            // Run batched text encoder
+            let ys = elapsed_module!("SAM3", "text-encoder-chunk", {
+                self.textual_encoder
+                    .run(Xs::from(vec![input_ids, attention_mask]))?
+            });
 
-        // Extract individual results
-        let results: Vec<(X, X)> = (0..batch_size)
-            .map(|i| {
-                let feat = text_features
-                    .slice(ndarray::s![i..i + 1, .., ..])
-                    .to_owned()
-                    .into_dyn()
-                    .into();
-                let mask = text_mask
-                    .slice(ndarray::s![i..i + 1, ..])
-                    .to_owned()
-                    .into_dyn()
-                    .into();
-                (feat, mask)
-            })
-            .collect();
+            // Split batch results: text_features [batch, seq, 256], text_mask [batch, seq]
+            let text_features = &ys[0];
+            let text_mask = &ys[1];
 
-        Ok(results)
+            // Extract individual results
+            let chunk_results: Vec<(X, X)> = (0..batch_size)
+                .map(|i| {
+                    let feat = text_features
+                        .slice(ndarray::s![i..i + 1, .., ..])
+                        .to_owned()
+                        .into_dyn()
+                        .into();
+                    let mask = text_mask
+                        .slice(ndarray::s![i..i + 1, ..])
+                        .to_owned()
+                        .into_dyn()
+                        .into();
+                    (feat, mask)
+                })
+                .collect();
+
+            all_results.extend(chunk_results);
+        }
+
+        Ok(all_results)
     }
 
-    /// Geometry encoding - encode bounding box prompts
+    /// Geometry encoding - encode bounding box prompts (single batch)
     fn encode_geometry(
         &mut self,
         boxes: &[[f32; 4]],
@@ -310,7 +386,91 @@ impl SAM3 {
         Ok((ys[0].clone(), ys[1].clone()))
     }
 
-    /// Decoder - generate segmentation results
+    /// Batch geometry encoding - encode multiple prompts at once
+    /// Returns Vec of (geometry_features, geometry_mask) for each prompt
+    fn encode_geometry_batch(
+        &mut self,
+        prompts_boxes: &[Vec<[f32; 4]>],
+        prompts_labels: &[Vec<i64>],
+        fpn_feat: &X,
+        fpn_pos: &X,
+    ) -> Result<Vec<(X, X)>> {
+        let batch_size = prompts_boxes.len();
+
+        // Find max number of boxes across all prompts
+        let max_boxes = prompts_boxes.iter().map(|b| b.len()).max().unwrap_or(0);
+        if max_boxes == 0 {
+            return Ok(vec![
+                (X::zeros(&[1, 1, 256]), X::zeros(&[1, 1]));
+                batch_size
+            ]);
+        }
+
+        // Pad all prompts to same number of boxes
+        let mut boxes_flat = Vec::with_capacity(batch_size * max_boxes * 4);
+        let mut labels_flat = Vec::with_capacity(batch_size * max_boxes);
+
+        for i in 0..batch_size {
+            let boxes = &prompts_boxes[i];
+            let labels = &prompts_labels[i];
+
+            // Add actual boxes
+            for box_ in boxes {
+                boxes_flat.extend_from_slice(box_);
+            }
+            // Pad with zeros
+            for _ in boxes.len()..max_boxes {
+                boxes_flat.extend_from_slice(&[0.0, 0.0, 0.0, 0.0]);
+            }
+
+            // Add actual labels
+            labels_flat.extend(labels.iter().map(|&l| l as f32));
+            // Pad with zeros
+            let padding_count = max_boxes - labels.len();
+            labels_flat.resize(labels_flat.len() + padding_count, 0.0);
+        }
+
+        let input_boxes = X::from_shape_vec(&[batch_size, max_boxes, 4], boxes_flat)?;
+        let input_labels = X::from_shape_vec(&[batch_size, max_boxes], labels_flat)?;
+
+        // Expand fpn features to batch dimension
+        let fpn_feat_batch = fpn_feat.clone().broadcast([batch_size, 256, 72, 72])?;
+        let fpn_pos_batch = fpn_pos.clone().broadcast([batch_size, 256, 72, 72])?;
+
+        let ys = elapsed_module!("SAM3", "geometry-batch-inference", {
+            self.geometry_encoder.run(Xs::from(vec![
+                input_boxes,
+                input_labels,
+                fpn_feat_batch,
+                fpn_pos_batch,
+            ]))?
+        });
+
+        // Split batch results
+        let geo_features = &ys[0]; // [batch, num_boxes+1, 256]
+        let geo_masks = &ys[1]; // [batch, num_boxes+1]
+
+        let results: Vec<(X, X)> = (0..batch_size)
+            .map(|i| {
+                let num_boxes = prompts_boxes[i].len();
+                let feat = geo_features
+                    .slice(ndarray::s![i..i + 1, ..num_boxes + 1, ..])
+                    .to_owned()
+                    .into_dyn()
+                    .into();
+                let mask = geo_masks
+                    .slice(ndarray::s![i..i + 1, ..num_boxes + 1])
+                    .to_owned()
+                    .into_dyn()
+                    .into();
+                (feat, mask)
+            })
+            .collect();
+
+        Ok(results)
+    }
+
+    /// Decoder - generate segmentation results (single prompt)
     fn decode(&mut self, fpn_features: &Xs, prompt_features: &X, prompt_mask: &X) -> Result<Xs> {
         elapsed_module!("SAM3", "decode-inference", {
             self.decoder.run(Xs::from(vec![
@@ -324,6 +484,86 @@ impl SAM3 {
         })
     }
 
+    /// Batch decoder - decode multiple prompts at once
+    fn decode_batch(
+        &mut self,
+        fpn_features: &Xs,
+        prompt_features_batch: &[X],
+        prompt_masks_batch: &[X],
+    ) -> Result<Vec<Xs>> {
+        let batch_size = prompt_features_batch.len();
+
+        // Concatenate all prompt features along batch dimension
+        let all_prompt_features = X::concat(prompt_features_batch, 0)?;
+        let all_prompt_masks = X::concat(prompt_masks_batch, 0)?;
+
+        // Broadcast FPN features to match batch size (dynamically get spatial dims)
+        let s0 = fpn_features[0].shape();
+        let s1 = fpn_features[1].shape();
+        let s2 = fpn_features[2].shape();
+        let s6 = fpn_features[6].shape();
+
+        let fpn_feat_0_batch = fpn_features[0]
+            .clone()
+            .broadcast([batch_size, s0[1], s0[2], s0[3]])?;
+        let fpn_feat_1_batch = fpn_features[1]
+            .clone()
+            .broadcast([batch_size, s1[1], s1[2], s1[3]])?;
+        let fpn_feat_2_batch = fpn_features[2]
+            .clone()
+            .broadcast([batch_size, s2[1], s2[2], s2[3]])?;
+        let fpn_pos_2_batch = fpn_features[6]
+            .clone()
+            .broadcast([batch_size, s6[1], s6[2], s6[3]])?;
+
+        let ys = elapsed_module!("SAM3", "decode-batch-inference", {
+            self.decoder.run(Xs::from(vec![
+                fpn_feat_0_batch,
+                fpn_feat_1_batch,
+                fpn_feat_2_batch,
+                fpn_pos_2_batch,
+                all_prompt_features,
+                all_prompt_masks,
+            ]))?
+        });
+
+        // Split batch results: pred_masks, pred_boxes, pred_logits, presence_logits
+        let pred_masks = &ys[0]; // [batch, 200, 288, 288]
+        let pred_boxes = &ys[1]; // [batch, 200, 4]
+        let pred_logits = &ys[2]; // [batch, 200]
+        let presence_logits = &ys[3]; // [batch, 1]
+
+        let results: Vec<Xs> = (0..batch_size)
+            .map(|i| {
+                vec![
+                    pred_masks
+                        .slice(ndarray::s![i..i + 1, .., .., ..])
+                        .to_owned()
+                        .into_dyn()
+                        .into(),
+                    pred_boxes
+                        .slice(ndarray::s![i..i + 1, .., ..])
+                        .to_owned()
+                        .into_dyn()
+                        .into(),
+                    pred_logits
+                        .slice(ndarray::s![i..i + 1, ..])
+                        .to_owned()
+                        .into_dyn()
+                        .into(),
+                    presence_logits
+                        .slice(ndarray::s![i..i + 1, ..])
+                        .to_owned()
+                        .into_dyn()
+                        .into(),
+                ]
+                .into()
+            })
+            .collect();
+
+        Ok(results)
+    }
+
     pub fn forward(&mut self, xs: &[Image], prompts: &[Sam3Prompt]) -> Result<Vec<Y>> {
         if xs.is_empty() || prompts.is_empty() {
             return Ok(vec![]);
@@ -335,7 +575,7 @@ impl SAM3 {
         // Update class names from prompts
         self.names = prompts.iter().map(|p| p.text.clone()).collect();
 
-        // Step 1: Batch encode all images
+        // Step 1: Vision Encoding (batch=N images)
         let all_fpn_features = elapsed_module!("SAM3", "vision-encoder", self.encode_image(xs)?);
 
         // Store original image dimensions
@@ -346,9 +586,45 @@ impl SAM3 {
             .map(|info| (info.height_src as usize, info.width_src as usize))
             .collect();
 
-        // Step 2: Batch encode all texts from prompts
-        let texts: Vec<&str> = prompts.iter().map(|p| p.text.as_str()).collect();
-        let text_features_batch = self.encode_texts_batch(&texts)?;
+        // Step 2: Text Encoding (with smart caching)
+        // 2.1 Find unique texts that need encoding
+        let unique_texts: std::collections::HashSet<&str> =
+            prompts.iter().map(|p| p.text.as_str()).collect();
+
+        let uncached_texts: Vec<&str> = unique_texts
+            .iter()
+            .filter(|&&t| !self.text_feature_cache.contains_key(t))
+            .copied()
+            .collect();
+
+        // 2.2 Batch encode only uncached texts
+        if !uncached_texts.is_empty() {
+            let new_features = elapsed_module!(
+                "SAM3",
+                "text-encoder-cache-miss",
+                self.encode_texts_batch(&uncached_texts)?
+            );
+
+            // 2.3 Update cache with LRU eviction
+            for (text, feat) in uncached_texts.iter().zip(new_features.into_iter()) {
+                // Evict LRU entries if cache is full
+                self.evict_lru_if_needed();
+
+                // Insert new entry
+                self.text_feature_cache.insert(text.to_string(), feat);
+                self.touch_cache_entry(text);
+            }
+        }
+
+        // 2.4 Retrieve cached text features for all prompts (update LRU on access)
+        let text_features_batch: Vec<(X, X)> = prompts
+            .iter()
+            .map(|p| {
+                let text = p.text.as_str();
+                self.touch_cache_entry(text);
+                self.text_feature_cache[text].clone()
+            })
+            .collect();
 
         // Step 3: Process each image
         let mut results = Vec::with_capacity(xs.len());
@@ -369,49 +645,145 @@ impl SAM3 {
             let mut combined_masks: Vec<Mask> = Vec::new();
             let mut combined_hbbs: Vec<Hbb> = Vec::new();
 
-            // Process each prompt independently
-            for (prompt_idx, prompt) in prompts.iter().enumerate() {
-                let (text_features, text_mask) = text_features_batch[prompt_idx].clone();
+            // Choose between batch processing or sequential processing
+            //
+            // NOTE: Prompt batching is DISABLED by default because:
+            // - Broadcast cost: FPN features × N prompts = ~200MB+ memory copy
+            // - Marginal benefit: Kernel launch savings < memory bandwidth cost
+            // - Better alternative: Use rayon for CPU parallelism (no GPU memory overhead)
+            //
+            // To enable: model.with_prompt_batching_enabled(true)
+            if self.enable_prompt_batching && prompts.len() > 1 {
+                // Batch Mode: Process all prompts together (GPU batching)
 
-                // Build prompt features based on geometry availability
-                let (prompt_features, prompt_mask) = if prompt.should_use_geometry() {
-                    // Encode geometry (boxes + labels)
-                    let norm_boxes =
-                        prompt.normalized_boxes(*image_width as f32, *image_height as f32);
-                    let (geo_features, geo_mask) = self.encode_geometry(
-                        &norm_boxes,
-                        &prompt.labels,
-                        &fpn_features[2],
-                        &fpn_features[6],
-                    )?;
+                // Prepare batch geometry encoding
+                let mut prompts_boxes = Vec::new();
+                let mut prompts_labels = Vec::new();
+                let mut has_geometry_flags = Vec::new();
 
-                    // Concatenate text and geometry features
-                    let prompt_features = X::concat(&[text_features, geo_features], 1)?;
-                    let prompt_mask = X::concat(&[text_mask, geo_mask], 1)?;
-                    (prompt_features, prompt_mask)
-                } else {
-                    // Text-only: use text features directly
-                    (text_features, text_mask)
-                };
+                for prompt in prompts.iter() {
+                    if prompt.should_use_geometry() {
+                        let norm_boxes =
+                            prompt.normalized_boxes(*image_width as f32, *image_height as f32);
+                        prompts_boxes.push(norm_boxes);
+                        prompts_labels.push(prompt.labels.clone());
+                        has_geometry_flags.push(true);
+                    } else {
+                        prompts_boxes.push(vec![]);
+                        prompts_labels.push(vec![]);
+                        has_geometry_flags.push(false);
+                    }
+                }
 
-                // Decode
-                let outputs = self.decode(&fpn_features, &prompt_features, &prompt_mask)?;
+                // Batch encode geometry
+                let geo_features_batch = self.encode_geometry_batch(
+                    &prompts_boxes,
+                    &prompts_labels,
+                    &fpn_features[2],
+                    &fpn_features[6],
+                )?;
 
-                // Post-process
-                let y = elapsed_module!(
-                    "SAM3",
-                    "postprocess",
-                    self.postprocess(
-                        &outputs,
-                        *image_height,
-                        *image_width,
-                        prompt_idx,
-                        prompt.class_name()
-                    )?
-                );
+                // Build prompt features
+                let mut prompt_features_list = Vec::new();
+                let mut prompt_masks_list = Vec::new();
 
-                combined_masks.extend(y.masks().iter().cloned());
-                combined_hbbs.extend(y.hbbs().iter().cloned());
+                for (idx, (has_geo, (text_features, text_mask))) in has_geometry_flags
+                    .iter()
+                    .zip(text_features_batch.iter())
+                    .enumerate()
+                {
+                    let (prompt_features, prompt_mask) = if *has_geo {
+                        let (geo_features, geo_mask) = geo_features_batch[idx].clone();
+                        (
+                            X::concat(&[text_features.clone(), geo_features], 1)?,
+                            X::concat(&[text_mask.clone(), geo_mask], 1)?,
+                        )
+                    } else {
+                        (text_features.clone(), text_mask.clone())
+                    };
+                    prompt_features_list.push(prompt_features);
+                    prompt_masks_list.push(prompt_mask);
+                }
+
+                // Batch decode
+                let outputs_batch =
+                    self.decode_batch(&fpn_features, &prompt_features_list, &prompt_masks_list)?;
+
+                // Post-process each result
+                for (prompt_idx, (prompt, outputs)) in
+                    prompts.iter().zip(outputs_batch.iter()).enumerate()
+                {
+                    let y = elapsed_module!(
+                        "SAM3",
+                        "postprocess",
+                        self.postprocess(
+                            outputs,
+                            *image_height,
+                            *image_width,
+                            prompt_idx,
+                            prompt.class_name()
+                        )?
+                    );
+                    combined_masks.extend(y.masks().iter().cloned());
+                    combined_hbbs.extend(y.hbbs().iter().cloned());
+                }
+            } else {
+                // Sequential Mode: Process prompts one by one (Recommended)
+                // FUTURE OPTIMIZATION: Use rayon for parallel processing
+                // - No GPU memory overhead (each thread uses same FPN features)
+                // - Better CPU utilization during I/O waits
+                // - Easy to implement:
+                //   ```rust
+                //   use rayon::prelude::*;
+                //   let results: Vec<_> = prompts.par_iter().enumerate().map(|(idx, prompt)| {
+                //       // Process each prompt independently
+                //   }).collect();
+                //   ```
+                // - NOTE: Requires thread-safe access to ONNX sessions (check Engine impl)
+                //
+                for (prompt_idx, prompt) in prompts.iter().enumerate() {
+                    let (text_features, text_mask) = text_features_batch[prompt_idx].clone();
+
+                    // Build prompt features based on geometry availability
+                    let (prompt_features, prompt_mask) = if prompt.should_use_geometry() {
+                        // Encode geometry (boxes + labels)
+                        let norm_boxes =
+                            prompt.normalized_boxes(*image_width as f32, *image_height as f32);
+                        let (geo_features, geo_mask) = self.encode_geometry(
+                            &norm_boxes,
+                            &prompt.labels,
+                            &fpn_features[2],
+                            &fpn_features[6],
+                        )?;
+
+                        // Concatenate text and geometry features
+                        let prompt_features = X::concat(&[text_features, geo_features], 1)?;
+                        let prompt_mask = X::concat(&[text_mask, geo_mask], 1)?;
+                        (prompt_features, prompt_mask)
+                    } else {
+                        // Text-only: use text features directly
+                        (text_features, text_mask)
+                    };
+
+                    // Decode
+                    let outputs = self.decode(&fpn_features, &prompt_features, &prompt_mask)?;
+
+                    // Post-process
+                    let y = elapsed_module!(
+                        "SAM3",
+                        "postprocess",
+                        self.postprocess(
+                            &outputs,
+                            *image_height,
+                            *image_width,
+                            prompt_idx,
+                            prompt.class_name()
+                        )?
+                    );
+
+                    combined_masks.extend(y.masks().iter().cloned());
+                    combined_hbbs.extend(y.hbbs().iter().cloned());
+                }
             }
 
             results.push(

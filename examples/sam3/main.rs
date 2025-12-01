@@ -29,17 +29,29 @@ struct Args {
     #[argh(option, default = "0.5")]
     conf: f32,
 
-    /// batch size min (default: 1)
+    /// image batch size min
     #[argh(option, default = "1")]
     batch_min: usize,
 
-    /// batch size (default: 1)
+    /// image batch size
     #[argh(option, default = "1")]
     batch: usize,
 
-    /// batch size max (default: 4)
-    #[argh(option, default = "4")]
+    /// image batch size max
+    #[argh(option, default = "8")]
     batch_max: usize,
+
+    /// text batch size min
+    #[argh(option, default = "1")]
+    text_batch_min: usize,
+
+    /// text batch size
+    #[argh(option, default = "4")]
+    text_batch: usize,
+
+    /// text batch size max
+    #[argh(option, default = "16")]
+    text_batch_max: usize,
 
     /// dtype
     #[argh(option, default = "String::from(\"q4f16\")")]
@@ -55,7 +67,6 @@ fn main() -> Result<()> {
         .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
         .with_timer(tracing_subscriber::fmt::time::ChronoLocal::rfc_3339())
         .init();
-
     let args: Args = argh::from_env();
 
     // Parse prompts
@@ -71,11 +82,20 @@ fn main() -> Result<()> {
 
     // Build model
     let config = Config::sam3_image_predictor()
-        .with_batch_size_all_min_opt_max(args.batch_min, args.batch, args.batch_max)
-        .with_device_all(args.device.parse()?)
         .with_dtype_all(args.dtype.parse()?)
         .with_class_confs(&[args.conf])
-        .with_num_dry_run_all(1)
+        .with_batch_size_all_min_opt_max(args.batch_min, args.batch, args.batch_max)
+        .with_textual_encoder_batch_min_opt_max(
+            args.text_batch_min,
+            args.text_batch,
+            args.text_batch_max,
+        )
+        // => If your GPU memory is insufficient, you can place some modules on CPU
+        // .with_visual_encoder_device(args.device.parse()?)
+        // .with_textual_encoder_device(args.device.parse()?)
+        // .with_encoder_device(args.device.parse()?)  // geometry-encoder
+        // .with_decoder_device(args.device.parse()?)
+        .with_device_all(args.device.parse()?)
         .commit()?;
     let mut model = SAM3::new(config)?;
 
@@ -105,6 +125,11 @@ fn main() -> Result<()> {
         }
     }
 
+    // Cache info
+    let (cached_count, mem_mb) = model.cache_stats();
+    println!("Cache: {} texts, ~{}MB", cached_count, mem_mb);
+
     usls::perf(false);
+
     Ok(())
 }
