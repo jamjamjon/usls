@@ -426,9 +426,8 @@ impl SAM3 {
             // Add actual labels
             labels_flat.extend(labels.iter().map(|&l| l as f32));
             // Pad with zeros
-            for _ in labels.len()..max_boxes {
-                labels_flat.push(0.0);
-            }
+            let padding_count = max_boxes - labels.len();
+            labels_flat.resize(labels_flat.len() + padding_count, 0.0);
         }
 
         let input_boxes = X::from_shape_vec(&[batch_size, max_boxes, 4], boxes_flat)?;
