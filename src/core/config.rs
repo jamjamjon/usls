@@ -236,6 +236,46 @@ impl Config {
         self
     }
 
+    pub fn with_textual_encoder_batch_min_opt_max(
+        mut self,
+        min: usize,
+        opt: usize,
+        max: usize,
+    ) -> Self {
+        self.textual_encoder = self.textual_encoder.with_ixx(0, 0, (min, opt, max).into());
+        self
+    }
+
+    pub fn with_visual_encoder_batch_min_opt_max(
+        mut self,
+        min: usize,
+        opt: usize,
+        max: usize,
+    ) -> Self {
+        self.visual_encoder = self.visual_encoder.with_ixx(0, 0, (min, opt, max).into());
+        self
+    }
+
+    pub fn with_encoder_encoder_batch_min_opt_max(
+        mut self,
+        min: usize,
+        opt: usize,
+        max: usize,
+    ) -> Self {
+        self.encoder = self.encoder.with_ixx(0, 0, (min, opt, max).into());
+        self
+    }
+
+    pub fn with_decoder_batch_min_opt_max(mut self, min: usize, opt: usize, max: usize) -> Self {
+        self.decoder = self.decoder.with_ixx(0, 0, (min, opt, max).into());
+        self
+    }
+
+    pub fn with_model_batch_min_opt_max(mut self, min: usize, opt: usize, max: usize) -> Self {
+        self.model = self.model.with_ixx(0, 0, (min, opt, max).into());
+        self
+    }
+
     pub fn with_batch_size_all(mut self, batch_size: usize) -> Self {
         self.visual = self.visual.with_ixx(0, 0, batch_size.into());
         self.textual = self.textual.with_ixx(0, 0, batch_size.into());
