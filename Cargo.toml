@@ -37,7 +37,7 @@ dirs = { version = "6.0.0" }
 chrono = { version = "0.4.40", default-features = false, features = ["clock", "std"] }
 regex = { version = "1.12.2" }
 tempfile = { version = "3.23.0" }
-fast_image_resize = { version = "=5.1.4", default-features = false, features = ["image", "rayon"] }
+fast_image_resize = { version = "=5.4.0", default-features = false, features = ["image", "rayon"] }
 minifb = { version = "0.28.0", optional = true }
 video-rs = { version = "0.10.3", features = ["ndarray"], optional = true }
 ndarray-npy = { version = "0.9.1", optional = true  }
