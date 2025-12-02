@@ -16,8 +16,10 @@ anyhow = { version = "1" }
 slsl = { version = "0.0.7", features = ["rayon"], optional = true }
 aksr = { version = "0.0.7" }
 ab_glyph = { version = "0.2.32" }
-image = { version = "0.25" }
-imageproc = { version = "0.25" }
+image = { version = "0.25", default-features = false, features = [
+  "jpeg", "png", "gif", "webp", "bmp", "ico", "rayon"
+] }
+imageproc = { version = "0.25", default-features = false, features = ["rayon"] }
 ndarray = { version = "0.16.1", features = ["rayon"] }
 half = { version = "2.7.1", features = ["bytemuck", "num-traits"] }
 indicatif = { version = "0.18" }
@@ -35,7 +37,7 @@ dirs = { version = "6.0.0" }
 chrono = { version = "0.4.40" }
 regex = { version = "1.12.2" }
 tempfile = { version = "3.23.0" }
-fast_image_resize = { version = "=5.1.4", features = ["image", "rayon"] }
+fast_image_resize = { version = "=5.1.4", default-features = false, features = ["image", "rayon"] }
 minifb = { version = "0.28.0", optional = true }
 video-rs = { version = "0.10.3", features = ["ndarray"], optional = true }
 ndarray-npy = { version = "0.9.1", optional = true  }
@@ -46,6 +48,7 @@ ort = { version = "=2.0.0-rc.10", default-features = false, optional = true, fea
 ] }
 hf-hub = { version = "0.4.3", default-features = false, features = ["ureq", "native-tls"], optional = true }
 tokenizers = { version = "0.22.1", optional = true }
+lru = "0.16.2"
 
 
 [dev-dependencies]
@@ -54,8 +57,12 @@ tracing-subscriber = { version = "0.3.18", features = ["env-filter", "chrono"] }
 
 
 [profile.dev]
-opt-level = 1
+opt-level = 0
 incremental = true
+
+# Optimize dependencies in dev mode (faster runtime, slightly slower first compile)
+[profile.dev.package."*"]
+opt-level = 2
 
 [profile.release]
 opt-level = 3

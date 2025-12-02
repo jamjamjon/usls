@@ -3,24 +3,25 @@ use crate::Config;
 /// Model configuration for `SAM3`
 impl Config {
     /// SAM3 base configuration
-    ///
-    /// - Input size: 1008x1008 (FitExact, no aspect ratio preserved)
-    /// - Normalization: mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]
-    /// - Tokenizer: CLIP BPE (max_length=32)
-    /// - Confidence threshold: 0.5
     pub fn sam3() -> Self {
         Self::default()
             .with_name("sam3")
             .with_num_dry_run_all(1)
-            .with_batch_size_all_min_opt_max(1, 1, 10)
+            // Batch sizes: vision=1, text=4, geometry=8, decoder=1
+            .with_visual_encoder_batch_min_opt_max(1, 1, 8)
+            .with_textual_encoder_batch_min_opt_max(1, 4, 16)
+            .with_encoder_batch_min_opt_max(1, 8, 16) // geometry encoder
+            .with_decoder_batch_min_opt_max(1, 1, 8) // decoder (memory intensive)
+            // Shape configurations
             .with_visual_encoder_ixx(0, 1, 3.into()) // vision-encoder: channels
             .with_visual_encoder_ixx(0, 2, 1008.into()) // vision-encoder: height
             .with_visual_encoder_ixx(0, 3, 1008.into()) // vision-encoder: width
-            .with_textual_encoder_ixx(0, 1, 32.into()) // text-encoder: text sequence length
-            .with_encoder_ixx(0, 1, (1, 2, 8).into()) // geometry-encoder: input_boxes, num_boxes
-            .with_encoder_ixx(1, 1, (1, 2, 8).into()) // geometry-encoder: input_boxes_labels, num_boxes
-            .with_decoder_ixx(4, 1, (1, 34, 60).into()) // decoder: prompt_features prompt_len
-            .with_decoder_ixx(5, 1, (1, 34, 60).into()) // decoder: prompt_mask prompt_len
+            .with_textual_encoder_ixx(0, 1, 32.into()) // text-encoder: sequence length
+            .with_encoder_ixx(0, 1, (1, 2, 8).into()) // geometry-encoder: num_boxes
+            .with_encoder_ixx(1, 1, (1, 2, 8).into()) // geometry-encoder: num_boxes
+            .with_decoder_ixx(4, 1, (1, 34, 60).into()) // decoder: prompt_len
+            .with_decoder_ixx(5, 1, (1, 34, 60).into()) // decoder: prompt_len
+            // Preprocessing
             .with_resize_mode(crate::ResizeMode::FitExact)
             .with_resize_filter("Bilinear")
             .with_image_mean(&[0.5, 0.5, 0.5])

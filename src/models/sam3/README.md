@@ -70,29 +70,35 @@ Outputs:
 
 ## TensorRT Conversion
 
+### Vision Encoder
 ```bash
-# Vision Encoder
 trtexec --onnx=sam3_vision_encoder.onnx \
   --minShapes=images:1x3x1008x1008 \
   --optShapes=images:4x3x1008x1008 \
   --maxShapes=images:8x3x1008x1008 \
   --saveEngine=sam3_vision_encoder.engine
+```
 
-# Text Encoder
+### Text Encoder
+```bash
 trtexec --onnx=sam3_text_encoder.onnx \
   --minShapes=input_ids:1x32,attention_mask:1x32 \
   --optShapes=input_ids:4x32,attention_mask:4x32 \
   --maxShapes=input_ids:8x32,attention_mask:8x32 \
   --saveEngine=sam3_text_encoder.engine
+```
 
-# Geometry Encoder
+### Geometry Encoder
+```bash
 trtexec --onnx=sam3_geometry_encoder.onnx \
   --minShapes=input_boxes:1x1x4,input_boxes_labels:1x1,fpn_feat:1x256x72x72,fpn_pos:1x256x72x72 \
   --optShapes=input_boxes:1x5x4,input_boxes_labels:1x5,fpn_feat:1x256x72x72,fpn_pos:1x256x72x72 \
   --maxShapes=input_boxes:8x20x4,input_boxes_labels:8x20,fpn_feat:8x256x72x72,fpn_pos:8x256x72x72 \
   --saveEngine=sam3_geometry_encoder.engine
+```
 
-# Decoder
+### Decoder
+```bash
 trtexec --onnx=sam3_decoder.onnx \
   --minShapes=fpn_feat_0:1x256x288x288,fpn_feat_1:1x256x144x144,fpn_feat_2:1x256x72x72,fpn_pos_2:1x256x72x72,prompt_features:1x1x256,prompt_mask:1x1 \
   --optShapes=fpn_feat_0:1x256x288x288,fpn_feat_1:1x256x144x144,fpn_feat_2:1x256x72x72,fpn_pos_2:1x256x72x72,prompt_features:1x33x256,prompt_mask:1x33 \

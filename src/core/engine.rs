@@ -40,7 +40,8 @@ impl From<TensorElementType> for DType {
             TensorElementType::Float8E5M2FNUZ => Self::Fp8e5m2fnuz,
             TensorElementType::Complex64 => Self::Complex64,
             TensorElementType::Complex128 => Self::Complex128,
-            _ => todo!(),
+            TensorElementType::Bool => Self::Uint8,
+            TensorElementType::String | TensorElementType::Undefined => Self::Auto,
         }
     }
 }
