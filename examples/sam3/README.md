@@ -14,7 +14,7 @@ cargo run -r -F sam3,cuda --example sam3 -- \
 
 # Multiple prompts on multiple images
 cargo run -r -F sam3,cuda --example sam3 -- \
-    --device cuda --dtype q4f16 --batch 2 \
+    --device cuda --dtype q4f16 --vision-batch 2 \
     --source assets/sam3-demo.jpg --source assets/bus.jpg \
     -p bus -p cat -p shoe -p cellphone -p person -p "short hair"
 

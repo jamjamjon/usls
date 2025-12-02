@@ -12,13 +12,7 @@ struct Args {
     device: String,
 
     /// source image paths (can specify multiple)
-    #[argh(
-        option,
-        default = "vec![
-        String::from(\"./assets/sam3-demo.jpg\"),
-        // String::from(\"./assets/bus.jpg\")
-    ]"
-    )]
+    #[argh(option, default = "vec![String::from(\"./assets/sam3-demo.jpg\")]")]
     source: Vec<String>,
 
     /// prompts: "text;pos:x,y,w,h;neg:x,y,w,h" (can specify multiple)
@@ -29,37 +23,61 @@ struct Args {
     #[argh(option, default = "0.5")]
     conf: f32,
 
-    /// image batch size min
-    #[argh(option, default = "1")]
-    batch_min: usize,
-
-    /// image batch size
-    #[argh(option, default = "1")]
-    batch: usize,
-
-    /// image batch size max
-    #[argh(option, default = "8")]
-    batch_max: usize,
-
-    /// text batch size min
-    #[argh(option, default = "1")]
-    text_batch_min: usize,
-
-    /// text batch size
-    #[argh(option, default = "4")]
-    text_batch: usize,
-
-    /// text batch size max
-    #[argh(option, default = "16")]
-    text_batch_max: usize,
+    /// show mask
+    #[argh(switch)]
+    show_mask: bool,
 
     /// dtype
     #[argh(option, default = "String::from(\"q4f16\")")]
     dtype: String,
 
-    /// show mask
-    #[argh(switch)]
-    show_mask: bool,
+    /// vision encoder batch min
+    #[argh(option, default = "1")]
+    vision_batch_min: usize,
+
+    /// vision encoder batch opt
+    #[argh(option, default = "1")]
+    vision_batch: usize,
+
+    /// vision encoder batch max
+    #[argh(option, default = "8")]
+    vision_batch_max: usize,
+
+    /// text encoder batch min
+    #[argh(option, default = "1")]
+    text_batch_min: usize,
+
+    /// text encoder batch opt
+    #[argh(option, default = "4")]
+    text_batch: usize,
+
+    /// text encoder batch max
+    #[argh(option, default = "16")]
+    text_batch_max: usize,
+
+    /// geometry encoder batch min
+    #[argh(option, default = "1")]
+    geo_batch_min: usize,
+
+    /// geometry encoder batch opt
+    #[argh(option, default = "8")]
+    geo_batch: usize,
+
+    /// geometry encoder batch max
+    #[argh(option, default = "16")]
+    geo_batch_max: usize,
+
+    /// decoder batch min
+    #[argh(option, default = "1")]
+    decoder_batch_min: usize,
+
+    /// decoder batch opt
+    #[argh(option, default = "1")]
+    decoder_batch: usize,
+
+    /// decoder batch max
+    #[argh(option, default = "8")]
+    decoder_batch_max: usize,
 }
 
 fn main() -> Result<()> {
@@ -80,16 +98,28 @@ fn main() -> Result<()> {
         .collect::<std::result::Result<Vec<_>, _>>()
         .map_err(|e| anyhow::anyhow!("{}", e))?;
 
-    // Build model
+    // Build model with per-encoder batch sizes
     let config = Config::sam3_image_predictor()
         .with_dtype_all(args.dtype.parse()?)
         .with_class_confs(&[args.conf])
-        .with_batch_size_all_min_opt_max(args.batch_min, args.batch, args.batch_max)
+        // Per-encoder batch sizes for TensorRT (min, opt, max)
+        .with_visual_encoder_batch_min_opt_max(
+            args.vision_batch_min,
+            args.vision_batch,
+            args.vision_batch_max,
+        )
         .with_textual_encoder_batch_min_opt_max(
             args.text_batch_min,
             args.text_batch,
             args.text_batch_max,
         )
+        .with_encoder_batch_min_opt_max(args.geo_batch_min, args.geo_batch, args.geo_batch_max)
+        .with_decoder_batch_min_opt_max(
+            args.decoder_batch_min,
+            args.decoder_batch,
+            args.decoder_batch_max,
+        )
+        // Device configuration
         // => If your GPU memory is insufficient, you can place some modules on CPU
         // .with_visual_encoder_device(args.device.parse()?)
         // .with_textual_encoder_device(args.device.parse()?)
@@ -109,7 +139,7 @@ fn main() -> Result<()> {
 
     // DataLoader with batch iteration
     let dataloader = DataLoader::from_paths(&args.source)?
-        .with_batch(args.batch)
+        .with_batch(args.vision_batch)
         .with_progress_bar(true)
         .build()?;
 
@@ -125,10 +155,10 @@ fn main() -> Result<()> {
         }
     }
 
-    // Cache info
-    let (cached_count, mem_mb) = model.cache_stats();
-    println!("Cache: {} texts, ~{}MB", cached_count, mem_mb);
+    // Cache stats
+    model.cache_stats();
 
+    // Performance stats
     usls::perf(false);
 
     Ok(())
