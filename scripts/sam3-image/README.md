@@ -6,6 +6,10 @@
 uv run export.py --all --model-path /path/to/sam3-models
 ```
 
+The exported **sam3-image** ONNX models are available here:
+
+- **GitHub Release:** https://github.com/jamjamjon/assets/releases/tag/sam3
+
 ## Inference Code
 
 ### Python
