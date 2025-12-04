@@ -155,9 +155,6 @@ fn main() -> Result<()> {
         }
     }
 
-    // Cache stats
-    model.cache_stats();
-
     // Performance stats
     usls::perf(false);
 
