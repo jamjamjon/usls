@@ -218,11 +218,11 @@ impl SAM3 {
         let prompt_feat = X::concat(prompt_features, 0)?;
         let prompt_mask = X::concat(prompt_masks, 0)?;
 
-        let (s0, s1, s2, s6) = (
+        let (s0, s1, s2, s4) = (
             fpn_features[0].shape(),
             fpn_features[1].shape(),
             fpn_features[2].shape(),
-            fpn_features[6].shape(),
+            fpn_features[3].shape(),
         );
 
         let ys = self.decoder.run(Xs::from(vec![
@@ -235,9 +235,9 @@ impl SAM3 {
             fpn_features[2]
                 .clone()
                 .broadcast([n, s2[1], s2[2], s2[3]])?,
-            fpn_features[6]
+            fpn_features[3]
                 .clone()
-                .broadcast([n, s6[1], s6[2], s6[3]])?,
+                .broadcast([n, s4[1], s4[2], s4[3]])?,
             prompt_feat,
             prompt_mask,
         ]))?;
@@ -312,7 +312,7 @@ impl SAM3 {
 
         for (img_idx, (image_height, image_width)) in image_dims.iter().enumerate() {
             // Extract single image's FPN features
-            let fpn_features: Xs = (0..8)
+            let fpn_features: Xs = (0..4)
                 .map(|i| {
                     let feat = &all_fpn_features[i];
                     feat.slice(ndarray::s![img_idx..img_idx + 1, .., .., ..])
@@ -354,7 +354,7 @@ impl SAM3 {
                     &prompts_boxes,
                     &prompts_labels,
                     &fpn_features[2],
-                    &fpn_features[6],
+                    &fpn_features[3],
                 )?
             });
 
