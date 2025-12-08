@@ -1,7 +1,7 @@
 use anyhow::Result;
 
 use usls::{
-    models::YOLO, Annotator, ByteTracker, Config, DataLoader, Style, Viewer, SKELETON_COCO_19,
+    models::YOLO, Annotator, ByteTracker, Config, DataLoader, Viewer, SKELETON_COCO_19,
     SKELETON_COLOR_COCO_19,
 };
 
@@ -131,20 +131,20 @@ fn main() -> Result<()> {
 
     // build annotator
     let annotator = Annotator::default()
-        .with_obb_style(Style::obb().with_draw_fill(true))
+        .with_obb_style(usls::ObbStyle::default().with_draw_fill(true))
         .with_hbb_style(
-            Style::hbb()
+            usls::HbbStyle::default()
                 .with_draw_fill(true)
                 .with_palette(&usls::Color::palette_coco_80()),
         )
         .with_keypoint_style(
-            Style::keypoint()
+            usls::KeypointStyle::default()
                 .with_skeleton((SKELETON_COCO_19, SKELETON_COLOR_COCO_19).into())
                 .show_confidence(false)
                 .show_id(true)
                 .show_name(false),
         )
-        .with_mask_style(Style::mask().with_draw_mask_polygon_largest(true));
+        .with_mask_style(usls::MaskStyle::default().with_draw_polygon_largest(true));
 
     // build viewer and tracker
     let mut viewer = Viewer::default().with_window_scale(1.);

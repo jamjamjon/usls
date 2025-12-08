@@ -1,13 +1,13 @@
 use aksr::Builder;
 
-use crate::{InstanceMeta, Style};
+use crate::{InstanceMeta, TextStyle};
 
 /// Text detection result with content and metadata.
 #[derive(Builder, Clone, Default)]
 pub struct Text {
     text: String,
     meta: InstanceMeta,
-    style: Option<Style>,
+    style: Option<TextStyle>,
 }
 
 impl std::fmt::Debug for Text {

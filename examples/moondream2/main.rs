@@ -83,12 +83,12 @@ fn main() -> Result<()> {
             // annotate
             let annotator = Annotator::default()
                 .with_hbb_style(
-                    usls::Style::hbb()
+                    usls::HbbStyle::default()
                         .with_draw_fill(true)
                         .show_confidence(false),
                 )
                 .with_keypoint_style(
-                    usls::Style::keypoint()
+                    usls::KeypointStyle::default()
                         .show_confidence(false)
                         .show_id(true)
                         .show_name(false),

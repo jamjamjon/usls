@@ -1,5 +1,5 @@
 use anyhow::Result;
-use usls::{models::RTMO, Annotator, Config, DataLoader, Style, SKELETON_COCO_19};
+use usls::{models::RTMO, Annotator, Config, DataLoader, SKELETON_COCO_19};
 
 #[derive(argh::FromArgs)]
 /// Example
@@ -45,15 +45,13 @@ fn main() -> Result<()> {
     // println!("ys: {:?}", ys);
 
     // annotate
-    let annotator = Annotator::default()
-        .with_hbb_style(Style::hbb().with_draw_fill(true))
-        .with_keypoint_style(
-            Style::keypoint()
-                .with_skeleton(SKELETON_COCO_19.into())
-                .show_confidence(false)
-                .show_id(true)
-                .show_name(true),
-        );
+    let annotator = Annotator::default().with_keypoint_style(
+        usls::KeypointStyle::default()
+            .with_skeleton(SKELETON_COCO_19.into())
+            .show_confidence(false)
+            .show_id(true)
+            .show_name(true),
+    );
     for (x, y) in xs.iter().zip(ys.iter()) {
         annotator.annotate(x, y)?.save(format!(
             "{}.jpg",

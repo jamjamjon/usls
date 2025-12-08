@@ -41,7 +41,7 @@ fn main() -> Result<()> {
 
     // annotate
     let annotator = Annotator::default().with_keypoint_style(
-        usls::Style::keypoint()
+        usls::KeypointStyle::default()
             .with_text_visible(false)
             .with_skeleton(
                 (

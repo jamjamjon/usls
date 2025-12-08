@@ -36,7 +36,7 @@ fn main() -> Result<()> {
 
     // annotate
     let annotator = Annotator::default().with_hbb_style(
-        usls::Style::hbb()
+        usls::HbbStyle::default()
             .show_confidence(true)
             .show_id(false)
             .show_name(false),

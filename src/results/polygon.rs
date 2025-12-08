@@ -1,13 +1,13 @@
 use aksr::Builder;
 
-use crate::{Hbb, InstanceMeta, Mask, Obb, Style};
+use crate::{Hbb, InstanceMeta, Mask, Obb, PolygonStyle};
 
 /// Polygon with metadata.
 #[derive(Builder, Clone, Default)]
 pub struct Polygon {
     coords: Vec<[f32; 2]>, // NOT automatically closed
     meta: InstanceMeta,
-    style: Option<Style>,
+    style: Option<PolygonStyle>,
 }
 
 impl std::fmt::Debug for Polygon {

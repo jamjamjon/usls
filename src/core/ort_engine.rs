@@ -294,7 +294,8 @@ impl OrtEngine {
     pub fn run(&mut self, tensors: Vec<Tensor>) -> Result<Vec<Tensor>> {
         if let Some(onnx) = &mut self.onnx {
             // preprocessing - convert input tensors to appropriate types
-            let xs_ = elapsed_global!(&format!("[{}] ort_preprocessing", self.spec), {
+            let xs_ = elapsed_global!(
+                &format!("[{}] ort_preprocessing", self.spec),
                 onnx.inputs
                     .dtypes
                     .iter()
@@ -303,7 +304,7 @@ impl OrtEngine {
                         Self::preprocess(&tensor, dtype).map(Into::<SessionInputValue<'_>>::into)
                     })
                     .collect::<Result<Vec<_>>>()?
-            });
+            );
 
             // run inference
             let outputs = elapsed_global!(
@@ -312,14 +313,15 @@ impl OrtEngine {
             );
 
             // postprocessing - extract outputs maintaining their original types
-            elapsed_global!(&format!("[{}] ort_postprocessing", self.spec), {
+            elapsed_global!(
+                &format!("[{}] ort_postprocessing", self.spec),
                 onnx.outputs
                     .dtypes
                     .iter()
                     .zip(onnx.outputs.names.iter())
                     .map(|(dtype, name)| Self::postprocess(&outputs[name.as_str()], dtype))
                     .collect::<Result<Vec<_>>>()
-            })
+            )
         } else {
             anyhow::bail!("Failed to run with ONNXRuntime. No model info found.");
         }

@@ -145,6 +145,11 @@ impl Color {
         (r, g, b, a).into()
     }
 
+    /// Creates a fully transparent color.
+    pub fn transparent() -> Color {
+        [0, 0, 0, 0].into()
+    }
+
     /// Creates a black color (RGB: 0,0,0) with full opacity.
     pub fn black() -> Color {
         [0, 0, 0, 255].into()
@@ -168,6 +173,21 @@ impl Color {
     /// Creates a blue color (RGB: 0,0,255) with full opacity.
     pub fn blue() -> Color {
         [0, 0, 255, 255].into()
+    }
+
+    /// Creates a yellow color (RGB: 255,255,0) with full opacity.
+    pub fn yellow() -> Color {
+        [255, 255, 0, 255].into()
+    }
+
+    /// Creates a cyan color (RGB: 0,255,255) with full opacity.
+    pub fn cyan() -> Color {
+        [0, 255, 255, 255].into()
+    }
+
+    /// Creates a magenta color (RGB: 255,0,255) with full opacity.
+    pub fn magenta() -> Color {
+        [255, 0, 255, 255].into()
     }
 
     /// Creates a color palette from a slice of convertible values.

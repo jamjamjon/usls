@@ -1,7 +1,7 @@
 use aksr::Builder;
 use std::ops::{Add, Div, Mul, Sub};
 
-use crate::{InstanceMeta, Style};
+use crate::{InstanceMeta, KeypointStyle};
 
 /// Represents a keypoint in a 2D space with optional metadata.
 #[derive(Builder, Default, Clone)]
@@ -9,7 +9,7 @@ pub struct Keypoint {
     x: f32,
     y: f32,
     meta: InstanceMeta,
-    style: Option<Style>,
+    style: Option<KeypointStyle>,
 }
 
 // #[derive(Default, Builder, Clone)]
