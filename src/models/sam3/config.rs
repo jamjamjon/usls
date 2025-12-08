@@ -70,9 +70,7 @@ impl Config {
             // input_boxes: [B, num_boxes, 4]
             .with_decoder_ixx(2, 1, 1.into())
             // Model files
-            .with_visual_encoder_file("/HDD2/zj/mmml/hf-sam3-tracker-onnx/vision_encoder.onnx")
-            .with_decoder_file(
-                "/HDD2/zj/mmml/hf-sam3-tracker-onnx/prompt_encoder_mask_decoder.onnx",
-            )
+            .with_visual_encoder_file("tracker-vision-encoder.onnx")
+            .with_decoder_file("tracker-prompt-encoder-mask-decoder.onnx")
     }
 }
