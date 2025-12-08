@@ -60,7 +60,7 @@ fn main() -> Result<()> {
 
     // annotate
     let annotator = Annotator::default()
-        .with_mask_style(usls::Style::mask().with_draw_mask_polygon_largest(true));
+        .with_mask_style(usls::MaskStyle::default().with_draw_polygon_largest(true));
 
     for (x, y) in xs.iter().zip(ys.iter()) {
         annotator.annotate(x, y)?.save(format!(

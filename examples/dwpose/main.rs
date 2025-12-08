@@ -1,7 +1,7 @@
 use anyhow::Result;
 use usls::{
     models::{RTMPose, YOLO},
-    Annotator, Config, DataLoader, Scale, Style, SKELETON_COCO_65, SKELETON_COLOR_COCO_65,
+    Annotator, Config, DataLoader, Scale, SKELETON_COCO_65, SKELETON_COLOR_COCO_65,
 };
 
 #[derive(argh::FromArgs)]
@@ -55,16 +55,14 @@ fn main() -> Result<()> {
     let mut rtmpose = RTMPose::new(config)?;
 
     // build annotator
-    let annotator = Annotator::default()
-        .with_hbb_style(Style::hbb().with_draw_fill(true))
-        .with_keypoint_style(
-            Style::keypoint()
-                .with_radius(2)
-                .with_skeleton((SKELETON_COCO_65, SKELETON_COLOR_COCO_65).into())
-                .show_id(false)
-                .show_confidence(false)
-                .show_name(false),
-        );
+    let annotator = Annotator::default().with_keypoint_style(
+        usls::KeypointStyle::default()
+            .with_radius(2)
+            .with_skeleton((SKELETON_COCO_65, SKELETON_COLOR_COCO_65).into())
+            .show_id(false)
+            .show_confidence(false)
+            .show_name(false),
+    );
 
     // build dataloader
     let dl = DataLoader::new(&args.source)?.with_batch(1).build()?;

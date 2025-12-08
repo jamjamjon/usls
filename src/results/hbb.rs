@@ -1,6 +1,6 @@
 use aksr::Builder;
 
-use crate::{InstanceMeta, Keypoint, Polygon, Style};
+use crate::{HbbStyle, InstanceMeta, Keypoint, Polygon};
 
 /// Horizontal bounding box with position, size, and metadata.
 #[derive(Builder, Clone, Default)]
@@ -10,7 +10,7 @@ pub struct Hbb {
     w: f32,
     h: f32,
     meta: InstanceMeta,
-    style: Option<Style>,
+    style: Option<HbbStyle>,
     keypoints: Option<Vec<Keypoint>>,
 }
 

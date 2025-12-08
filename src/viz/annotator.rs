@@ -1,30 +1,33 @@
 use aksr::Builder;
 use anyhow::Result;
 
-use crate::{DrawContext, Drawable, Image, Style, TextRenderer};
+use crate::{
+    DrawContext, Drawable, HbbStyle, Image, KeypointStyle, MaskStyle, ObbStyle, PolygonStyle,
+    ProbStyle, TextRenderer,
+};
 
 /// Annotator provides configuration for drawing annotations on images,
 /// including styles, color palettes, and text rendering config.
 #[derive(Clone, Builder)]
 pub struct Annotator {
-    prob_style: Option<Style>,
-    hbb_style: Option<Style>,
-    obb_style: Option<Style>,
-    keypoint_style: Option<Style>,
-    polygon_style: Option<Style>,
-    mask_style: Option<Style>,
+    prob_style: Option<ProbStyle>,
+    hbb_style: Option<HbbStyle>,
+    obb_style: Option<ObbStyle>,
+    keypoint_style: Option<KeypointStyle>,
+    polygon_style: Option<PolygonStyle>,
+    mask_style: Option<MaskStyle>,
     text_renderer: TextRenderer,
 }
 
 impl Default for Annotator {
     fn default() -> Self {
         Self {
-            prob_style: Some(Style::prob()),
-            hbb_style: Some(Style::hbb()),
-            obb_style: Some(Style::obb()),
-            keypoint_style: Some(Style::keypoint()),
-            polygon_style: Some(Style::polygon()),
-            mask_style: Some(Style::mask()),
+            prob_style: Some(ProbStyle::default()),
+            hbb_style: Some(HbbStyle::default()),
+            obb_style: Some(ObbStyle::default()),
+            keypoint_style: Some(KeypointStyle::default()),
+            polygon_style: Some(PolygonStyle::default()),
+            mask_style: Some(MaskStyle::default()),
             text_renderer: TextRenderer::default(),
         }
     }

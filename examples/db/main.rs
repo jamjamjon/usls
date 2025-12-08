@@ -1,5 +1,5 @@
 use anyhow::Result;
-use usls::{models::DB, Annotator, Config, DataLoader, Style};
+use usls::{models::DB, Annotator, Config, DataLoader};
 
 #[derive(argh::FromArgs)]
 /// Example
@@ -68,16 +68,16 @@ fn main() -> Result<()> {
     // annotate
     let annotator = Annotator::default()
         .with_polygon_style(
-            Style::polygon()
+            usls::PolygonStyle::default()
                 .with_visible(true)
                 .with_text_visible(true)
                 .show_confidence(args.show_polygons_conf)
                 .show_id(false)
                 .show_name(false)
-                .with_color(usls::StyleColors::default().with_outline([255, 105, 180, 255].into())),
+                .with_outline_color(usls::ColorSource::Custom([255, 105, 180, 255].into())),
         )
         .with_hbb_style(
-            Style::hbb()
+            usls::HbbStyle::default()
                 .with_visible(args.show_hbbs)
                 .with_text_visible(true)
                 .with_thickness(1)
@@ -86,7 +86,7 @@ fn main() -> Result<()> {
                 .show_name(false),
         )
         .with_obb_style(
-            Style::obb()
+            usls::ObbStyle::default()
                 .with_visible(args.show_obbs)
                 .with_text_visible(true)
                 .show_confidence(args.show_obbs_conf)

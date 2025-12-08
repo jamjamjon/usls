@@ -1,7 +1,7 @@
 use anyhow::Result;
 use usls::{
     models::{SamPrompt, SAM2, YOLO},
-    Annotator, Config, DataLoader, Scale, Style,
+    Annotator, Config, DataLoader, Scale,
 };
 
 #[derive(argh::FromArgs)]
@@ -36,9 +36,9 @@ fn main() -> Result<()> {
 
     // build annotator
     let annotator = Annotator::default().with_mask_style(
-        Style::mask()
-            .with_draw_mask_polygon_largest(true)
-            .with_draw_mask_hbbs(true),
+        usls::MaskStyle::default()
+            .with_draw_polygon_largest(true)
+            .with_draw_hbbs(true),
     );
 
     // run & annotate

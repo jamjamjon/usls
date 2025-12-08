@@ -1,5 +1,5 @@
 use anyhow::Result;
-use usls::{models::DepthAnything, Annotator, Config, DataLoader, Style};
+use usls::{models::DepthAnything, Annotator, Config, DataLoader};
 
 fn main() -> Result<()> {
     tracing_subscriber::fmt()
@@ -17,8 +17,8 @@ fn main() -> Result<()> {
     let ys = model.forward(&xs)?;
 
     // annotate
-    let annotator =
-        Annotator::default().with_mask_style(Style::mask().with_colormap256("turbo".parse()?));
+    let annotator = Annotator::default()
+        .with_mask_style(usls::MaskStyle::default().with_colormap256("turbo".parse()?));
     for (x, y) in xs.iter().zip(ys.iter()) {
         annotator.annotate(x, y)?.save(format!(
             "{}.jpg",
