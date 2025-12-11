@@ -67,7 +67,7 @@ pub struct Hub {
     /// GitHub repository owner
     owner: String,
 
-    /// GitHub repository name          
+    /// GitHub repository name
     repo: String,
 
     /// Directory to store the downloaded file
@@ -151,6 +151,13 @@ impl Hub {
         anyhow::bail!("HF hub support is not enabled. Please enable the 'hf-hub' feature.")
     }
 
+    #[cfg(not(feature = "github"))]
+    pub fn try_fetch(&mut self, s: &str) -> Result<String> {
+        unimplemented!(
+            "Failed to download from GitHub releases: enable the 'github' feature (e.g. `--features github`)."
+        )
+    }
+
     /// Attempts to fetch a file from a local path, GitHub release, or Hugging Face repository.
     ///
     /// The `try_fetch` method supports multiple scenarios:
@@ -199,6 +206,7 @@ impl Hub {
     /// let temp_hf_path = Hub::default().try_fetch("BAAI/bge-m3/sentencepiece.bpe.model")
     ///     .expect("Failed to fetch HF file");
     /// ```
+    #[cfg(feature = "github")]
     pub fn try_fetch(&mut self, s: &str) -> Result<String> {
         let span = tracing::info_span!("hub_fetch", source = s);
         let _enter = span.enter();
@@ -408,7 +416,15 @@ impl Hub {
             .with_context(|| format!("Failed to convert PathBuf: {:?} to String", saveout))
     }
 
+    #[cfg(not(feature = "github"))]
+    fn fetch_and_cache_releases(&self, url: &str, cache_path: &Path) -> Result<String> {
+        unimplemented!(
+            "Failed to fetch GitHub releases: enable the 'github' feature (e.g. `--features github`)."
+        )
+    }
+
     /// Fetch releases from GitHub and cache them
+    #[cfg(feature = "github")]
     fn fetch_and_cache_releases(&self, url: &str, cache_path: &Path) -> Result<String> {
         let response = retry!(self.max_attempts, self.fetch_get_response(url))?;
         let body = response
@@ -482,7 +498,20 @@ impl Hub {
         Ok(y)
     }
 
+    #[cfg(not(feature = "github"))]
+    pub fn download<P: AsRef<Path> + std::fmt::Debug>(
+        &self,
+        src: &str,
+        dst: P,
+        message: Option<&str>,
+    ) -> Result<()> {
+        unimplemented!(
+            "Failed to download from GitHub releases: enable the 'github' feature (e.g. `--features github`)."
+        )
+    }
+
     /// Download a file from a github release to a specified path with a progress bar
+    #[cfg(feature = "github")]
     pub fn download<P: AsRef<Path> + std::fmt::Debug>(
         &self,
         src: &str,
@@ -564,6 +593,7 @@ impl Hub {
         Ok(())
     }
 
+    #[cfg(feature = "github")]
     fn fetch_get_response(&self, url: &str) -> anyhow::Result<http::Response<ureq::Body>> {
         let config = ureq::Agent::config_builder()
             .proxy(ureq::Proxy::try_from_env())
