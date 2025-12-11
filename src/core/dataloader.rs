@@ -1,12 +1,12 @@
 use anyhow::{anyhow, Result};
 use glob::{glob_with, MatchOptions};
 use indicatif::{ProgressBar, ProgressStyle};
-use log::{info, warn};
 use rayon::prelude::*;
 use std::collections::VecDeque;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::sync::mpsc;
+use tracing::{info, warn};
 #[cfg(feature = "video")]
 use video_rs::{Decoder, Url};
 
@@ -360,7 +360,7 @@ impl DataLoader {
                 .filter_map(|path| match Self::try_read_one(path) {
                     Ok(img) => Some(img),
                     Err(err) => {
-                        log::warn!("Failed to read from: {:?}. Error: {:?}", path, err);
+                        tracing::warn!("Failed to read from: {:?}. Error: {:?}", path, err);
                         None
                     }
                 })
@@ -471,16 +471,16 @@ impl DataLoader {
         let source_path = Path::new(source);
         let (paths, media_type) = if is_source_remote {
             // remote
-            log::debug!("DataLoader try to load source from remote");
+            tracing::debug!("DataLoader try to load source from remote");
             (
                 Some(VecDeque::from([source_path.to_path_buf()])),
                 MediaType::from_url(source),
             )
         } else {
             // local
-            log::debug!("DataLoader try to load source from local");
+            tracing::debug!("DataLoader try to load source from local");
             if source_path.is_file() {
-                log::debug!("source is file");
+                tracing::debug!("source is file");
                 // image
                 (
                     Some(VecDeque::from([source_path.to_path_buf()])),
@@ -488,7 +488,7 @@ impl DataLoader {
                 )
             } else if source_path.is_dir() {
                 // directory
-                log::debug!("source is directory");
+                tracing::debug!("source is directory");
                 let paths = Self::load_image_paths_from_folder(source, crate::IMAGE_EXTENSIONS)?;
 
                 (
@@ -496,7 +496,7 @@ impl DataLoader {
                     MediaType::Image(Location::Local),
                 )
             } else if glob::Pattern::new(source).is_ok() {
-                log::debug!("Load source with glob pattern");
+                tracing::debug!("Load source with glob pattern");
                 // glob
                 // - case_sensitive: true
                 // - sort: true
@@ -507,7 +507,7 @@ impl DataLoader {
                     MediaType::Image(Location::Local),
                 )
             } else {
-                log::debug!("Source is unknown");
+                tracing::debug!("Source is unknown");
                 (None, MediaType::Unknown)
             }
         };

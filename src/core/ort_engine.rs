@@ -1,7 +1,6 @@
 use aksr::Builder;
 use anyhow::Result;
 use half::{bf16, f16};
-use log::{info, warn};
 use ort::{
     execution_providers::ExecutionProvider,
     session::{builder::GraphOptimizationLevel, Session, SessionInputValue},
@@ -11,6 +10,7 @@ use ort::{
 use prost::Message;
 use slsl::Tensor;
 use std::collections::HashSet;
+use tracing::{info, warn};
 
 use crate::{
     build_progress_bar, elapsed_global, human_bytes_binary, onnx, DType, Device, HardwareConfig,
@@ -143,6 +143,9 @@ impl OrtEngine {
     }
 
     pub fn build(mut self) -> Result<Self> {
+        let span = tracing::info_span!("ort_engine_build", spec = %self.spec);
+        let _enter = span.enter();
+
         let name = format!("[{}] ort_initialization", self.spec);
         elapsed_global!(&name, {
             let proto = Self::load_onnx(self.file())?;
@@ -292,6 +295,9 @@ impl OrtEngine {
     }
 
     pub fn run(&mut self, tensors: Vec<Tensor>) -> Result<Vec<Tensor>> {
+        let span = tracing::debug_span!("ort_engine_run", spec = %self.spec);
+        let _enter = span.enter();
+
         if let Some(onnx) = &mut self.onnx {
             // preprocessing - convert input tensors to appropriate types
             let xs_ = elapsed_global!(

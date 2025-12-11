@@ -96,7 +96,7 @@ impl Viewer<'_> {
                     if let Err(e) =
                         window.update_with_buffer(&self.buffer, self.image_width, self.image_height)
                     {
-                        log::error!("Failed to update buffer: {}", e);
+                        tracing::error!("Failed to update buffer: {}", e);
                         // Try to continue with regular update instead of crashing
                         window.update();
                     }
@@ -139,7 +139,7 @@ impl Viewer<'_> {
                     .join(format!("{}.mov", crate::timestamp(Some("-")))),
                 Some(x) => std::path::PathBuf::from(x),
             };
-            log::info!("Video will be save to: {:?}", saveout);
+            tracing::info!("Video will be save to: {:?}", saveout);
             self.video_encoder = Some(Encoder::new(saveout, settings)?);
         }
 
@@ -161,11 +161,11 @@ impl Viewer<'_> {
     pub fn finalize_video(&mut self) -> Result<()> {
         if let Some(mut video_encoder) = self.video_encoder.take() {
             match video_encoder.finish() {
-                Ok(_) => log::debug!("Video encoding finalized successfully."),
+                Ok(_) => tracing::debug!("Video encoding finalized successfully."),
                 Err(err) => anyhow::bail!("Error finalizing video encoding: {}", err),
             }
         } else {
-            log::debug!("No video encoder was initialized. No need to finalize.");
+            tracing::debug!("No video encoder was initialized. No need to finalize.");
         }
         Ok(())
     }

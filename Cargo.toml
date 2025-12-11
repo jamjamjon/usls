@@ -23,7 +23,7 @@ imageproc = { version = "0.25", default-features = false, features = ["rayon"] }
 ndarray = { version = "0.16.1", features = ["rayon"] }
 half = { version = "2.7.1", features = ["bytemuck", "num-traits"] }
 indicatif = { version = "0.18", default-features = false }
-log = { version = "0.4.26" }
+tracing = { version = "0.1" }
 prost = { version = "0.14.1" }
 paste = { version = "1.0.15" }
 rand = { version = "0.9" }
@@ -39,7 +39,7 @@ regex = { version = "1.12.2" }
 tempfile = { version = "3.23.0" }
 fast_image_resize = { version = "5.4.0", default-features = false, features = ["image", "rayon"] }
 minifb = { version = "0.28.0", optional = true }
-video-rs = { version = "0.10.3", features = ["ndarray"], optional = true }
+video-rs = { version = "0.10.5", features = ["ndarray"], optional = true }
 ndarray-npy = { version = "0.9.1", optional = true  }
 ort = { version = "=2.0.0-rc.10", default-features = false, optional = true, features = [
   "copy-dylibs",
@@ -53,7 +53,7 @@ lru = { version = "0.16.2", default-features = false }
 
 [dev-dependencies]
 argh = { version = "0.1.13" }
-tracing-subscriber = { version = "0.3.18", features = ["env-filter", "chrono"] }
+tracing-subscriber = { version = "0.3.18", features = ["env-filter", "chrono", "fmt", "ansi"] }
 
 
 [profile.dev]

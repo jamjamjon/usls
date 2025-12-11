@@ -47,7 +47,7 @@ impl TextRenderer {
 
         // Load default font and cache it globally
         let font = Self::load_font(None).or_else(|err| {
-            log::info!("Failed to load online font: {err}, try using system font.");
+            tracing::info!("Failed to load online font: {err}, try using system font.");
             Self::create_fallback_font()
         })?;
 
@@ -77,12 +77,12 @@ impl TextRenderer {
         for path in &system_font_paths {
             if let Ok(font_data) = std::fs::read(path) {
                 if let Ok(font) = FontArc::try_from_vec(font_data) {
-                    log::info!("Using system font: {}", path);
+                    tracing::info!("Using system font: {}", path);
                     return Ok(font);
                 }
             }
         }
-        log::info!("No preferred system fonts available, try to scan all system fonts");
+        tracing::info!("No preferred system fonts available, try to scan all system fonts");
 
         // Get system font directories for the current platform
         // - macOS: `/System/Library/Fonts/`
@@ -106,7 +106,7 @@ impl TextRenderer {
                 anyhow::bail!("Unsupported platform: font scanning not available")
             }
         };
-        log::debug!("Scanning system font directories: {:?}", font_directory);
+        tracing::debug!("Scanning system font directories: {:?}", font_directory);
 
         // Scan all system fonts: TTF, OTF, TTC
         let mut font_paths = Vec::new();
@@ -116,7 +116,7 @@ impl TextRenderer {
         for font_path in font_paths {
             if let Ok(font_data) = std::fs::read(&font_path) {
                 if let Ok(font) = FontArc::try_from_vec(font_data) {
-                    log::info!("Successfully loaded system font: {}", font_path.display());
+                    tracing::info!("Successfully loaded system font: {}", font_path.display());
                     return Ok(font);
                 }
             }

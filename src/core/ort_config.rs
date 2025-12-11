@@ -91,21 +91,24 @@ impl ORTConfig {
                     // try fetch external data file if it exists
                     if self.external_data_file {
                         let external_data_file = format!("{}_data", self.file);
-                        log::info!("Trying to fetch external data file {}", external_data_file);
+                        tracing::info!("Trying to fetch external data file {}", external_data_file);
 
                         match Hub::default().try_fetch(&external_data_file) {
                             Ok(external_data_file) => {
-                                log::info!(
+                                tracing::info!(
                                     "Successfully fetched external data file: {}",
                                     external_data_file
                                 );
                             }
                             Err(_) => {
-                                log::warn!("No external data file found for model {}", self.file);
+                                tracing::warn!(
+                                    "No external data file found for model {}",
+                                    self.file
+                                );
                             }
                         }
                     } else {
-                        log::info!("External data file is not enabled for model {}", self.file);
+                        tracing::info!("External data file is not enabled for model {}", self.file);
                     }
                 }
             }

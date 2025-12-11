@@ -1,7 +1,6 @@
 use aksr::Builder;
 use anyhow::Result;
 use half::{bf16, f16};
-use log::{debug, info, warn};
 use ndarray::{Array, IxDyn};
 use ort::{
     execution_providers::ExecutionProvider,
@@ -12,6 +11,7 @@ use ort::{
 };
 use prost::Message;
 use std::collections::HashSet;
+use tracing::{debug, info, warn};
 
 use crate::{
     build_progress_bar, elapsed_global, human_bytes_binary, onnx, DType, Device, HardwareConfig,
@@ -188,6 +188,9 @@ impl Engine {
     }
 
     pub fn build(mut self) -> Result<Self> {
+        let span = tracing::info_span!("engine_build", spec = %self.spec);
+        let _enter = span.enter();
+
         let name = format!("[{}] ort_initialization", self.spec);
         elapsed_global!(&name, {
             let proto = Self::load_onnx(self.file())?;
@@ -315,6 +318,9 @@ impl Engine {
     }
 
     pub fn run(&mut self, xs: Xs) -> Result<Xs> {
+        let span = tracing::debug_span!("engine_run", spec = %self.spec);
+        let _enter = span.enter();
+
         let mut ys = xs.derive();
         if let Some(onnx) = &mut self.onnx {
             // alignment
