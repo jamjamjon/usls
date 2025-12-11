@@ -61,7 +61,7 @@ impl LogitsSampler {
             .collect();
         logits.sort_by(|a, b| {
             b.1.partial_cmp(&a.1).unwrap_or_else(|| {
-                log::warn!("NaN or invalid value encountered in logits sorting");
+                tracing::warn!("NaN or invalid value encountered in logits sorting");
                 std::cmp::Ordering::Equal
             })
         });

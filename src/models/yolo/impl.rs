@@ -1,9 +1,9 @@
 use aksr::Builder;
 use anyhow::Result;
-use log::{error, info};
 use rayon::prelude::*;
 use regex::Regex;
 use slsl::{s, Tensor};
+use tracing::{error, info};
 
 use crate::{
     elapsed_module,

@@ -33,7 +33,7 @@ impl SVTR {
         if processor.vocab().is_empty() {
             anyhow::bail!("No vocab file found")
         }
-        log::info!("Vacab size: {}", processor.vocab().len());
+        tracing::info!("Vacab size: {}", processor.vocab().len());
 
         Ok(Self {
             engine,
