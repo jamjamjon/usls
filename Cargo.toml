@@ -18,7 +18,7 @@ aksr = { version = "0.0.7" }
 ab_glyph = { version = "0.2.32" }
 image = { version = "0.25", default-features = false, features = ["rayon"] }
 imageproc = { version = "0.25", default-features = false, features = ["rayon"] }
-ndarray = { version = "0.16.1", features = ["rayon"] }
+ndarray = { version = "0.17.1", features = ["rayon"] }
 half = { version = "2.7.1", features = ["bytemuck", "num-traits"] }
 indicatif = { version = "0.18", default-features = false }
 tracing = { version = "0.1" }
