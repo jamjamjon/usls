@@ -19,14 +19,6 @@ pub enum Location {
     Remote,
 }
 
-/// Stream type for media content.
-#[derive(Debug, Clone, Copy, Default)]
-pub enum StreamType {
-    #[default]
-    Pre,
-    Live,
-}
-
 /// Media type classification for different content formats.
 #[derive(Debug, Clone, Copy, Default)]
 pub enum MediaType {

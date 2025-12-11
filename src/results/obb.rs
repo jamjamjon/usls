@@ -1,13 +1,13 @@
 use aksr::Builder;
 
-use crate::{InstanceMeta, Keypoint, Polygon, Style};
+use crate::{InstanceMeta, Keypoint, ObbStyle, Polygon};
 
 /// Oriented bounding box with four vertices and metadata.
 #[derive(Builder, Default, Clone, PartialEq)]
 pub struct Obb {
     vertices: [[f32; 2]; 4], // CCW ordered
     meta: InstanceMeta,
-    style: Option<Style>,
+    style: Option<ObbStyle>,
     keypoints: Option<Vec<Keypoint>>,
 }
 

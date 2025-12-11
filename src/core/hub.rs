@@ -151,9 +151,11 @@ impl Hub {
         anyhow::bail!("HF hub support is not enabled. Please enable the 'hf-hub' feature.")
     }
 
-    #[cfg(not(feature = "http"))]
+    #[cfg(not(feature = "github"))]
     pub fn try_fetch(&mut self, s: &str) -> Result<String> {
-        unimplemented!("'http' feature not enabled, ureq compiled out")
+        unimplemented!(
+            "Failed to download from GitHub releases: enable the 'github' feature (e.g. `--features github`)."
+        )
     }
 
     /// Attempts to fetch a file from a local path, GitHub release, or Hugging Face repository.
@@ -204,8 +206,11 @@ impl Hub {
     /// let temp_hf_path = Hub::default().try_fetch("BAAI/bge-m3/sentencepiece.bpe.model")
     ///     .expect("Failed to fetch HF file");
     /// ```
-    #[cfg(feature = "http")]
+    #[cfg(feature = "github")]
     pub fn try_fetch(&mut self, s: &str) -> Result<String> {
+        let span = tracing::info_span!("hub_fetch", source = s);
+        let _enter = span.enter();
+
         #[derive(Default, Debug, aksr::Builder)]
         struct Pack {
             // owner: String,
@@ -289,7 +294,7 @@ impl Hub {
 
                                 // check if is cached
                                 if !dst.is_file() {
-                                    log::debug!("File not cached, fetching from remote: {}", dst.display());
+                                    tracing::debug!("File not cached, fetching from remote: {}", dst.display());
 
                                     // Fetch releases
                                     let releases =
@@ -336,7 +341,7 @@ impl Hub {
                                         }
                                     }
                                 }
-                                log::debug!("Using cached file: {}", dst.display());
+                                tracing::debug!("Using cached file: {}", dst.display());
                                 dst
                             }
                             _ => anyhow::bail!(
@@ -349,7 +354,7 @@ impl Hub {
 
         // Commit the downloaded file, downloading if necessary
         if !pack.url.is_empty() {
-            log::debug!("Starting remote file download...");
+            tracing::debug!("Starting remote file download...");
             retry!(
                 self.max_attempts,
                 1000,
@@ -372,7 +377,7 @@ impl Hub {
             //         }
             //         Some(file_size) => {
             //             if std::fs::metadata(&saveout)?.len() != file_size {
-            //                 log::debug!(
+            //                 tracing::debug!(
             //                     "Local file size does not match remote. Starting download."
             //                 );
             //                 retry!(
@@ -386,12 +391,12 @@ impl Hub {
             //                     )
             //                 )?;
             //             } else {
-            //                 log::debug!("Local file size matches remote. No download required.");
+            //                 tracing::debug!("Local file size matches remote. No download required.");
             //             }
             //         }
             //     }
             // } else {
-            //     log::debug!("Starting remote file download...");
+            //     tracing::debug!("Starting remote file download...");
             //     retry!(
             //         self.max_attempts,
             //         1000,
@@ -411,13 +416,15 @@ impl Hub {
             .with_context(|| format!("Failed to convert PathBuf: {:?} to String", saveout))
     }
 
-    #[cfg(not(feature = "http"))]
+    #[cfg(not(feature = "github"))]
     fn fetch_and_cache_releases(&self, url: &str, cache_path: &Path) -> Result<String> {
-        unimplemented!("'http' feature not enabled, ureq compiled out")
+        unimplemented!(
+            "Failed to fetch GitHub releases: enable the 'github' feature (e.g. `--features github`)."
+        )
     }
 
     /// Fetch releases from GitHub and cache them
-    #[cfg(feature = "http")]
+    #[cfg(feature = "github")]
     fn fetch_and_cache_releases(&self, url: &str, cache_path: &Path) -> Result<String> {
         let response = retry!(self.max_attempts, self.fetch_get_response(url))?;
         let body = response
@@ -469,20 +476,20 @@ impl Hub {
     pub fn is_file_expired<P: AsRef<Path>>(file: P, ttl: &Duration) -> Result<bool> {
         let file = file.as_ref();
         let y = if !file.exists() {
-            log::debug!("No cache found, fetching data from GitHub");
+            tracing::debug!("No cache found, fetching data from GitHub");
             true
         } else {
             match std::fs::metadata(file)?.modified() {
                 Err(_) => {
-                    log::debug!("Cannot get file modified time, fetching new data from GitHub");
+                    tracing::debug!("Cannot get file modified time, fetching new data from GitHub");
                     true
                 }
                 Ok(modified_time) => {
                     if std::time::SystemTime::now().duration_since(modified_time)? < *ttl {
-                        log::debug!("Using cached data");
+                        tracing::debug!("Using cached data");
                         false
                     } else {
-                        log::debug!("Cache expired, fetching new data from GitHub");
+                        tracing::debug!("Cache expired, fetching new data from GitHub");
                         true
                     }
                 }
@@ -491,24 +498,29 @@ impl Hub {
         Ok(y)
     }
 
-    #[cfg(not(feature = "http"))]
+    #[cfg(not(feature = "github"))]
     pub fn download<P: AsRef<Path> + std::fmt::Debug>(
         &self,
         src: &str,
         dst: P,
         message: Option<&str>,
     ) -> Result<()> {
-        unimplemented!("'http' feature disabled, ureq compiled out")
+        unimplemented!(
+            "Failed to download from GitHub releases: enable the 'github' feature (e.g. `--features github`)."
+        )
     }
 
     /// Download a file from a github release to a specified path with a progress bar
-    #[cfg(feature = "http")]
+    #[cfg(feature = "github")]
     pub fn download<P: AsRef<Path> + std::fmt::Debug>(
         &self,
         src: &str,
         dst: P,
         message: Option<&str>,
     ) -> Result<()> {
+        let span = tracing::info_span!("hub_download", url = src);
+        let _enter = span.enter();
+
         let dst_path = dst.as_ref();
 
         // Ensure parent directory exists for the final destination
@@ -577,11 +589,11 @@ impl Hub {
         )?);
         pb.finish();
 
-        log::debug!("Successfully downloaded and verified file: {:?}", dst_path);
+        tracing::debug!("Successfully downloaded and verified file: {:?}", dst_path);
         Ok(())
     }
 
-    #[cfg(feature = "http")]
+    #[cfg(feature = "github")]
     fn fetch_get_response(&self, url: &str) -> anyhow::Result<http::Response<ureq::Body>> {
         let config = ureq::Agent::config_builder()
             .proxy(ureq::Proxy::try_from_env())

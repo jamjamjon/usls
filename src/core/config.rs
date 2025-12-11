@@ -820,3 +820,30 @@ impl_ort_config_methods!(Config, coord_decoder);
 impl_ort_config_methods!(Config, visual_projection);
 impl_ort_config_methods!(Config, textual_projection);
 impl_processor_config_methods!(Config, processor);
+
+/// Macro to generate `with_*_batch_min_opt_max` methods for Config
+macro_rules! impl_batch_min_opt_max {
+    ($ty:ty, $field:ident) => {
+        impl $ty {
+            paste::paste! {
+                pub fn [<with_ $field _batch_min_opt_max>](mut self, min: usize, opt: usize, max: usize) -> Self {
+                    self.$field = self.$field.with_ixx(0, 0, (min, opt, max).into());
+                    self
+                }
+            }
+        }
+    };
+}
+
+// Batch size configuration methods
+impl_batch_min_opt_max!(Config, model);
+impl_batch_min_opt_max!(Config, visual);
+impl_batch_min_opt_max!(Config, textual);
+impl_batch_min_opt_max!(Config, encoder);
+impl_batch_min_opt_max!(Config, decoder);
+impl_batch_min_opt_max!(Config, visual_encoder);
+impl_batch_min_opt_max!(Config, textual_encoder);
+impl_batch_min_opt_max!(Config, visual_decoder);
+impl_batch_min_opt_max!(Config, textual_decoder);
+impl_batch_min_opt_max!(Config, visual_projection);
+impl_batch_min_opt_max!(Config, textual_projection);

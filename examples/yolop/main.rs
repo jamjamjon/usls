@@ -1,5 +1,5 @@
 use anyhow::Result;
-use usls::{models::YOLOPv2, Annotator, Config, DataLoader};
+use usls::{models::YOLOPv2, Annotator, Config, DataLoader, PolygonStyle};
 
 fn main() -> Result<()> {
     tracing_subscriber::fmt()
@@ -17,7 +17,19 @@ fn main() -> Result<()> {
     let ys = model.forward(&xs)?;
 
     // annotate
-    let annotator = Annotator::default();
+    let annotator = Annotator::default()
+        .with_mask_style(
+            usls::MaskStyle::default()
+                .with_visible(true)
+                .with_cutout(true)
+                .with_draw_polygon_largest(true),
+        )
+        .with_polygon_style(
+            PolygonStyle::default()
+                .with_text_visible(true)
+                .show_name(true)
+                .show_id(true),
+        );
     for (x, y) in xs.iter().zip(ys.iter()) {
         annotator.annotate(x, y)?.save(format!(
             "{}.jpg",

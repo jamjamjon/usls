@@ -1,12 +1,12 @@
 use aksr::Builder;
 
-use crate::{InstanceMeta, Style};
+use crate::{InstanceMeta, ProbStyle};
 
 /// Probability result with classification metadata.
 #[derive(Builder, Clone, PartialEq, Default, Debug)]
 pub struct Prob {
     meta: InstanceMeta,
-    style: Option<Style>,
+    style: Option<ProbStyle>,
 }
 
 // #[derive(Builder, Clone, PartialEq, Default, Debug)]

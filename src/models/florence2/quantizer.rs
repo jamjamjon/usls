@@ -41,7 +41,7 @@ impl Quantizer {
                 self.quantize_value(input[1] as f32, size_per_bin_h, bins_h),
             ],
             _ => {
-                log::error!(
+                tracing::error!(
                     "Error: Unsupported input length: {} in Quantizer. Supported lengths: 2, 4",
                     input.len()
                 );
@@ -70,7 +70,7 @@ impl Quantizer {
                 self.dequantize_value(input[1], size_per_bin_h),
             ],
             _ => {
-                log::error!(
+                tracing::error!(
                     "Error: Unsupported input length: {} in Quantizer. Supported lengths: 2, 4",
                     input.len()
                 );

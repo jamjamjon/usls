@@ -38,7 +38,7 @@ pub enum ResizeMode {
 #[derive(Builder, Clone)]
 pub struct Image {
     image: RgbImage,
-    source: Option<PathBuf>,
+    source: Option<PathBuf>, // TODO: remove Option?
     media_type: MediaType,
 }
 
@@ -58,7 +58,7 @@ impl std::fmt::Debug for Image {
             .field("Height", &self.height())
             .field("Width", &self.width())
             .field("MediaType", &self.media_type)
-            .field("Source", &self.source)
+            .field("Source", &self.source) // TODO
             .finish()
     }
 }

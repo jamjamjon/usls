@@ -10,12 +10,12 @@ pub struct Perf;
 impl Perf {
     /// Enable performance monitoring
     pub fn enable() {
-        log::info!("🚀 usls Performance monitoring enabled");
+        tracing::info!("🚀 usls Performance monitoring enabled");
     }
 
     /// Disable performance monitoring
     pub fn disable() {
-        log::info!("⏸️  usls Performance monitoring disabled");
+        tracing::info!("⏸️  usls Performance monitoring disabled");
     }
 
     /// Check if monitoring is enabled
@@ -31,7 +31,7 @@ impl Perf {
     /// Clear all performance data
     pub fn clear() {
         global_ts_manager().clear_all();
-        log::info!("🧹 Performance data cleared");
+        tracing::info!("🧹 Performance data cleared");
     }
 
     /// Export performance data as JSON

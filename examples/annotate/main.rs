@@ -1,4 +1,22 @@
-use usls::{Annotator, DataLoader, Hbb, Keypoint, Polygon, Prob, Style, SKELETON_COCO_19, Y};
+//! Comprehensive annotation demo showcasing all Drawable types and StyleModes.
+//!
+//! Output structure:
+//! - Hbb/styles.png - All HBB modes + thickness directions in one canvas
+//! - Hbb/text_loc.png - All 17 TextLoc positions with boundary cases
+//! - Keypoint/styles.png - All keypoint shapes (larger)
+//! - Keypoint/skeleton.png - Pose skeleton demo (larger)
+//! - Polygon/styles.png - Polygon styles with larger text
+//! - Prob/styles.png - Prob positions on single canvas
+//! - Mask/styles.png - Mask styles demo
+//! - Y/combined.jpg - Combined demo on real image
+
+use image::{GrayImage, Luma, Rgba, RgbaImage};
+use usls::{
+    Annotator, Color, ColorSource, DataLoader, Hbb, HbbStyle, Keypoint, KeypointStyle,
+    KeypointStyleMode, Mask, MaskStyle, MaskStyleMode, Polygon, PolygonStyle, Prob, ProbStyle,
+    Skeleton, TextLoc, TextStyle, TextStyleMode, ThicknessDirection, SKELETON_COCO_19,
+    SKELETON_COLOR_COCO_19, Y,
+};
 
 fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt()
@@ -6,729 +24,1194 @@ fn main() -> anyhow::Result<()> {
         .with_timer(tracing_subscriber::fmt::time::ChronoLocal::rfc_3339())
         .init();
 
-    // load images
-    let image = DataLoader::try_read_one("./assets/bus.jpg")?;
-    println!("Read 1 images: {:?}.", image.dimensions());
+    let bus_image = DataLoader::try_read_one("./assets/bus.jpg")?;
+    println!("Loaded bus.jpg: {:?}", bus_image.dimensions());
+
+    demo_hbb_styles()?;
+    demo_hbb_text_locations()?;
+    demo_keypoint_styles()?;
+    demo_keypoint_skeleton()?;
+    demo_polygon_styles()?;
+    demo_prob_styles()?;
+    demo_mask_styles()?;
+    demo_combined_y(&bus_image)?;
+
+    println!("\n✓ All demos completed! Check runs/Annotate/ for output.");
+    Ok(())
+}
+
+/// Create a blank canvas with given dimensions and background color
+fn blank_canvas(width: u32, height: u32, bg: Color) -> RgbaImage {
+    let mut img = RgbaImage::new(width, height);
+    let rgba = Rgba(bg.into());
+    for pixel in img.pixels_mut() {
+        *pixel = rgba;
+    }
+    img
+}
+
+/// Save image to path
+fn save_to(img: &RgbaImage, sub_dir: &str, name: &str) -> anyhow::Result<()> {
+    let path = usls::Dir::Current
+        .base_dir_with_subs(&["runs", "Annotate", sub_dir])?
+        .join(format!("{}.png", name));
+    img.save(path.display().to_string())?;
+    println!("  Saved: {}/{}.png", sub_dir, name);
+    Ok(())
+}
+
+// =============================================================================
+// HBB Styles Demo - All modes + thickness directions on one canvas
+// =============================================================================
+fn demo_hbb_styles() -> anyhow::Result<()> {
+    println!("\n=== HBB Styles Demo ===");
+
+    // Large canvas: 1200x800
+    let canvas = blank_canvas(1200, 800, Color::from([245u8, 245, 245, 255]));
+
+    // Row 1: Style modes (Solid, Dashed, Corners, Rounded)
+    let modes: Vec<(&str, HbbStyle)> = vec![
+        (
+            "Solid",
+            HbbStyle::default()
+                .with_thickness(4)
+                .with_draw_fill(true)
+                .with_fill_color(ColorSource::AutoAlpha(60)),
+        ),
+        ("Dashed", HbbStyle::dashed().with_thickness(4)),
+        ("Corners", HbbStyle::corners().with_thickness(6)),
+        (
+            "Rounded",
+            HbbStyle::rounded()
+                .with_thickness(4)
+                .with_draw_fill(true)
+                .with_fill_color(ColorSource::AutoAlpha(60))
+                .with_text_style(
+                    TextStyle::default()
+                        .with_font_size(28.0)
+                        .with_mode(TextStyleMode::rounded(8.0, 8.0)) // Rounded corners for text box
+                        .with_bg_fill_color(ColorSource::Custom(Color::yellow()))
+                        .with_bg_outline_color(ColorSource::Custom(Color::black()))
+                        .with_draw_outline(true)
+                        .with_thickness(2),
+                ),
+        ),
+    ];
+
+    // Row 2: Thickness directions
+    let directions: Vec<(&str, ThicknessDirection, Color)> = vec![
+        ("Outward", ThicknessDirection::Outward, Color::red()),
+        ("Inward", ThicknessDirection::Inward, Color::green()),
+        ("Centered", ThicknessDirection::Centered, Color::blue()),
+    ];
+
+    let mut hbbs = Vec::new();
+
+    // Style modes in row 1
+    for (i, (name, style)) in modes.iter().enumerate() {
+        let x = 50.0 + i as f32 * 280.0;
+        hbbs.push(
+            Hbb::default()
+                .with_xyxy(x, 80.0, x + 230.0, 320.0)
+                .with_id(i)
+                .with_name(name)
+                .with_confidence(0.95)
+                .with_style(style.clone()),
+        );
+    }
+
+    // Thickness directions in row 2 with labels
+    for (i, (name, dir, color)) in directions.iter().enumerate() {
+        let x = 100.0 + i as f32 * 350.0;
+        let thickness = 20;
+
+        // Add the main box with thickness direction
+        hbbs.push(
+            Hbb::default()
+                .with_xyxy(x, 450.0, x + 280.0, 700.0)
+                .with_id(i + 4)
+                .with_name(name)
+                .with_confidence(0.88)
+                .with_style(
+                    HbbStyle::default()
+                        .with_thickness(thickness)
+                        .with_thickness_direction(*dir)
+                        .with_outline_color(ColorSource::Custom(*color)),
+                ),
+        );
+
+        // Add thickness label
+        let label = format!("Thickness: {}", thickness);
+        hbbs.push(
+            Hbb::default()
+                .with_xyxy(x + 10.0, 720.0, x + 270.0, 750.0)
+                .with_id(i + 10)
+                .with_name(&label)
+                .with_style(
+                    HbbStyle::default()
+                        .with_draw_outline(false)
+                        .with_text_style(
+                            TextStyle::default()
+                                .with_font_size(20.0)
+                                .with_loc(TextLoc::Center)
+                                .with_bg_fill_color(ColorSource::Custom(Color::white()))
+                                .with_bg_outline_color(ColorSource::Custom(Color::black()))
+                                .with_draw_outline(true)
+                                .with_thickness(1),
+                        ),
+                ),
+        );
+    }
+
+    let annotator = Annotator::default().with_hbb_style(
+        HbbStyle::default().with_text_style(TextStyle::default().with_font_size(28.0)),
+    );
+    let result = annotator.annotate(&canvas.into(), &hbbs)?;
+    save_to(&result.into(), "Hbb", "styles")?;
+
+    Ok(())
+}
+
+// =============================================================================
+// HBB TextLoc Demo - All 17 positions with boundary cases
+// =============================================================================
+fn demo_hbb_text_locations() -> anyhow::Result<()> {
+    println!("\n=== HBB TextLoc Demo ===");
+
+    // Large canvas for boundary cases: 1800x1400
+    let canvas = blank_canvas(1800, 1400, Color::from([250u8, 250, 250, 255]));
+
+    // Center box (large enough for long text labels)
+    let center_box = (300.0, 280.0, 1500.0, 1120.0);
+
+    // Define all 17 positions with their expected visual locations
+    let text_locs = [
+        // Outer top row
+        (TextLoc::OuterTopLeft, "OuterTopLeft"),
+        (TextLoc::OuterTopCenter, "OuterTopCenter"),
+        (TextLoc::OuterTopRight, "OuterTopRight"),
+        // Inner top row
+        (TextLoc::InnerTopLeft, "InnerTopLeft"),
+        (TextLoc::InnerTopCenter, "InnerTopCenter"),
+        (TextLoc::InnerTopRight, "InnerTopRight"),
+        // Left/Right sides
+        (TextLoc::OuterCenterLeft, "OuterCenterLeft"),
+        (TextLoc::InnerCenterLeft, "InnerCenterLeft"),
+        (TextLoc::Center, "Center"),
+        (TextLoc::InnerCenterRight, "InnerCenterRight"),
+        (TextLoc::OuterCenterRight, "OuterCenterRight"),
+        // Inner bottom row
+        (TextLoc::InnerBottomLeft, "InnerBottomLeft"),
+        (TextLoc::InnerBottomCenter, "InnerBottomCenter"),
+        (TextLoc::InnerBottomRight, "InnerBottomRight"),
+        // Outer bottom row
+        (TextLoc::OuterBottomLeft, "OuterBottomLeft"),
+        (TextLoc::OuterBottomCenter, "OuterBottomCenter"),
+        (TextLoc::OuterBottomRight, "OuterBottomRight"),
+    ];
+
+    let mut hbbs = Vec::new();
+
+    // Main center box with all text positions
+    for (i, (loc, name)) in text_locs.iter().enumerate() {
+        hbbs.push(
+            Hbb::default()
+                .with_xyxy(center_box.0, center_box.1, center_box.2, center_box.3)
+                .with_id(i)
+                .with_name(name)
+                .with_confidence(0.99)
+                .with_style(
+                    HbbStyle::default()
+                        .with_thickness(3)
+                        .with_draw_outline(i == 0) // Only draw outline for first one
+                        .with_draw_fill(false)
+                        .with_text_style(TextStyle::default().with_loc(*loc).with_font_size(20.0)),
+                ),
+        );
+    }
+
+    // Boundary case boxes - at canvas edges
+    // Top-left corner box
+    hbbs.push(
+        Hbb::default()
+            .with_xyxy(0.0, 0.0, 150.0, 100.0)
+            .with_id(100)
+            .with_name("EdgeTopLeft")
+            .with_confidence(0.88)
+            .with_style(
+                HbbStyle::default()
+                    .with_thickness(2)
+                    .with_outline_color(ColorSource::Custom(Color::red()))
+                    .with_text_style(TextStyle::default().with_font_size(18.0)),
+            ),
+    );
+
+    // Top-right corner box
+    hbbs.push(
+        Hbb::default()
+            .with_xyxy(1650.0, 0.0, 1800.0, 100.0)
+            .with_id(101)
+            .with_name("EdgeTopRight")
+            .with_confidence(0.77)
+            .with_style(
+                HbbStyle::default()
+                    .with_thickness(2)
+                    .with_outline_color(ColorSource::Custom(Color::red()))
+                    .with_text_style(TextStyle::default().with_font_size(18.0)),
+            ),
+    );
+
+    // Bottom-left corner box
+    hbbs.push(
+        Hbb::default()
+            .with_xyxy(0.0, 1300.0, 150.0, 1400.0)
+            .with_id(102)
+            .with_name("EdgeBotLeft")
+            .with_confidence(0.66)
+            .with_style(
+                HbbStyle::default()
+                    .with_thickness(2)
+                    .with_outline_color(ColorSource::Custom(Color::red()))
+                    .with_text_style(TextStyle::default().with_font_size(18.0)),
+            ),
+    );
+
+    // Bottom-right corner box
+    hbbs.push(
+        Hbb::default()
+            .with_xyxy(1650.0, 1300.0, 1800.0, 1400.0)
+            .with_id(103)
+            .with_name("EdgeBotRight")
+            .with_confidence(0.55)
+            .with_style(
+                HbbStyle::default()
+                    .with_thickness(2)
+                    .with_outline_color(ColorSource::Custom(Color::red()))
+                    .with_text_style(TextStyle::default().with_font_size(18.0)),
+            ),
+    );
+
+    // Tiny box (text larger than box)
+    hbbs.push(
+        Hbb::default()
+            .with_xyxy(50.0, 150.0, 80.0, 180.0)
+            .with_id(104)
+            .with_name("TinyBox")
+            .with_confidence(0.99)
+            .with_style(
+                HbbStyle::default()
+                    .with_thickness(2)
+                    .with_outline_color(ColorSource::Custom(Color::magenta()))
+                    .with_text_style(TextStyle::default().with_font_size(18.0)),
+            ),
+    );
+
+    let annotator = Annotator::default();
+    let result = annotator.annotate(&canvas.into(), &hbbs)?;
+    save_to(&result.into(), "Hbb", "text_loc")?;
+
+    Ok(())
+}
+
+// =============================================================================
+// Keypoint Styles Demo - All shapes on large canvas
+// =============================================================================
+fn demo_keypoint_styles() -> anyhow::Result<()> {
+    println!("\n=== Keypoint Styles Demo ===");
+
+    // Large canvas: 1400x600
+    let canvas = blank_canvas(1400, 600, Color::from([250u8, 250, 250, 255]));
+
+    // Use explicit colors for each mode to ensure visibility
+    let modes: Vec<(&str, KeypointStyleMode, Color)> = vec![
+        ("Circle", KeypointStyleMode::Circle, Color::red()),
+        ("Star", KeypointStyleMode::star(), Color::green()),
+        (
+            "Star6",
+            KeypointStyleMode::Star {
+                points: 6,
+                inner_ratio: 0.4,
+            },
+            Color::blue(),
+        ),
+        ("Square", KeypointStyleMode::Square, Color::magenta()),
+        ("Diamond", KeypointStyleMode::Diamond, Color::cyan()),
+        (
+            "Triangle",
+            KeypointStyleMode::Triangle,
+            Color::from([255u8, 165, 0, 255]),
+        ), // orange
+        (
+            "Cross",
+            KeypointStyleMode::Cross { thickness: 8 },
+            Color::from([128u8, 0, 128, 255]),
+        ), // purple
+        (
+            "X",
+            KeypointStyleMode::X { thickness: 8 },
+            Color::from([0u8, 100, 0, 255]),
+        ), // dark green
+        (
+            "RoundedSq",
+            KeypointStyleMode::rounded_square(),
+            Color::from([70u8, 130, 180, 255]),
+        ), // steel blue
+        ("Glow", KeypointStyleMode::glow(), Color::red()),
+        (
+            "Glow3x",
+            KeypointStyleMode::glow_with(3.0),
+            Color::magenta(),
+        ),
+    ];
+
+    let mut keypoints = Vec::new();
+    for (i, (name, mode, color)) in modes.iter().enumerate() {
+        let x = 70.0 + (i % 6) as f32 * 220.0;
+        let y = if i < 6 { 150.0 } else { 450.0 };
+
+        keypoints.push(
+            Keypoint::default()
+                .with_xy(x, y)
+                .with_id(i)
+                .with_name(name)
+                .with_confidence(0.95)
+                .with_style(
+                    KeypointStyle::default()
+                        .with_mode(*mode)
+                        .with_radius(40)
+                        .with_fill_color(ColorSource::Custom(*color))
+                        .with_outline_color(ColorSource::Custom(Color::black()))
+                        .with_thickness(3)
+                        .with_draw_outline(true)
+                        .with_text_visible(true)
+                        .show_id(false)
+                        .show_name(true)
+                        .show_confidence(false)
+                        .with_text_style(TextStyle::default().with_font_size(22.0)),
+                ),
+        );
+    }
+
+    let annotator = Annotator::default();
+    let result = annotator.annotate(&canvas.into(), &keypoints)?;
+    save_to(&result.into(), "Keypoint", "styles")?;
+
+    Ok(())
+}
+
+// =============================================================================
+// Keypoint Skeleton Demo - Large pose
+// =============================================================================
+fn demo_keypoint_skeleton() -> anyhow::Result<()> {
+    println!("\n=== Keypoint Skeleton Demo ===");
+
+    // Large canvas: 800x1000
+    let canvas = blank_canvas(800, 1000, Color::from([250u8, 250, 250, 255]));
+
+    let pose_kps = create_pose_keypoints_centered(400.0, 500.0, 1.2);
+
+    // Create skeleton with colors for visibility
+    let skeleton = Skeleton::from((SKELETON_COCO_19, SKELETON_COLOR_COCO_19));
+
+    let annotator = Annotator::default().with_keypoint_style(
+        KeypointStyle::default()
+            .with_skeleton(skeleton)
+            .with_skeleton_thickness(3)
+            .with_radius(8)
+            .with_fill_color(ColorSource::Custom(Color::red()))
+            .with_text_visible(true)
+            .show_id(true)
+            .show_name(false)
+            .show_confidence(false)
+            .with_text_style(
+                TextStyle::default()
+                    .with_font_size(15.0)
+                    .with_mode(TextStyleMode::rounded(3.0, 3.0)) // Rounded corners for text box
+                    .with_bg_fill_color(ColorSource::AutoAlpha(200))
+                    .with_bg_outline_color(ColorSource::Custom(Color::black()))
+                    .with_draw_outline(true)
+                    .with_thickness(1),
+            ),
+    );
+
+    let result = annotator.annotate(&canvas.into(), &pose_kps)?;
+    save_to(&result.into(), "Keypoint", "skeleton")?;
+
+    Ok(())
+}
+
+fn create_pose_keypoints_centered(cx: f32, cy: f32, scale: f32) -> Vec<Keypoint> {
+    let base_points = [
+        (0.0, -200.0),   // 0: nose
+        (15.0, -215.0),  // 1: left_eye
+        (-15.0, -215.0), // 2: right_eye
+        (35.0, -205.0),  // 3: left_ear
+        (-35.0, -205.0), // 4: right_ear
+        (60.0, -120.0),  // 5: left_shoulder
+        (-60.0, -120.0), // 6: right_shoulder
+        (100.0, 0.0),    // 7: left_elbow
+        (-100.0, 0.0),   // 8: right_elbow
+        (80.0, 100.0),   // 9: left_wrist
+        (-80.0, 100.0),  // 10: right_wrist
+        (40.0, 100.0),   // 11: left_hip
+        (-40.0, 100.0),  // 12: right_hip
+        (50.0, 230.0),   // 13: left_knee
+        (-50.0, 230.0),  // 14: right_knee
+        (55.0, 360.0),   // 15: left_ankle
+        (-55.0, 360.0),  // 16: right_ankle
+    ];
+
+    base_points
+        .iter()
+        .enumerate()
+        .map(|(i, (dx, dy))| {
+            Keypoint::default()
+                .with_xy(cx + dx * scale, cy + dy * scale)
+                .with_id(i)
+                .with_confidence(0.95)
+        })
+        .collect()
+}
+
+// =============================================================================
+// Polygon Styles Demo - Showcase various polygon shapes and styles
+// =============================================================================
+fn demo_polygon_styles() -> anyhow::Result<()> {
+    println!("\n=== Polygon Style Demos ===");
+
+    // Large canvas: 1800x900
+    let canvas = blank_canvas(1800, 900, Color::from([30u8, 30, 35, 255])); // Dark background
+
+    let mut polygons = Vec::new();
+
+    // Row 1: Different polygon shapes with vibrant fills
+    // 1. Star shape (5-pointed)
+    let star_points = create_star_polygon(150.0, 200.0, 80.0, 40.0, 5);
+    polygons.push(
+        Polygon::try_from(star_points)?
+            .with_id(0)
+            .with_name("Star")
+            .with_confidence(0.95)
+            .with_style(
+                PolygonStyle::default()
+                    .with_fill_color(ColorSource::Custom(Color::from([255u8, 215, 0, 180]))) // Gold
+                    .with_outline_color(ColorSource::Custom(Color::from([255u8, 140, 0, 255]))) // Dark orange
+                    .with_thickness(3)
+                    .with_text_visible(true)
+                    .with_text_style(
+                        TextStyle::default()
+                            .with_loc(TextLoc::OuterTopCenter)
+                            .with_font_size(18.0)
+                            .with_mode(TextStyleMode::rounded(6.0, 6.0))
+                            .with_bg_fill_color(ColorSource::Custom(Color::from([
+                                255u8, 215, 0, 220,
+                            ]))),
+                    ),
+            ),
+    );
+
+    // 2. Arrow shape
+    let arrow = vec![
+        [350.0, 180.0],
+        [450.0, 120.0],
+        [450.0, 160.0],
+        [550.0, 160.0],
+        [550.0, 240.0],
+        [450.0, 240.0],
+        [450.0, 280.0],
+    ];
+    polygons.push(
+        Polygon::try_from(arrow)?
+            .with_id(1)
+            .with_name("Arrow")
+            .with_confidence(0.92)
+            .with_style(
+                PolygonStyle::default()
+                    .with_fill_color(ColorSource::Custom(Color::from([0u8, 191, 255, 160]))) // Deep sky blue
+                    .with_outline_color(ColorSource::Custom(Color::white()))
+                    .with_thickness(2)
+                    .with_text_visible(true)
+                    .with_text_style(
+                        TextStyle::default()
+                            .with_loc(TextLoc::Center)
+                            .with_font_size(16.0)
+                            .with_mode(TextStyleMode::rounded(4.0, 4.0)),
+                    ),
+            ),
+    );
+
+    // 3. Hexagon
+    let hexagon = create_regular_polygon(750.0, 200.0, 90.0, 6);
+    polygons.push(
+        Polygon::try_from(hexagon)?
+            .with_id(2)
+            .with_name("Hexagon")
+            .with_confidence(0.88)
+            .with_style(
+                PolygonStyle::default()
+                    .with_fill_color(ColorSource::Custom(Color::from([138u8, 43, 226, 150]))) // Blue violet
+                    .with_outline_color(ColorSource::Custom(Color::from([255u8, 0, 255, 255]))) // Magenta
+                    .with_thickness(4)
+                    .with_text_visible(true)
+                    .with_text_style(
+                        TextStyle::default()
+                            .with_loc(TextLoc::OuterBottomCenter)
+                            .with_font_size(18.0)
+                            .with_mode(TextStyleMode::rounded(5.0, 5.0))
+                            .with_bg_fill_color(ColorSource::Custom(Color::from([
+                                138u8, 43, 226, 200,
+                            ]))),
+                    ),
+            ),
+    );
+
+    // 4. Pentagon with thick outline only
+    let pentagon = create_regular_polygon(1000.0, 200.0, 85.0, 5);
+    polygons.push(
+        Polygon::try_from(pentagon)?
+            .with_id(3)
+            .with_name("Pentagon")
+            .with_confidence(0.85)
+            .with_style(
+                PolygonStyle::default()
+                    .with_draw_fill(false)
+                    .with_draw_outline(true)
+                    .with_outline_color(ColorSource::Custom(Color::from([0u8, 255, 127, 255]))) // Spring green
+                    .with_thickness(5)
+                    .with_text_visible(true)
+                    .with_text_style(
+                        TextStyle::default()
+                            .with_loc(TextLoc::Center)
+                            .with_font_size(16.0)
+                            .with_color(ColorSource::Custom(Color::from([0u8, 255, 127, 255])))
+                            .with_bg_fill_color(ColorSource::Custom(Color::from([
+                                0u8, 50, 30, 200,
+                            ]))),
+                    ),
+            ),
+    );
+
+    // 5. Irregular blob
+    let blob = vec![
+        [1150.0, 130.0],
+        [1250.0, 100.0],
+        [1320.0, 150.0],
+        [1350.0, 220.0],
+        [1300.0, 280.0],
+        [1200.0, 300.0],
+        [1130.0, 250.0],
+        [1100.0, 180.0],
+    ];
+    polygons.push(
+        Polygon::try_from(blob)?
+            .with_id(4)
+            .with_name("Organic")
+            .with_confidence(0.78)
+            .with_style(
+                PolygonStyle::default()
+                    .with_fill_color(ColorSource::Custom(Color::from([255u8, 99, 71, 170]))) // Tomato
+                    .with_outline_color(ColorSource::Custom(Color::from([255u8, 69, 0, 255]))) // Red-orange
+                    .with_thickness(3)
+                    .with_text_visible(true)
+                    .with_text_style(
+                        TextStyle::default()
+                            .with_loc(TextLoc::InnerTopCenter)
+                            .with_font_size(15.0),
+                    ),
+            ),
+    );
+
+    // 6. 8-pointed star
+    let star8 = create_star_polygon(1550.0, 200.0, 90.0, 45.0, 8);
+    polygons.push(
+        Polygon::try_from(star8)?
+            .with_id(5)
+            .with_name("8-Star")
+            .with_confidence(0.91)
+            .with_style(
+                PolygonStyle::default()
+                    .with_fill_color(ColorSource::Custom(Color::from([255u8, 20, 147, 160]))) // Deep pink
+                    .with_outline_color(ColorSource::Custom(Color::white()))
+                    .with_thickness(2)
+                    .with_text_visible(true)
+                    .with_text_style(
+                        TextStyle::default()
+                            .with_loc(TextLoc::OuterTopCenter)
+                            .with_font_size(16.0)
+                            .with_mode(TextStyleMode::rounded(4.0, 4.0)),
+                    ),
+            ),
+    );
+
+    // Row 2: More complex shapes and style combinations
+    // 7. Lightning bolt
+    let lightning = vec![
+        [100.0, 450.0],
+        [180.0, 450.0],
+        [140.0, 550.0],
+        [220.0, 550.0],
+        [80.0, 750.0],
+        [150.0, 600.0],
+        [80.0, 600.0],
+    ];
+    polygons.push(
+        Polygon::try_from(lightning)?
+            .with_id(6)
+            .with_name("Lightning")
+            .with_confidence(0.89)
+            .with_style(
+                PolygonStyle::default()
+                    .with_fill_color(ColorSource::Custom(Color::from([255u8, 255, 0, 200]))) // Yellow
+                    .with_outline_color(ColorSource::Custom(Color::from([255u8, 200, 0, 255])))
+                    .with_thickness(3)
+                    .with_text_visible(true)
+                    .with_text_style(
+                        TextStyle::default()
+                            .with_loc(TextLoc::OuterTopLeft)
+                            .with_font_size(14.0)
+                            .with_mode(TextStyleMode::rounded(3.0, 3.0)),
+                    ),
+            ),
+    );
+
+    // 8. House shape
+    let house = vec![
+        [350.0, 550.0],
+        [500.0, 450.0],
+        [650.0, 550.0],
+        [620.0, 550.0],
+        [620.0, 750.0],
+        [380.0, 750.0],
+        [380.0, 550.0],
+    ];
+    polygons.push(
+        Polygon::try_from(house)?
+            .with_id(7)
+            .with_name("House")
+            .with_confidence(0.94)
+            .with_style(
+                PolygonStyle::default()
+                    .with_fill_color(ColorSource::Custom(Color::from([139u8, 69, 19, 180]))) // Saddle brown
+                    .with_outline_color(ColorSource::Custom(Color::from([210u8, 180, 140, 255]))) // Tan
+                    .with_thickness(4)
+                    .with_text_visible(true)
+                    .with_text_style(
+                        TextStyle::default()
+                            .with_loc(TextLoc::InnerBottomCenter)
+                            .with_font_size(18.0)
+                            .with_bg_fill_color(ColorSource::Custom(Color::from([
+                                139u8, 69, 19, 220,
+                            ]))),
+                    ),
+            ),
+    );
+
+    // 9. Crescent/moon shape
+    let crescent = vec![
+        [800.0, 500.0],
+        [850.0, 450.0],
+        [920.0, 450.0],
+        [970.0, 500.0],
+        [970.0, 600.0],
+        [920.0, 650.0],
+        [850.0, 650.0],
+        [800.0, 600.0],
+        [830.0, 550.0],
+        [850.0, 520.0],
+        [880.0, 520.0],
+        [900.0, 550.0],
+        [900.0, 570.0],
+        [880.0, 590.0],
+        [850.0, 590.0],
+        [830.0, 570.0],
+    ];
+    polygons.push(
+        Polygon::try_from(crescent)?
+            .with_id(8)
+            .with_name("Ring")
+            .with_confidence(0.82)
+            .with_style(
+                PolygonStyle::default()
+                    .with_fill_color(ColorSource::Custom(Color::from([100u8, 149, 237, 180]))) // Cornflower blue
+                    .with_outline_color(ColorSource::Custom(Color::from([65u8, 105, 225, 255]))) // Royal blue
+                    .with_thickness(3)
+                    .with_text_visible(true)
+                    .with_text_style(
+                        TextStyle::default()
+                            .with_loc(TextLoc::Center)
+                            .with_font_size(16.0),
+                    ),
+            ),
+    );
+
+    // 10. Triangle with gradient-like effect
+    let triangle = create_regular_polygon(1150.0, 600.0, 100.0, 3);
+    polygons.push(
+        Polygon::try_from(triangle)?
+            .with_id(9)
+            .with_name("Triangle")
+            .with_confidence(0.96)
+            .with_style(
+                PolygonStyle::default()
+                    .with_fill_color(ColorSource::Custom(Color::from([50u8, 205, 50, 160]))) // Lime green
+                    .with_outline_color(ColorSource::Custom(Color::from([34u8, 139, 34, 255]))) // Forest green
+                    .with_thickness(5)
+                    .with_text_visible(true)
+                    .with_text_style(
+                        TextStyle::default()
+                            .with_loc(TextLoc::OuterBottomCenter)
+                            .with_font_size(17.0)
+                            .with_mode(TextStyleMode::rounded(5.0, 5.0))
+                            .with_bg_fill_color(ColorSource::Custom(Color::from([
+                                50u8, 205, 50, 200,
+                            ]))),
+                    ),
+            ),
+    );
+
+    // 11. Cross shape
+    let cross = vec![
+        [1350.0, 450.0],
+        [1400.0, 450.0],
+        [1400.0, 520.0],
+        [1470.0, 520.0],
+        [1470.0, 570.0],
+        [1400.0, 570.0],
+        [1400.0, 640.0],
+        [1350.0, 640.0],
+        [1350.0, 570.0],
+        [1280.0, 570.0],
+        [1280.0, 520.0],
+        [1350.0, 520.0],
+    ];
+    polygons.push(
+        Polygon::try_from(cross)?
+            .with_id(10)
+            .with_name("Cross")
+            .with_confidence(0.87)
+            .with_style(
+                PolygonStyle::default()
+                    .with_fill_color(ColorSource::Custom(Color::from([220u8, 20, 60, 180]))) // Crimson
+                    .with_outline_color(ColorSource::Custom(Color::white()))
+                    .with_thickness(2)
+                    .with_text_visible(true)
+                    .with_text_style(
+                        TextStyle::default()
+                            .with_loc(TextLoc::OuterTopCenter)
+                            .with_font_size(15.0)
+                            .with_mode(TextStyleMode::rounded(4.0, 4.0)),
+                    ),
+            ),
+    );
+
+    // 12. 12-pointed star with outline only
+    let star12 = create_star_polygon(1650.0, 600.0, 100.0, 60.0, 12);
+    polygons.push(
+        Polygon::try_from(star12)?
+            .with_id(11)
+            .with_name("12-Star")
+            .with_confidence(0.93)
+            .with_style(
+                PolygonStyle::default()
+                    .with_draw_fill(false)
+                    .with_draw_outline(true)
+                    .with_outline_color(ColorSource::Custom(Color::from([255u8, 165, 0, 255]))) // Orange
+                    .with_thickness(4)
+                    .with_text_visible(true)
+                    .with_text_style(
+                        TextStyle::default()
+                            .with_loc(TextLoc::Center)
+                            .with_font_size(14.0)
+                            .with_color(ColorSource::Custom(Color::from([255u8, 165, 0, 255])))
+                            .with_draw_fill(false),
+                    ),
+            ),
+    );
+
+    let annotator = Annotator::default();
+    let result = annotator.annotate(&canvas.into(), &polygons)?;
+    save_to(&result.into(), "Polygon", "styles")?;
+
+    Ok(())
+}
+
+/// Create a star polygon
+fn create_star_polygon(
+    cx: f32,
+    cy: f32,
+    outer_r: f32,
+    inner_r: f32,
+    points: usize,
+) -> Vec<[f32; 2]> {
+    let mut vertices = Vec::with_capacity(points * 2);
+    for i in 0..(points * 2) {
+        let angle =
+            (i as f32) * std::f32::consts::PI / (points as f32) - std::f32::consts::PI / 2.0;
+        let r = if i % 2 == 0 { outer_r } else { inner_r };
+        vertices.push([cx + r * angle.cos(), cy + r * angle.sin()]);
+    }
+    vertices
+}
+
+/// Create a regular polygon
+fn create_regular_polygon(cx: f32, cy: f32, radius: f32, sides: usize) -> Vec<[f32; 2]> {
+    let mut vertices = Vec::with_capacity(sides);
+    for i in 0..sides {
+        let angle =
+            (i as f32) * 2.0 * std::f32::consts::PI / (sides as f32) - std::f32::consts::PI / 2.0;
+        vertices.push([cx + radius * angle.cos(), cy + radius * angle.sin()]);
+    }
+    vertices
+}
+
+// =============================================================================
+// Prob Styles Demo - All positions on single canvas with position names
+// =============================================================================
+fn demo_prob_styles() -> anyhow::Result<()> {
+    println!("\n=== Prob Style Demos ===");
+
+    // Larger canvas: 1200x900 to show more positions and font size variations
+    let canvas = blank_canvas(1200, 900, Color::from([250u8, 250, 250, 255]));
+
+    // Create probs at different locations with VARYING font sizes
+    let probs = vec![
+        // Top row - varying sizes
+        Prob::default()
+            .with_id(0)
+            .with_name("TopLeft(16px)")
+            .with_confidence(0.95)
+            .with_style(
+                ProbStyle::default().with_text_style(
+                    TextStyle::default()
+                        .with_loc(TextLoc::InnerTopLeft)
+                        .with_font_size(16.0),
+                ),
+            ),
+        Prob::default()
+            .with_id(1)
+            .with_name("TopCenter(24px)")
+            .with_confidence(0.88)
+            .with_style(
+                ProbStyle::default().with_text_style(
+                    TextStyle::default()
+                        .with_loc(TextLoc::InnerTopCenter)
+                        .with_font_size(24.0),
+                ),
+            ),
+        Prob::default()
+            .with_id(2)
+            .with_name("TopRight(32px)")
+            .with_confidence(0.82)
+            .with_style(
+                ProbStyle::default().with_text_style(
+                    TextStyle::default()
+                        .with_loc(TextLoc::InnerTopRight)
+                        .with_font_size(32.0),
+                ),
+            ),
+        // Center row - different styles
+        Prob::default()
+            .with_id(3)
+            .with_name("CenterLeft(20px)")
+            .with_confidence(0.75)
+            .with_style(
+                ProbStyle::default().with_text_style(
+                    TextStyle::default()
+                        .with_loc(TextLoc::InnerCenterLeft)
+                        .with_font_size(20.0),
+                ),
+            ),
+        Prob::default()
+            .with_id(4)
+            .with_name("Center(28px)")
+            .with_confidence(0.99)
+            .with_style(
+                ProbStyle::default().with_text_style(
+                    TextStyle::default()
+                        .with_loc(TextLoc::Center)
+                        .with_font_size(28.0)
+                        .with_mode(TextStyleMode::rounded(6.0, 4.0)),
+                ),
+            ),
+        Prob::default()
+            .with_id(5)
+            .with_name("CenterRight(22px)")
+            .with_confidence(0.68)
+            .with_style(
+                ProbStyle::default().with_text_style(
+                    TextStyle::default()
+                        .with_loc(TextLoc::InnerCenterRight)
+                        .with_font_size(22.0),
+                ),
+            ),
+        // Bottom row - with outlines
+        Prob::default()
+            .with_id(6)
+            .with_name("BotLeft(18px)")
+            .with_confidence(0.55)
+            .with_style(
+                ProbStyle::default().with_text_style(
+                    TextStyle::default()
+                        .with_loc(TextLoc::InnerBottomLeft)
+                        .with_font_size(18.0)
+                        .with_draw_outline(true)
+                        .with_thickness(2),
+                ),
+            ),
+        Prob::default()
+            .with_id(7)
+            .with_name("BotCenter(26px)")
+            .with_confidence(0.45)
+            .with_style(
+                ProbStyle::default().with_text_style(
+                    TextStyle::default()
+                        .with_loc(TextLoc::InnerBottomCenter)
+                        .with_font_size(26.0)
+                        .with_mode(TextStyleMode::rounded(8.0, 5.0))
+                        .with_draw_outline(true)
+                        .with_thickness(2),
+                ),
+            ),
+        Prob::default()
+            .with_id(8)
+            .with_name("BotRight(36px)")
+            .with_confidence(0.35)
+            .with_style(
+                ProbStyle::default().with_text_style(
+                    TextStyle::default()
+                        .with_loc(TextLoc::InnerBottomRight)
+                        .with_font_size(36.0),
+                ),
+            ),
+    ];
+
+    let annotator = Annotator::default();
+    let mut result: RgbaImage = canvas;
+
+    // Draw each prob individually since they have different styles
+    for prob in &probs {
+        let temp = annotator.annotate(&result.clone().into(), prob)?;
+        result = temp.into();
+    }
+
+    save_to(&result, "Prob", "styles")?;
+
+    Ok(())
+}
+
+// =============================================================================
+// Mask Styles Demo
+// =============================================================================
+fn demo_mask_styles() -> anyhow::Result<()> {
+    println!("\n=== Mask Style Demos ===");
+
+    // Canvas size: 1200x500
+    let canvas = blank_canvas(1200, 500, Color::from([240u8, 240, 240, 255]));
+
+    // Create sample masks (circles at different positions)
+    let positions = [
+        (200u32, 250u32, 120u32, "Overlay"),
+        (600, 250, 100, "Halo Purple"),
+        (1000, 250, 90, "Halo Custom"),
+    ];
+
+    let styles: Vec<MaskStyle> = vec![
+        MaskStyle::default()
+            .with_cutout(false)
+            .with_palette(&[Color::red().with_alpha(128)]),
+        MaskStyle::halo()
+            .with_cutout(false)
+            .with_palette(&[Color::cyan()]),
+        MaskStyle::default()
+            .with_mode(MaskStyleMode::halo_with(
+                0.08,
+                Color::magenta().with_alpha(200),
+            ))
+            .with_cutout(false)
+            .with_palette(&[Color::green()]),
+    ];
+
+    let mut result: RgbaImage = canvas;
+
+    for (i, ((cx, cy, radius, name), style)) in positions.iter().zip(styles.iter()).enumerate() {
+        // Create circular mask
+        let mut gray = GrayImage::new(1200, 500);
+        for y in 0..500 {
+            for x in 0..1200 {
+                let dx = x as i32 - *cx as i32;
+                let dy = y as i32 - *cy as i32;
+                if (dx * dx + dy * dy) <= (*radius as i32 * *radius as i32) {
+                    gray.put_pixel(x, y, Luma([255u8]));
+                }
+            }
+        }
+
+        let mask = Mask::new(&gray.into_raw(), 1200, 500)?
+            .with_id(i)
+            .with_name(name)
+            .with_confidence(0.95)
+            .with_style(style.clone());
+
+        let annotator = Annotator::default();
+        let temp = annotator.annotate(&result.clone().into(), &mask)?;
+        result = temp.into();
+    }
+
+    save_to(&result, "Mask", "styles")?;
+
+    Ok(())
+}
+
+// =============================================================================
+// Combined Y Demo - On real image
+// =============================================================================
+fn demo_combined_y(image: &usls::Image) -> anyhow::Result<()> {
+    println!("\n=== Combined Y Demo ===");
 
     let hbbs = vec![
         Hbb::default()
-            .with_xyxy(20.81192, 229.65482, 795.1383, 751.0504)
+            .with_xyxy(20.0, 230.0, 795.0, 751.0)
             .with_id(5)
             .with_name("bus")
-            .with_confidence(0.8815875)
-            .with_style(
-                // individual setting
-                Style::hbb()
-                    .with_thickness(5)
-                    .with_draw_fill(true)
-                    .with_visible(true)
-                    .with_text_visible(true)
-                    .show_confidence(true)
-                    .show_id(true)
-                    .show_name(true)
-                    .with_text_loc(usls::TextLoc::Center)
-                    .with_color(
-                        usls::StyleColors::default()
-                            .with_outline(usls::Color::white())
-                            .with_fill(usls::Color::black().with_alpha(100))
-                            .with_text(usls::Color::black())
-                            .with_text_bg(usls::Color::white()),
-                    ),
-            ),
+            .with_confidence(0.88),
         Hbb::default()
-            .with_xyxy(669.5233, 395.4491, 809.0367, 878.81226)
+            .with_xyxy(669.0, 395.0, 809.0, 879.0)
             .with_id(0)
             .with_name("person")
-            .with_confidence(0.87094545),
+            .with_confidence(0.87),
         Hbb::default()
-            .with_xyxy(48.03354, 398.6103, 245.06848, 902.5964)
+            .with_xyxy(48.0, 399.0, 245.0, 903.0)
             .with_id(0)
             .with_name("person")
-            .with_confidence(0.8625425),
-        Hbb::default()
-            .with_xyxy(221.26727, 405.51895, 345.14288, 857.61865)
-            .with_id(0)
-            .with_name("person")
-            .with_confidence(0.81437635),
-        Hbb::default()
-            .with_xyxy(0.08129883, 254.67389, 32.30627, 324.9663)
-            .with_id(11)
-            .with_name("stop sign")
-            .with_confidence(0.30021638),
+            .with_confidence(0.86),
     ];
 
-    let keypoints: Vec<Keypoint> = vec![
-        Keypoint::default()
-            .with_xy(139.35767, 443.43655)
-            .with_id(0)
-            .with_name("nose")
-            .with_confidence(0.9739332),
-        Keypoint::default()
-            .with_xy(147.38545, 434.34055)
-            .with_id(1)
-            .with_name("left_eye")
-            .with_confidence(0.9098319),
-        Keypoint::default()
-            .with_xy(128.5701, 434.07516)
-            .with_id(2)
-            .with_name("right_eye")
-            .with_confidence(0.9320564),
-        Keypoint::default()
-            .with_xy(153.24237, 442.4857)
-            .with_id(3)
-            .with_name("left_ear")
-            .with_confidence(0.5992247),
-        Keypoint::default()
-            .with_xy(105.74312, 441.05765)
-            .with_id(4)
-            .with_name("right_ear")
-            .with_confidence(0.7259705),
-        Keypoint::default()
-            .with_xy(166.55661, 498.17484)
-            .with_id(5)
-            .with_name("left_shoulder")
-            .with_confidence(0.9862031),
-        Keypoint::default()
-            .with_xy(89.40589, 497.6169)
-            .with_id(6)
-            .with_name("right_shoulder")
-            .with_confidence(0.9879458),
-        Keypoint::default()
-            .with_xy(190.7351, 575.00226)
-            .with_id(7)
-            .with_name("left_elbow")
-            .with_confidence(0.9521556),
-        Keypoint::default()
-            .with_xy(116.3187, 570.6441)
-            .with_id(8)
-            .with_name("right_elbow")
-            .with_confidence(0.9619827),
-        Keypoint::default()
-            .with_xy(140.43465, 575.80994)
-            .with_id(9)
-            .with_name("left_wrist")
-            .with_confidence(0.9329945),
-        Keypoint::default()
-            .with_xy(174.73381, 558.4027)
-            .with_id(10)
-            .with_name("right_wrist")
-            .with_confidence(0.93989426),
-        Keypoint::default()
-            .with_xy(159.16801, 652.35846)
-            .with_id(11)
-            .with_name("left_hip")
-            .with_confidence(0.9849887),
-        Keypoint::default()
-            .with_xy(99.27675, 653.01874)
-            .with_id(12)
-            .with_name("right_hip")
-            .with_confidence(0.9861814),
-        Keypoint::default()
-            .with_xy(180.95883, 759.8797)
-            .with_id(13)
-            .with_name("left_knee")
-            .with_confidence(0.95086014),
-        Keypoint::default()
-            .with_xy(87.09352, 762.6029)
-            .with_id(14)
-            .with_name("right_knee")
-            .with_confidence(0.9532267),
-        Keypoint::default()
-            .with_xy(194.39137, 860.7901)
-            .with_id(15)
-            .with_name("left_ankle")
-            .with_confidence(0.7986185),
-        Keypoint::default()
-            .with_xy(70.85685, 862.53253)
-            .with_id(16)
-            .with_name("right_ankle")
-            .with_confidence(0.79832363),
-    ];
+    let keypoints = create_pose_keypoints();
 
     let probs = vec![
         Prob::default()
             .with_id(654)
             .with_name("minibus")
-            .with_confidence(0.666985),
+            .with_confidence(0.67),
         Prob::default()
             .with_id(734)
             .with_name("police_van")
-            .with_confidence(0.20067203),
-        Prob::default()
-            .with_id(874)
-            .with_name("trolleybus")
-            .with_confidence(0.024672432),
-        Prob::default()
-            .with_id(656)
-            .with_name("minivan")
-            .with_confidence(0.02395765),
-        Prob::default()
-            .with_id(757)
-            .with_name("recreational_vehicle")
-            .with_confidence(0.012205753),
+            .with_confidence(0.20),
     ];
 
-    let polygons = vec![
-        Polygon::try_from(vec![
-            [13.0, 251.0],
-            [12.0, 251.0],
-            [11.0, 251.0],
-            [10.0, 251.0],
-            [9.0, 251.0],
-            [8.0, 251.0],
-            [7.0, 251.0],
-            [6.0, 251.0],
-            [5.0, 251.0],
-            [4.0, 251.0],
-            [3.0, 251.0],
-            [2.0, 251.0],
-            [1.0, 251.0],
-            [0.0, 251.0],
-            [0.0, 252.0],
-            [0.0, 253.0],
-            [0.0, 254.0],
-            [0.0, 255.0],
-            [0.0, 256.0],
-            [0.0, 257.0],
-            [0.0, 258.0],
-            [0.0, 259.0],
-            [0.0, 260.0],
-            [0.0, 261.0],
-            [0.0, 262.0],
-            [0.0, 263.0],
-            [0.0, 264.0],
-            [0.0, 265.0],
-            [0.0, 266.0],
-            [0.0, 267.0],
-            [0.0, 268.0],
-            [0.0, 269.0],
-            [0.0, 270.0],
-            [0.0, 271.0],
-            [0.0, 272.0],
-            [0.0, 273.0],
-            [0.0, 274.0],
-            [0.0, 275.0],
-            [0.0, 276.0],
-            [0.0, 277.0],
-            [0.0, 278.0],
-            [0.0, 279.0],
-            [0.0, 280.0],
-            [0.0, 281.0],
-            [0.0, 282.0],
-            [0.0, 283.0],
-            [0.0, 284.0],
-            [0.0, 285.0],
-            [0.0, 286.0],
-            [0.0, 287.0],
-            [0.0, 288.0],
-            [0.0, 289.0],
-            [0.0, 290.0],
-            [0.0, 291.0],
-            [0.0, 292.0],
-            [0.0, 293.0],
-            [0.0, 294.0],
-            [0.0, 295.0],
-            [0.0, 296.0],
-            [0.0, 297.0],
-            [0.0, 298.0],
-            [0.0, 299.0],
-            [0.0, 300.0],
-            [0.0, 301.0],
-            [0.0, 302.0],
-            [0.0, 303.0],
-            [0.0, 304.0],
-            [0.0, 305.0],
-            [0.0, 306.0],
-            [0.0, 307.0],
-            [0.0, 308.0],
-            [0.0, 309.0],
-            [0.0, 310.0],
-            [0.0, 311.0],
-            [0.0, 312.0],
-            [0.0, 313.0],
-            [0.0, 314.0],
-            [0.0, 315.0],
-            [0.0, 316.0],
-            [0.0, 317.0],
-            [0.0, 318.0],
-            [0.0, 319.0],
-            [0.0, 320.0],
-            [0.0, 321.0],
-            [0.0, 322.0],
-            [0.0, 323.0],
-            [0.0, 324.0],
-            [0.0, 325.0],
-            [1.0, 325.0],
-            [2.0, 325.0],
-            [3.0, 325.0],
-            [4.0, 325.0],
-            [5.0, 325.0],
-            [6.0, 325.0],
-            [7.0, 325.0],
-            [8.0, 325.0],
-            [9.0, 325.0],
-            [10.0, 325.0],
-            [11.0, 325.0],
-            [12.0, 324.0],
-            [13.0, 324.0],
-            [14.0, 324.0],
-            [15.0, 323.0],
-            [16.0, 323.0],
-            [17.0, 322.0],
-            [18.0, 321.0],
-            [19.0, 321.0],
-            [20.0, 320.0],
-            [20.0, 319.0],
-            [21.0, 318.0],
-            [22.0, 317.0],
-            [23.0, 316.0],
-            [24.0, 315.0],
-            [24.0, 314.0],
-            [25.0, 313.0],
-            [26.0, 312.0],
-            [27.0, 311.0],
-            [28.0, 310.0],
-            [29.0, 309.0],
-            [30.0, 308.0],
-            [30.0, 307.0],
-            [31.0, 306.0],
-            [31.0, 305.0],
-            [31.0, 304.0],
-            [32.0, 303.0],
-            [32.0, 302.0],
-            [32.0, 301.0],
-            [33.0, 300.0],
-            [33.0, 299.0],
-            [33.0, 298.0],
-            [33.0, 297.0],
-            [33.0, 296.0],
-            [33.0, 295.0],
-            [33.0, 294.0],
-            [33.0, 293.0],
-            [33.0, 292.0],
-            [33.0, 291.0],
-            [33.0, 290.0],
-            [33.0, 289.0],
-            [33.0, 288.0],
-            [33.0, 287.0],
-            [33.0, 286.0],
-            [33.0, 285.0],
-            [33.0, 284.0],
-            [33.0, 283.0],
-            [33.0, 282.0],
-            [33.0, 281.0],
-            [33.0, 280.0],
-            [32.0, 279.0],
-            [32.0, 278.0],
-            [32.0, 277.0],
-            [31.0, 276.0],
-            [31.0, 275.0],
-            [31.0, 274.0],
-            [30.0, 273.0],
-            [30.0, 272.0],
-            [29.0, 271.0],
-            [28.0, 270.0],
-            [28.0, 269.0],
-            [27.0, 268.0],
-            [27.0, 267.0],
-            [26.0, 266.0],
-            [25.0, 265.0],
-            [25.0, 264.0],
-            [24.0, 263.0],
-            [23.0, 262.0],
-            [22.0, 261.0],
-            [21.0, 260.0],
-            [20.0, 259.0],
-            [20.0, 258.0],
-            [19.0, 257.0],
-            [18.0, 256.0],
-            [17.0, 255.0],
-            [16.0, 254.0],
-            [15.0, 254.0],
-            [14.0, 253.0],
-            [13.0, 252.0],
-            [13.0, 251.0],
-        ])?
-        .with_id(11)
-        .with_name("stop sign")
-        .with_confidence(0.5555),
-        Polygon::try_from(vec![
-            [485.0, 149.0],
-            [484.0, 150.0],
-            [484.0, 151.0],
-            [483.0, 152.0],
-            [482.0, 153.0],
-            [481.0, 153.0],
-            [480.0, 153.0],
-            [479.0, 153.0],
-            [478.0, 153.0],
-            [477.0, 154.0],
-            [476.0, 154.0],
-            [475.0, 154.0],
-            [474.0, 154.0],
-            [473.0, 154.0],
-            [472.0, 154.0],
-            [471.0, 154.0],
-            [470.0, 154.0],
-            [469.0, 154.0],
-            [468.0, 155.0],
-            [467.0, 155.0],
-            [466.0, 155.0],
-            [465.0, 155.0],
-            [464.0, 155.0],
-            [463.0, 155.0],
-            [462.0, 156.0],
-            [461.0, 156.0],
-            [460.0, 156.0],
-            [459.0, 156.0],
-            [458.0, 156.0],
-            [457.0, 157.0],
-            [456.0, 157.0],
-            [455.0, 157.0],
-            [454.0, 157.0],
-            [453.0, 158.0],
-            [452.0, 158.0],
-            [451.0, 158.0],
-            [450.0, 158.0],
-            [449.0, 159.0],
-            [448.0, 159.0],
-            [447.0, 159.0],
-            [446.0, 159.0],
-            [445.0, 160.0],
-            [444.0, 160.0],
-            [443.0, 160.0],
-            [442.0, 160.0],
-            [441.0, 160.0],
-            [440.0, 161.0],
-            [439.0, 161.0],
-            [438.0, 161.0],
-            [437.0, 161.0],
-            [436.0, 161.0],
-            [435.0, 162.0],
-            [434.0, 162.0],
-            [433.0, 162.0],
-            [432.0, 162.0],
-            [431.0, 162.0],
-            [430.0, 162.0],
-            [429.0, 163.0],
-            [428.0, 163.0],
-            [427.0, 163.0],
-            [427.0, 164.0],
-            [427.0, 165.0],
-            [427.0, 166.0],
-            [427.0, 167.0],
-            [427.0, 168.0],
-            [427.0, 169.0],
-            [427.0, 170.0],
-            [427.0, 171.0],
-            [427.0, 172.0],
-            [427.0, 173.0],
-            [427.0, 174.0],
-            [427.0, 175.0],
-            [427.0, 176.0],
-            [427.0, 177.0],
-            [427.0, 178.0],
-            [427.0, 179.0],
-            [427.0, 180.0],
-            [427.0, 181.0],
-            [427.0, 182.0],
-            [427.0, 183.0],
-            [427.0, 184.0],
-            [427.0, 185.0],
-            [427.0, 186.0],
-            [427.0, 187.0],
-            [427.0, 188.0],
-            [427.0, 189.0],
-            [427.0, 190.0],
-            [428.0, 190.0],
-            [429.0, 191.0],
-            [430.0, 191.0],
-            [431.0, 191.0],
-            [432.0, 191.0],
-            [433.0, 191.0],
-            [434.0, 191.0],
-            [435.0, 191.0],
-            [436.0, 191.0],
-            [437.0, 191.0],
-            [438.0, 190.0],
-            [439.0, 190.0],
-            [440.0, 190.0],
-            [441.0, 190.0],
-            [442.0, 190.0],
-            [443.0, 190.0],
-            [444.0, 190.0],
-            [445.0, 189.0],
-            [446.0, 189.0],
-            [447.0, 189.0],
-            [448.0, 189.0],
-            [449.0, 189.0],
-            [450.0, 189.0],
-            [451.0, 188.0],
-            [452.0, 188.0],
-            [453.0, 188.0],
-            [454.0, 188.0],
-            [455.0, 188.0],
-            [456.0, 188.0],
-            [457.0, 187.0],
-            [458.0, 187.0],
-            [459.0, 187.0],
-            [460.0, 187.0],
-            [461.0, 186.0],
-            [462.0, 186.0],
-            [463.0, 187.0],
-            [464.0, 188.0],
-            [465.0, 189.0],
-            [466.0, 190.0],
-            [467.0, 191.0],
-            [467.0, 192.0],
-            [468.0, 193.0],
-            [469.0, 193.0],
-            [470.0, 193.0],
-            [471.0, 193.0],
-            [472.0, 193.0],
-            [473.0, 193.0],
-            [474.0, 193.0],
-            [475.0, 193.0],
-            [476.0, 193.0],
-            [477.0, 193.0],
-            [478.0, 192.0],
-            [479.0, 191.0],
-            [480.0, 190.0],
-            [481.0, 190.0],
-            [482.0, 189.0],
-            [483.0, 189.0],
-            [484.0, 189.0],
-            [485.0, 188.0],
-            [486.0, 188.0],
-            [487.0, 188.0],
-            [488.0, 188.0],
-            [489.0, 188.0],
-            [490.0, 188.0],
-            [491.0, 188.0],
-            [492.0, 188.0],
-            [493.0, 187.0],
-            [494.0, 187.0],
-            [495.0, 187.0],
-            [496.0, 187.0],
-            [497.0, 187.0],
-            [498.0, 187.0],
-            [499.0, 187.0],
-            [500.0, 186.0],
-            [501.0, 186.0],
-            [502.0, 186.0],
-            [503.0, 186.0],
-            [504.0, 185.0],
-            [505.0, 185.0],
-            [506.0, 185.0],
-            [507.0, 184.0],
-            [508.0, 184.0],
-            [509.0, 183.0],
-            [510.0, 183.0],
-            [511.0, 183.0],
-            [512.0, 182.0],
-            [513.0, 182.0],
-            [514.0, 182.0],
-            [515.0, 181.0],
-            [516.0, 181.0],
-            [517.0, 181.0],
-            [518.0, 180.0],
-            [519.0, 180.0],
-            [520.0, 180.0],
-            [521.0, 179.0],
-            [522.0, 179.0],
-            [523.0, 178.0],
-            [524.0, 178.0],
-            [525.0, 177.0],
-            [526.0, 176.0],
-            [527.0, 175.0],
-            [528.0, 174.0],
-            [529.0, 173.0],
-            [530.0, 172.0],
-            [531.0, 172.0],
-            [531.0, 171.0],
-            [531.0, 170.0],
-            [531.0, 169.0],
-            [531.0, 168.0],
-            [531.0, 167.0],
-            [531.0, 166.0],
-            [531.0, 165.0],
-            [531.0, 164.0],
-            [531.0, 163.0],
-            [531.0, 162.0],
-            [531.0, 161.0],
-            [531.0, 160.0],
-            [531.0, 159.0],
-            [531.0, 158.0],
-            [531.0, 157.0],
-            [531.0, 156.0],
-            [530.0, 155.0],
-            [530.0, 154.0],
-            [529.0, 154.0],
-            [528.0, 153.0],
-            [527.0, 152.0],
-            [526.0, 151.0],
-            [525.0, 150.0],
-            [524.0, 149.0],
-            [523.0, 149.0],
-            [522.0, 149.0],
-            [521.0, 149.0],
-            [520.0, 149.0],
-            [519.0, 149.0],
-            [518.0, 149.0],
-            [517.0, 149.0],
-            [516.0, 149.0],
-            [515.0, 149.0],
-            [514.0, 149.0],
-            [513.0, 149.0],
-            [512.0, 149.0],
-            [511.0, 149.0],
-            [510.0, 149.0],
-            [509.0, 149.0],
-            [508.0, 149.0],
-            [507.0, 149.0],
-            [506.0, 149.0],
-            [505.0, 149.0],
-            [504.0, 149.0],
-            [503.0, 149.0],
-            [502.0, 149.0],
-            [501.0, 149.0],
-            [500.0, 149.0],
-            [499.0, 149.0],
-            [498.0, 149.0],
-            [497.0, 149.0],
-            [496.0, 149.0],
-            [495.0, 149.0],
-            [494.0, 149.0],
-            [493.0, 149.0],
-            [492.0, 149.0],
-            [491.0, 149.0],
-            [490.0, 149.0],
-            [489.0, 149.0],
-            [488.0, 149.0],
-            [487.0, 149.0],
-            [486.0, 149.0],
-            [485.0, 149.0],
-        ])?
-        .with_id(9)
-        .with_name("traffic light")
-        .with_confidence(0.777777),
-    ];
+    let polygon = Polygon::try_from(vec![
+        [0.0, 251.0],
+        [0.0, 325.0],
+        [33.0, 300.0],
+        [33.0, 280.0],
+        [13.0, 251.0],
+    ])?
+    .with_id(11)
+    .with_name("stop sign")
+    .with_confidence(0.56);
 
-    // Build annotator
-    let annotator = Annotator::default()
-        .with_prob_style(Style::prob().with_text_loc(usls::TextLoc::InnerTopLeft))
-        .with_hbb_style(Style::hbb().with_thickness(5).with_draw_fill(true))
-        .with_keypoint_style(
-            Style::keypoint()
-                .with_skeleton(SKELETON_COCO_19.into())
-                .with_radius(4)
-                .with_text_visible(true)
-                .show_confidence(false)
-                .show_id(true)
-                .show_name(false),
-        )
-        .with_polygon_style(
-            Style::polygon()
-                .with_text_visible(true)
-                .show_confidence(true)
-                .show_id(true)
-                .show_name(true),
-        );
-
-    // Annotate Y
     let y = Y::default()
         .with_probs(&probs)
         .with_hbbs(&hbbs)
         .with_keypoints(&keypoints)
-        // .with_keypointss(&[keypoints.clone()])
-        .with_polygons(&polygons);
-    annotator.annotate(&image, &y)?.save(format!(
-        "{}.jpg",
-        usls::Dir::Current
-            .base_dir_with_subs(&["runs", "Annotate", "Y"])?
-            .join(usls::timestamp(None))
-            .display(),
-    ))?;
+        .with_polygons(&[polygon]);
 
-    // Annotate Probs
-    annotator.annotate(&image, &probs)?.save(format!(
-        "{}.jpg",
-        usls::Dir::Current
-            .base_dir_with_subs(&["runs", "Annotate", "Probs"])?
-            .join(usls::timestamp(None))
-            .display(),
-    ))?;
+    let annotator = Annotator::default()
+        .with_hbb_style(
+            HbbStyle::default()
+                .with_thickness(4)
+                .with_draw_fill(true)
+                .with_fill_color(ColorSource::AutoAlpha(50)),
+        )
+        .with_keypoint_style(
+            KeypointStyle::default()
+                .with_skeleton(SKELETON_COCO_19.into())
+                .with_radius(4)
+                .show_id(true)
+                .show_name(false),
+        )
+        .with_polygon_style(PolygonStyle::default().with_text_visible(true))
+        .with_prob_style(ProbStyle::default());
 
-    // Annotate Prob
-    for prob in &probs {
-        annotator.annotate(&image, prob)?.save(format!(
-            "{}.jpg",
-            usls::Dir::Current
-                .base_dir_with_subs(&["runs", "Annotate", "Prob"])?
-                .join(usls::timestamp(None))
-                .display(),
-        ))?;
-    }
-
-    // Annotate Hbbs
-    annotator.annotate(&image, &hbbs)?.save(format!(
-        "{}.jpg",
-        usls::Dir::Current
-            .base_dir_with_subs(&["runs", "Annotate", "Hbbs"])?
-            .join(usls::timestamp(None))
-            .display(),
-    ))?;
-
-    // Annotate Hbb
-    for hbb in &hbbs {
-        annotator.annotate(&image, hbb)?.save(format!(
-            "{}.jpg",
-            usls::Dir::Current
-                .base_dir_with_subs(&["runs", "Annotate", "Hbb"])?
-                .join(usls::timestamp(None))
-                .display(),
-        ))?;
-    }
-
-    // Annotate A set of Keypoint
-    annotator.annotate(&image, &keypoints)?.save(format!(
-        "{}.jpg",
-        usls::Dir::Current
-            .base_dir_with_subs(&["runs", "Annotate", "Keypoints"])?
-            .join(usls::timestamp(None))
-            .display(),
-    ))?;
-
-    // Annotate Keypoint
-    for keypoint in &keypoints {
-        annotator.annotate(&image, keypoint)?.save(format!(
-            "{}.jpg",
-            usls::Dir::Current
-                .base_dir_with_subs(&["runs", "Annotate", "Keypoint"])?
-                .join(usls::timestamp(None))
-                .display(),
-        ))?;
-    }
-
-    // Annotate Polygons
-    annotator.annotate(&image, &polygons)?.save(format!(
-        "{}.jpg",
-        usls::Dir::Current
-            .base_dir_with_subs(&["runs", "Annotate", "Polygons"])?
-            .join(usls::timestamp(None))
-            .display(),
-    ))?;
-
-    // Annotate Polygon
-    for polygon in &polygons {
-        annotator.annotate(&image, polygon)?.save(format!(
-            "{}.jpg",
-            usls::Dir::Current
-                .base_dir_with_subs(&["runs", "Annotate", "Polygon"])?
-                .join(usls::timestamp(None))
-                .display(),
-        ))?;
-    }
+    let result = annotator.annotate(image, &y)?;
+    let path = usls::Dir::Current
+        .base_dir_with_subs(&["runs", "Annotate", "Y"])?
+        .join("combined.jpg");
+    result.save(path.display().to_string())?;
+    println!("  Saved: Y/combined.jpg");
 
     Ok(())
+}
+
+fn create_pose_keypoints() -> Vec<Keypoint> {
+    vec![
+        Keypoint::default()
+            .with_xy(139.0, 443.0)
+            .with_id(0)
+            .with_confidence(0.97),
+        Keypoint::default()
+            .with_xy(147.0, 434.0)
+            .with_id(1)
+            .with_confidence(0.91),
+        Keypoint::default()
+            .with_xy(129.0, 434.0)
+            .with_id(2)
+            .with_confidence(0.93),
+        Keypoint::default()
+            .with_xy(153.0, 442.0)
+            .with_id(3)
+            .with_confidence(0.60),
+        Keypoint::default()
+            .with_xy(106.0, 441.0)
+            .with_id(4)
+            .with_confidence(0.73),
+        Keypoint::default()
+            .with_xy(167.0, 498.0)
+            .with_id(5)
+            .with_confidence(0.99),
+        Keypoint::default()
+            .with_xy(89.0, 498.0)
+            .with_id(6)
+            .with_confidence(0.99),
+        Keypoint::default()
+            .with_xy(191.0, 575.0)
+            .with_id(7)
+            .with_confidence(0.95),
+        Keypoint::default()
+            .with_xy(116.0, 571.0)
+            .with_id(8)
+            .with_confidence(0.96),
+        Keypoint::default()
+            .with_xy(140.0, 576.0)
+            .with_id(9)
+            .with_confidence(0.93),
+        Keypoint::default()
+            .with_xy(175.0, 558.0)
+            .with_id(10)
+            .with_confidence(0.94),
+        Keypoint::default()
+            .with_xy(159.0, 652.0)
+            .with_id(11)
+            .with_confidence(0.98),
+        Keypoint::default()
+            .with_xy(99.0, 653.0)
+            .with_id(12)
+            .with_confidence(0.99),
+        Keypoint::default()
+            .with_xy(181.0, 760.0)
+            .with_id(13)
+            .with_confidence(0.95),
+        Keypoint::default()
+            .with_xy(87.0, 763.0)
+            .with_id(14)
+            .with_confidence(0.95),
+        Keypoint::default()
+            .with_xy(194.0, 861.0)
+            .with_id(15)
+            .with_confidence(0.80),
+        Keypoint::default()
+            .with_xy(71.0, 863.0)
+            .with_id(16)
+            .with_confidence(0.80),
+    ]
 }

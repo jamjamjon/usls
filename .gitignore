@@ -17,3 +17,13 @@ Cargo.lock
 .vscode
 runs/
 **/*.DS_Store
+
+# Python (scripts/)
+**/.venv/
+**/.ruff_cache/
+**/__pycache__/
+**/*.pyc
+
+# Test outputs
+scripts/**/output*.png
+scripts/**/onnx-models/

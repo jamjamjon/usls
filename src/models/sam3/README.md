@@ -5,7 +5,9 @@ A powerful multimodal segmentation model supporting text, bounding box, and comb
 ## References
 
 - Official: [facebookresearch/sam3](https://github.com/facebookresearch/sam3)
+- ONNX Models: [GitHub Release](https://github.com/jamjamjon/assets/releases/tag/sam3)
+
 
 ## Example
 
-See [examples/sam3](../../../examples/sam3)
+See [rust examples](../../../examples/sam3)

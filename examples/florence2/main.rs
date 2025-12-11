@@ -1,5 +1,5 @@
 use anyhow::Result;
-use usls::{models::Florence2, Annotator, Config, DataLoader, Style, Task};
+use usls::{models::Florence2, Annotator, Config, DataLoader, Task};
 
 #[derive(argh::FromArgs)]
 /// Example
@@ -78,7 +78,7 @@ fn main() -> Result<()> {
             Task::DenseRegionCaption => {
                 for (x, y) in xs.iter().zip(ys.iter()) {
                     Annotator::default()
-                        .with_hbb_style(Style::hbb().show_confidence(false))
+                        .with_hbb_style(usls::HbbStyle::default().show_confidence(false))
                         .annotate(x, y)?
                         .save(format!(
                             "{}.jpg",
@@ -92,7 +92,11 @@ fn main() -> Result<()> {
             Task::RegionProposal => {
                 for (x, y) in xs.iter().zip(ys.iter()) {
                     Annotator::default()
-                        .with_hbb_style(Style::hbb().show_confidence(false).show_name(false))
+                        .with_hbb_style(
+                            usls::HbbStyle::default()
+                                .show_confidence(false)
+                                .show_name(false),
+                        )
                         .annotate(x, y)?
                         .save(format!(
                             "{}.jpg",
@@ -128,7 +132,7 @@ fn main() -> Result<()> {
             Task::CaptionToPhraseGrounding(_) => {
                 for (x, y) in xs.iter().zip(ys.iter()) {
                     Annotator::default()
-                        .with_hbb_style(Style::hbb().show_confidence(false))
+                        .with_hbb_style(usls::HbbStyle::default().show_confidence(false))
                         .annotate(x, y)?
                         .save(format!(
                             "{}.jpg",
@@ -146,7 +150,7 @@ fn main() -> Result<()> {
             Task::ReferringExpressionSegmentation(_) => {
                 for (x, y) in xs.iter().zip(ys.iter()) {
                     Annotator::default()
-                        .with_hbb_style(Style::hbb().show_confidence(false))
+                        .with_hbb_style(usls::HbbStyle::default().show_confidence(false))
                         .annotate(x, y)?
                         .save(format!(
                             "{}.jpg",
@@ -164,7 +168,7 @@ fn main() -> Result<()> {
             Task::RegionToSegmentation(..) => {
                 for (x, y) in xs.iter().zip(ys.iter()) {
                     Annotator::default()
-                        .with_hbb_style(Style::hbb().show_confidence(false))
+                        .with_hbb_style(usls::HbbStyle::default().show_confidence(false))
                         .annotate(x, y)?
                         .save(format!(
                             "{}.jpg",
@@ -182,7 +186,7 @@ fn main() -> Result<()> {
             Task::OcrWithRegion => {
                 for (x, y) in xs.iter().zip(ys.iter()) {
                     Annotator::default()
-                        .with_hbb_style(Style::hbb().show_confidence(false))
+                        .with_hbb_style(usls::HbbStyle::default().show_confidence(false))
                         .annotate(x, y)?
                         .save(format!(
                             "{}.jpg",

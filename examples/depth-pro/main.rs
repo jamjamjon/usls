@@ -1,6 +1,6 @@
 use anyhow::Result;
 use usls::DataLoader;
-use usls::{models::DepthPro, Annotator, Config, Style};
+use usls::{models::DepthPro, Annotator, Config};
 
 #[derive(argh::FromArgs)]
 /// Example
@@ -37,8 +37,8 @@ fn main() -> Result<()> {
     let ys = model.forward(&xs)?;
 
     // annotate
-    let annotator =
-        Annotator::default().with_mask_style(Style::mask().with_colormap256("turbo".parse()?));
+    let annotator = Annotator::default()
+        .with_mask_style(usls::MaskStyle::default().with_colormap256("turbo".parse()?));
     for (x, y) in xs.iter().zip(ys.iter()) {
         annotator.annotate(x, y)?.save(format!(
             "{}.jpg",

@@ -114,7 +114,7 @@ macro_rules! retry {
         loop {
             match $code {
                 Ok(result) => {
-                    log::debug!("[retry!] Attempt {} succeeded.", n);
+                    tracing::debug!("[retry!] Attempt {} succeeded.", n);
                     break Ok::<_, anyhow::Error>(result);
                 }
                 Err(err) => {
@@ -129,13 +129,13 @@ macro_rules! retry {
                         err,
                     );
                     if max_attempts > 0 && n >= max_attempts {
-                        log::warn!("{} Stopping after {} attempts.", message, n);
+                        tracing::warn!("{} Stopping after {} attempts.", message, n);
                         anyhow::bail!(err);
                     }
 
                     let delay = (base_delay * (1 << (n - 1))).min(max_delay);
                     let delay = std::time::Duration::from_millis(delay);
-                    log::debug!("{} Retrying in {:?}..", message, delay);
+                    tracing::debug!("{} Retrying in {:?}..", message, delay);
                     std::thread::sleep(delay);
                     n += 1;
                 }

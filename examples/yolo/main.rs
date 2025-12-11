@@ -1,6 +1,6 @@
 use anyhow::Result;
 use usls::{
-    models::YOLO, Annotator, Config, DataLoader, Style, NAMES_COCO_80, NAMES_COCO_KEYPOINTS_17,
+    models::YOLO, Annotator, Config, DataLoader, NAMES_COCO_80, NAMES_COCO_KEYPOINTS_17,
     NAMES_IMAGENET_1K, SKELETON_COCO_19, SKELETON_COLOR_COCO_19,
 };
 
@@ -159,7 +159,7 @@ fn main() -> Result<()> {
             (args.min_image_width, args.image_width, args.max_image_width).into(),
         )
         .with_class_confs(if args.confs.is_empty() {
-            &[0.2, 0.15]
+            &[0.35, 0.3]
         } else {
             &args.confs
         })
@@ -216,20 +216,20 @@ fn main() -> Result<()> {
 
     // build annotator
     let annotator = Annotator::default()
-        .with_obb_style(Style::obb().with_draw_fill(true))
-        .with_hbb_style(
-            Style::hbb()
-                .with_draw_fill(true)
-                .with_palette(&usls::Color::palette_coco_80()),
-        )
+        .with_hbb_style(usls::HbbStyle::default().with_palette(&usls::Color::palette_coco_80()))
         .with_keypoint_style(
-            Style::keypoint()
+            usls::KeypointStyle::default()
+                .with_text_visible(true)
                 .with_skeleton((SKELETON_COCO_19, SKELETON_COLOR_COCO_19).into())
                 .show_confidence(false)
-                .show_id(true)
-                .show_name(false),
+                .show_name(true),
         )
-        .with_mask_style(Style::mask().with_draw_mask_polygon_largest(true));
+        .with_mask_style(
+            usls::MaskStyle::default()
+                .with_visible(true)
+                .with_cutout(true)
+                .with_draw_polygon_largest(true),
+        );
 
     // run & annotate
     for xs in &dl {

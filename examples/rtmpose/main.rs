@@ -1,7 +1,7 @@
 use anyhow::Result;
 use usls::{
     models::{RTMPose, YOLO},
-    Annotator, Config, DataLoader, Scale, Style, SKELETON_COCO_19, SKELETON_COLOR_COCO_19,
+    Annotator, Config, DataLoader, Scale, SKELETON_COCO_19, SKELETON_COLOR_COCO_19,
     SKELETON_COLOR_HALPE_27, SKELETON_HALPE_27,
 };
 
@@ -77,9 +77,9 @@ fn main() -> Result<()> {
 
     // build annotator
     let annotator = Annotator::default()
-        .with_hbb_style(Style::hbb().with_draw_fill(true))
+        .with_hbb_style(usls::HbbStyle::default().with_draw_fill(true))
         .with_keypoint_style(
-            Style::keypoint()
+            usls::KeypointStyle::default()
                 .with_radius(4)
                 .with_skeleton(if args.is_coco {
                     (SKELETON_COCO_19, SKELETON_COLOR_COCO_19).into()

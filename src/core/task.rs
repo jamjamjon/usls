@@ -152,6 +152,9 @@ pub enum Task {
     /// Input: image
     /// Output: recognized text and its bounding box in the image
     OcrWithRegion,
+
+    Sam3Image,
+    Sam3Tracker,
 }
 
 impl std::fmt::Display for Task {
@@ -173,6 +176,8 @@ impl std::fmt::Display for Task {
             Self::OcrWithRegion => "ocr-with-region",
             Self::Vqa(_) => "vqa",
             Self::OpenSetKeypointsDetection(_) => "open-set-keypoints-detection",
+            Self::Sam3Image => "sam3-image",
+            Self::Sam3Tracker => "sam3-tracker",
             _ => todo!(),
         };
         write!(f, "{}", x)
@@ -193,6 +198,8 @@ impl FromStr for Task {
             "cap" | "cap0" | "caption" => Ok(Self::Caption(0)),
             "cap1" | "caption1" => Ok(Self::Caption(1)),
             "cap2" | "caption2" => Ok(Self::Caption(2)),
+            "sam3-image" => Ok(Self::Sam3Image),
+            "sam3-tracker" => Ok(Self::Sam3Tracker),
             x if x.contains(":") => {
                 let t_tt: Vec<&str> = x.trim().split(':').collect();
                 let (t, tt) = match t_tt.len() {
@@ -206,10 +213,10 @@ impl FromStr for Task {
                     "vqa" => Ok(Self::Vqa(tt.into())),
                     "open-det" | "open-od" => Ok(Self::OpenSetDetection(tt.into())),
                     "open-kpt" | "open-pose" => Ok(Self::OpenSetKeypointsDetection(tt.into())),
-                    _ => todo!(),
+                    _ => anyhow::bail!("Unsupported Task: {t}"),
                 }
             }
-            _ => todo!(),
+            x => anyhow::bail!("Unsupported Task: {x}"),
         }
     }
 }

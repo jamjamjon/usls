@@ -1,7 +1,7 @@
 use anyhow::Result;
 use usls::{
     models::{RTMPose, YOLO},
-    Annotator, Config, DataLoader, Scale, Style, SKELETON_COCO_65, SKELETON_COLOR_COCO_65,
+    Annotator, Config, DataLoader, Scale, SKELETON_COCO_65, SKELETON_COLOR_COCO_65,
 };
 
 #[derive(argh::FromArgs)]
@@ -55,9 +55,9 @@ fn main() -> Result<()> {
 
     // build annotator
     let annotator = Annotator::default()
-        .with_hbb_style(Style::hbb().with_draw_fill(true))
+        .with_hbb_style(usls::HbbStyle::default().with_draw_fill(true))
         .with_keypoint_style(
-            Style::keypoint()
+            usls::KeypointStyle::default()
                 .with_radius(2)
                 .with_skeleton((SKELETON_COCO_65, SKELETON_COLOR_COCO_65).into())
                 .show_id(false)

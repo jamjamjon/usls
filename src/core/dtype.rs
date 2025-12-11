@@ -66,6 +66,21 @@ impl std::str::FromStr for DType {
     }
 }
 
+impl DType {
+    pub fn size_in_bytes(self) -> usize {
+        match self {
+            Self::Auto => 4, // default to f32
+            Self::Int4 | Self::Uint4 | Self::Bnb4 | Self::Q4 | Self::Fp4e2m1 => 1, // sub-byte, min 1
+            Self::Int8 | Self::Uint8 | Self::Q8 => 1,
+            Self::Fp8e4m3fn | Self::Fp8e4m3fnuz | Self::Fp8e5m2 | Self::Fp8e5m2fnuz => 1,
+            Self::Int16 | Self::Uint16 | Self::Fp16 | Self::Bf16 | Self::Q4f16 => 2,
+            Self::Int32 | Self::Uint32 | Self::Fp32 => 4,
+            Self::Int64 | Self::Uint64 | Self::Fp64 | Self::Complex64 => 8,
+            Self::Complex128 => 16,
+        }
+    }
+}
+
 impl std::fmt::Display for DType {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         let x = match self {

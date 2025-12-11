@@ -1,16 +1,17 @@
 use aksr::Builder;
 use anyhow::Result;
 use half::{bf16, f16};
-use log::{debug, info, warn};
 use ndarray::{Array, IxDyn};
 use ort::{
     execution_providers::ExecutionProvider,
     session::{builder::GraphOptimizationLevel, Session, SessionInputValue},
     tensor::TensorElementType,
     value::{DynValue, Value},
+    AsPointer,
 };
 use prost::Message;
 use std::collections::HashSet;
+use tracing::{debug, info, warn};
 
 use crate::{
     build_progress_bar, elapsed_global, human_bytes_binary, onnx, DType, Device, HardwareConfig,
@@ -40,7 +41,8 @@ impl From<TensorElementType> for DType {
             TensorElementType::Float8E5M2FNUZ => Self::Fp8e5m2fnuz,
             TensorElementType::Complex64 => Self::Complex64,
             TensorElementType::Complex128 => Self::Complex128,
-            _ => todo!(),
+            TensorElementType::Bool => Self::Uint8,
+            TensorElementType::String | TensorElementType::Undefined => Self::Auto,
         }
     }
 }
@@ -186,6 +188,9 @@ impl Engine {
     }
 
     pub fn build(mut self) -> Result<Self> {
+        let span = tracing::info_span!("engine_build", spec = %self.spec);
+        let _enter = span.enter();
+
         let name = format!("[{}] ort_initialization", self.spec);
         elapsed_global!(&name, {
             let proto = Self::load_onnx(self.file())?;
@@ -313,6 +318,9 @@ impl Engine {
     }
 
     pub fn run(&mut self, xs: Xs) -> Result<Xs> {
+        let span = tracing::debug_span!("engine_run", spec = %self.spec);
+        let _enter = span.enter();
+
         let mut ys = xs.derive();
         if let Some(onnx) = &mut self.onnx {
             // alignment
@@ -381,10 +389,65 @@ impl Engine {
                 Ok(x) => x.view().mapv(map_fn).into_owned(),
             }
         }
+
+        // Handle f16/bf16 with unaligned read since ORT's buffer may not be 2-byte aligned
+        fn _extract_f16_unaligned(x: &DynValue) -> Array<f32, IxDyn> {
+            let (shape, num_elements, data_ptr) = match _get_tensor_ptr(x) {
+                Some(v) => v,
+                None => return Array::zeros(0).into_dyn(),
+            };
+            let ptr = data_ptr as *const f16;
+            let converted: Vec<f32> = (0..num_elements)
+                .map(|i| unsafe { std::ptr::read_unaligned(ptr.add(i)) }.to_f32())
+                .collect();
+            Array::from_shape_vec(IxDyn(&shape), converted)
+                .unwrap_or_else(|_| Array::zeros(0).into_dyn())
+        }
+
+        fn _extract_bf16_unaligned(x: &DynValue) -> Array<f32, IxDyn> {
+            let (shape, num_elements, data_ptr) = match _get_tensor_ptr(x) {
+                Some(v) => v,
+                None => return Array::zeros(0).into_dyn(),
+            };
+            let ptr = data_ptr as *const bf16;
+            let converted: Vec<f32> = (0..num_elements)
+                .map(|i| unsafe { std::ptr::read_unaligned(ptr.add(i)) }.to_f32())
+                .collect();
+            Array::from_shape_vec(IxDyn(&shape), converted)
+                .unwrap_or_else(|_| Array::zeros(0).into_dyn())
+        }
+
+        fn _get_tensor_ptr(x: &DynValue) -> Option<(Vec<usize>, usize, *mut std::ffi::c_void)> {
+            let shape: Vec<usize> = match x.dtype() {
+                ort::value::ValueType::Tensor { shape, .. } => {
+                    shape.iter().map(|&d| d as usize).collect()
+                }
+                _ => return None,
+            };
+            let num_elements: usize = shape.iter().product();
+            if num_elements == 0 {
+                return None;
+            }
+            let mut data_ptr: *mut std::ffi::c_void = std::ptr::null_mut();
+            unsafe {
+                let api = ort::api();
+                let status = (api.GetTensorMutableData)(x.ptr().cast_mut(), &mut data_ptr);
+                if !status.0.is_null() {
+                    (api.ReleaseStatus)(status.0);
+                    return None;
+                }
+            }
+            if data_ptr.is_null() {
+                None
+            } else {
+                Some((shape, num_elements, data_ptr))
+            }
+        }
+
         let x = match dtype {
             TensorElementType::Float32 => _extract_and_convert::<f32>(x, |x| x),
-            TensorElementType::Float16 => _extract_and_convert::<f16>(x, f16::to_f32),
-            TensorElementType::Bfloat16 => _extract_and_convert::<bf16>(x, bf16::to_f32),
+            TensorElementType::Float16 => _extract_f16_unaligned(x),
+            TensorElementType::Bfloat16 => _extract_bf16_unaligned(x),
             TensorElementType::Float64 => _extract_and_convert::<f64>(x, |x| x as f32),
             TensorElementType::Int64 => _extract_and_convert::<i64>(x, |x| x as f32),
             TensorElementType::Int32 => _extract_and_convert::<i32>(x, |x| x as f32),

@@ -1,5 +1,5 @@
 use anyhow::Result;
-use usls::{models::YOLO, Annotator, Config, DataLoader, Hbb, Style};
+use usls::{models::YOLO, Annotator, Config, DataLoader, Hbb};
 
 #[derive(argh::FromArgs)]
 /// Example
@@ -50,7 +50,7 @@ fn main() -> Result<()> {
     let config = if args.visual {
         Config::yoloe_11m_seg_vp()
     } else {
-        Config::yoloe_v8m_seg_tp().with_textual_encoder_dtype("fp16".parse()?) // Use FP32 when TensorRT is enabled
+        Config::yoloe_v8s_seg_tp().with_textual_encoder_dtype("fp16".parse()?) // Use FP32 when TensorRT is enabled
     }
     .with_batch_size_all_min_opt_max(1, args.batch_size, 8)
     .with_model_dtype(args.dtype.as_str().parse()?)
@@ -80,8 +80,7 @@ fn main() -> Result<()> {
 
     // annotator
     let annotator = Annotator::default()
-        .with_hbb_style(Style::hbb().with_draw_fill(true))
-        .with_mask_style(Style::mask().with_draw_mask_polygon_largest(true));
+        .with_mask_style(usls::MaskStyle::default().with_draw_polygon_largest(true));
 
     // run & annotate
     for xs in &dl {

@@ -44,7 +44,7 @@ fn main() -> anyhow::Result<()> {
 
     // annotate
     let annotator =
-        Annotator::default().with_mask_style(usls::Style::mask().with_mask_cutout(true));
+        Annotator::default().with_mask_style(usls::MaskStyle::default().with_cutout(true));
     for (x, y) in xs.iter().zip(ys.iter()) {
         annotator.annotate(x, y)?.save(format!(
             "{}.jpg",

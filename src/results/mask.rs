@@ -3,7 +3,7 @@ use anyhow::Result;
 use image::GrayImage;
 use rayon::prelude::*;
 
-use crate::{InstanceMeta, Polygon, Style};
+use crate::{InstanceMeta, MaskStyle, Polygon};
 
 /// Mask: Gray Image.
 #[derive(Builder, Default, Clone)]
@@ -13,7 +13,7 @@ pub struct Mask {
     /// Metadata associated with the mask instance.
     meta: InstanceMeta,
     /// Optional styling information for visualization.
-    style: Option<Style>,
+    style: Option<MaskStyle>,
 }
 
 // #[derive(Builder, Default, Clone)]
