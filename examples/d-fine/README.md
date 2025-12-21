@@ -1,5 +1,5 @@
 ## Quick Start
 
 ```shell
-cargo run -r -F rtdetr --example d-fine
+cargo run -r -F vision --example d-fine
 ```

@@ -1,7 +1,7 @@
 ## Quick Start
 
 ```shell
-cargo run -r -F rtmo --example rtmo
+cargo run -r -F vision --example rtmo
 ```
  
 

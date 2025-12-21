@@ -1,6 +1,6 @@
 use anyhow::Result;
 use usls::{
-    models::{Sam3Prompt, SAM3},
+    vlm::{Sam3Prompt, SAM3},
     Annotator, Config, DataLoader, Task,
 };
 

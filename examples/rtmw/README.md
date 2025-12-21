@@ -1,7 +1,7 @@
 ## Quick Start
 
 ```shell
-cargo run -r -F rtmpose --example rtmw
+cargo run -r -F vision --example rtmw
 ```
 
 ## Result

@@ -87,8 +87,9 @@ struct Args {
     #[argh(option)]
     class_names: Vec<String>,
 
+    #[argh(option, default = "vec![]")]
     /// keypoint names
-    #[argh(option)]
+    #[allow(dead_code)]
     keypoint_names: Vec<String>,
 
     /// top-k
@@ -131,17 +132,17 @@ fn main() -> Result<()> {
         .init();
     let args: Args = argh::from_env();
     let mut config = Config::yolo()
-        .with_model_file(&args.model.unwrap_or_default())
+        .with_model_file(args.model.unwrap_or_default())
         .with_task(args.task.parse()?)
         .with_version(args.ver.try_into()?)
         .with_scale(args.scale.parse()?)
-        .with_model_dtype(args.dtype.parse()?)
-        .with_model_device(args.device.parse()?)
-        .with_model_tensorrt_fp16(args.trt_fp16)
+        .with_dtype_all(args.dtype.parse()?)
+        .with_device_all(args.device.parse()?)
+        .with_tensorrt_fp16_all(args.trt_fp16)
         .with_model_ixx(
             0,
             0,
-            (args.min_batch_size, args.batch_size, args.max_batch_size).into(),
+            (args.min_batch_size, args.batch_size, args.max_batch_size),
         )
         .with_model_ixx(
             0,
@@ -150,13 +151,12 @@ fn main() -> Result<()> {
                 args.min_image_height,
                 args.image_height,
                 args.max_image_height,
-            )
-                .into(),
+            ),
         )
         .with_model_ixx(
             0,
             3,
-            (args.min_image_width, args.image_width, args.max_image_width).into(),
+            (args.min_image_width, args.image_width, args.max_image_width),
         )
         .with_class_confs(if args.confs.is_empty() {
             &[0.35, 0.3]
@@ -188,22 +188,7 @@ fn main() -> Result<()> {
         config = config.with_nk(nk);
     }
     if !args.class_names.is_empty() {
-        config = config.with_class_names(
-            &args
-                .class_names
-                .iter()
-                .map(|x| x.as_str())
-                .collect::<Vec<_>>(),
-        );
-    }
-    if !args.keypoint_names.is_empty() {
-        config = config.with_keypoint_names(
-            &args
-                .keypoint_names
-                .iter()
-                .map(|x| x.as_str())
-                .collect::<Vec<_>>(),
-        );
+        config = config.with_class_names_owned(args.class_names.clone());
     }
 
     // build model

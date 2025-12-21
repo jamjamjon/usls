@@ -1,7 +1,7 @@
 ## Quick Start
 
 ```shell
-cargo run -r -F depth-pro -F cuda --example depth-pro -- --device cuda
+cargo run -r -F vision -F cuda --example depth-pro -- --device cuda
 ```
 
 

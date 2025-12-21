@@ -1,4 +1,4 @@
-use usls::{models::Blip, Config, DataLoader};
+use usls::{vlm::Blip, Config, DataLoader};
 
 #[derive(argh::FromArgs)]
 /// BLIP Example

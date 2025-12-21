@@ -1,6 +1,6 @@
 use anyhow::Result;
 use usls::DataLoader;
-use usls::{models::OWLv2, Annotator, Config};
+use usls::{vlm::OWLv2, Annotator, Config};
 
 #[derive(argh::FromArgs)]
 /// Example
@@ -51,7 +51,7 @@ fn main() -> Result<()> {
         // owlv2_base()
         .with_model_dtype(args.dtype.parse()?)
         .with_model_device(args.device.parse()?)
-        .with_text_names_owned(&args.labels)
+        .with_text_names_owned(args.labels)
         .commit()?;
     let mut model = OWLv2::new(config)?;
 

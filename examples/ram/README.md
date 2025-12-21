@@ -1,8 +1,8 @@
 ## Quick Start
 
 ```shell
-cargo run -r -F ram --example ram -- --kind ram --dtype bnb4
-cargo run -r -F ram --example ram -- --kind ram++ --dtype q8
+cargo run -r -F vision --example ram -- --kind ram --dtype bnb4
+cargo run -r -F vision --example ram -- --kind ram++ --dtype q8
 ```
 
 ## Results

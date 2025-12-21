@@ -1,7 +1,7 @@
 ## Quick Start
 
 ```shell
-cargo run -r -F picodet --example picodet-layout
+cargo run -r -F vision --example picodet-layout
 ```
 
 

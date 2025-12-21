@@ -1,6 +1,6 @@
 ## Quick Start
 
 ```shell
-cargo run -r -F db --example linknet
+cargo run -r -F vision --example linknet
 ```
 

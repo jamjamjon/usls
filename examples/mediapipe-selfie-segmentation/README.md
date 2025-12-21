@@ -1,7 +1,7 @@
 ## Quick Start
 
 ```shell
-cargo run -r -F mediapipe-segmenter --example mediapipe-selfie-segmentation -- --dtype f16
+cargo run -r -F vision --example mediapipe-selfie-segmentation -- --dtype f16
 ```
 
 

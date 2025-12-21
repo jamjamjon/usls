@@ -1,5 +1,5 @@
 use anyhow::Result;
-use usls::{models::Florence2, Annotator, Config, DataLoader, Task};
+use usls::{vlm::Florence2, Annotator, Config, DataLoader, Task};
 
 #[derive(argh::FromArgs)]
 /// Example

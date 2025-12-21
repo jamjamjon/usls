@@ -1,7 +1,7 @@
 ## Quick Start
 
 ```shell
-cargo run -r -F cuda --example yolov8-rtdetr -- --device cuda
+cargo run -r -F vision -F cuda --example ultralytics-rtdetr -- --device cuda
 ```
 
 ```shell

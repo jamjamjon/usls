@@ -1,7 +1,7 @@
 ## Quick Start
 
 ```shell
-cargo run -r -F sapiens -F cuda --example sapiens -- --device cuda
+cargo run -r -F vision -F cuda --example sapiens -- --device cuda
 ```
 
 ## Results

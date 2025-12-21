@@ -1,5 +1,5 @@
 ## Quick Start
 
 ```shell
-cargo run -r -F cuda --example fastsam -- --device cuda
+cargo run -r -F vision --example fastsam -- --device cuda
 ```

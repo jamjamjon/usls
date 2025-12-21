@@ -1,5 +1,5 @@
 use anyhow::Result;
-use usls::{models::FastVLM, Config, DataLoader, Scale};
+use usls::{vlm::FastVLM, Config, DataLoader, Scale};
 
 /// Example
 #[derive(argh::FromArgs)]
@@ -25,7 +25,7 @@ struct Args {
     max_tokens: usize,
 
     /// dtype
-    #[argh(option, default = "String::from(\"fp16\")")]
+    #[argh(option, default = "String::from(\"q4f16\")")]
     dtype: String,
 }
 

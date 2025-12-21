@@ -1,5 +1,5 @@
 ## Quick Start
 
 ```Shell
-cargo run -r -F sam -F cuda --example sam2 -- --device cuda --scale t
+cargo run -r -F vision -F cuda --example sam2 -- --device cuda --scale t
 ```

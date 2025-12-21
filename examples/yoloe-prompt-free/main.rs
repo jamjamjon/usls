@@ -1,5 +1,5 @@
 use anyhow::Result;
-use usls::{models::YOLO, Annotator, Config, DataLoader};
+use usls::{models::vlm::YOLOE, Annotator, Config, DataLoader};
 
 #[derive(argh::FromArgs)]
 /// Example
@@ -31,7 +31,7 @@ fn main() -> Result<()> {
         .with_model_dtype(args.dtype.as_str().parse()?)
         .with_model_device(args.device.as_str().parse()?)
         .commit()?;
-    let mut model = YOLO::new(config)?;
+    let mut model = YOLOE::new(config)?;
 
     // load
     let xs = DataLoader::try_read_n(&["./assets/bus.jpg"])?;

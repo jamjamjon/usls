@@ -1,7 +1,7 @@
 ## Quick Start
 
 ```shell
-cargo run -r -F apisr --example apisr
+cargo run -r -F vision --example swin2sr
 ```
 
 # Results

@@ -1,7 +1,7 @@
 ## Quick Start
 
 ```shell
-cargo run -r -F cuda --example doclayout-yolo -- --device cuda
+cargo run -r -F vision -F cuda --example doclayout-yolo -- --device cuda
 ```
 
 

@@ -3,16 +3,16 @@
 ```Shell
 
 # SAM
-cargo run -r -F sam -F cuda --example sam -- --device cuda --kind sam
+cargo run -r -F vision -F cuda --example sam -- --device cuda --kind sam
 
 # MobileSAM
-cargo run -r -F sam -F cuda --example sam -- --device cuda --kind mobile-sam
+cargo run -r -F vision -F cuda --example sam -- --device cuda --kind mobile-sam
 
 # EdgeSAM
-cargo run -r -F sam -F cuda --example sam -- --device cuda --kind edge-sam
+cargo run -r -F vision -F cuda --example sam -- --device cuda --kind edge-sam
 
 # SAM-HQ
-cargo run -r -F sam -F cuda --example sam -- --device cuda --kind sam-hq
+cargo run -r -F vision -F cuda --example sam -- --device cuda --kind sam-hq
 ```
 
 ## Results

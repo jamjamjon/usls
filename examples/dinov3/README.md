@@ -3,5 +3,5 @@ This demo showcases how to use `DINOv3` to compute image similarity, applicable 
 ## Quick Start
 
 ```shell
-cargo run -r -F dino --example dinov3
+cargo run -r -F vision --example dinov3
 ```

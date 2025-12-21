@@ -6,23 +6,23 @@
 
 ```bash
 # Basic text prompt
-cargo run -r -F sam3,cuda --example sam3 -- \
+cargo run -r -F vlm,cuda --example sam3 -- \
     --device cuda --dtype q4f16 --source assets/sam3-demo.jpg \
     -p shoe 
 
 # Multiple prompts
-cargo run -r -F sam3,cuda --example sam3 -- \
+cargo run -r -F vlm,cuda --example sam3 -- \
     --device cuda --dtype fp16 --source assets/sam3-demo.jpg \
     -p "person in red vest" --show-mask
 
 # Multiple prompts on multiple images
-cargo run -r -F sam3,cuda --example sam3 -- \
+cargo run -r -F vlm,cuda --example sam3 -- \
     --device cuda --dtype q4f16 --vision-batch 2 \
     --source assets/sam3-demo.jpg --source assets/bus.jpg \
     -p bus -p cat -p shoe -p cellphone -p person -p "short hair"
 
 # Visual prompt (bbox)
-cargo run -r -F sam3,cuda --example sam3 -- \
+cargo run -r -F vlm,cuda --example sam3 -- \
     --device cuda --dtype fp16 --source assets/sam3-demo.jpg \
     -p "pos:480,290,110,360"
 
@@ -32,7 +32,7 @@ cargo run -r -F sam3 -F cuda --example sam3 -- \
     -p "pos:480,290,110,360;neg:370,280,115,375"
 
 # Text + negative box
-cargo run -r -F sam3,cuda --example sam3 -- \
+cargo run -r -F vlm,cuda --example sam3 -- \
     --device cuda --source assets/000000136466.jpg \
     -p "handle;neg:40,183,278,21"
 
@@ -42,27 +42,27 @@ cargo run -r -F sam3,cuda --example sam3 -- \
 
 ```bash
 # Single point
-cargo run -r -F sam3,cuda --example sam3 -- --device cuda --task sam3-tracker \
+cargo run -r -F vlm,cuda --example sam3 -- --device cuda --task sam3-tracker \
     --source ./assets/truck.jpg -p "pos:500,375"
 
 # Two positive points
-cargo run -r -F sam3,cuda --example sam3 -- --device cuda --task sam3-tracker \
+cargo run -r -F vlm,cuda --example sam3 -- --device cuda --task sam3-tracker \
     --source ./assets/truck.jpg -p "pos:500,375;pos:1125,625"
 
 # Positive points + negative point
-cargo run -r -F sam3,cuda --example sam3 -- --device cuda --task sam3-tracker \
+cargo run -r -F vlm,cuda --example sam3 -- --device cuda --task sam3-tracker \
     --source ./assets/truck.jpg -p "pos:1125.,625.;neg:1120,375"
 
 # Box prompt (xywh: x, y, width, height)
-cargo run -r -F sam3,cuda --example sam3 -- --device cuda --task sam3-tracker \
+cargo run -r -F vlm,cuda --example sam3 -- --device cuda --task sam3-tracker \
     --source ./assets/truck.jpg -p "pos:425,600,275,275"
 
 # Box + negative point
-cargo run -r -F sam3,cuda --example sam3 -- --device cuda --task sam3-tracker \
+cargo run -r -F vlm,cuda --example sam3 -- --device cuda --task sam3-tracker \
     --source ./assets/truck.jpg -p "pos:425,600,275,275;neg:575,750"  # left wheel + tire
 
 # Multiple boxes
-cargo run -r -F sam3,cuda --example sam3 -- --device cuda --task sam3-tracker \
+cargo run -r -F vlm,cuda --example sam3 -- --device cuda --task sam3-tracker \
     --source ./assets/truck.jpg \
     -p "pos:75,275,1650,575;pos:425,600,275,275;pos:1375,550,275,250;pos:1240,675,160,75"
     # -p "pos:75,275,1650,575" -p "pos:425,600,275,275" -p "pos:1375,550,275,250" -p "pos:1240,675,160,75"

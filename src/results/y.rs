@@ -1,6 +1,6 @@
 use aksr::Builder;
 
-use crate::{Hbb, Image, Keypoint, Mask, Obb, Polygon, Prob, Text};
+use crate::{Hbb, Image, Keypoint, Mask, Obb, Polygon, Prob, Text, X};
 
 /// Container for inference results for each image.
 ///
@@ -19,6 +19,7 @@ pub struct Y {
     pub polygons: Vec<Polygon>,
     pub masks: Vec<Mask>,
     pub images: Vec<Image>,
+    pub embedding: X,
 }
 
 impl std::fmt::Debug for Y {
@@ -52,7 +53,9 @@ impl std::fmt::Debug for Y {
         if !self.images.is_empty() {
             s.field("Images", &self.images);
         }
-
+        if !self.embedding.is_empty() {
+            s.field("Embeddings", &self.embedding);
+        }
         s.finish()
     }
 }
@@ -68,5 +71,6 @@ impl Y {
             && self.polygons.is_empty()
             && self.masks.is_empty()
             && self.images.is_empty()
+            && self.embedding.is_empty()
     }
 }

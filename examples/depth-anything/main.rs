@@ -17,8 +17,11 @@ fn main() -> Result<()> {
     let ys = model.forward(&xs)?;
 
     // annotate
-    let annotator = Annotator::default()
-        .with_mask_style(usls::MaskStyle::default().with_colormap256("turbo".parse()?));
+    let annotator = Annotator::default().with_mask_style(
+        usls::MaskStyle::default()
+            .with_cutout(false)
+            .with_colormap256("turbo".parse()?),
+    );
     for (x, y) in xs.iter().zip(ys.iter()) {
         annotator.annotate(x, y)?.save(format!(
             "{}.jpg",

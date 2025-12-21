@@ -3,7 +3,7 @@ This demo shows how to use [BLIP](https://arxiv.org/abs/2201.12086) to do condit
 ## Quick Start
 
 ```shell
-cargo run -r -F blip -F cuda --example blip -- --device cuda:0 --source images/dog.jpg --source ./assets/bus.jpg --source images/green-car.jpg
+cargo run -r -F vlm -F cuda --example blip -- --device cuda:0 --source images/dog.jpg --source ./assets/bus.jpg --source images/green-car.jpg
 ```
 
 ## Results

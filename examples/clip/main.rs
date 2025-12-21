@@ -1,6 +1,5 @@
 use anyhow::Result;
-use slsl::Tensor;
-use usls::{models::Clip, Config, DataLoader};
+use usls::{vlm::Clip, Config, DataLoader, X};
 
 /// CLIP Example
 #[derive(argh::FromArgs)]
@@ -46,8 +45,8 @@ fn main() -> Result<()> {
     ];
 
     // encode texts
-    let feats_text = model.encode_texts(&texts)?;
-    let feats_text_norm = feats_text.norm_l2_keepdim(-1)?.to_dtype::<f32>()?;
+    let feats_text: X = model.encode_texts(&texts)?;
+    let feats_text_norm = feats_text.norm_l2_keepdim(-1)?;
     let feats_text = (feats_text / feats_text_norm).t()?;
 
     // load images
@@ -56,17 +55,19 @@ fn main() -> Result<()> {
     // run
     for images in &dl {
         // encode image
-        let feats_image: Tensor = model.encode_images(&images)?;
-        let feats_image_norm = feats_image.norm_l2_keepdim(-1)?.to_dtype::<f32>()?;
+        let feats_image: X = model.encode_images(&images)?;
+        let feats_image_norm = feats_image.norm_l2_keepdim(-1)?;
         let feats_image = feats_image / feats_image_norm;
 
         // use image to query texts
-        let matrix = (feats_image * 100.0f32).matmul(&feats_text)?.softmax(-1)?;
+        let matrix = (feats_image * 100.0f32)
+            .matmul(&feats_text)?
+            .softmax_axis(-1)?;
 
         // Process each image's matching scores
-        for (i, row) in matrix.iter_dim(0).enumerate() {
+        for (i, row) in matrix.iter_dim(0).into_iter().enumerate() {
             let (id, &score) = row
-                .iter::<f32>()
+                .iter()
                 .enumerate()
                 .max_by(|a, b| a.1.partial_cmp(b.1).unwrap())
                 .unwrap();

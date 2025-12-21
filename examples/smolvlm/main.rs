@@ -1,5 +1,5 @@
 use anyhow::Result;
-use usls::{models::SmolVLM, Config, DataLoader, Scale};
+use usls::{vlm::SmolVLM, Config, DataLoader, Scale};
 
 #[derive(argh::FromArgs)]
 /// Example

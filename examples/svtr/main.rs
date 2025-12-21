@@ -31,7 +31,7 @@ fn main() -> Result<()> {
         // ppocr_rec_v4_ch()
         // ppocr_rec_v4_en()
         // repsvtr_ch()
-        .with_model_ixx(0, 3, args.max_text_length.into())
+        .with_model_ixx(0, 3, args.max_text_length)
         .with_model_device(args.device.parse()?)
         .with_model_dtype(args.dtype.parse()?)
         .commit()?;

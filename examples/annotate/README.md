@@ -5,7 +5,7 @@ Comprehensive guide to all annotation styles in `usls` viz module.
 ## Quick Start
 
 ```shell
-cargo run -r --example annotate
+cargo run -r -F vision --example annotate
 ```
 
 ---
@@ -502,7 +502,7 @@ annotator.annotate(&image, &drawable)?.save("output.jpg")?;
 Run the example to generate all demo images:
 
 ```shell
-cargo run -r --example annotate
+cargo run -r -F vision --example annotate
 ```
 
 Output files in `runs/Annotate/`:

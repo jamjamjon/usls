@@ -88,7 +88,7 @@ fn main() -> Result<()> {
         .init();
     let args: Args = argh::from_env();
     let config = Config::yolo()
-        .with_model_file(&args.model.unwrap_or_default())
+        .with_model_file(args.model.unwrap_or_default())
         .with_task(args.task.parse()?)
         .with_version(args.ver.try_into()?)
         .with_scale(args.scale.parse()?)
@@ -97,7 +97,7 @@ fn main() -> Result<()> {
         .with_model_ixx(
             0,
             0,
-            (args.min_batch_size, args.batch_size, args.max_batch_size).into(),
+            (args.min_batch_size, args.batch_size, args.max_batch_size),
         )
         .with_model_ixx(
             0,
@@ -106,13 +106,12 @@ fn main() -> Result<()> {
                 args.min_image_height,
                 args.image_height,
                 args.max_image_height,
-            )
-                .into(),
+            ),
         )
         .with_model_ixx(
             0,
             3,
-            (args.min_image_width, args.image_width, args.max_image_width).into(),
+            (args.min_image_width, args.image_width, args.max_image_width),
         )
         .with_class_confs(if args.confs.is_empty() {
             &[0.25]

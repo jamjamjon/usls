@@ -1,7 +1,7 @@
 use anyhow::Result;
 use usls::{
-    models::{SamKind, SamPrompt, SAM},
-    Annotator, Config, DataLoader, Scale,
+    models::{SamPrompt, SAM},
+    Annotator, Config, DataLoader, SamKind, Scale,
 };
 
 #[derive(argh::FromArgs)]

@@ -1,5 +1,5 @@
 use anyhow::Result;
-use usls::{models::Moondream2, Annotator, Config, DataLoader, Scale, Task};
+use usls::{vlm::Moondream2, Annotator, Config, DataLoader, Scale, Task};
 
 #[derive(argh::FromArgs)]
 /// Example

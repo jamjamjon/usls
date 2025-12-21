@@ -1,5 +1,5 @@
 use usls::{
-    models::{TrOCR, TrOCRKind},
+    vlm::{TrOCR, TrOCRKind},
     Config, DataLoader, Scale,
 };
 

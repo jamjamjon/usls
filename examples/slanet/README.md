@@ -1,7 +1,7 @@
 ## Quick Start
 
 ```shell
-cargo run -r -F slanet -F cuda --example slanet -- --device cuda 
+cargo run -r -F vision --example slanet -- --device cuda 
 ```
 
 ## Results

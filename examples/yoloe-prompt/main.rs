@@ -1,5 +1,5 @@
 use anyhow::Result;
-use usls::{models::YOLO, Annotator, Config, DataLoader, Hbb};
+use usls::{models::vlm::YOLOE, Annotator, Config, DataLoader, Hbb};
 
 #[derive(argh::FromArgs)]
 /// Example
@@ -48,7 +48,7 @@ fn main() -> Result<()> {
 
     // config
     let config = if args.visual {
-        Config::yoloe_11m_seg_vp()
+        Config::yoloe_11s_seg_vp()
     } else {
         Config::yoloe_v8s_seg_tp().with_textual_encoder_dtype("fp16".parse()?) // Use FP32 when TensorRT is enabled
     }
@@ -57,7 +57,7 @@ fn main() -> Result<()> {
     .with_device_all(args.device.as_str().parse()?)
     .with_class_confs(&[0.25])
     .commit()?;
-    let mut model = YOLO::new(config)?;
+    let mut model = YOLOE::new(config)?;
 
     // encode visual or textual
     let embedding = if args.visual {

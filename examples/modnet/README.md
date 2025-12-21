@@ -1,7 +1,7 @@
 ## Quick Start
 
 ```shell
-cargo run -r -F modnet --example modnet
+cargo run -r -F vision --example modnet
 ```
 
 

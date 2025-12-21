@@ -35,12 +35,20 @@ fn main() -> Result<()> {
     let ys = model.forward(&xs)?;
 
     // annotate
-    let annotator = Annotator::default().with_hbb_style(
-        usls::HbbStyle::default()
-            .show_confidence(true)
-            .show_id(false)
-            .show_name(false),
-    );
+    let annotator = Annotator::default()
+        .with_hbb_style(
+            usls::HbbStyle::default()
+                .show_confidence(true)
+                .show_id(false)
+                .show_name(false),
+        )
+        .with_mask_style(
+            usls::MaskStyle::default()
+                .with_cutout(true)
+                .with_draw_polygon_largest(true),
+        )
+        .with_polygon_style(usls::PolygonStyle::default().with_thickness(2));
+
     for (x, y) in xs.iter().zip(ys.iter()) {
         annotator.annotate(x, y)?.save(format!(
             "{}.jpg",
