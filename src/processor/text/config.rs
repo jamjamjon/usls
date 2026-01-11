@@ -1,11 +1,10 @@
 //! Text processor configuration module.
-
-use tokenizers::Tokenizer;
+use tokenizers::{PaddingParams, PaddingStrategy, Tokenizer, TruncationParams};
 
 /// Text processor configuration.
 ///
 /// Contains all settings for text processing including tokenization and generation parameters.
-#[derive(aksr::Builder, Debug, Clone)]
+#[derive(aksr::Builder, Debug, Clone, PartialEq)]
 pub struct TextProcessorConfig {
     /// Path to tokenizer file.
     pub tokenizer_file: Option<String>,
@@ -44,15 +43,12 @@ impl Default for TextProcessorConfig {
 }
 
 impl TextProcessorConfig {
+    // TODO
     /// Build tokenizer from configuration.
-    pub fn try_build_tokenizer(&self) -> anyhow::Result<Option<Tokenizer>> {
-        use crate::Hub;
-        use tokenizers::{PaddingParams, PaddingStrategy, TruncationParams};
-
-        let mut hub = Hub::default();
-
+    pub fn try_build_tokenizer(&self) -> anyhow::Result<Tokenizer> {
+        let mut hub = crate::Hub::default();
         let mut tokenizer: Tokenizer = match &self.tokenizer_file {
-            None => return Ok(None),
+            None => return Err(anyhow::anyhow!("tokenizer_file is required")),
             Some(file) => Tokenizer::from_file(hub.try_fetch(file)?)
                 .map_err(|err| anyhow::anyhow!("Failed to build tokenizer: {err}"))?,
         };
@@ -124,6 +120,6 @@ impl TextProcessorConfig {
             },
         };
 
-        Ok(Some(tokenizer.into()))
+        Ok(tokenizer.into())
     }
 }

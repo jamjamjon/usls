@@ -4,25 +4,35 @@ use ndarray::Axis;
 use rayon::prelude::*;
 
 use crate::{
-    elapsed_module, ort_inputs, Config, DynConf, Engine, FromConfig, Hbb, Image, ImageProcessor,
-    Keypoint, Module, X, Y,
+    elapsed_module, inputs, Config, DynConf, Engine, Engines, FromConfig, Hbb, Image,
+    ImageProcessor, Keypoint, Model, Module, Xs, X, Y,
 };
 
+/// RTMO: Real-Time Multi-Object Detection
 #[derive(Builder, Debug)]
 pub struct RTMO {
-    engine: Engine,
-    height: usize,
-    width: usize,
-    batch: usize,
-    spec: String,
-    processor: ImageProcessor,
-    confs: DynConf,
-    kconfs: DynConf,
-    names: Vec<String>,
+    pub height: usize,
+    pub width: usize,
+    pub batch: usize,
+    pub spec: String,
+    pub processor: ImageProcessor,
+    pub confs: DynConf,
+    pub kconfs: DynConf,
+    pub names: Vec<String>,
 }
 
-impl RTMO {
-    pub fn new(mut config: Config) -> Result<Self> {
+impl Model for RTMO {
+    type Input<'a> = &'a [Image];
+
+    fn batch(&self) -> usize {
+        self.batch
+    }
+
+    fn spec(&self) -> &str {
+        &self.spec
+    }
+
+    fn build(mut config: Config) -> Result<(Self, Engines)> {
         let engine = Engine::from_config(config.take_module(&Module::Model)?)?;
         let spec = engine.spec().to_string();
         let (batch, height, width) = (
@@ -30,7 +40,7 @@ impl RTMO {
             engine.try_height().unwrap_or(&512.into()).opt(),
             engine.try_width().unwrap_or(&512.into()).opt(),
         );
-        let names: Vec<String> = config.inference.keypoint_names.clone();
+        let names: Vec<String> = config.inference.keypoint_names;
         let nk = config.inference.num_keypoints.unwrap_or(17);
         let confs = DynConf::new_or_default(&config.inference.class_confs, 1);
         let kconfs = DynConf::new_or_default(&config.inference.keypoint_confs, nk);
@@ -38,52 +48,50 @@ impl RTMO {
             .with_image_width(width as _)
             .with_image_height(height as _);
 
-        Ok(Self {
-            engine,
+        let model = Self {
             height,
             width,
             batch,
-
             spec,
             processor,
             confs,
             kconfs,
             names,
-        })
+        };
+
+        let engines = Engines::from(engine);
+        Ok((model, engines))
     }
 
-    fn preprocess(&mut self, xs: &[Image]) -> Result<X> {
-        self.processor.process(xs)?.as_host()
+    fn run(&mut self, engines: &mut Engines, images: Self::Input<'_>) -> Result<Vec<Y>> {
+        let x = elapsed_module!("RTMO", "preprocess", self.processor.process(images)?);
+        let ys = elapsed_module!(
+            "RTMO",
+            "inference",
+            engines.run(&Module::Model, inputs![x]?)?
+        );
+        elapsed_module!("RTMO", "postprocess", self.postprocess(&ys))
     }
+}
 
-    fn inference(&mut self, xs: X) -> Result<(X, X)> {
-        let output = self.engine.run(ort_inputs![xs]?)?;
-        Ok((
-            X::from(output.get::<f32>(0)?),
-            X::from(output.get::<f32>(1)?),
-        ))
-    }
-
-    pub fn forward(&mut self, xs: &[Image]) -> Result<Vec<Y>> {
-        let ys = elapsed_module!("RTMO", "preprocess", self.preprocess(xs)?);
-        let ys = elapsed_module!("RTMO", "inference", self.inference(ys)?);
-        let ys = elapsed_module!("RTMO", "postprocess", self.postprocess(ys)?);
-
-        Ok(ys)
-    }
-
-    fn postprocess(&mut self, xs: (X, X)) -> Result<Vec<Y>> {
+impl RTMO {
+    fn postprocess(&self, outputs: &Xs) -> Result<Vec<Y>> {
+        let x0 = outputs
+            .get::<f32>(0)
+            .ok_or_else(|| anyhow::anyhow!("Failed to get output 0"))?;
+        let x1 = outputs
+            .get::<f32>(1)
+            .ok_or_else(|| anyhow::anyhow!("Failed to get output 1"))?;
+        let xs = (X::from(x0), X::from(x1));
         let ys: Vec<Y> =
             xs.0.axis_iter(Axis(0))
                 .into_par_iter()
                 .zip(xs.1.axis_iter(Axis(0)).into_par_iter())
                 .enumerate()
                 .map(|(idx, (batch_bboxes, batch_kpts))| {
-                    let (height_original, width_original) = (
-                        self.processor.images_transform_info()[idx].height_src,
-                        self.processor.images_transform_info()[idx].width_src,
-                    );
-                    let ratio = self.processor.images_transform_info()[idx].height_scale;
+                    let info = &self.processor.images_transform_info[idx];
+                    let (height_original, width_original, ratio) =
+                        (info.height_src, info.width_src, info.height_scale);
 
                     let mut y_bboxes = Vec::new();
                     let mut y_kpts: Vec<Vec<Keypoint>> = Vec::new();

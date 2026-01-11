@@ -1,12 +1,10 @@
-//! Some processing functions.
+// TODO: clean
 
 use anyhow::Result;
 use fast_image_resize::{
-    images::{CroppedImageMut, Image},
-    pixels::PixelType,
-    FilterType, ResizeAlg, ResizeOptions, Resizer,
+    images::Image, pixels::PixelType, FilterType, ResizeAlg, ResizeOptions, Resizer,
 };
-use image::{DynamicImage, GenericImageView};
+use image::DynamicImage;
 use ndarray::{concatenate, s, Array, Array3, ArrayView1, Axis, IntoDimension, Ix2, IxDyn, Zip};
 
 use rayon::prelude::*;
@@ -297,6 +295,7 @@ impl Ops<'_> {
             w0 as _,
             h0 as _,
             v.iter().flat_map(|x| x.to_le_bytes()).collect(),
+            // bytemuck::cast_slice(v).to_vec(),
             PixelType::F32,
         )?;
         let mut dst = Image::new(w1 as _, h1 as _, src.pixel_type());
@@ -309,8 +308,12 @@ impl Ops<'_> {
 
         // u8 -> f32
         Self::u8_slice_to_f32(&dst.into_vec())
+
+        // let dst_slice: &[f32] = bytemuck::cast_slice(dst.buffer());
+        // Ok(dst_slice.to_vec())
     }
 
+    // TODO: remove， faster than butemuck ?
     pub fn u8_slice_to_f32(data: &[u8]) -> Result<Vec<f32>> {
         let size_in_bytes = 4;
         let elem_count = data.len() / size_in_bytes;
@@ -330,6 +333,7 @@ impl Ops<'_> {
         }
     }
 
+    // TODO: remove， faster than butemuck ?
     pub fn f32_slice_to_u8(mut vs: Vec<f32>) -> Vec<u8> {
         let size_in_bytes = 4;
         let length = vs.len() * size_in_bytes;
@@ -374,111 +378,5 @@ impl Ops<'_> {
             Resizer::new(),
             ResizeOptions::new().resize_alg(ResizeAlg::Convolution(ty)),
         ))
-    }
-
-    pub fn resize_rgb(
-        x: &DynamicImage,
-        th: u32,
-        tw: u32,
-        resizer: &mut Resizer,
-        config: &ResizeOptions,
-    ) -> Result<Array<f32, IxDyn>> {
-        let buffer = if x.dimensions() == (tw, th) {
-            x.to_rgb8().into_raw()
-        } else {
-            let mut dst = Image::new(tw, th, PixelType::U8x3);
-            resizer.resize(x, &mut dst, config)?;
-            dst.into_vec()
-        };
-        let y = Array::from_shape_vec((th as usize, tw as usize, 3), buffer)?
-            .mapv(|x| x as f32)
-            .into_dyn();
-        Ok(y)
-    }
-
-    pub fn resize(
-        xs: &[DynamicImage],
-        th: u32,
-        tw: u32,
-        filter: &str,
-    ) -> Result<Array<f32, IxDyn>> {
-        let mut ys = Array::ones((xs.len(), th as usize, tw as usize, 3)).into_dyn();
-        let (mut resizer, config) = Self::build_resizer_filter(filter)?;
-        for (idx, x) in xs.iter().enumerate() {
-            let y = Self::resize_rgb(x, th, tw, &mut resizer, &config)?;
-            ys.slice_mut(s![idx, .., .., ..]).assign(&y);
-        }
-        Ok(ys)
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    pub fn letterbox_rgb(
-        x: &DynamicImage,
-        th: u32,
-        tw: u32,
-        bg: u8,
-        resize_by: &str,
-        center: bool,
-        resizer: &mut Resizer,
-        config: &ResizeOptions,
-    ) -> Result<Array<f32, IxDyn>> {
-        let (w0, h0) = x.dimensions();
-        let buffer = if w0 == tw && h0 == th {
-            x.to_rgb8().into_raw()
-        } else {
-            let (w, h) = match resize_by {
-                "auto" => {
-                    let r = (tw as f32 / w0 as f32).min(th as f32 / h0 as f32);
-                    (
-                        (w0 as f32 * r).round() as u32,
-                        (h0 as f32 * r).round() as u32,
-                    )
-                }
-                "height" => (th * w0 / h0, th),
-                "width" => (tw, tw * h0 / w0),
-                _ => anyhow::bail!("ORTConfig for `letterbox`: width, height, auto"),
-            };
-
-            let mut dst = Image::from_vec_u8(
-                tw,
-                th,
-                vec![bg; 3 * th as usize * tw as usize],
-                PixelType::U8x3,
-            )?;
-            let (l, t) = if center {
-                if w == tw {
-                    (0, (th - h) / 2)
-                } else {
-                    ((tw - w) / 2, 0)
-                }
-            } else {
-                (0, 0)
-            };
-            let mut dst_cropped = CroppedImageMut::new(&mut dst, l, t, w, h)?;
-            resizer.resize(x, &mut dst_cropped, config)?;
-            dst.into_vec()
-        };
-        let y = Array::from_shape_vec((th as usize, tw as usize, 3), buffer)?
-            .mapv(|x| x as f32)
-            .into_dyn();
-        Ok(y)
-    }
-
-    pub fn letterbox(
-        xs: &[DynamicImage],
-        th: u32,
-        tw: u32,
-        filter: &str,
-        bg: u8,
-        resize_by: &str,
-        center: bool,
-    ) -> Result<Array<f32, IxDyn>> {
-        let mut ys = Array::ones((xs.len(), th as usize, tw as usize, 3)).into_dyn();
-        let (mut resizer, config) = Self::build_resizer_filter(filter)?;
-        for (idx, x) in xs.iter().enumerate() {
-            let y = Self::letterbox_rgb(x, th, tw, bg, resize_by, center, &mut resizer, &config)?;
-            ys.slice_mut(s![idx, .., .., ..]).assign(&y);
-        }
-        Ok(ys)
     }
 }

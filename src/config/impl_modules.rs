@@ -124,8 +124,8 @@ impl Config {
     /// Set input/output indices for the Model module.
     pub fn with_model_ixx(
         mut self,
-        io: usize,
-        idx: usize,
+        i: usize,
+        ii: usize,
         value: impl Into<crate::MinOptMax>,
     ) -> Self {
         self.modules
@@ -133,8 +133,8 @@ impl Config {
             .or_default()
             .iiixs
             .push(crate::Iiix {
-                i: io,
-                ii: idx,
+                i,
+                ii,
                 x: value.into(),
             });
         self
@@ -156,8 +156,8 @@ impl Config {
     /// Set encoder ixx.
     pub fn with_encoder_ixx(
         mut self,
-        io: usize,
-        idx: usize,
+        i: usize,
+        ii: usize,
         value: impl Into<crate::MinOptMax>,
     ) -> Self {
         self.modules
@@ -165,8 +165,8 @@ impl Config {
             .or_default()
             .iiixs
             .push(crate::Iiix {
-                i: io,
-                ii: idx,
+                i,
+                ii,
                 x: value.into(),
             });
         self
@@ -181,8 +181,8 @@ impl Config {
     /// Set decoder ixx.
     pub fn with_decoder_ixx(
         mut self,
-        io: usize,
-        idx: usize,
+        i: usize,
+        ii: usize,
         value: impl Into<crate::MinOptMax>,
     ) -> Self {
         self.modules
@@ -190,8 +190,8 @@ impl Config {
             .or_default()
             .iiixs
             .push(crate::Iiix {
-                i: io,
-                ii: idx,
+                i,
+                ii,
                 x: value.into(),
             });
         self
@@ -218,8 +218,8 @@ impl Config {
     /// Set visual module ixx.
     pub fn with_visual_ixx(
         mut self,
-        io: usize,
-        idx: usize,
+        i: usize,
+        ii: usize,
         value: impl Into<crate::MinOptMax>,
     ) -> Self {
         self.modules
@@ -227,8 +227,8 @@ impl Config {
             .or_default()
             .iiixs
             .push(crate::Iiix {
-                i: io,
-                ii: idx,
+                i,
+                ii,
                 x: value.into(),
             });
         self
@@ -255,11 +255,30 @@ impl Config {
         self
     }
 
+    pub fn with_module_ixx(
+        mut self,
+        module: Module,
+        i: usize,
+        ii: usize,
+        value: impl Into<crate::MinOptMax>,
+    ) -> Self {
+        self.modules
+            .entry(module)
+            .or_default()
+            .iiixs
+            .push(crate::Iiix {
+                i,
+                ii,
+                x: value.into(),
+            });
+        self
+    }
+
     /// Set visual encoder ixx.
     pub fn with_visual_encoder_ixx(
         mut self,
-        io: usize,
-        idx: usize,
+        i: usize,
+        ii: usize,
         value: impl Into<crate::MinOptMax>,
     ) -> Self {
         self.modules
@@ -267,8 +286,8 @@ impl Config {
             .or_default()
             .iiixs
             .push(crate::Iiix {
-                i: io,
-                ii: idx,
+                i,
+                ii,
                 x: value.into(),
             });
         self
@@ -364,8 +383,8 @@ impl Config {
     /// Set size encoder ixx.
     pub fn with_size_encoder_ixx(
         mut self,
-        io: usize,
-        idx: usize,
+        i: usize,
+        ii: usize,
         value: impl Into<crate::MinOptMax>,
     ) -> Self {
         self.modules
@@ -373,8 +392,8 @@ impl Config {
             .or_default()
             .iiixs
             .push(crate::Iiix {
-                i: io,
-                ii: idx,
+                i,
+                ii,
                 x: value.into(),
             });
         self
@@ -383,8 +402,8 @@ impl Config {
     /// Set size decoder ixx.
     pub fn with_size_decoder_ixx(
         mut self,
-        io: usize,
-        idx: usize,
+        i: usize,
+        ii: usize,
         value: impl Into<crate::MinOptMax>,
     ) -> Self {
         self.modules
@@ -392,8 +411,8 @@ impl Config {
             .or_default()
             .iiixs
             .push(crate::Iiix {
-                i: io,
-                ii: idx,
+                i,
+                ii,
                 x: value.into(),
             });
         self
@@ -402,8 +421,8 @@ impl Config {
     /// Set coord encoder ixx.
     pub fn with_coord_encoder_ixx(
         mut self,
-        io: usize,
-        idx: usize,
+        i: usize,
+        ii: usize,
         value: impl Into<crate::MinOptMax>,
     ) -> Self {
         self.modules
@@ -411,8 +430,8 @@ impl Config {
             .or_default()
             .iiixs
             .push(crate::Iiix {
-                i: io,
-                ii: idx,
+                i,
+                ii,
                 x: value.into(),
             });
         self
@@ -421,8 +440,8 @@ impl Config {
     /// Set coord decoder ixx.
     pub fn with_coord_decoder_ixx(
         mut self,
-        io: usize,
-        idx: usize,
+        i: usize,
+        ii: usize,
         value: impl Into<crate::MinOptMax>,
     ) -> Self {
         self.modules
@@ -430,8 +449,8 @@ impl Config {
             .or_default()
             .iiixs
             .push(crate::Iiix {
-                i: io,
-                ii: idx,
+                i,
+                ii,
                 x: value.into(),
             });
         self
@@ -464,8 +483,8 @@ impl Config {
     /// Set visual projection ixx.
     pub fn with_visual_projection_ixx(
         mut self,
-        io: usize,
-        idx: usize,
+        i: usize,
+        ii: usize,
         value: impl Into<crate::MinOptMax>,
     ) -> Self {
         self.modules
@@ -473,8 +492,8 @@ impl Config {
             .or_default()
             .iiixs
             .push(crate::Iiix {
-                i: io,
-                ii: idx,
+                i,
+                ii,
                 x: value.into(),
             });
         self
@@ -483,8 +502,8 @@ impl Config {
     /// Set textual encoder ixx.
     pub fn with_textual_encoder_ixx(
         mut self,
-        io: usize,
-        idx: usize,
+        i: usize,
+        ii: usize,
         value: impl Into<crate::MinOptMax>,
     ) -> Self {
         self.modules
@@ -492,8 +511,8 @@ impl Config {
             .or_default()
             .iiixs
             .push(crate::Iiix {
-                i: io,
-                ii: idx,
+                i,
+                ii,
                 x: value.into(),
             });
         self
@@ -502,8 +521,8 @@ impl Config {
     /// Set textual decoder ixx.
     pub fn with_textual_decoder_ixx(
         mut self,
-        io: usize,
-        idx: usize,
+        i: usize,
+        ii: usize,
         value: impl Into<crate::MinOptMax>,
     ) -> Self {
         self.modules
@@ -511,8 +530,8 @@ impl Config {
             .or_default()
             .iiixs
             .push(crate::Iiix {
-                i: io,
-                ii: idx,
+                i,
+                ii,
                 x: value.into(),
             });
         self

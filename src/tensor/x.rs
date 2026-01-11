@@ -22,9 +22,12 @@ pub struct X<A = f32>(pub Array<A, IxDyn>);
 #[derive(Debug, Clone)]
 pub struct XView<'a, A = f32>(pub ndarray::ArrayView<'a, A, IxDyn>);
 
-impl<A> From<Array<A, IxDyn>> for X<A> {
-    fn from(x: Array<A, IxDyn>) -> Self {
-        Self(x)
+impl<A, D> From<ndarray::Array<A, D>> for X<A>
+where
+    D: ndarray::Dimension,
+{
+    fn from(x: ndarray::Array<A, D>) -> Self {
+        Self(x.into_dyn())
     }
 }
 
@@ -313,6 +316,12 @@ impl X {
         let xs = xs.iter().cloned().map(|x| x.0).collect::<Vec<_>>();
         let x = Ops::concat(&xs, d)?;
         Ok(x.into())
+    }
+
+    pub fn stack(xs: &[Self], d: usize) -> Result<Self> {
+        let views: Vec<_> = xs.iter().map(|x| x.0.view()).collect();
+        let stacked = ndarray::stack(ndarray::Axis(d), &views)?;
+        Ok(X(stacked))
     }
 
     pub fn normalize(mut self, min_: f32, max_: f32) -> Result<Self> {

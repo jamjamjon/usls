@@ -3,8 +3,8 @@ use anyhow::Result;
 use ndarray::{s, Axis};
 
 use crate::{
-    elapsed_module, ort_inputs, Config, DynConf, Engine, FromConfig, Image, ImageProcessor, Mask,
-    Module, Ops, X, Y,
+    elapsed_module, inputs, Config, DynConf, Engine, Engines, FromConfig, Image, ImageProcessor,
+    Mask, Model, Module, Ops, X, Y,
 };
 
 use super::super::sam::SamPrompt;
@@ -15,24 +15,26 @@ use super::super::sam::SamPrompt;
 /// Features enhanced backbone architecture and optimized prompt handling.
 #[derive(Builder, Debug)]
 pub struct SAM2 {
-    encoder: Engine,
-    decoder: Engine,
-    height: usize,
-    width: usize,
-    batch: usize,
-    processor: ImageProcessor,
-    conf: DynConf,
-    spec: String,
+    pub height: usize,
+    pub width: usize,
+    pub batch: usize,
+    pub processor: ImageProcessor,
+    pub conf: DynConf,
+    pub spec: String,
 }
 
-impl SAM2 {
-    /// Creates a new SAM2 model instance from the provided configuration.
-    ///
-    /// Initializes the model with:
-    /// - Encoder-decoder architecture
-    /// - Image preprocessing settings
-    /// - Confidence thresholds
-    pub fn new(mut config: Config) -> Result<Self> {
+impl Model for SAM2 {
+    type Input<'a> = (&'a [Image], &'a [SamPrompt]);
+
+    fn batch(&self) -> usize {
+        self.batch
+    }
+
+    fn spec(&self) -> &str {
+        &self.spec
+    }
+
+    fn build(mut config: Config) -> Result<(Self, Engines)> {
         let encoder = Engine::from_config(config.take_module(&Module::Encoder)?)?;
         let decoder = Engine::from_config(config.take_module(&Module::Decoder)?)?;
         let (batch, height, width) = (
@@ -46,34 +48,31 @@ impl SAM2 {
             .with_image_width(width as _)
             .with_image_height(height as _);
 
-        Ok(Self {
-            encoder,
-            decoder,
+        let model = Self {
             conf,
             batch,
             height,
             width,
             processor,
             spec,
-        })
+        };
+
+        let mut engines = Engines::default();
+        engines.insert(Module::Encoder, encoder);
+        engines.insert(Module::Decoder, decoder);
+        Ok((model, engines))
     }
 
-    /// Runs the complete segmentation pipeline on a batch of images.
-    ///
-    /// The pipeline consists of:
-    /// 1. Image encoding into hierarchical features
-    /// 2. Prompt-guided mask generation
-    pub fn forward(&mut self, xs: &[Image], prompts: &[SamPrompt]) -> Result<Vec<Y>> {
-        let ys = elapsed_module!("SAM2", "encode", self.encode(xs)?);
-        let ys = elapsed_module!("SAM2", "decode", self.decode(&ys, prompts)?);
-
-        Ok(ys)
+    fn run(&mut self, engines: &mut Engines, (images, prompts): Self::Input<'_>) -> Result<Vec<Y>> {
+        let embeddings = elapsed_module!("SAM2", "encode", self.encode(engines, images)?);
+        elapsed_module!("SAM2", "decode", self.decode(engines, &embeddings, prompts))
     }
+}
 
-    /// Encodes input images into hierarchical feature representations.
-    pub fn encode(&mut self, xs: &[Image]) -> Result<Vec<X>> {
+impl SAM2 {
+    fn encode(&mut self, engines: &mut Engines, xs: &[Image]) -> Result<Vec<X>> {
         let xs_ = self.processor.process(xs)?;
-        let output = self.encoder.run(ort_inputs![xs_]?)?;
+        let output = engines.run(&Module::Encoder, inputs![xs_]?)?;
         let xs_out: Vec<X> = (0..output.len())
             .map(|i| X::from(output.get::<f32>(i).unwrap()))
             .collect();
@@ -83,17 +82,14 @@ impl SAM2 {
     /// Generates segmentation masks from encoded features and prompts.
     ///
     /// Takes hierarchical image features and user prompts (points/boxes)
-    /// to generate accurate object masks.
-    pub fn decode(&mut self, xs: &[X], prompts: &[SamPrompt]) -> Result<Vec<Y>> {
+    fn decode(&mut self, engines: &mut Engines, xs: &[X], prompts: &[SamPrompt]) -> Result<Vec<Y>> {
         let (image_embeddings, high_res_features_0, high_res_features_1) = (&xs[0], &xs[1], &xs[2]);
 
         let mut ys: Vec<Y> = Vec::new();
         for (idx, image_embedding) in image_embeddings.axis_iter(Axis(0)).enumerate() {
-            let (image_height, image_width) = (
-                self.processor.images_transform_info()[idx].height_src,
-                self.processor.images_transform_info()[idx].width_src,
-            );
-            let ratio = self.processor.images_transform_info()[idx].height_scale;
+            let info = &self.processor.images_transform_info[idx];
+            let (image_height, image_width, ratio) =
+                (info.height_src, info.width_src, info.height_scale);
 
             let args = vec![
                 X::from(image_embedding.into_dyn().into_owned())
@@ -121,13 +117,19 @@ impl SAM2 {
                 X::zeros(&[1]),
                 X::from(vec![self.width as _, self.height as _]),
             ];
-            let ys_ = self.decoder.run(&args)?;
+            let ys_ = engines.run(&Module::Decoder, &args)?;
 
             let mut y_masks: Vec<Mask> = Vec::new();
 
             // masks & confs
-            let masks = X::from(ys_.get::<f32>(0)?);
-            let confs = X::from(ys_.get::<f32>(1)?);
+            let masks = X::from(
+                ys_.get::<f32>(0)
+                    .ok_or_else(|| anyhow::anyhow!("Failed to get masks"))?,
+            );
+            let confs = X::from(
+                ys_.get::<f32>(1)
+                    .ok_or_else(|| anyhow::anyhow!("Failed to get confs"))?,
+            );
 
             for (id, (mask, iou)) in masks
                 .axis_iter(Axis(0))

@@ -78,6 +78,9 @@ pub enum Task {
     /// Input: image
     /// Output: a depth map where each pixel has a depth value
     DepthEstimation,
+    MonocularDepthEstimation,
+    MultiocularDepthEstimation,
+    MetricDepthEstimation,
 
     /// Surface normal prediction task, predicting the surface normal vector for each pixel.
     /// Input: image

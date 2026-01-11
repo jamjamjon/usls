@@ -1,12 +1,48 @@
 use crate::{
-    models::YOLOPredsFormat, Config, ResizeMode, Scale, Task, NAMES_COCO_80,
-    NAMES_COCO_KEYPOINTS_17, NAMES_DOTA_V1_15, NAMES_IMAGENET_1K, NAMES_YOLO_DOCLAYOUT_10,
+    models::YOLOPredsFormat, Config, Scale, Task, NAMES_COCO_80, NAMES_COCO_KEYPOINTS_17,
+    NAMES_DOTA_V1_0_15, NAMES_IMAGENET_1K, NAMES_YOLO_DOCLAYOUT_10,
 };
 
+///
+/// > # YOLO: You Only Look Once
+/// >
+/// > Real-time object detection system with comprehensive computer vision capabilities.
+/// >
+/// > # Paper & Code
+/// >
+/// > - **YOLOv5**: [ultralytics/yolov5](https://github.com/ultralytics/yolov5)
+/// > - **YOLOv6**: [meituan/YOLOv6](https://github.com/meituan/YOLOv6)
+/// > - **YOLOv7**: [WongKinYiu/yolov7](https://github.com/WongKinYiu/yolov7)
+/// > - **YOLOv8/v11**: [ultralytics/ultralytics](https://github.com/ultralytics/ultralytics)
+/// > - **YOLOv9**: [WongKinYiu/yolov9](https://github.com/WongKinYiu/yolov9)
+/// > - **YOLOv10**: [THU-MIG/yolov10](https://github.com/THU-MIG/yolov10)
+/// > - **YOLOv12**:  [sunsmarterjie/YOLOv12](https://github.com/sunsmarterjie/yolov12)
+/// > - **YOLOv13**: [iMoonLab/YOLOv13](https://github.com/iMoonLab/yolov13)
+/// >
+/// > # Model Variants
+/// >
+/// > - **yolo-classify**: Image classification with ImageNet 1000 classes
+/// > - **yolo-detect**: Object detection with COCO 80 classes
+/// > - **yolo-pose**: Pose estimation with 17 COCO keypoints
+/// > - **yolo-segment**: Instance segmentation with COCO 80 classes
+/// > - **yolo-obb**: Oriented object detection with DOTA 15 classes
+/// > - **doclayout-yolo-docstructbench**: Document layout analysis with 10 classes
+/// > - **ultralytics-rtdetr-l**: Large RT-DETR model
+/// > - **ultralytics-rtdetr-x**: Extra large RT-DETR model
+/// >
+/// > # Implemented Features / Tasks
+/// >
+/// > - [X] **Object Detection**: Real-time multi-class object detection
+/// > - [X] **Image Classification**: 1000-class ImageNet classification
+/// > - [X] **Pose Estimation**: 17-keypoint human pose detection
+/// > - [X] **Instance Segmentation**: Pixel-level object segmentation
+/// > - [X] **Oriented Detection**: Rotated bounding box detection
+/// > - [X] **Document Layout**: Document structure analysis
+/// >
+/// Model configuration for `YOLO`
+///
 impl Config {
-    /// Creates a base YOLO configuration with common settings.
-    ///
-    /// Sets up default input dimensions (640x640) and image processing parameters.
+    /// Base configuration for YOLO models with common settings
     pub fn yolo() -> Self {
         Self::default()
             .with_name("yolo")
@@ -14,71 +50,52 @@ impl Config {
             .with_model_ixx(0, 1, 3)
             .with_model_ixx(0, 2, 640)
             .with_model_ixx(0, 3, 640)
-            .with_resize_mode(ResizeMode::FitAdaptive)
+            .with_resize_mode_type(crate::ResizeModeType::FitAdaptive)
             .with_resize_filter(crate::ResizeFilter::CatmullRom)
     }
 
-    /// Creates a configuration for YOLO image classification.
-    ///
-    /// Configures the model for ImageNet classification with:
-    /// - 224x224 input size
-    /// - Exact resize mode with bilinear interpolation
-    /// - ImageNet 1000 class names
+    /// Image classification with ImageNet 1000 classes
     pub fn yolo_classify() -> Self {
         Self::yolo()
             .with_task(Task::ImageClassification)
             .with_model_ixx(0, 2, 224)
             .with_model_ixx(0, 3, 224)
-            .with_resize_mode(ResizeMode::FitExact)
+            .with_resize_mode_type(crate::ResizeModeType::FitExact)
             .with_resize_filter(crate::ResizeFilter::Bilinear)
             .with_class_names(&NAMES_IMAGENET_1K)
     }
 
-    /// Creates a configuration for YOLO object detection.
-    ///
-    /// Configures the model for COCO dataset object detection with 80 classes.
+    /// Object detection with COCO 80 classes
     pub fn yolo_detect() -> Self {
         Self::yolo()
             .with_task(Task::ObjectDetection)
             .with_class_names(&NAMES_COCO_80)
     }
 
-    /// Creates a configuration for YOLO pose estimation.
-    ///
-    /// Configures the model for human keypoint detection with 17 COCO keypoints.
+    /// Pose estimation with 17 COCO keypoints
     pub fn yolo_pose() -> Self {
         Self::yolo()
             .with_task(Task::KeypointsDetection)
             .with_keypoint_names(&NAMES_COCO_KEYPOINTS_17)
     }
 
-    /// Creates a configuration for YOLO instance segmentation.
-    ///
-    /// Configures the model for COCO dataset instance segmentation with 80 classes.
+    /// Instance segmentation with COCO 80 classes
     pub fn yolo_segment() -> Self {
         Self::yolo()
             .with_task(Task::InstanceSegmentation)
             .with_class_names(&NAMES_COCO_80)
     }
 
-    /// Creates a configuration for YOLO oriented object detection.
-    ///
-    /// Configures the model for detecting rotated objects with:
-    /// - 1024x1024 input size
-    /// - DOTA v1 dataset classes
+    /// Oriented object detection with DOTA 15 classes
     pub fn yolo_obb() -> Self {
         Self::yolo()
             .with_model_ixx(0, 2, 1024)
             .with_model_ixx(0, 3, 1024)
             .with_task(Task::OrientedObjectDetection)
-            .with_class_names(&NAMES_DOTA_V1_15)
+            .with_class_names(&NAMES_DOTA_V1_0_15)
     }
 
-    /// Creates a configuration for document layout analysis using YOLOv10.
-    ///
-    /// Configures the model for detecting document structure elements with:
-    /// - Variable input size up to 1024x1024
-    /// - 10 document layout classes
+    /// Document layout analysis using YOLOv10
     pub fn doclayout_yolo_docstructbench() -> Self {
         Self::yolo_detect()
             .with_version(10.into())
@@ -89,22 +106,7 @@ impl Config {
             .with_model_file("doclayout-docstructbench.onnx")
     }
 
-    pub fn fastsam_s() -> Self {
-        Self::yolo_segment()
-            .with_class_names(&["object"])
-            .with_scale(Scale::S)
-            .with_version(8.into())
-            .with_model_file("FastSAM-s.onnx")
-    }
-
-    pub fn fastsam_x() -> Self {
-        Self::yolo_segment()
-            .with_class_names(&["object"])
-            .with_scale(Scale::X)
-            .with_version(8.into())
-            .with_model_file("FastSAM-x.onnx")
-    }
-
+    /// Large RT-DETR model
     pub fn ultralytics_rtdetr_l() -> Self {
         Self::yolo_detect()
             .with_yolo_preds_format(YOLOPredsFormat::n_a_cxcywh_clss_n())
@@ -112,6 +114,7 @@ impl Config {
             .with_model_file("rtdetr-l.onnx")
     }
 
+    /// Extra large RT-DETR model
     pub fn ultralytics_rtdetr_x() -> Self {
         Self::yolo_detect()
             .with_yolo_preds_format(YOLOPredsFormat::n_a_cxcywh_clss_n())

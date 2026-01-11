@@ -1,24 +1,82 @@
-use crate::PREFIX_LENGTH;
+#![allow(dead_code)]
 
-// TODO:
-pub(crate) fn build_resizer_filter(
-    ty: &str,
-) -> anyhow::Result<(fast_image_resize::Resizer, fast_image_resize::ResizeOptions)> {
-    use fast_image_resize::{FilterType, ResizeAlg, ResizeOptions, Resizer};
-    let ty = match ty.to_lowercase().as_str() {
-        "box" => FilterType::Box,
-        "bilinear" => FilterType::Bilinear,
-        "hamming" => FilterType::Hamming,
-        "catmullrom" => FilterType::CatmullRom,
-        "mitchell" => FilterType::Mitchell,
-        "gaussian" => FilterType::Gaussian,
-        "lanczos3" => FilterType::Lanczos3,
-        _ => anyhow::bail!("Unsupported resizer filter: {}", ty),
-    };
-    Ok((
-        Resizer::new(),
-        ResizeOptions::new().resize_alg(ResizeAlg::Convolution(ty)),
-    ))
+use glob::{glob_with, MatchOptions};
+use std::path::{Path, PathBuf};
+
+pub(crate) fn load_paths(
+    source: &str,
+    exts: Option<&[&str]>,
+    sort: bool,
+) -> anyhow::Result<Vec<PathBuf>> {
+    let mut paths = Vec::new();
+
+    if source.contains('*')
+        || source.contains('?')
+        || (source.contains('[') && source.contains(']'))
+    {
+        // Branch B: Glob pattern
+        let config = MatchOptions {
+            case_sensitive: true,
+            require_literal_separator: false,
+            require_literal_leading_dot: false,
+        };
+        paths = glob_with(source, config)?
+            .filter_map(|entry| entry.ok())
+            .filter(|p| p.is_file())
+            .collect();
+
+        // Apply extension filtering if provided
+        if let Some(exts) = exts {
+            let exts_set: std::collections::HashSet<String> =
+                exts.iter().map(|s| s.to_lowercase()).collect();
+            paths.retain(|p| {
+                p.extension()
+                    .and_then(|s| s.to_str())
+                    .map(|s| exts_set.contains(&s.to_lowercase()))
+                    .unwrap_or(false)
+            });
+        }
+    } else {
+        // Branch A: Direct directory scan (High performance)
+        let source_path = Path::new(source);
+        if source_path.is_dir() {
+            let exts_set: Option<std::collections::HashSet<String>> =
+                exts.map(|e| e.iter().map(|s| s.to_lowercase()).collect());
+
+            paths = std::fs::read_dir(source_path)?
+                .filter_map(|entry| {
+                    let path = entry.ok()?.path();
+                    if path.is_file() {
+                        if let Some(ref set) = exts_set {
+                            let ext = path.extension()?.to_str()?.to_lowercase();
+                            if set.contains(&ext) {
+                                return Some(path);
+                            }
+                        } else {
+                            return Some(path);
+                        }
+                    }
+                    None
+                })
+                .collect();
+        } else if source_path.is_file() {
+            paths.push(source_path.to_path_buf());
+        }
+    }
+
+    // Sort results using natural comparison
+    if sort {
+        paths.sort_by(|a, b| {
+            let a = a.file_name().and_then(|s| s.to_str());
+            let b = b.file_name().and_then(|s| s.to_str());
+            match (a, b) {
+                (Some(a), Some(b)) => crate::natural_compare(a, b),
+                _ => std::cmp::Ordering::Equal,
+            }
+        });
+    }
+
+    Ok(paths)
 }
 
 pub(crate) fn try_fetch_file_stem<P: AsRef<std::path::Path>>(p: P) -> anyhow::Result<String> {
@@ -33,20 +91,6 @@ pub(crate) fn try_fetch_file_stem<P: AsRef<std::path::Path>>(p: P) -> anyhow::Re
         .ok_or(anyhow::anyhow!("Failed to convert from `&OsStr` to `&str`"))?;
 
     Ok(stem.to_string())
-}
-
-pub(crate) fn build_progress_bar(
-    n: u64,
-    prefix: &str,
-    msg: Option<&str>,
-    style_temp: &str,
-) -> anyhow::Result<indicatif::ProgressBar> {
-    let pb = indicatif::ProgressBar::new(n);
-    pb.set_style(indicatif::ProgressStyle::with_template(style_temp)?.progress_chars("██ "));
-    pb.set_prefix(format!("{:>PREFIX_LENGTH$}", prefix));
-    pb.set_message(msg.unwrap_or_default().to_string());
-
-    Ok(pb)
 }
 
 /// Formats a byte size into a human-readable string using decimal (base-1000) units.
@@ -64,7 +108,6 @@ pub(crate) fn build_progress_bar(
 /// let formatted = human_bytes_decimal(size, 2);
 /// assert_eq!(formatted, "1.50 MB");
 /// ```
-#[allow(dead_code)]
 pub(crate) fn human_bytes_decimal(size: f64, decimal_places: usize) -> String {
     const DECIMAL_UNITS: [&str; 7] = ["B", "KB", "MB", "GB", "TB", "PB", "EB"];
     format_bytes_internal(size, 1000.0, &DECIMAL_UNITS, decimal_places)
@@ -126,7 +169,6 @@ fn format_bytes_internal(
 /// // Each character in the string will be alphanumeric
 /// assert!(random.chars().all(|c| c.is_ascii_alphanumeric()));
 /// ```
-#[allow(dead_code)]
 pub(crate) fn generate_random_string(length: usize) -> String {
     use rand::{distr::Alphanumeric, rng, Rng};
     if length == 0 {

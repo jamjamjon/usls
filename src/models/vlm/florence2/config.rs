@@ -1,5 +1,28 @@
+///
+/// > # Florence-2: Advancing a Unified Representation for a Variety of Vision Tasks
+/// >
+/// > Unified vision-language model capable of handling diverse vision tasks with a single architecture.
+/// >
+/// > # Paper & Code
+/// >
+/// > - **Hugging Face**: [microsoft/Florence-2-base](https://huggingface.co/microsoft/Florence-2-base)
+/// > - **Paper**: [Florence-2: Advancing a Unified Representation for a Variety of Vision Tasks](https://arxiv.org/abs/2311.06242)
+/// >
+/// > # Model Variants
+/// >
+/// > - **florence2-base**: Base model with 768x768 input resolution
+/// >
+/// > # Implemented Features / Tasks
+/// >
+/// > - [X] **Unified Vision Tasks**: Single model for multiple vision tasks
+/// > - [X] **Multi-Modal Understanding**: Image and text processing
+/// > - [X] **High-Resolution Input**: 768x768 image processing
+/// > - [X] **Flexible Architecture**: Encoder-decoder structure
+/// >
 /// Model configuration for `Florence2`
+///
 impl crate::Config {
+    /// Base configuration for Florence2 models
     pub fn florence2() -> Self {
         Self::default()
             .with_name("florence2")
@@ -11,6 +34,7 @@ impl crate::Config {
             .with_image_std([0.229, 0.224, 0.225])
     }
 
+    /// Base model with 768x768 input resolution
     pub fn florence2_base() -> Self {
         Self::florence2()
             .with_scale(crate::Scale::B)

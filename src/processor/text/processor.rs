@@ -3,18 +3,56 @@
 use aksr::Builder;
 use anyhow::Result;
 
-use super::LogitsSampler;
-use crate::{FromConfig, TextProcessorConfig};
+use crate::{ChatTemplate, FromConfig, LogitsSampler, TextProcessorConfig};
 
-/// Text processing pipeline.
+/// Manages tokenization and sampling for Vision-Language Models (VLMs).
 ///
-/// Handles tokenization, encoding, decoding, and logits sampling.
-/// Requires the `tokenizers` feature for full functionality.
-#[derive(Builder, Debug, Default)]
+/// # 📝 TextProcessor
+///
+/// A comprehensive text processing pipeline that handles tokenization, encoding/decoding,
+/// and logits sampling for conversational AI models. Provides fast tokenization using
+/// the `tokenizers` library and configurable sampling strategies.
+///
+/// ## Features
+///
+/// - **Tokenizer**: Fast tokenization using the `tokenizers` library with support for various vocabularies
+/// - **LogitsSampler**: Configurable sampling strategies (Greedy, Top-P, Temperature)
+/// - **ChatTemplate**: Standardized input formatting for conversational models
+/// - **Batch Processing**: Efficient batch tokenization and decoding operations
+/// - **Error Handling**: Comprehensive error reporting with context
+///
+/// ## Supported Operations
+///
+/// - **Encoding**: Text to token IDs, tokens, and batch operations
+/// - **Decoding**: Token IDs back to text with batch support
+/// - **Sampling**: Configurable text generation strategies
+/// - **Templates**: Chat formatting for conversational models
+///
+/// ## Examples
+///
+/// ```no_run
+/// use usls::{TextProcessor, TextProcessorConfig};
+///
+/// let config = TextProcessorConfig::default()
+///     .with_model_path("./models/tokenizer.json")
+///     .with_temperature(0.7)
+///     .with_topp(0.9);
+///
+/// let processor = TextProcessor::from_config(config)?;
+///
+/// // Encode text
+/// let encoding = processor.encode_text("Hello, world!", false)?;
+/// let ids = processor.encode_text_ids("Hello, world!", false)?;
+///
+/// // Decode tokens
+/// let text = processor.decode_tokens(&[1, 2, 3], false)?;
+/// ```
+///
+#[derive(Builder, Debug)]
 pub struct TextProcessor {
-    pub tokenizer: Option<tokenizers::Tokenizer>,
-    pub logits_sampler: Option<LogitsSampler>,
-    // TODO: chat_template
+    pub tokenizer: tokenizers::Tokenizer,
+    pub logits_sampler: LogitsSampler,
+    pub chat_template: ChatTemplate,
 }
 
 impl FromConfig for TextProcessor {
@@ -26,61 +64,42 @@ impl FromConfig for TextProcessor {
             .with_topp(config.topp);
 
         let tokenizer = config.try_build_tokenizer()?;
+        let chat_template = ChatTemplate;
 
         Ok(Self {
             tokenizer,
-            logits_sampler: Some(logits_sampler),
+            logits_sampler,
+            chat_template,
         })
     }
 }
 
 impl TextProcessor {
-    // /// Deprecated: Use `TextProcessor::from_config()` instead.
-    // #[deprecated(
-    //     since = "0.3.0",
-    //     note = "Use TextProcessor::from_config() for zero-copy construction"
-    // )]
-    // pub fn try_from_config(config: &TextProcessorConfig) -> Result<Self> {
-    //     Self::from_config(config.clone())
-    // }
-
-    /// Check if tokenizer is available.
-    pub fn has_tokenizer(&self) -> bool {
-        self.tokenizer.is_some()
-    }
-
+    /// Encode a single text string to tokenization encoding.
     pub fn encode_text(&self, x: &str, skip_special_tokens: bool) -> Result<tokenizers::Encoding> {
-        let tokenizer = self.tokenizer.as_ref().ok_or_else(|| {
-            anyhow::anyhow!(
-                "No tokenizer configured in TextProcessor. Please initialize with a tokenizer."
-            )
-        })?;
-
-        tokenizer.encode(x, skip_special_tokens).map_err(|err| {
-            anyhow::anyhow!(
-                "Failed to encode text '{}': {}",
-                x.chars().take(50).collect::<String>(),
-                err
-            )
-        })
+        self.tokenizer
+            .encode(x, skip_special_tokens)
+            .map_err(|err| {
+                anyhow::anyhow!(
+                    "Failed to encode text '{}': {}",
+                    x.chars().take(50).collect::<String>(),
+                    err
+                )
+            })
     }
 
+    /// Encode multiple text strings in batch.
     pub fn encode_texts(
         &self,
         xs: &[&str],
         skip_special_tokens: bool,
     ) -> Result<Vec<tokenizers::Encoding>> {
-        let tokenizer = self.tokenizer.as_ref().ok_or_else(|| {
-            anyhow::anyhow!(
-                "No tokenizer configured in TextProcessor. Please initialize with a tokenizer."
-            )
-        })?;
-
-        tokenizer
+        self.tokenizer
             .encode_batch(xs.to_vec(), skip_special_tokens)
             .map_err(|err| anyhow::anyhow!("Failed to encode batch of {} texts: {}", xs.len(), err))
     }
 
+    /// Encode text to token IDs as f32 vector.
     pub fn encode_text_ids(&self, x: &str, skip_special_tokens: bool) -> Result<Vec<f32>> {
         let ids: Vec<f32> = if x.is_empty() {
             vec![0.0f32]
@@ -95,6 +114,7 @@ impl TextProcessor {
         Ok(ids)
     }
 
+    /// Encode multiple texts to token ID vectors in batch.
     pub fn encode_texts_ids(
         &self,
         xs: &[&str],
@@ -112,6 +132,7 @@ impl TextProcessor {
         Ok(ids)
     }
 
+    /// Encode text to token strings.
     pub fn encode_text_tokens(&self, x: &str, skip_special_tokens: bool) -> Result<Vec<String>> {
         Ok(self
             .encode_text(x, skip_special_tokens)?
@@ -119,6 +140,7 @@ impl TextProcessor {
             .to_vec())
     }
 
+    /// Encode multiple texts to token strings in batch.
     pub fn encode_texts_tokens(
         &self,
         xs: &[&str],
@@ -131,30 +153,20 @@ impl TextProcessor {
             .collect())
     }
 
+    /// Decode token IDs back to text string.
     pub fn decode_tokens(&self, ids: &[u32], skip_special_tokens: bool) -> Result<String> {
-        let tokenizer = self.tokenizer.as_ref().ok_or_else(|| {
-            anyhow::anyhow!(
-                "No tokenizer configured in TextProcessor. Please initialize with a tokenizer."
-            )
-        })?;
-
-        tokenizer
+        self.tokenizer
             .decode(ids, skip_special_tokens)
             .map_err(|err| anyhow::anyhow!("Failed to decode {} token IDs: {}", ids.len(), err))
     }
 
+    /// Decode batch of token sequences to text strings.
     pub fn decode_tokens_batch2(
         &self,
         ids: &[&[u32]],
         skip_special_tokens: bool,
     ) -> Result<Vec<String>> {
-        let tokenizer = self.tokenizer.as_ref().ok_or_else(|| {
-            anyhow::anyhow!(
-                "No tokenizer configured in TextProcessor. Please initialize with a tokenizer."
-            )
-        })?;
-
-        tokenizer
+        self.tokenizer
             .decode_batch(ids, skip_special_tokens)
             .map_err(|err| {
                 anyhow::anyhow!(
@@ -165,18 +177,13 @@ impl TextProcessor {
             })
     }
 
+    /// Decode batch of token vectors to text strings.
     pub fn decode_tokens_batch(
         &self,
         ids: &[Vec<u32>],
         skip_special_tokens: bool,
     ) -> Result<Vec<String>> {
-        let tokenizer = self.tokenizer.as_ref().ok_or_else(|| {
-            anyhow::anyhow!(
-                "No tokenizer configured in TextProcessor. Please initialize with a tokenizer."
-            )
-        })?;
-
-        tokenizer
+        self.tokenizer
             .decode_batch(
                 &ids.iter().map(|x| x.as_slice()).collect::<Vec<_>>(),
                 skip_special_tokens,

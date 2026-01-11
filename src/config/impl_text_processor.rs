@@ -17,6 +17,18 @@ impl crate::Config {
         self
     }
 
+    // /// Set maximum number of tokens to generate.
+    // pub fn with_max_tokens(mut self, n: u64) -> Self {
+    //     self.text_processor.max_tokens = Some(n);
+    //     self
+    // }
+
+    // /// Set whether to ignore the end-of-sequence token.
+    // pub fn with_ignore_eos(mut self, ignore_eos: bool) -> Self {
+    //     self.text_processor.ignore_eos = ignore_eos;
+    //     self
+    // }
+
     /// Set special tokens map file.
     pub fn with_special_tokens_map_file(mut self, file: impl Into<String>) -> Self {
         self.text_processor.special_tokens_map_file = Some(file.into());

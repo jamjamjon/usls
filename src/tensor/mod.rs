@@ -3,7 +3,7 @@ mod x_any;
 #[cfg(feature = "cuda")]
 mod x_cuda;
 
-pub use x::{XView, X};
-pub use x_any::XAny;
+pub use x::*;
+pub use x_any::*;
 #[cfg(feature = "cuda")]
-pub use x_cuda::XCuda;
+pub use x_cuda::*;

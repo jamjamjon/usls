@@ -4,39 +4,9 @@ use ndarray::{s, Axis};
 use rand::{prelude::*, rng};
 
 use crate::{
-    elapsed_module, ort_inputs, Config, DynConf, Engine, FromConfig, Image, ImageProcessor, Mask,
-    Module, Ops, Polygon, SamPrompt, X, Y,
+    elapsed_module, inputs, Config, DynConf, Engine, Engines, FromConfig, Image, ImageProcessor,
+    Mask, Model, Module, Ops, Polygon, SamKind, SamPrompt, X, Y,
 };
-
-/// SAM model variants for different use cases.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum SamKind {
-    /// Original SAM model
-    Sam,
-    /// SAM 2.0 with hierarchical architecture
-    Sam2,
-    /// Mobile optimized SAM
-    MobileSam,
-    /// High quality SAM with better segmentation
-    SamHq,
-    /// Efficient SAM with edge-based segmentation
-    EdgeSam,
-}
-
-impl std::str::FromStr for SamKind {
-    type Err = anyhow::Error;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s.to_lowercase().as_str() {
-            "sam" => Ok(Self::Sam),
-            "sam2" => Ok(Self::Sam2),
-            "mobilesam" | "mobile-sam" => Ok(Self::MobileSam),
-            "samhq" | "sam-hq" => Ok(Self::SamHq),
-            "edgesam" | "edge-sam" => Ok(Self::EdgeSam),
-            x => anyhow::bail!("Unsupported SamKind: {}", x),
-        }
-    }
-}
 
 /// Segment Anything Model (SAM) for image segmentation.
 ///
@@ -44,26 +14,29 @@ impl std::str::FromStr for SamKind {
 /// Supports multiple variants including the original SAM, SAM2, MobileSAM, SAM-HQ and EdgeSAM.
 #[derive(Builder, Debug)]
 pub struct SAM {
-    encoder: Engine,
-    decoder: Engine,
-    height: usize,
-    width: usize,
-    batch: usize,
-    processor: ImageProcessor,
-    conf: DynConf,
-    find_contours: bool,
-    kind: SamKind,
-    use_low_res_mask: bool,
-
-    spec: String,
+    pub height: usize,
+    pub width: usize,
+    pub batch: usize,
+    pub processor: ImageProcessor,
+    pub conf: DynConf,
+    pub find_contours: bool,
+    pub kind: SamKind,
+    pub use_low_res_mask: bool,
+    pub spec: String,
 }
 
-impl SAM {
-    /// Creates a new SAM model instance from the provided configuration.
-    ///
-    /// Initializes the model based on the specified SAM variant (original SAM, SAM2, MobileSAM etc.)
-    /// and configures its encoder-decoder architecture.
-    pub fn new(mut config: Config) -> Result<Self> {
+impl Model for SAM {
+    type Input<'a> = (&'a [Image], &'a [SamPrompt]);
+
+    fn batch(&self) -> usize {
+        self.batch
+    }
+
+    fn spec(&self) -> &str {
+        &self.spec
+    }
+
+    fn build(mut config: Config) -> Result<(Self, Engines)> {
         let encoder = Engine::from_config(config.take_module(&Module::Encoder)?)?;
         let decoder = Engine::from_config(config.take_module(&Module::Decoder)?)?;
 
@@ -92,9 +65,7 @@ impl SAM {
             .with_image_width(width as _)
             .with_image_height(height as _);
 
-        Ok(Self {
-            encoder,
-            decoder,
+        let model = Self {
             conf,
             batch,
             height,
@@ -104,36 +75,31 @@ impl SAM {
             find_contours,
             use_low_res_mask,
             spec,
-        })
+        };
+
+        let mut engines = Engines::default();
+        engines.insert(Module::Encoder, encoder);
+        engines.insert(Module::Decoder, decoder);
+        Ok((model, engines))
     }
 
-    /// Runs the complete segmentation pipeline on a batch of images.
-    ///
-    /// The pipeline consists of:
-    /// 1. Encoding the images into embeddings
-    /// 2. Decoding the embeddings with input prompts to generate segmentation masks
-    pub fn forward(&mut self, xs: &[Image], prompts: &[SamPrompt]) -> Result<Vec<Y>> {
-        let ys = elapsed_module!("SAM", "encode", self.encode(xs)?);
-        let ys = elapsed_module!("SAM", "decode", self.decode(&ys, prompts)?);
-
-        Ok(ys)
+    fn run(&mut self, engines: &mut Engines, (images, prompts): Self::Input<'_>) -> Result<Vec<Y>> {
+        let embeddings = elapsed_module!("SAM", "encode", self.encode(engines, images)?);
+        elapsed_module!("SAM", "decode", self.decode(engines, &embeddings, prompts))
     }
+}
 
-    /// Encodes input images into image embeddings.
-    pub fn encode(&mut self, xs: &[Image]) -> Result<Vec<X>> {
+impl SAM {
+    fn encode(&mut self, engines: &mut Engines, xs: &[Image]) -> Result<Vec<X>> {
         let xs_ = self.processor.process(xs)?;
-        let output = self.encoder.run(ort_inputs![xs_]?)?;
+        let output = engines.run(&Module::Encoder, inputs![xs_]?)?;
         let xs_out: Vec<X> = (0..output.len())
             .map(|i| X::from(output.get::<f32>(i).unwrap()))
             .collect();
         Ok(xs_out)
     }
 
-    /// Generates segmentation masks from image embeddings and input prompts.
-    ///
-    /// Takes the image embeddings from the encoder and input prompts (points or boxes)
-    /// to generate binary segmentation masks for the prompted objects.
-    pub fn decode(&mut self, xs: &[X], prompts: &[SamPrompt]) -> Result<Vec<Y>> {
+    fn decode(&mut self, engines: &mut Engines, xs: &[X], prompts: &[SamPrompt]) -> Result<Vec<Y>> {
         let (image_embeddings, high_res_features_0, high_res_features_1) = match self.kind {
             SamKind::Sam2 => (&xs[0], Some(&xs[1]), Some(&xs[2])),
             _ => (&xs[0], None, None),
@@ -141,11 +107,9 @@ impl SAM {
 
         let mut ys: Vec<Y> = Vec::new();
         for (idx, image_embedding) in image_embeddings.axis_iter(Axis(0)).enumerate() {
-            let (image_height, image_width) = (
-                self.processor.images_transform_info()[idx].height_src,
-                self.processor.images_transform_info()[idx].width_src,
-            );
-            let ratio = self.processor.images_transform_info()[idx].height_scale;
+            let info = &self.processor.images_transform_info[idx];
+            let (image_height, image_width, ratio) =
+                (info.height_src, info.width_src, info.height_scale);
 
             let (mut point_coords, mut point_labels) = (
                 prompts[idx].point_coords(ratio)?,
@@ -231,26 +195,59 @@ impl SAM {
                 }
             };
 
-            let ys_ = self.decoder.run(&args)?;
+            let ys_ = engines.run(&Module::Decoder, &args)?;
 
             let mut y_masks: Vec<Mask> = Vec::new();
             let mut y_polygons: Vec<Polygon> = Vec::new();
 
             // masks & confs - extract as owned X to avoid lifetime issues
-            let (masks, confs) = match self.kind {
-                SamKind::Sam | SamKind::MobileSam | SamKind::SamHq => {
-                    if !self.use_low_res_mask {
-                        (X::from(ys_.get::<f32>(0)?), X::from(ys_.get::<f32>(1)?))
-                    } else {
-                        (X::from(ys_.get::<f32>(2)?), X::from(ys_.get::<f32>(1)?))
+            let (masks, confs) =
+                match self.kind {
+                    SamKind::Sam | SamKind::MobileSam | SamKind::SamHq => {
+                        if !self.use_low_res_mask {
+                            (
+                                X::from(
+                                    ys_.get::<f32>(0)
+                                        .ok_or_else(|| anyhow::anyhow!("Failed to get masks"))?,
+                                ),
+                                X::from(
+                                    ys_.get::<f32>(1)
+                                        .ok_or_else(|| anyhow::anyhow!("Failed to get confs"))?,
+                                ),
+                            )
+                        } else {
+                            (
+                                X::from(ys_.get::<f32>(2).ok_or_else(|| {
+                                    anyhow::anyhow!("Failed to get low-res masks")
+                                })?),
+                                X::from(
+                                    ys_.get::<f32>(1)
+                                        .ok_or_else(|| anyhow::anyhow!("Failed to get confs"))?,
+                                ),
+                            )
+                        }
                     }
-                }
-                SamKind::Sam2 => (X::from(ys_.get::<f32>(0)?), X::from(ys_.get::<f32>(1)?)),
-                SamKind::EdgeSam => (
-                    X::from(ys_.get_by_name::<f32>("masks")?),
-                    X::from(ys_.get_by_name::<f32>("scores")?),
-                ),
-            };
+                    SamKind::Sam2 => (
+                        X::from(
+                            ys_.get::<f32>(0)
+                                .ok_or_else(|| anyhow::anyhow!("Failed to get masks"))?,
+                        ),
+                        X::from(
+                            ys_.get::<f32>(1)
+                                .ok_or_else(|| anyhow::anyhow!("Failed to get confs"))?,
+                        ),
+                    ),
+                    SamKind::EdgeSam => (
+                        X::from(
+                            ys_.get_by_name::<f32>("masks")
+                                .ok_or_else(|| anyhow::anyhow!("Failed to get masks"))?,
+                        ),
+                        X::from(
+                            ys_.get_by_name::<f32>("scores")
+                                .ok_or_else(|| anyhow::anyhow!("Failed to get scores"))?,
+                        ),
+                    ),
+                };
 
             for (mask, iou) in masks.axis_iter(Axis(0)).zip(confs.axis_iter(Axis(0))) {
                 let (i, conf) = match iou

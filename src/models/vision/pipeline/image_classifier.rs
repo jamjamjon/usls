@@ -4,78 +4,33 @@ use ndarray::Axis;
 use rayon::prelude::*;
 
 use crate::{
-    elapsed_module, ort_inputs, Config, Engine, FromConfig, Image, ImageProcessor, Module, Prob, X,
-    Y,
+    elapsed_module, inputs, Config, Engine, Engines, FromConfig, Image, ImageProcessor, Model,
+    Module, Prob, Xs, Y,
 };
 
+/// ImageClassifier - A classification model implementing the Model trait.
+///
+/// This model provides image classification with support for softmax,
+/// top-k predictions, and class names. It uses a single engine for
+/// inference and returns probability distributions over classes.
 #[derive(Debug, Builder)]
 pub struct ImageClassifier {
-    engine: Engine,
-    height: usize,
-    width: usize,
-    batch: usize,
-    apply_softmax: bool,
-    processor: ImageProcessor,
-    names: Vec<String>,
-    spec: String,
-    topk: usize,
-}
-
-impl TryFrom<Config> for ImageClassifier {
-    type Error = anyhow::Error;
-
-    fn try_from(config: Config) -> Result<Self, Self::Error> {
-        Self::new(config)
-    }
+    pub height: usize,
+    pub width: usize,
+    pub batch: usize,
+    pub apply_softmax: bool,
+    pub processor: ImageProcessor,
+    pub names: Vec<String>,
+    pub spec: String,
+    pub topk: usize,
 }
 
 impl ImageClassifier {
-    pub fn new(mut config: Config) -> Result<Self> {
-        let engine = Engine::from_config(config.take_module(&Module::Model)?)?;
-        let spec = engine.spec().to_string();
-        let (batch, height, width) = (
-            engine.batch().opt(),
-            engine.try_height().unwrap_or(&224.into()).opt(),
-            engine.try_width().unwrap_or(&224.into()).opt(),
-        );
-        let names = config.inference.class_names;
-        let apply_softmax = config.inference.apply_softmax.unwrap_or_default();
-        let topk = config.inference.topk.unwrap_or(5);
-        let processor = ImageProcessor::from_config(config.image_processor)?
-            .with_image_width(width as _)
-            .with_image_height(height as _);
+    fn postprocess(&self, xs: &Xs) -> Result<Vec<Y>> {
+        let xs = xs
+            .get::<f32>(0)
+            .ok_or_else(|| anyhow::anyhow!("Failed to get output"))?;
 
-        Ok(Self {
-            engine,
-            height,
-            width,
-            batch,
-            spec,
-            processor,
-            names,
-            apply_softmax,
-            topk,
-        })
-    }
-
-    fn preprocess(&mut self, xs: &[Image]) -> Result<X> {
-        self.processor.process(xs)?.as_host()
-    }
-
-    fn inference(&mut self, xs: X) -> Result<X> {
-        let output = self.engine.run(ort_inputs![xs]?)?;
-        Ok(X::from(output.get::<f32>(0)?))
-    }
-
-    pub fn forward(&mut self, xs: &[Image]) -> Result<Vec<Y>> {
-        let ys = elapsed_module!("ImageClassifier", "preprocess", self.preprocess(xs)?);
-        let ys = elapsed_module!("ImageClassifier", "inference", self.inference(ys)?);
-        let ys = elapsed_module!("ImageClassifier", "postprocess", self.postprocess(&ys)?);
-
-        Ok(ys)
-    }
-
-    fn postprocess(&self, xs: &X) -> Result<Vec<Y>> {
         let ys: Vec<Y> = xs
             .axis_iter(Axis(0))
             .into_par_iter()
@@ -96,6 +51,63 @@ impl ImageClassifier {
                 Some(Y::default().with_probs(&probs))
             })
             .collect::<Vec<_>>();
+
+        Ok(ys)
+    }
+}
+
+impl Model for ImageClassifier {
+    type Input<'a> = &'a [Image];
+
+    fn batch(&self) -> usize {
+        self.batch
+    }
+
+    fn spec(&self) -> &str {
+        &self.spec
+    }
+
+    fn build(mut config: Config) -> Result<(Self, Engines)> {
+        let engine = Engine::from_config(config.take_module(&Module::Model)?)?;
+        let spec = engine.spec().to_string();
+        let (batch, height, width) = (
+            engine.batch().opt(),
+            engine.try_height().unwrap_or(&224.into()).opt(),
+            engine.try_width().unwrap_or(&224.into()).opt(),
+        );
+        let names = config.inference.class_names;
+        let apply_softmax = config.inference.apply_softmax.unwrap_or_default();
+        let topk = config.inference.topk.unwrap_or(5);
+        let processor = ImageProcessor::from_config(config.image_processor)?
+            .with_image_width(width as _)
+            .with_image_height(height as _);
+
+        let model = Self {
+            height,
+            width,
+            batch,
+            spec,
+            processor,
+            names,
+            apply_softmax,
+            topk,
+        };
+
+        Ok((model, engine.into()))
+    }
+
+    fn run(&mut self, engines: &mut Engines, input: Self::Input<'_>) -> Result<Vec<Y>> {
+        let xs = elapsed_module!(
+            "Image-Classifier",
+            "preprocess",
+            self.processor.process(input)?
+        );
+        let ys = elapsed_module!(
+            "Image-Classifier",
+            "inference",
+            engines.run(&Module::Model, inputs![xs]?)?
+        );
+        let ys = elapsed_module!("Image-Classifier", "postprocess", self.postprocess(&ys)?);
 
         Ok(ys)
     }

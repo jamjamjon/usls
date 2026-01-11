@@ -1,4 +1,5 @@
 use aksr::Builder;
+use std::collections::HashMap;
 
 use crate::{Hbb, Image, Keypoint, Mask, Obb, Polygon, Prob, Text, X};
 
@@ -20,6 +21,7 @@ pub struct Y {
     pub masks: Vec<Mask>,
     pub images: Vec<Image>,
     pub embedding: X,
+    pub extras: HashMap<String, X>,
 }
 
 impl std::fmt::Debug for Y {
@@ -56,6 +58,9 @@ impl std::fmt::Debug for Y {
         if !self.embedding.is_empty() {
             s.field("Embeddings", &self.embedding);
         }
+        if !self.extras.is_empty() {
+            s.field("Extras", &self.extras);
+        }
         s.finish()
     }
 }
@@ -72,5 +77,6 @@ impl Y {
             && self.masks.is_empty()
             && self.images.is_empty()
             && self.embedding.is_empty()
+            && self.extras.is_empty()
     }
 }

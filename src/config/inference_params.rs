@@ -1,13 +1,10 @@
 use aksr::Builder;
 
-#[cfg(feature = "vision")]
-use crate::{SamKind, YOLOPredsFormat};
-
 /// Inference parameters for model execution.
 ///
 /// This struct contains all runtime parameters that control inference behavior,
 /// separate from model configuration (modules and processors).
-#[derive(Builder, Debug, Clone)]
+#[derive(Builder, Debug, Clone, PartialEq)]
 pub struct InferenceParams {
     // Detection parameters
     pub class_names: Vec<String>,
@@ -36,16 +33,26 @@ pub struct InferenceParams {
     pub text_confs: Vec<f32>,
     pub db_unclip_ratio: Option<f32>,
     pub db_binary_thresh: Option<f32>,
-    pub max_tokens: Option<usize>,
     pub token_level_class: bool,
+    /// Maximum number of tokens to generate.
+    pub max_tokens: Option<u64>,
+    /// Whether to ignore the end-of-sequence token.
+    pub ignore_eos: bool,
+    // /// Temperature parameter for text generation.
+    // pub temperature: f32,
+    // /// Top-p parameter for nucleus sampling.
+    // pub topp: f32,
 
     // Task-specific parameters
     #[cfg(feature = "vision")]
-    pub yolo_preds_format: Option<YOLOPredsFormat>,
+    pub yolo_preds_format: Option<crate::YOLOPredsFormat>,
     #[cfg(feature = "vision")]
-    pub sam_kind: Option<SamKind>,
+    pub sam_kind: Option<crate::SamKind>,
     #[cfg(feature = "vision")]
     pub sam_low_res_mask: Option<bool>,
+
+    /// Super Resolution: up-scaling factor.
+    pub up_scale: f32,
 
     // Common parameters
     pub apply_softmax: Option<bool>,
@@ -74,8 +81,12 @@ impl Default for InferenceParams {
             num_keypoints: Default::default(),
             num_masks: Default::default(),
             find_contours: Default::default(),
+            up_scale: 2.0,
             text_names: Default::default(),
             max_tokens: Default::default(),
+            ignore_eos: Default::default(),
+            // temperature: 1.0,
+            // topp: 0.9,
             token_level_class: Default::default(),
             #[cfg(feature = "vision")]
             yolo_preds_format: Default::default(),

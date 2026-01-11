@@ -11,9 +11,22 @@ env:
 
 jobs:
   lints:
-    name: Rustfmt & Clippy
+    name: Clippy Matrix (${{ matrix.feature }})
     runs-on: ubuntu-latest
     container: jrottenberg/ffmpeg:7.1-ubuntu
+    strategy:
+      fail-fast: false
+      matrix:
+        feature:
+          - "all-features"
+          - ""
+          - "vision"
+          - "vlm"
+          - "ort-download-binaries"
+          - "ort-load-dynamic"
+          - "video"
+          - "viewer"
+          - "annotator"
 
     steps:
       - name: Checkout
@@ -30,10 +43,18 @@ jobs:
           components: rustfmt, clippy
 
       - name: Rustfmt
+        if: matrix.feature == 'all-features'
         run: cargo fmt --all -- --check
 
       - name: Clippy
-        run: cargo clippy --all-features --all-targets -- -D warnings
+        run: |
+          if [ "${{ matrix.feature }}" = "all-features" ]; then
+            cargo clippy --all-features --all-targets -- -D warnings
+          elif [ "${{ matrix.feature }}" = "" ]; then
+            cargo clippy --no-default-features --all-targets -- -D warnings
+          else
+            cargo clippy --no-default-features --features "${{ matrix.feature }}" --all-targets -- -D warnings
+          fi
 
   check:
     name: cargo-check

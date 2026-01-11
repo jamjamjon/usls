@@ -6,8 +6,8 @@ use regex::Regex;
 use tracing::{error, info};
 
 use crate::{
-    elapsed_module, ort_inputs, Config, DynConf, Engine, FromConfig, Hbb, Image, ImageProcessor,
-    Keypoint, Mask, Module, NmsOps, Obb, Ops, Prob, Task, Version, X, Y,
+    elapsed_module, inputs, Config, DynConf, Engine, Engines, FromConfig, Hbb, Image,
+    ImageProcessor, Keypoint, Mask, Model, Module, NmsOps, Obb, Ops, Prob, Task, Version, Xs, Y,
 };
 
 use super::{BoxType, YOLOPredsFormat};
@@ -22,46 +22,45 @@ use super::{BoxType, YOLOPredsFormat};
 /// - Oriented Object Detection
 #[derive(Debug, Builder)]
 pub struct YOLO {
-    engine: Engine,
-    height: usize,
-    width: usize,
-    batch: usize,
-
-    task: Task,
-    version: Option<Version>,
-    spec: String,
-    layout: YOLOPredsFormat,
-    names: Vec<String>,
-    names_kpt: Vec<String>,
-    nc: usize,
-    nk: usize,
-    confs: DynConf,
-    kconfs: DynConf,
-    iou: f32,
-    topk: usize,
-    processor: ImageProcessor,
-    classes_excluded: Vec<usize>,
-    classes_retained: Vec<usize>,
-    pub(crate) embedding: Option<X>,
+    pub height: usize,
+    pub width: usize,
+    pub batch: usize,
+    pub task: Task,
+    pub version: Option<Version>,
+    pub spec: String,
+    pub layout: YOLOPredsFormat,
+    pub names: Vec<String>,
+    pub names_kpt: Vec<String>,
+    pub nc: usize,
+    pub nk: usize,
+    pub confs: DynConf,
+    pub kconfs: DynConf,
+    pub iou: f32,
+    pub topk: usize,
+    pub processor: ImageProcessor,
+    pub classes_excluded: Vec<usize>,
+    pub classes_retained: Vec<usize>,
 }
 
-impl TryFrom<Config> for YOLO {
-    type Error = anyhow::Error;
+/// Implement the Model trait for YOLO.
+impl Model for YOLO {
+    type Input<'a> = &'a [Image];
 
-    fn try_from(config: Config) -> Result<Self, Self::Error> {
-        Self::new(config)
+    fn batch(&self) -> usize {
+        self.batch
     }
-}
 
-impl YOLO {
-    /// Creates a new YOLO model instance from the provided configuration.
-    pub fn new(mut config: Config) -> Result<Self> {
+    fn spec(&self) -> &str {
+        &self.spec
+    }
+
+    fn build(mut config: Config) -> Result<(Self, Engines)> {
         let engine = Engine::from_config(config.take_module(&Module::Model)?)?;
         let (batch, height, width, spec) = (
             engine.batch().opt(),
             engine.try_height().unwrap_or(&640.into()).opt(),
             engine.try_width().unwrap_or(&640.into()).opt(),
-            engine.spec().to_owned(),
+            engine.spec().to_string(),
         );
 
         let task: Option<Task> = match config.task() {
@@ -83,7 +82,7 @@ impl YOLO {
         };
 
         // Task & layout
-        let version = config.version.as_ref();
+        let version = config.version;
         let (layout, task) = match &config.inference.yolo_preds_format {
             // customized
             Some(layout) => {
@@ -109,7 +108,7 @@ impl YOLO {
             // version + task
             None => match (task, version) {
                 (Some(task), Some(version)) => {
-                    let layout = match (task.clone(), version) {
+                    let layout = match (&task, version) {
                         (Task::ImageClassification, Version(5, 0, _)) => {
                             YOLOPredsFormat::n_clss().apply_softmax(true)
                         }
@@ -183,7 +182,7 @@ impl YOLO {
 
         // Class names
         let names_parsed = Self::fetch_names_from_onnx(&engine);
-        let names_customized = config.inference.class_names.clone();
+        let names_customized = config.inference.class_names;
         let names: Vec<_> = match (names_parsed, names_customized.is_empty()) {
             (None, true) => vec![],
             (None, false) => names_customized,
@@ -226,7 +225,7 @@ impl YOLO {
         }
 
         // Keypoint names & Number of keypoints
-        let names_kpt = config.inference.keypoint_names.clone();
+        let names_kpt = config.inference.keypoint_names;
         let nk = if let Task::KeypointsDetection = task {
             match (names_kpt.is_empty(),  Self::fetch_nk_from_onnx(&engine).or(config.inference.num_keypoints)) {
                 (false, Some(nk)) => {
@@ -250,15 +249,15 @@ impl YOLO {
             0
         };
 
-        // Attributes - clone inference data before moving image_processor
+        // Attributes
         let topk = config.inference.topk.unwrap_or(5);
-        let class_confs = config.inference.class_confs.clone();
-        let keypoint_confs = config.inference.keypoint_confs.clone();
+        let class_confs = config.inference.class_confs;
+        let keypoint_confs = config.inference.keypoint_confs;
         let confs = DynConf::new_or_default(&class_confs, nc);
         let kconfs = DynConf::new_or_default(&keypoint_confs, nk);
         let iou = config.inference.iou.unwrap_or(0.45);
-        let classes_excluded = config.inference.classes_excluded.clone();
-        let classes_retained = config.inference.classes_retained.clone();
+        let classes_excluded = config.inference.classes_excluded;
+        let classes_retained = config.inference.classes_retained;
         let mut info = format!(
             "YOLO Version: {}, Task: {:?}, Category Count: {}, Keypoint Count: {}, TopK: {}",
             version.map_or("Unknown".into(), |x| x.to_string()),
@@ -273,24 +272,18 @@ impl YOLO {
         if !classes_retained.is_empty() {
             info = format!("{}, classes_retained: {:?}", info, classes_retained);
         }
-
-        // Move image_processor out before using it
-        let processor = {
-            let image_processor_config = config.image_processor;
-            ImageProcessor::from_config(image_processor_config)?
-                .with_image_width(width as _)
-                .with_image_height(height as _)
-        };
+        let processor = ImageProcessor::from_config(config.image_processor)?
+            .with_image_width(width as _)
+            .with_image_height(height as _);
 
         info!("{}", info);
 
-        Ok(Self {
-            engine,
+        let model = Self {
             height,
             width,
             batch,
             task,
-            version: version.copied(),
+            version,
             spec,
             layout,
             names,
@@ -304,33 +297,31 @@ impl YOLO {
             processor,
             classes_excluded,
             classes_retained,
-            embedding: None,
-        })
+        };
+
+        let engines = Engines::from(engine);
+        Ok((model, engines))
     }
 
-    /// Performs the complete inference pipeline on a batch of images.
-    pub fn forward(&mut self, xs: &[Image]) -> Result<Vec<Y>> {
-        let processed = elapsed_module!("YOLO", "preprocess", self.processor.process(xs)?);
-        // Convert to X for .view() support (YOLO uses multi-input with embedding)
-        let x = processed.as_host()?;
-        let (preds, protos) = elapsed_module!("YOLO", "inference", {
-            let ys = if let Some(ref embedding) = self.embedding {
-                self.engine.run(ort_inputs![x.view(), embedding.view()]?)?
-            } else {
-                self.engine.run(ort_inputs![x.view()]?)?
-            };
-            let preds = ys.get::<f32>(0)?.to_owned();
-            let protos = ys.try_get::<f32>(1).map(|p| p.to_owned());
-            Ok::<_, anyhow::Error>((preds, protos))
-        })?;
-        elapsed_module!("YOLO", "postprocess", self.postprocess(preds, protos))
+    fn run(&mut self, engines: &mut Engines, xs: Self::Input<'_>) -> Result<Vec<crate::Y>> {
+        let ys = elapsed_module!("YOLO", "preprocess", self.processor.process(xs)?);
+        let ys = elapsed_module!(
+            "YOLO",
+            "inference",
+            engines.run(&Module::Model, inputs![ys]?)?
+        );
+        elapsed_module!("YOLO", "postprocess", self.postprocess(&ys))
     }
+}
 
-    /// Post-processes model outputs to generate final predictions.
-    pub(crate) fn postprocess(&self, preds: X, protos: Option<X>) -> Result<Vec<Y>> {
-        let protos_ref = protos.as_ref();
+impl YOLO {
+    pub(crate) fn postprocess(&self, outputs: &Xs) -> Result<Vec<Y>> {
+        // let t = std::time::Instant::now();
+        let preds = outputs
+            .get::<f32>(0)
+            .ok_or(anyhow::anyhow!("Failed to get the first output"))?;
+        // println!("Postprocess: {:?}", t.elapsed());
 
-        // postprocess
         let ys: Vec<Y> = preds
             .axis_iter(Axis(0))
             .into_par_iter()
@@ -349,7 +340,7 @@ impl YOLO {
                     slice_radians,
                 ) = self.layout.parse_preds(pred, self.nc);
 
-                // ImageClassifcation
+                // Classification
                 if let Task::ImageClassification = self.task {
                     let x = if self.layout.apply_softmax {
                         let exps = slice_clss.mapv(|x| x.exp());
@@ -366,12 +357,9 @@ impl YOLO {
                     return Some(y.with_probs(&probs));
                 }
 
-                // Original image size
-                let (image_height, image_width) = (
-                    self.processor.images_transform_info()[idx].height_src,
-                    self.processor.images_transform_info()[idx].width_src,
-                );
-                let ratio = self.processor.images_transform_info()[idx].height_scale;
+                let info = &self.processor.images_transform_info[idx];
+                let (image_height, image_width, ratio) =
+                    (info.height_src, info.width_src, info.height_scale);
 
                 // ObjectDetection
                 let (y_hbbs, y_obbs) = slice_bboxes?
@@ -387,7 +375,9 @@ impl YOLO {
                                     .slice(s![i, ..])
                                     .into_iter()
                                     .enumerate()
-                                    .max_by(|a, b| a.1.total_cmp(b.1))?;
+                                    .max_by(|a, b| {
+                                        a.1.partial_cmp(b.1).unwrap_or(std::cmp::Ordering::Equal)
+                                    })?;
 
                                 match &slice_confs {
                                     None => (class_id, confidence),
@@ -397,6 +387,11 @@ impl YOLO {
                                 }
                             }
                         };
+
+                        // filter by conf
+                        if confidence < self.confs[class_id] {
+                            return None;
+                        }
 
                         // filter out class id
                         if !self.classes_excluded.is_empty()
@@ -409,11 +404,6 @@ impl YOLO {
                         if !self.classes_retained.is_empty()
                             && !self.classes_retained.contains(&class_id)
                         {
-                            return None;
-                        }
-
-                        // filter by conf
-                        if confidence < self.confs[class_id] {
                             return None;
                         }
 
@@ -560,73 +550,22 @@ impl YOLO {
                 // InstanceSegmentation
                 if let Some(coefs) = slice_coefs {
                     if !y.hbbs().is_empty() {
-                        let y_masks = y
-                            .hbbs()
-                            .into_par_iter()
-                            .filter_map(|hbb| {
-                                let coefs = coefs.slice(s![hbb.uid(), ..]).to_vec();
-                                let proto = protos_ref?.slice(s![idx, .., .., ..]);
-                                let (nm, mh, mw) = proto.dim();
-
-                                // coefs * proto => mask
-                                let coefs = Array::from_shape_vec((1, nm), coefs).ok()?;
-                                let proto = proto.to_shape((nm, mh * mw)).ok()?;
-                                let mask = coefs.dot(&proto);
-
-                                // Resize mask from (mh, mw) to (image_height, image_width)
-                                let mask_resized = Ops::resize_lumaf32_u8(
-                                    &mask.into_raw_vec_and_offset().0,
-                                    mw as _,
-                                    mh as _,
-                                    image_width as _,
-                                    image_height as _,
-                                    true,
-                                    "Bilinear",
-                                )
-                                .ok()?;
-
-                                // Create image buffer from resized mask
-                                let mut mask_image: image::ImageBuffer<image::Luma<_>, Vec<_>> =
-                                    image::ImageBuffer::from_raw(
-                                        image_width as _,
-                                        image_height as _,
-                                        mask_resized,
-                                    )?;
-
-                                // Crop mask using bounding box coordinates
-                                let (xmin, ymin, xmax, ymax) =
-                                    (hbb.xmin(), hbb.ymin(), hbb.xmax(), hbb.ymax());
-
-                                for (y, row) in mask_image.enumerate_rows_mut() {
-                                    for (x, _, pixel) in row {
-                                        if x < xmin as _
-                                            || x > xmax as _
-                                            || y < ymin as _
-                                            || y > ymax as _
-                                        {
-                                            *pixel = image::Luma([0u8]);
-                                        }
-                                    }
-                                }
-
-                                // Create Mask object with metadata
-                                let mut mask = Mask::default().with_mask(mask_image);
-                                if let Some(id) = hbb.id() {
-                                    mask = mask.with_id(id);
-                                }
-                                if let Some(name) = hbb.name() {
-                                    mask = mask.with_name(name);
-                                }
-                                if let Some(confidence) = hbb.confidence() {
-                                    mask = mask.with_confidence(confidence);
-                                }
-
-                                Some(mask)
-                            })
-                            .collect::<Vec<_>>();
-
-                        if !y_masks.is_empty() {
-                            y = y.with_masks(&y_masks);
+                        let protos = outputs.get::<f32>(1);
+                        if let Some(proto) = protos.as_ref() {
+                            let proto_slice = proto.slice(s![idx, .., .., ..]);
+                            let coefs_2d = coefs.into_dimensionality::<ndarray::Ix2>().ok()?;
+                            let proto_3d =
+                                proto_slice.into_dimensionality::<ndarray::Ix3>().ok()?;
+                            let y_masks = Self::generate_masks(
+                                y.hbbs(),
+                                coefs_2d,
+                                proto_3d,
+                                image_width,
+                                image_height,
+                            );
+                            if !y_masks.is_empty() {
+                                y = y.with_masks(&y_masks);
+                            }
                         }
                     }
                 }
@@ -636,6 +575,69 @@ impl YOLO {
             .collect();
 
         Ok(ys)
+    }
+
+    /// Generates instance segmentation masks from coefficients and prototypes.
+    ///
+    /// This is a shared utility that can be used by other models (e.g., YOLOE).
+    /// Parameters are passed by reference for zero-copy efficiency.
+    pub fn generate_masks(
+        hbbs: &[Hbb],
+        coefs: ndarray::ArrayView2<'_, f32>,
+        protos: ndarray::ArrayView3<'_, f32>,
+        image_width: u32,
+        image_height: u32,
+    ) -> Vec<Mask> {
+        hbbs.into_par_iter()
+            .filter_map(|hbb| {
+                let coef_slice = coefs.slice(s![hbb.uid(), ..]).to_vec();
+                let (nm, mh, mw) = protos.dim();
+
+                let coef_arr = Array::from_shape_vec((1, nm), coef_slice).ok()?;
+                let proto_flat = protos.to_shape((nm, mh * mw)).ok()?;
+                let mask_flat = coef_arr.dot(&proto_flat);
+
+                let mask_resized = Ops::resize_lumaf32_u8(
+                    &mask_flat.into_raw_vec_and_offset().0,
+                    mw as _,
+                    mh as _,
+                    image_width as _,
+                    image_height as _,
+                    true,
+                    "Bilinear",
+                )
+                .ok()?;
+
+                let mut mask_image: image::ImageBuffer<image::Luma<_>, Vec<_>> =
+                    image::ImageBuffer::from_raw(
+                        image_width as _,
+                        image_height as _,
+                        mask_resized,
+                    )?;
+
+                // Crop mask using bounding box
+                let (xmin, ymin, xmax, ymax) = (hbb.xmin(), hbb.ymin(), hbb.xmax(), hbb.ymax());
+                for (y, row) in mask_image.enumerate_rows_mut() {
+                    for (x, _, pixel) in row {
+                        if x < xmin as _ || x > xmax as _ || y < ymin as _ || y > ymax as _ {
+                            *pixel = image::Luma([0u8]);
+                        }
+                    }
+                }
+
+                let mut mask = Mask::default().with_mask(mask_image);
+                if let Some(id) = hbb.id() {
+                    mask = mask.with_id(id);
+                }
+                if let Some(name) = hbb.name() {
+                    mask = mask.with_name(name);
+                }
+                if let Some(confidence) = hbb.confidence() {
+                    mask = mask.with_confidence(confidence);
+                }
+                Some(mask)
+            })
+            .collect()
     }
 
     /// Extracts class names from the ONNX model metadata if available.
@@ -657,35 +659,5 @@ impl YOLO {
             .captures(&engine.try_fetch("kpt_shape")?)
             .and_then(|caps| caps.get(1))
             .and_then(|m| m.as_str().parse::<usize>().ok())
-    }
-
-    #[allow(dead_code)]
-    #[inline]
-    pub(crate) fn engine_mut(&mut self) -> &mut Engine {
-        &mut self.engine
-    }
-
-    #[allow(dead_code)]
-    #[inline]
-    pub(crate) fn processor_mut(&mut self) -> &mut ImageProcessor {
-        &mut self.processor
-    }
-
-    #[allow(dead_code)]
-    #[inline]
-    pub(crate) fn dims(&self) -> (usize, usize) {
-        (self.height, self.width)
-    }
-
-    #[allow(dead_code)]
-    #[inline]
-    pub(crate) fn set_nc(&mut self, nc: usize) {
-        self.nc = nc;
-    }
-
-    #[allow(dead_code)]
-    #[inline]
-    pub(crate) fn names_mut(&mut self) -> &mut Vec<String> {
-        &mut self.names
     }
 }

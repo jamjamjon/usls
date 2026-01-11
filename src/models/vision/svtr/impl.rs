@@ -4,25 +4,34 @@ use ndarray::Axis;
 use rayon::prelude::*;
 
 use crate::{
-    elapsed_module, ort_inputs, Config, DynConf, Engine, FromConfig, Image, ImageProcessor, Module,
-    Text, X, Y,
+    elapsed_module, inputs, Config, DynConf, Engine, Engines, FromConfig, Image, ImageProcessor,
+    Model, Module, Text, Xs, X, Y,
 };
 
 /// SVTR (Scene Text Recognition) model for text recognition.
 #[derive(Builder, Debug)]
 pub struct SVTR {
-    engine: Engine,
-    height: usize,
-    width: usize,
-    batch: usize,
-    confs: DynConf,
-    spec: String,
-    processor: ImageProcessor,
-    vocab: Vec<String>,
+    pub height: usize,
+    pub width: usize,
+    pub batch: usize,
+    pub confs: DynConf,
+    pub spec: String,
+    pub processor: ImageProcessor,
+    pub vocab: Vec<String>,
 }
 
-impl SVTR {
-    pub fn new(mut config: Config) -> Result<Self> {
+impl Model for SVTR {
+    type Input<'a> = &'a [Image];
+
+    fn batch(&self) -> usize {
+        self.batch
+    }
+
+    fn spec(&self) -> &str {
+        &self.spec
+    }
+
+    fn build(mut config: Config) -> Result<(Self, Engines)> {
         let engine = Engine::from_config(config.take_module(&Module::Model)?)?;
         let (batch, height, width) = (
             engine.batch().opt(),
@@ -34,11 +43,10 @@ impl SVTR {
         let processor = ImageProcessor::from_config(config.image_processor)?
             .with_image_width(width as _)
             .with_image_height(height as _);
-        let vocab = config.inference.class_names.clone();
+        let vocab = config.inference.class_names;
         tracing::info!("Vacab size: {}", vocab.len());
 
-        Ok(Self {
-            engine,
+        let model = Self {
             height,
             width,
             batch,
@@ -46,27 +54,29 @@ impl SVTR {
             processor,
             spec,
             vocab,
-        })
+        };
+
+        let engines = Engines::from(engine);
+        Ok((model, engines))
     }
 
-    fn preprocess(&mut self, xs: &[Image]) -> Result<X> {
-        self.processor.process(xs)?.as_host()
+    fn run(&mut self, engines: &mut Engines, images: Self::Input<'_>) -> Result<Vec<Y>> {
+        let x = elapsed_module!("SVTR", "preprocess", self.processor.process(images)?);
+        let ys = elapsed_module!(
+            "SVTR",
+            "inference",
+            engines.run(&Module::Model, inputs![x]?)?
+        );
+        elapsed_module!("SVTR", "postprocess", self.postprocess(&ys))
     }
+}
 
-    fn inference(&mut self, xs: X) -> Result<X> {
-        let output = self.engine.run(ort_inputs![xs]?)?;
-        Ok(X::from(output.get::<f32>(0)?))
-    }
-
-    pub fn forward(&mut self, xs: &[Image]) -> Result<Vec<Y>> {
-        let ys = elapsed_module!("SVTR", "preprocess", self.preprocess(xs)?);
-        let ys = elapsed_module!("SVTR", "inference", self.inference(ys)?);
-        let ys = elapsed_module!("SVTR", "postprocess", self.postprocess(&ys)?);
-
-        Ok(ys)
-    }
-
-    pub fn postprocess(&self, xs: &X) -> Result<Vec<Y>> {
+impl SVTR {
+    fn postprocess(&self, outputs: &Xs) -> Result<Vec<Y>> {
+        let xs = outputs
+            .get::<f32>(0)
+            .ok_or_else(|| anyhow::anyhow!("Failed to get output"))?;
+        let xs = X::from(xs);
         let ys: Vec<Y> = xs
             .axis_iter(Axis(0))
             .into_par_iter()

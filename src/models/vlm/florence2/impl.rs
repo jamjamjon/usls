@@ -4,10 +4,11 @@ use ndarray::{s, Axis};
 use rayon::prelude::*;
 
 use crate::{
-    elapsed_module, models::vlm::florence2::Quantizer, ort_inputs, Config, Engine, FromConfig, Hbb,
+    elapsed_module, inputs, models::vlm::florence2::Quantizer, Config, Engine, FromConfig, Hbb,
     Image, ImageProcessor, LogitsSampler, Polygon, Scale, Task, TextProcessor, X, Y,
 };
 
+/// Florence2: Unified Vision-Language Model for Various Tasks
 #[derive(Debug, Builder)]
 pub struct Florence2 {
     pub vision_encoder: Engine,
@@ -127,8 +128,11 @@ impl Florence2 {
             .collect::<Result<Vec<_>, _>>()?;
         let x = X::concat(&xs, 0)?;
         let output = {
-            let ys = self.text_embed.run(ort_inputs![x]?)?;
-            X::from(ys.get::<f32>(0)?)
+            let ys = self.text_embed.run(inputs![x]?)?;
+            X::from(
+                ys.get::<f32>(0)
+                    .ok_or_else(|| anyhow::anyhow!("Failed to get text embeddings"))?,
+            )
         };
 
         Ok(output)
@@ -138,8 +142,11 @@ impl Florence2 {
         let visual_embeddings = elapsed_module!("Florence2", "visual-encode", {
             let xs = self.image_processor.process(xs_visual)?;
             self.batch = xs_visual.len(); // update
-            let ys = self.vision_encoder.run(ort_inputs![xs]?)?;
-            X::from(ys.get::<f32>(0)?)
+            let ys = self.vision_encoder.run(inputs![xs]?)?;
+            X::from(
+                ys.get::<f32>(0)
+                    .ok_or_else(|| anyhow::anyhow!("Failed to get vision embeddings"))?,
+            )
         });
 
         let textual_embedding = elapsed_module!("Florence2", "textual-encode", {
@@ -173,15 +180,18 @@ impl Florence2 {
         let last_hidden_state = {
             let ys = self
                 .encoder
-                .run(ort_inputs![attention_mask.clone(), inputs_embeds.clone()]?)?;
-            X::from(ys.get::<f32>(0)?)
+                .run(inputs![attention_mask.clone(), inputs_embeds.clone()]?)?;
+            X::from(
+                ys.get::<f32>(0)
+                    .ok_or_else(|| anyhow::anyhow!("Failed to get encoder output"))?,
+            )
         };
 
         // decoder
         let inputs_embeds_slice = inputs_embeds.slice(s![.., -1.., ..]);
         let inputs_embeds_slice = X::from(inputs_embeds_slice.to_owned().into_dyn());
         let mut decoder_outputs = {
-            let ys = self.decoder.run(ort_inputs![
+            let ys = self.decoder.run(inputs![
                 attention_mask.clone(),
                 last_hidden_state.clone(),
                 inputs_embeds_slice
@@ -252,8 +262,11 @@ impl Florence2 {
             // decode
             let next_tokens = X::from(last_tokens.clone()).insert_axis(1)?;
             let inputs_embeds = {
-                let ys = self.text_embed.run(ort_inputs![next_tokens]?)?;
-                X::from(ys.get::<f32>(0)?)
+                let ys = self.text_embed.run(inputs![next_tokens]?)?;
+                X::from(
+                    ys.get::<f32>(0)
+                        .ok_or_else(|| anyhow::anyhow!("Failed to get next token embeddings"))?,
+                )
             };
             let use_cache = X::ones(&[1]);
             let mut xs = vec![

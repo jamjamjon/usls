@@ -1,5 +1,3 @@
-use std::fmt;
-
 /// Module identifier for different model components.
 ///
 /// Used as keys in `Config::modules` HashMap to identify different model modules.
@@ -33,8 +31,8 @@ pub enum Module {
     Custom(String),
 }
 
-impl fmt::Display for Module {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl std::fmt::Display for Module {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Model => write!(f, "model"),
             Self::Visual => write!(f, "visual"),

@@ -1,15 +1,33 @@
 use crate::Scale;
 
-/// Model configuration for `TrOCR`.
+///
+/// > # TrOCR: Transformer-based Optical Character Recognition
+/// >
+/// > Transformer-based OCR model with pre-trained models for both printed and handwritten text recognition.
+/// >
+/// > # Paper & Code
+/// >
+/// > - **Hugging Face**: [microsoft/trocr-base-printed](https://huggingface.co/microsoft/trocr-base-printed)
+/// > - **Paper**: [TrOCR: Transformer-based Optical Character Recognition with Pre-trained Models](https://arxiv.org/abs/2109.10282)
+/// >
+/// > # Model Variants
+/// >
+/// > - **trocr-small-printed**: Small model optimized for printed text
+/// > - **trocr-base-printed**: Base model optimized for printed text
+/// > - **trocr-small-handwritten**: Small model optimized for handwritten text
+/// > - **trocr-base-handwritten**: Base model optimized for handwritten text
+/// >
+/// > # Implemented Features / Tasks
+/// >
+/// > - [X] **Printed Text Recognition**: High accuracy on printed documents
+/// > - [X] **Handwritten Text Recognition**: Robust performance on handwriting
+/// > - [X] **Transformer Architecture**: Modern transformer-based OCR
+/// > - [X] **Multi-Scale Support**: Small and base model variants
+/// >
+/// Model configuration for `TrOCR`
+///
 impl crate::Config {
-    /// Creates a base configuration for TrOCR models with default settings.
-    ///
-    /// This includes:
-    /// - Batch size of 1
-    /// - Image input dimensions of 384x384 with 3 channels
-    /// - Image normalization with mean and std of [0.5, 0.5, 0.5]
-    /// - Lanczos3 resize filter
-    /// - Default tokenizer and model configuration files
+    /// Base configuration for TrOCR models with default settings
     pub fn trocr() -> Self {
         Self::default()
             .with_name("trocr")
@@ -26,9 +44,7 @@ impl crate::Config {
             .with_tokenizer_config_file("trocr/tokenizer_config.json")
     }
 
-    /// Creates a configuration for the small TrOCR model variant optimized for printed text.
-    ///
-    /// Uses the small scale model files and tokenizer configuration.
+    /// Small model optimized for printed text
     pub fn trocr_small_printed() -> Self {
         Self::trocr()
             .with_scale(Scale::S)
@@ -38,9 +54,7 @@ impl crate::Config {
             .with_tokenizer_file("trocr/tokenizer-small.json")
     }
 
-    /// Creates a configuration for the base TrOCR model variant optimized for handwritten text.
-    ///
-    /// Uses the base scale model files and tokenizer configuration.
+    /// Base model optimized for handwritten text
     pub fn trocr_base_handwritten() -> Self {
         Self::trocr()
             .with_scale(Scale::B)
@@ -50,9 +64,7 @@ impl crate::Config {
             .with_tokenizer_file("trocr/tokenizer-base.json")
     }
 
-    /// Creates a configuration for the small TrOCR model variant optimized for handwritten text.
-    ///
-    /// Modifies the small printed configuration to use handwritten-specific model files.
+    /// Small model optimized for handwritten text
     pub fn trocr_small_handwritten() -> Self {
         Self::trocr_small_printed()
             .with_visual_file("s-encoder-handwritten.onnx")
@@ -60,9 +72,7 @@ impl crate::Config {
             .with_textual_decoder_merged_file("s-decoder-merged-handwritten.onnx")
     }
 
-    /// Creates a configuration for the base TrOCR model variant optimized for printed text.
-    ///
-    /// Modifies the base handwritten configuration to use printed-specific model files.
+    /// Base model optimized for printed text
     pub fn trocr_base_printed() -> Self {
         Self::trocr_base_handwritten()
             .with_visual_file("b-encoder-printed.onnx")

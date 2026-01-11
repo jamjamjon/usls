@@ -1,11 +1,7 @@
 use anyhow::Result;
 use std::{collections::HashMap, vec};
 
-use crate::{
-    lapjv::lapjv,
-    strack::{STrack, TrackState},
-    Hbb, KalmanFilterXYAH,
-};
+use crate::{lapjv, Hbb, KalmanFilterXYAH, STrack, TrackState};
 
 /// Result of linear assignment algorithm for track-detection matching
 ///
@@ -110,6 +106,10 @@ impl ByteTracker {
 
     /// Updates tracker with detections
     pub fn update(&mut self, hbbs: &[Hbb]) -> Result<Vec<Hbb>> {
+        if hbbs.is_empty() {
+            return Ok(Vec::new());
+        }
+
         self.frame_id += 1;
 
         // Split detections by confidence thresholds

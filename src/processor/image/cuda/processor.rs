@@ -1,261 +1,104 @@
 //! CUDA context management for processing.
 //!
 //! This module provides GPU-accelerated image processing using cudarc.
-//! Requires CUDA 11.x+ to be installed on the system.
 
 use anyhow::Result;
 use cudarc::driver::{CudaContext, CudaFunction, CudaSlice, LaunchConfig, PushKernelArg};
 use cudarc::nvrtc::compile_ptx;
-use std::collections::HashMap;
-use std::ffi::c_void;
 use std::sync::{Arc, Mutex};
 
-use crate::{
-    compute_convolution_1d, CudaImageProcessContext, ImagePlan, ImageTensorLayout,
-    ImageTransformInfo, ResizeFilter, ResizeMode,
-};
-
-fn sys_err(e: cudarc::driver::sys::CUresult) -> anyhow::Error {
-    anyhow::anyhow!("CUDA sys error: {:?}", e)
-}
-
-struct PinnedHostBuffer {
-    ptr: *mut u8,
-    cap: usize,
-}
-
-unsafe impl Send for PinnedHostBuffer {}
-
-impl PinnedHostBuffer {
-    fn new() -> Self {
-        Self {
-            ptr: std::ptr::null_mut(),
-            cap: 0,
-        }
-    }
-
-    fn ensure_capacity(&mut self, cap: usize) -> Result<()> {
-        if self.cap >= cap {
-            return Ok(());
-        }
-        self.free();
-
-        let mut p: *mut c_void = std::ptr::null_mut();
-        let res = unsafe { cudarc::driver::sys::cuMemAllocHost_v2(&mut p, cap) };
-        if res != cudarc::driver::sys::cudaError_enum::CUDA_SUCCESS {
-            return Err(sys_err(res));
-        }
-        self.ptr = p as *mut u8;
-        self.cap = cap;
-        Ok(())
-    }
-
-    fn fill_from(&mut self, src: &[u8]) -> Result<&[u8]> {
-        self.ensure_capacity(src.len())?;
-        if src.is_empty() {
-            return Ok(&[]);
-        }
-        unsafe {
-            let dst = std::slice::from_raw_parts_mut(self.ptr, src.len());
-            dst.copy_from_slice(src);
-            Ok(std::slice::from_raw_parts(self.ptr, src.len()))
-        }
-    }
-
-    fn free(&mut self) {
-        if self.ptr.is_null() {
-            return;
-        }
-        let p = self.ptr as *mut c_void;
-        let _ = unsafe { cudarc::driver::sys::cuMemFreeHost(p) };
-        self.ptr = std::ptr::null_mut();
-        self.cap = 0;
-    }
-}
-
-impl Drop for PinnedHostBuffer {
-    fn drop(&mut self) {
-        self.free();
-    }
-}
-
-impl Default for PinnedHostBuffer {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-struct ConvKey {
-    in_size: u32,
-    out_size: u32,
-    filter: ResizeFilter,
-    adaptive_kernel_size: bool,
-}
-
-struct DeviceConvCoeffs {
-    d_starts: Arc<CudaSlice<i32>>,
-    d_sizes: Arc<CudaSlice<i32>>,
-    d_offsets: Arc<CudaSlice<i32>>,
-    d_coeffs: Arc<CudaSlice<i16>>,
-    precision: i32,
-}
-
-struct DeviceHorizConvCoeffs {
-    coeffs: DeviceConvCoeffs,
-    x_first: i32,
-    temp_width: u32,
-}
-
-struct ConvCoeffCache {
-    max_entries: usize,
-    vert: HashMap<ConvKey, Arc<DeviceConvCoeffs>>,
-    horiz: HashMap<ConvKey, Arc<DeviceHorizConvCoeffs>>,
-}
-
-#[derive(Default)]
-struct DeviceBufferPool {
-    input_len: usize,
-    input: Option<CudaSlice<u8>>,
-    pinned_input: PinnedHostBuffer,
-    temp_len: usize,
-    temp: Option<CudaSlice<u8>>,
-    resized_len: usize,
-    resized: Option<CudaSlice<u8>>,
-    output_len: usize,
-    output: Option<CudaSlice<f32>>,
-    mean: Option<CudaSlice<f32>>,
-    std: Option<CudaSlice<f32>>,
-}
-
-impl DeviceBufferPool {
-    fn new() -> Self {
-        Self {
-            pinned_input: PinnedHostBuffer::new(),
-            ..Default::default()
-        }
-    }
-
-    fn fill_pinned_input(&mut self, src: &[u8]) -> Result<&[u8]> {
-        self.pinned_input.fill_from(src)
-    }
-
-    fn take_or_alloc_input(
-        &mut self,
-        stream: &Arc<cudarc::driver::CudaStream>,
-        len: usize,
-    ) -> Result<CudaSlice<u8>> {
-        if self.input_len == len {
-            if let Some(buf) = self.input.take() {
-                return Ok(buf);
-            }
-        }
-        self.input_len = len;
-        self.input = None;
-        unsafe { stream.alloc::<u8>(len).map_err(driver_err) }
-    }
-
-    fn take_or_alloc_temp(
-        &mut self,
-        stream: &Arc<cudarc::driver::CudaStream>,
-        len: usize,
-    ) -> Result<CudaSlice<u8>> {
-        if self.temp_len == len {
-            if let Some(buf) = self.temp.take() {
-                return Ok(buf);
-            }
-        }
-        self.temp_len = len;
-        self.temp = None;
-        stream.alloc_zeros::<u8>(len).map_err(driver_err)
-    }
-
-    fn take_or_alloc_resized(
-        &mut self,
-        stream: &Arc<cudarc::driver::CudaStream>,
-        len: usize,
-    ) -> Result<CudaSlice<u8>> {
-        if self.resized_len == len {
-            if let Some(buf) = self.resized.take() {
-                return Ok(buf);
-            }
-        }
-        self.resized_len = len;
-        self.resized = None;
-        stream.alloc_zeros::<u8>(len).map_err(driver_err)
-    }
-
-    fn take_or_alloc_output(
-        &mut self,
-        stream: &Arc<cudarc::driver::CudaStream>,
-        len: usize,
-    ) -> Result<CudaSlice<f32>> {
-        if self.output_len == len {
-            if let Some(buf) = self.output.take() {
-                return Ok(buf);
-            }
-        }
-        self.output_len = len;
-        self.output = None;
-        stream.alloc_zeros::<f32>(len).map_err(driver_err)
-    }
-
-    fn take_or_alloc_mean(
-        &mut self,
-        stream: &Arc<cudarc::driver::CudaStream>,
-    ) -> Result<CudaSlice<f32>> {
-        if let Some(buf) = self.mean.take() {
-            return Ok(buf);
-        }
-        unsafe { stream.alloc::<f32>(3).map_err(driver_err) }
-    }
-
-    fn take_or_alloc_std(
-        &mut self,
-        stream: &Arc<cudarc::driver::CudaStream>,
-    ) -> Result<CudaSlice<f32>> {
-        if let Some(buf) = self.std.take() {
-            return Ok(buf);
-        }
-        unsafe { stream.alloc::<f32>(3).map_err(driver_err) }
-    }
-}
-
-impl ConvCoeffCache {
-    fn new(max_entries: usize) -> Self {
-        Self {
-            max_entries,
-            vert: HashMap::new(),
-            horiz: HashMap::new(),
-        }
-    }
-
-    fn evict_if_needed(&mut self) {
-        let total = self.vert.len() + self.horiz.len();
-        if total >= self.max_entries {
-            self.vert.clear();
-            self.horiz.clear();
-        }
-    }
-}
-
-/// Convert cudarc DriverError to anyhow::Error
-fn driver_err(e: cudarc::driver::result::DriverError) -> anyhow::Error {
-    anyhow::anyhow!("CUDA driver error: {:?}", e)
-}
+use super::*;
+use crate::{compute_convolution_1d, ImagePlan, ImageTensorLayout, ImageTransformInfo, ResizeMode};
 
 /// CUDA source code for processing kernels (embedded at compile time).
 const PREPROCESS_CUDA_SRC: &str = include_str!("process.cu");
 
 /// CUDA preprocessor context managing device, streams, and kernels.
+/// This implements TransformExecutor for CUDA backend.
 pub struct CudaPreprocessor {
     ctx: Arc<CudaContext>,
     kernel_conv_vert_u8x3: CudaFunction,
     kernel_conv_horiz_u8x3: CudaFunction,
     kernel_post_u8_to_nchw_f32: CudaFunction,
     kernel_post_u8_to_nhwc_f32: CudaFunction,
+    kernel_pad_constant: CudaFunction,
+    kernel_pad_reflect: CudaFunction,
+    kernel_pad_replicate: CudaFunction,
+    kernel_crop_center: CudaFunction,
     conv_cache: Mutex<ConvCoeffCache>,
     buffer_pool: Mutex<DeviceBufferPool>,
+}
+
+impl std::fmt::Debug for CudaPreprocessor {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("CudaPreprocessor")
+            .field("is_ready", &self.is_ready())
+            .finish()
+    }
+}
+
+impl crate::TransformExecutor for CudaPreprocessor {
+    /// Execute image processing plan.
+    ///
+    /// # Implementation Strategy
+    /// - **Resize-only plans**: Use optimized CUDA kernels, return device tensor (zero-copy)
+    /// - **Pad/Crop transforms**: Use CUDA kernels for GPU-accelerated processing
+    /// - **AnyRes transforms**: Delegate to CPU (complex patch extraction logic)
+    fn execute_plan(
+        &self,
+        images: &[crate::Image],
+        plan: &ImagePlan,
+    ) -> Result<(crate::XAny, Vec<crate::ImageTransformInfo>)> {
+        plan.validate()?;
+
+        if images.is_empty() {
+            anyhow::bail!("No input images provided");
+        }
+
+        // Check for AnyRes - delegate to CPU as it's complex
+        let has_dynres = plan
+            .transforms
+            .iter()
+            .any(|t| matches!(t, crate::ImageTransform::AnyRes(_)));
+
+        if has_dynres {
+            let cpu_executor = crate::CpuTransformExecutor::new();
+            return cpu_executor.execute_plan(images, plan);
+        }
+
+        let is_resize_only = plan.transforms.len() == 1
+            && matches!(
+                plan.transforms.first(),
+                Some(crate::ImageTransform::Resize(_))
+            );
+
+        if is_resize_only {
+            let images_data: Vec<(&[u8], u32, u32)> = images
+                .iter()
+                .map(|img| {
+                    let (w, h) = img.dimensions();
+                    (img.as_raw() as &[u8], w, h)
+                })
+                .collect();
+
+            let (device_buffer, shape, trans_infos) =
+                self.preprocess_batch_device(&images_data, plan)?;
+
+            let cuda_tensor =
+                crate::XCuda::new(device_buffer, shape, self.stream(), self.device_id());
+
+            return Ok((crate::XAny::from_device(cuda_tensor), trans_infos));
+        }
+
+        // Single image path (Pad only supports single image)
+        if images.len() != 1 {
+            let cpu_executor = crate::CpuTransformExecutor::new();
+            return cpu_executor.execute_plan(images, plan);
+        }
+
+        // Single image: execute transforms sequentially on CUDA
+        self.execute_transforms_cuda(&images[0], plan)
+    }
 }
 
 impl CudaPreprocessor {
@@ -280,6 +123,16 @@ impl CudaPreprocessor {
         let kernel_post_u8_to_nhwc_f32 = module
             .load_function("postprocess_pad_u8_to_nhwc_f32")
             .map_err(driver_err)?;
+        let kernel_pad_constant = module
+            .load_function("pad_to_multiple_constant")
+            .map_err(driver_err)?;
+        let kernel_pad_reflect = module
+            .load_function("pad_to_multiple_reflect")
+            .map_err(driver_err)?;
+        let kernel_pad_replicate = module
+            .load_function("pad_to_multiple_replicate")
+            .map_err(driver_err)?;
+        let kernel_crop_center = module.load_function("crop_center").map_err(driver_err)?;
 
         Ok(Self {
             ctx,
@@ -287,18 +140,15 @@ impl CudaPreprocessor {
             kernel_conv_horiz_u8x3,
             kernel_post_u8_to_nchw_f32,
             kernel_post_u8_to_nhwc_f32,
+            kernel_pad_constant,
+            kernel_pad_reflect,
+            kernel_pad_replicate,
+            kernel_crop_center,
             conv_cache: Mutex::new(ConvCoeffCache::new(32)),
             buffer_pool: Mutex::new(DeviceBufferPool::new()),
         })
     }
 
-    /// Get the underlying CUDA context.
-    #[allow(dead_code)]
-    pub fn context(&self) -> &Arc<CudaContext> {
-        &self.ctx
-    }
-
-    /// Check if kernels are loaded.
     pub fn is_ready(&self) -> bool {
         true
     }
@@ -498,13 +348,23 @@ impl CudaPreprocessor {
         let resized_w_u32 = resized_w.max(0) as u32;
         let resized_h_u32 = resized_h.max(0) as u32;
 
+        let (scale_w, scale_h) = match ctx.resize_mode() {
+            ResizeMode::FitExact { .. } => (
+                ctx.out_width() as f32 / ctx.in_width as f32,
+                ctx.out_height() as f32 / ctx.in_height as f32,
+            ),
+            ResizeMode::FitWidth { .. } => (1.0, scale),
+            ResizeMode::FitHeight { .. } => (scale, 1.0),
+            ResizeMode::FitAdaptive { .. } | ResizeMode::Letterbox { .. } => (scale, scale),
+        };
+
         let trans_info = ImageTransformInfo::default()
             .with_width_src(ctx.in_width)
             .with_height_src(ctx.in_height)
             .with_width_dst(ctx.out_width())
             .with_height_dst(ctx.out_height())
-            .with_width_scale(scale)
-            .with_height_scale(scale)
+            .with_width_scale(scale_w)
+            .with_height_scale(scale_h)
             .with_width_pad(pad_left as f32)
             .with_height_pad(pad_top as f32);
 
@@ -712,14 +572,14 @@ impl CudaPreprocessor {
         let out_h = ctx.out_height() as f32;
 
         match ctx.resize_mode() {
-            ResizeMode::FitExact => (
+            ResizeMode::FitExact { .. } => (
                 ctx.out_width() as i32,
                 ctx.out_height() as i32,
                 0,
                 0,
                 out_w / in_w,
             ),
-            ResizeMode::Letterbox => {
+            ResizeMode::Letterbox { .. } => {
                 let scale = (out_w / in_w).min(out_h / in_h);
                 let resized_w = (in_w * scale).round() as i32;
                 let resized_h = (in_h * scale).round() as i32;
@@ -727,18 +587,18 @@ impl CudaPreprocessor {
                 let pad_top = (ctx.out_height() as i32 - resized_h) / 2;
                 (resized_w, resized_h, pad_left, pad_top, scale)
             }
-            ResizeMode::FitAdaptive => {
+            ResizeMode::FitAdaptive { .. } => {
                 let scale = (out_w / in_w).min(out_h / in_h);
                 let resized_w = (in_w * scale).round() as i32;
                 let resized_h = (in_h * scale).round() as i32;
                 (resized_w, resized_h, 0, 0, scale)
             }
-            ResizeMode::FitWidth => {
+            ResizeMode::FitWidth { .. } => {
                 let scale = out_w / in_w;
                 let resized_h = (in_h * scale).round() as i32;
                 (ctx.out_width() as i32, resized_h, 0, 0, scale)
             }
-            ResizeMode::FitHeight => {
+            ResizeMode::FitHeight { .. } => {
                 let scale = out_h / in_h;
                 let resized_w = (in_w * scale).round() as i32;
                 (resized_w, ctx.out_height() as i32, 0, 0, scale)
@@ -761,7 +621,20 @@ impl CudaPreprocessor {
             .buffer_pool
             .lock()
             .map_err(|_| anyhow::anyhow!("Device buffer pool lock poisoned"))?;
-        let output_size_per_image = (plan.height * plan.width * 3) as usize;
+
+        // Extract width and height from transforms
+        let (out_width, out_height) = plan
+            .transforms
+            .iter()
+            .find_map(|t| {
+                if let crate::ImageTransform::Resize(mode) = t {
+                    Some((mode.width(), mode.height()))
+                } else {
+                    None
+                }
+            })
+            .unwrap_or((640, 640));
+        let output_size_per_image = (out_height * out_width * 3) as usize;
 
         let output_len = output_size_per_image * images.len();
         let mut d_output = buffer_pool.take_or_alloc_output(&stream, output_len)?;
@@ -833,7 +706,20 @@ impl CudaPreprocessor {
             .buffer_pool
             .lock()
             .map_err(|_| anyhow::anyhow!("Device buffer pool lock poisoned"))?;
-        let output_size_per_image = (plan.height * plan.width * 3) as usize;
+
+        // Extract width and height from transforms
+        let (out_width, out_height) = plan
+            .transforms
+            .iter()
+            .find_map(|t| {
+                if let crate::ImageTransform::Resize(mode) = t {
+                    Some((mode.width(), mode.height()))
+                } else {
+                    None
+                }
+            })
+            .unwrap_or((640, 640));
+        let output_size_per_image = (out_height * out_width * 3) as usize;
 
         let output_len = output_size_per_image * images.len();
         let mut d_output = buffer_pool.take_or_alloc_output(&stream, output_len)?;
@@ -882,28 +768,18 @@ impl CudaPreprocessor {
         // Build shape based on layout
         let shape = if images.len() == 1 {
             match plan.layout {
-                ImageTensorLayout::NCHW => vec![1, 3, plan.height as i64, plan.width as i64],
-                ImageTensorLayout::NHWC => vec![1, plan.height as i64, plan.width as i64, 3],
-                ImageTensorLayout::CHW => vec![3, plan.height as i64, plan.width as i64],
-                ImageTensorLayout::HWC => vec![plan.height as i64, plan.width as i64, 3],
+                ImageTensorLayout::NCHW => vec![1, 3, out_height as i64, out_width as i64],
+                ImageTensorLayout::NHWC => vec![1, out_height as i64, out_width as i64, 3],
+                ImageTensorLayout::CHW => vec![3, out_height as i64, out_width as i64],
+                ImageTensorLayout::HWC => vec![out_height as i64, out_width as i64, 3],
             }
         } else {
             match plan.layout {
                 ImageTensorLayout::NCHW | ImageTensorLayout::CHW => {
-                    vec![
-                        images.len() as i64,
-                        3,
-                        plan.height as i64,
-                        plan.width as i64,
-                    ]
+                    vec![images.len() as i64, 3, out_height as i64, out_width as i64]
                 }
                 ImageTensorLayout::NHWC | ImageTensorLayout::HWC => {
-                    vec![
-                        images.len() as i64,
-                        plan.height as i64,
-                        plan.width as i64,
-                        3,
-                    ]
+                    vec![images.len() as i64, out_height as i64, out_width as i64, 3]
                 }
             }
         };
@@ -920,12 +796,576 @@ impl CudaPreprocessor {
     pub fn device_id(&self) -> usize {
         self.ctx.cu_device() as usize
     }
-}
 
-impl std::fmt::Debug for CudaPreprocessor {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("CudaPreprocessor")
-            .field("is_ready", &self.is_ready())
-            .finish()
+    /// Execute transforms sequentially on CUDA device (for single image)
+    /// This implements Pad/Crop/Resize operations using CUDA kernels
+    fn execute_transforms_cuda(
+        &self,
+        image: &crate::Image,
+        plan: &ImagePlan,
+    ) -> Result<(crate::XAny, Vec<crate::ImageTransformInfo>)> {
+        use cudarc::driver::LaunchConfig;
+
+        let stream = self.stream();
+        let mut buffer_pool = self
+            .buffer_pool
+            .lock()
+            .map_err(|_| anyhow::anyhow!("Device buffer pool lock poisoned"))?;
+        let (mut current_width, mut current_height) = image.dimensions();
+
+        // Upload initial image to device
+        let image_data = image.as_raw();
+        let channels = 3i32;
+        let current_size = (current_height * current_width * 3) as usize;
+
+        let mut d_current = unsafe { stream.alloc::<u8>(current_size).map_err(driver_err)? };
+        stream
+            .memcpy_htod(image_data, &mut d_current)
+            .map_err(driver_err)?;
+
+        let (out_width, out_height) = plan
+            .transforms
+            .iter()
+            .find_map(|t| {
+                if let crate::ImageTransform::Resize(mode) = t {
+                    Some((mode.width(), mode.height()))
+                } else {
+                    None
+                }
+            })
+            .unwrap_or((640, 640));
+
+        let mut merged_info = crate::ImageTransformInfo::default()
+            .with_width_src(current_width)
+            .with_height_src(current_height)
+            .with_width_dst(out_width)
+            .with_height_dst(out_height)
+            .with_width_scale(1.0)
+            .with_height_scale(1.0);
+
+        // Execute each transform sequentially
+        for (transform_idx, transform) in plan.transforms.iter().enumerate() {
+            match transform {
+                crate::ImageTransform::Pad(crate::PadMode::ToMultiple {
+                    window_size,
+                    fill_mode,
+                }) => {
+                    let (w_old, h_old) = (current_width as usize, current_height as usize);
+                    let h_pad_total = (h_old / window_size + 1) * window_size - h_old;
+                    let w_pad_total = (w_old / window_size + 1) * window_size - w_old;
+                    let out_width = (w_old + w_pad_total) as u32;
+                    let out_height = (h_old + h_pad_total) as u32;
+
+                    let output_size = (out_height * out_width * 3) as usize;
+                    let mut d_output =
+                        unsafe { stream.alloc::<u8>(output_size).map_err(driver_err)? };
+
+                    let cfg = LaunchConfig {
+                        grid_dim: (out_width.div_ceil(16), out_height.div_ceil(16), 1),
+                        block_dim: (16, 16, 1),
+                        shared_mem_bytes: 0,
+                    };
+
+                    let in_h = current_height as i32;
+                    let in_w = current_width as i32;
+                    let out_h = out_height as i32;
+                    let out_w = out_width as i32;
+
+                    match fill_mode {
+                        crate::PadFillMode::Constant(value) => {
+                            let mut builder = stream.launch_builder(&self.kernel_pad_constant);
+                            unsafe {
+                                builder
+                                    .arg(&d_current)
+                                    .arg(&mut d_output)
+                                    .arg(&in_h)
+                                    .arg(&in_w)
+                                    .arg(&out_h)
+                                    .arg(&out_w)
+                                    .arg(&channels)
+                                    .arg(value)
+                                    .launch(cfg)
+                            }
+                            .map_err(driver_err)?;
+                        }
+                        crate::PadFillMode::Reflect => {
+                            let mut builder = stream.launch_builder(&self.kernel_pad_reflect);
+                            unsafe {
+                                builder
+                                    .arg(&d_current)
+                                    .arg(&mut d_output)
+                                    .arg(&in_h)
+                                    .arg(&in_w)
+                                    .arg(&out_h)
+                                    .arg(&out_w)
+                                    .arg(&channels)
+                                    .launch(cfg)
+                            }
+                            .map_err(driver_err)?;
+                        }
+                        crate::PadFillMode::Replicate => {
+                            let mut builder = stream.launch_builder(&self.kernel_pad_replicate);
+                            unsafe {
+                                builder
+                                    .arg(&d_current)
+                                    .arg(&mut d_output)
+                                    .arg(&in_h)
+                                    .arg(&in_w)
+                                    .arg(&out_h)
+                                    .arg(&out_w)
+                                    .arg(&channels)
+                                    .launch(cfg)
+                            }
+                            .map_err(driver_err)?;
+                        }
+                        _ => anyhow::bail!("PadFillMode::Wrap not supported in CUDA"),
+                    }
+
+                    d_current = d_output;
+                    current_width = out_width;
+                    current_height = out_height;
+                    // current_size = output_size;
+
+                    let info = crate::ImageTransformInfo::default()
+                        .with_width_src(w_old as u32)
+                        .with_height_src(h_old as u32)
+                        .with_width_dst(out_width)
+                        .with_height_dst(out_height)
+                        .with_width_pad(w_pad_total as f32)
+                        .with_height_pad(h_pad_total as f32);
+                    merged_info = merged_info.merge(&info);
+                }
+                crate::ImageTransform::Crop(crate::CropMode::Center { width, height }) => {
+                    let crop_width = *width;
+                    let crop_height = *height;
+
+                    let (w_old, h_old) = (current_width, current_height);
+                    let pad_left = if crop_width > w_old {
+                        ((crop_width - w_old) / 2) as f32
+                    } else {
+                        0.0
+                    };
+                    let pad_top = if crop_height > h_old {
+                        ((crop_height - h_old) / 2) as f32
+                    } else {
+                        0.0
+                    };
+
+                    let output_size = (crop_height * crop_width * 3) as usize;
+                    let mut d_output =
+                        unsafe { stream.alloc::<u8>(output_size).map_err(driver_err)? };
+
+                    let cfg = LaunchConfig {
+                        grid_dim: (crop_width.div_ceil(16), crop_height.div_ceil(16), 1),
+                        block_dim: (16, 16, 1),
+                        shared_mem_bytes: 0,
+                    };
+
+                    let in_h = current_height as i32;
+                    let in_w = current_width as i32;
+                    let crop_h = crop_height as i32;
+                    let crop_w = crop_width as i32;
+
+                    let mut builder = stream.launch_builder(&self.kernel_crop_center);
+                    unsafe {
+                        builder
+                            .arg(&d_current)
+                            .arg(&mut d_output)
+                            .arg(&in_h)
+                            .arg(&in_w)
+                            .arg(&crop_h)
+                            .arg(&crop_w)
+                            .arg(&channels)
+                            .launch(cfg)
+                    }
+                    .map_err(driver_err)?;
+
+                    d_current = d_output;
+                    current_width = crop_width;
+                    current_height = crop_height;
+                    // current_size = output_size;
+
+                    let info = crate::ImageTransformInfo::default()
+                        .with_width_src(w_old)
+                        .with_height_src(h_old)
+                        .with_width_dst(crop_width)
+                        .with_height_dst(crop_height)
+                        .with_width_scale(1.0)
+                        .with_height_scale(1.0)
+                        .with_width_pad(pad_left)
+                        .with_height_pad(pad_top);
+                    merged_info = merged_info.merge(&info);
+                }
+                crate::ImageTransform::Resize(_) => {
+                    if transform_idx + 1 != plan.transforms.len() {
+                        anyhow::bail!(
+                            "CUDA sequential transform execution requires Resize to be the last transform"
+                        );
+                    }
+
+                    let ctx = CudaImageProcessContext::new(plan, current_width, current_height);
+
+                    let output_len = (ctx.out_width() * ctx.out_height() * 3) as usize;
+                    let mut d_output_f32 =
+                        stream.alloc_zeros::<f32>(output_len).map_err(driver_err)?;
+                    let mut out_view = d_output_f32
+                        .try_slice_mut(0..output_len)
+                        .ok_or_else(|| anyhow::anyhow!("Failed to create CUDA output sub-slice"))?;
+
+                    let (d_mean, d_std) = match (plan.mean.as_ref(), plan.std.as_ref()) {
+                        (Some(mean), Some(std)) => {
+                            let mut mean_buf = buffer_pool.take_or_alloc_mean(&stream)?;
+                            stream
+                                .memcpy_htod(mean, &mut mean_buf)
+                                .map_err(driver_err)?;
+                            let mut std_buf = buffer_pool.take_or_alloc_std(&stream)?;
+                            stream.memcpy_htod(std, &mut std_buf).map_err(driver_err)?;
+                            (Some(mean_buf), Some(std_buf))
+                        }
+                        _ => (None, None),
+                    };
+
+                    let resize_info = self.preprocess_device_u8_with_context(
+                        &stream,
+                        &d_current,
+                        &ctx,
+                        &mut out_view,
+                        d_mean.as_ref(),
+                        d_std.as_ref(),
+                        &mut buffer_pool,
+                    )?;
+
+                    buffer_pool.mean = d_mean;
+                    buffer_pool.std = d_std;
+
+                    stream.synchronize().map_err(driver_err)?;
+
+                    let shape = match plan.layout {
+                        ImageTensorLayout::NCHW => {
+                            vec![1, 3, ctx.out_height() as i64, ctx.out_width() as i64]
+                        }
+                        ImageTensorLayout::NHWC => {
+                            vec![1, ctx.out_height() as i64, ctx.out_width() as i64, 3]
+                        }
+                        ImageTensorLayout::CHW => {
+                            vec![3, ctx.out_height() as i64, ctx.out_width() as i64]
+                        }
+                        ImageTensorLayout::HWC => {
+                            vec![ctx.out_height() as i64, ctx.out_width() as i64, 3]
+                        }
+                    };
+
+                    merged_info = merged_info.merge(&resize_info);
+
+                    let cuda_tensor =
+                        crate::XCuda::new(d_output_f32, shape, self.stream(), self.device_id());
+                    return Ok((crate::XAny::from_device(cuda_tensor), vec![merged_info]));
+                }
+                _ => anyhow::bail!("Unsupported transform in CUDA path"),
+            }
+        }
+
+        // Convert final u8 buffer to f32 tensor with postprocessing
+        let output_size_f32 = (current_height * current_width * 3) as usize;
+        let mut d_output_f32 = unsafe { stream.alloc::<f32>(output_size_f32).map_err(driver_err)? };
+
+        let cfg = LaunchConfig {
+            grid_dim: (current_width.div_ceil(16), current_height.div_ceil(16), 1),
+            block_dim: (16, 16, 1),
+            shared_mem_bytes: 0,
+        };
+
+        let normalize_scale = if plan.normalize {
+            1.0f32 / 255.0f32
+        } else {
+            1.0f32
+        };
+        let apply_unsigned = if plan.unsigned { 1i32 } else { 0i32 };
+
+        let (d_mean, d_std) = match (plan.mean.as_ref(), plan.std.as_ref()) {
+            (Some(mean), Some(std)) => {
+                let mut mean_buf = buffer_pool.take_or_alloc_mean(&stream)?;
+                stream
+                    .memcpy_htod(mean, &mut mean_buf)
+                    .map_err(driver_err)?;
+                let mut std_buf = buffer_pool.take_or_alloc_std(&stream)?;
+                stream.memcpy_htod(std, &mut std_buf).map_err(driver_err)?;
+                (Some(mean_buf), Some(std_buf))
+            }
+            _ => (None, None),
+        };
+        let null_ptr: u64 = 0;
+        let h_i32 = current_height as i32;
+        let w_i32 = current_width as i32;
+        let padding_value = 0u8;
+
+        let kernel = if plan.layout.is_channels_first() {
+            &self.kernel_post_u8_to_nchw_f32
+        } else {
+            &self.kernel_post_u8_to_nhwc_f32
+        };
+
+        let mut builder = stream.launch_builder(kernel);
+        builder
+            .arg(&d_current)
+            .arg(&mut d_output_f32)
+            .arg(&h_i32)
+            .arg(&w_i32)
+            .arg(&h_i32)
+            .arg(&w_i32)
+            .arg(&0i32)
+            .arg(&0i32) // pad_top, pad_left
+            .arg(&padding_value)
+            .arg(&normalize_scale);
+
+        if let Some(mean) = d_mean.as_ref() {
+            builder.arg(mean);
+        } else {
+            builder.arg(&null_ptr);
+        }
+        if let Some(std) = d_std.as_ref() {
+            builder.arg(std);
+        } else {
+            builder.arg(&null_ptr);
+        }
+        builder.arg(&apply_unsigned);
+
+        unsafe { builder.launch(cfg) }.map_err(driver_err)?;
+        stream.synchronize().map_err(driver_err)?;
+
+        buffer_pool.mean = d_mean;
+        buffer_pool.std = d_std;
+
+        let shape = match plan.layout {
+            ImageTensorLayout::NCHW => vec![1, 3, current_height as i64, current_width as i64],
+            ImageTensorLayout::NHWC => vec![1, current_height as i64, current_width as i64, 3],
+            ImageTensorLayout::CHW => vec![3, current_height as i64, current_width as i64],
+            ImageTensorLayout::HWC => vec![current_height as i64, current_width as i64, 3],
+        };
+
+        let cuda_tensor = crate::XCuda::new(d_output_f32, shape, self.stream(), self.device_id());
+        Ok((crate::XAny::from_device(cuda_tensor), vec![merged_info]))
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn preprocess_device_u8_with_context(
+        &self,
+        stream: &Arc<cudarc::driver::CudaStream>,
+        d_input: &CudaSlice<u8>,
+        ctx: &CudaImageProcessContext,
+        d_output: &mut cudarc::driver::CudaViewMut<f32>,
+        d_mean: Option<&cudarc::driver::CudaSlice<f32>>,
+        d_std: Option<&cudarc::driver::CudaSlice<f32>>,
+        buffer_pool: &mut DeviceBufferPool,
+    ) -> Result<ImageTransformInfo> {
+        let (resized_w, resized_h, pad_left, pad_top, scale) =
+            Self::calculate_resize_params_ctx(ctx);
+
+        let resized_w_u32 = resized_w.max(0) as u32;
+        let resized_h_u32 = resized_h.max(0) as u32;
+
+        let (scale_w, scale_h) = match ctx.resize_mode() {
+            ResizeMode::FitExact { .. } => (
+                ctx.out_width() as f32 / ctx.in_width as f32,
+                ctx.out_height() as f32 / ctx.in_height as f32,
+            ),
+            ResizeMode::FitWidth { .. } => (1.0, scale),
+            ResizeMode::FitHeight { .. } => (scale, 1.0),
+            ResizeMode::FitAdaptive { .. } | ResizeMode::Letterbox { .. } => (scale, scale),
+        };
+
+        let trans_info = ImageTransformInfo::default()
+            .with_width_src(ctx.in_width)
+            .with_height_src(ctx.in_height)
+            .with_width_dst(ctx.out_width())
+            .with_height_dst(ctx.out_height())
+            .with_width_scale(scale_w)
+            .with_height_scale(scale_h)
+            .with_width_pad(pad_left as f32)
+            .with_height_pad(pad_top as f32);
+
+        if resized_w_u32 == 0 || resized_h_u32 == 0 {
+            anyhow::bail!("Invalid resized size: {resized_w}x{resized_h}");
+        }
+
+        let resize_filter = ctx.resize_filter();
+        let adaptive_kernel_size = true;
+        let vert = self.get_or_create_vert_coeffs(
+            stream,
+            ConvKey {
+                in_size: ctx.in_height,
+                out_size: resized_h_u32,
+                filter: resize_filter,
+                adaptive_kernel_size,
+            },
+        )?;
+        let horiz = self.get_or_create_horiz_coeffs(
+            stream,
+            ConvKey {
+                in_size: ctx.in_width,
+                out_size: resized_w_u32,
+                filter: resize_filter,
+                adaptive_kernel_size,
+            },
+        )?;
+
+        let temp_width = horiz.temp_width;
+        let offset_x_i32 = horiz.x_first;
+        let v_precision: i32 = vert.precision;
+        let h_precision: i32 = horiz.coeffs.precision;
+
+        let temp_size = (temp_width * resized_h_u32 * 3) as usize;
+        let resized_size = (resized_w_u32 * resized_h_u32 * 3) as usize;
+        let mut d_temp = buffer_pool.take_or_alloc_temp(stream, temp_size)?;
+        let mut d_resized = buffer_pool.take_or_alloc_resized(stream, resized_size)?;
+
+        let block_x = 16u32;
+        let block_y = 16u32;
+        let cfg_v = LaunchConfig {
+            grid_dim: (
+                temp_width.div_ceil(block_x),
+                resized_h_u32.div_ceil(block_y),
+                1,
+            ),
+            block_dim: (block_x, block_y, 1),
+            shared_mem_bytes: 0,
+        };
+        let in_h_i32 = ctx.in_height as i32;
+        let in_w_i32 = ctx.in_width as i32;
+        let out_h_i32 = resized_h_u32 as i32;
+        let out_w_i32 = temp_width as i32;
+
+        unsafe {
+            stream
+                .launch_builder(&self.kernel_conv_vert_u8x3)
+                .arg(d_input)
+                .arg(&mut d_temp)
+                .arg(&in_h_i32)
+                .arg(&in_w_i32)
+                .arg(&out_h_i32)
+                .arg(&out_w_i32)
+                .arg(&offset_x_i32)
+                .arg(&*vert.d_starts)
+                .arg(&*vert.d_sizes)
+                .arg(&*vert.d_offsets)
+                .arg(&*vert.d_coeffs)
+                .arg(&v_precision)
+                .launch(cfg_v)
+        }
+        .map_err(driver_err)?;
+
+        let cfg_h = LaunchConfig {
+            grid_dim: (
+                resized_w_u32.div_ceil(block_x),
+                resized_h_u32.div_ceil(block_y),
+                1,
+            ),
+            block_dim: (block_x, block_y, 1),
+            shared_mem_bytes: 0,
+        };
+        let height_i32 = resized_h_u32 as i32;
+        let in_w_h_i32 = temp_width as i32;
+        let out_w_h_i32 = resized_w_u32 as i32;
+
+        unsafe {
+            stream
+                .launch_builder(&self.kernel_conv_horiz_u8x3)
+                .arg(&d_temp)
+                .arg(&mut d_resized)
+                .arg(&height_i32)
+                .arg(&in_w_h_i32)
+                .arg(&out_w_h_i32)
+                .arg(&*horiz.coeffs.d_starts)
+                .arg(&*horiz.coeffs.d_sizes)
+                .arg(&*horiz.coeffs.d_offsets)
+                .arg(&*horiz.coeffs.d_coeffs)
+                .arg(&h_precision)
+                .launch(cfg_h)
+        }
+        .map_err(driver_err)?;
+
+        let normalize_scale = if ctx.normalize() {
+            1.0f32 / 255.0f32
+        } else {
+            1.0f32
+        };
+        let apply_unsigned: i32 = if ctx.unsigned() { 1 } else { 0 };
+        let pad_top_i32 = pad_top;
+        let pad_left_i32 = pad_left;
+        let padding_value_u8 = ctx.padding_value();
+        let out_h_full_i32 = ctx.out_height() as i32;
+        let out_w_full_i32 = ctx.out_width() as i32;
+        let resized_h_i32 = resized_h_u32 as i32;
+        let resized_w_i32 = resized_w_u32 as i32;
+        let null_ptr: u64 = 0;
+        let cfg_post = LaunchConfig {
+            grid_dim: (
+                ctx.out_width().div_ceil(block_x),
+                ctx.out_height().div_ceil(block_y),
+                1,
+            ),
+            block_dim: (block_x, block_y, 1),
+            shared_mem_bytes: 0,
+        };
+
+        match ctx.layout() {
+            ImageTensorLayout::NCHW | ImageTensorLayout::CHW => {
+                let mut builder = stream.launch_builder(&self.kernel_post_u8_to_nchw_f32);
+                builder
+                    .arg(&d_resized)
+                    .arg(d_output)
+                    .arg(&resized_h_i32)
+                    .arg(&resized_w_i32)
+                    .arg(&out_h_full_i32)
+                    .arg(&out_w_full_i32)
+                    .arg(&pad_top_i32)
+                    .arg(&pad_left_i32)
+                    .arg(&padding_value_u8)
+                    .arg(&normalize_scale);
+                if let Some(mean) = d_mean {
+                    builder.arg(mean);
+                } else {
+                    builder.arg(&null_ptr);
+                }
+                if let Some(std) = d_std {
+                    builder.arg(std);
+                } else {
+                    builder.arg(&null_ptr);
+                }
+                builder.arg(&apply_unsigned);
+                unsafe { builder.launch(cfg_post) }.map_err(driver_err)?;
+            }
+            ImageTensorLayout::NHWC | ImageTensorLayout::HWC => {
+                let mut builder = stream.launch_builder(&self.kernel_post_u8_to_nhwc_f32);
+                builder
+                    .arg(&d_resized)
+                    .arg(d_output)
+                    .arg(&resized_h_i32)
+                    .arg(&resized_w_i32)
+                    .arg(&out_h_full_i32)
+                    .arg(&out_w_full_i32)
+                    .arg(&pad_top_i32)
+                    .arg(&pad_left_i32)
+                    .arg(&padding_value_u8)
+                    .arg(&normalize_scale);
+                if let Some(mean) = d_mean {
+                    builder.arg(mean);
+                } else {
+                    builder.arg(&null_ptr);
+                }
+                if let Some(std) = d_std {
+                    builder.arg(std);
+                } else {
+                    builder.arg(&null_ptr);
+                }
+                builder.arg(&apply_unsigned);
+                unsafe { builder.launch(cfg_post) }.map_err(driver_err)?;
+            }
+        }
+
+        buffer_pool.temp = Some(d_temp);
+        buffer_pool.resized = Some(d_resized);
+
+        Ok(trans_info)
     }
 }

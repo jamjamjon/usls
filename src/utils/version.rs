@@ -1,5 +1,4 @@
 use aksr::Builder;
-use std::convert::TryFrom;
 
 /// Version representation with major, minor, and optional patch numbers.
 #[derive(Debug, Builder, PartialEq, Eq, Copy, Clone, Hash, Default, PartialOrd, Ord)]
@@ -44,6 +43,34 @@ impl From<(u8, u8, u8)> for Version {
     }
 }
 
+impl std::str::FromStr for Version {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let s = s.trim().to_lowercase();
+        let s = s.strip_prefix('v').unwrap_or(&s);
+        let parts: Vec<&str> = s.split('.').collect();
+
+        match parts.len() {
+            1 => {
+                let major = parts[0].parse::<u8>()?;
+                Ok(Self(major, 0, None))
+            }
+            2 => {
+                let major = parts[0].parse::<u8>()?;
+                let minor = parts[1].parse::<u8>()?;
+                Ok(Self(major, minor, None))
+            }
+            3 => {
+                let major = parts[0].parse::<u8>()?;
+                let minor = parts[1].parse::<u8>()?;
+                let patch = parts[2].parse::<u8>()?;
+                Ok(Self(major, minor, Some(patch)))
+            }
+            _ => anyhow::bail!("Invalid version format: {}", s),
+        }
+    }
+}
 impl TryFrom<f32> for Version {
     type Error = anyhow::Error;
 

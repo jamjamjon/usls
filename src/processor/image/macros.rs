@@ -1,4 +1,4 @@
-#[macro_export]
+#[allow(unused_macros)]
 macro_rules! impl_image_processor_config_methods {
     ($ty:ty, $field:ident) => {
         impl $ty {
@@ -14,8 +14,11 @@ macro_rules! impl_image_processor_config_methods {
                 self.$field = self.$field.with_do_resize(do_resize);
                 self
             }
-            pub fn with_resize_mode(mut self, resize_mode: $crate::ResizeMode) -> Self {
-                self.$field = self.$field.with_resize_mode(resize_mode);
+            pub fn with_resize_mode_type(
+                mut self,
+                resize_mode_type: $crate::ResizeModeType,
+            ) -> Self {
+                self.$field = self.$field.with_resize_mode_type(resize_mode_type);
                 self
             }
             pub fn with_resize_filter(mut self, filter: $crate::ResizeFilter) -> Self {
@@ -52,10 +55,6 @@ macro_rules! impl_image_processor_config_methods {
             }
             pub fn with_pad_size(mut self, pad_size: usize) -> Self {
                 self.$field = self.$field.with_pad_size(pad_size);
-                self
-            }
-            pub fn with_up_scale(mut self, up_scale: f32) -> Self {
-                self.$field = self.$field.with_up_scale(up_scale);
                 self
             }
             pub fn with_image_tensor_layout(

@@ -5,8 +5,8 @@ use rayon::prelude::*;
 use std::f32::consts::PI;
 
 use crate::{
-    elapsed_module, ort_inputs, Config, DynConf, Engine, FromConfig, Hbb, Image, ImageProcessor,
-    Keypoint, Module, X, Y,
+    elapsed_module, inputs, Config, DynConf, Engine, Engines, FromConfig, Hbb, Image,
+    ImageProcessor, Keypoint, Model, Module, Runtime, Xs, X, Y,
 };
 
 struct CentersAndScales {
@@ -14,22 +14,32 @@ struct CentersAndScales {
     pub scales: Vec<Keypoint>,
 }
 
+/// RTMPose: Real-Time Multi-Person Pose Estimation
 #[derive(Builder, Debug)]
 pub struct RTMPose {
-    engine: Engine,
-    height: usize,
-    width: usize,
-    batch: usize,
-    spec: String,
-    processor: ImageProcessor,
-    nk: usize,
-    kconfs: DynConf,
-    names: Vec<String>,
-    simcc_split_ratio: f32,
+    pub height: usize,
+    pub width: usize,
+    pub batch: usize,
+    pub spec: String,
+    pub processor: ImageProcessor,
+    pub nk: usize,
+    pub kconfs: DynConf,
+    pub names: Vec<String>,
+    pub simcc_split_ratio: f32,
 }
 
-impl RTMPose {
-    pub fn new(mut config: Config) -> Result<Self> {
+impl Model for RTMPose {
+    type Input<'a> = &'a [Image];
+
+    fn batch(&self) -> usize {
+        self.batch
+    }
+
+    fn spec(&self) -> &str {
+        &self.spec
+    }
+
+    fn build(mut config: Config) -> Result<(Self, Engines)> {
         let engine = Engine::from_config(config.take_module(&Module::Model)?)?;
         let spec = engine.spec().to_string();
         let (batch, height, width) = (
@@ -39,14 +49,13 @@ impl RTMPose {
         );
         let nk = config.inference.num_keypoints.unwrap_or(17);
         let kconfs = DynConf::new_or_default(&config.inference.keypoint_confs, nk);
-        let names = config.inference.keypoint_names.clone();
+        let names = config.inference.keypoint_names;
         let simcc_split_ratio = 2.0;
         let processor = ImageProcessor::from_config(config.image_processor)?
             .with_image_width(width as _)
             .with_image_height(height as _);
 
-        Ok(Self {
-            engine,
+        let model = Self {
             height,
             width,
             batch,
@@ -56,9 +65,21 @@ impl RTMPose {
             kconfs,
             names,
             simcc_split_ratio,
-        })
+        };
+
+        let engines = Engines::from(engine);
+        Ok((model, engines))
     }
 
+    fn run(&mut self, engines: &mut Engines, images: Self::Input<'_>) -> Result<Vec<Y>> {
+        images
+            .iter()
+            .map(|image| self.forward_internal(engines, image, None))
+            .collect()
+    }
+}
+
+impl RTMPose {
     fn preprocess_one(
         img: &Image,
         hbb: Option<&Hbb>,
@@ -121,26 +142,34 @@ impl RTMPose {
         ))
     }
 
-    fn inference(&mut self, xs: X) -> Result<(X, X)> {
-        let output = self.engine.run(ort_inputs![xs]?)?;
-        Ok((
-            X::from(output.get::<f32>(0)?),
-            X::from(output.get::<f32>(1)?),
-        ))
-    }
-
-    pub fn forward(&mut self, x: &Image, hbbs: Option<&[Hbb]>) -> Result<Y> {
-        let (ys, centers_and_scales) =
+    fn forward_internal(
+        &mut self,
+        engines: &mut Engines,
+        x: &Image,
+        hbbs: Option<&[Hbb]>,
+    ) -> Result<Y> {
+        let (xs, centers_and_scales) =
             elapsed_module!("RTMPose", "preprocess", self.preprocess(x, hbbs)?);
-        let ys = elapsed_module!("RTMPose", "inference", self.inference(ys)?);
+        let ys = elapsed_module!(
+            "RTMPose",
+            "inference",
+            engines.run(&Module::Model, inputs![xs]?)?
+        );
         let y = elapsed_module!("RTMPose", "postprocess", {
-            self.postprocess(ys, centers_and_scales)?
+            self.postprocess(&ys, centers_and_scales)?
         });
 
         Ok(y)
     }
 
-    fn postprocess(&mut self, xs: (X, X), centers_and_scales: CentersAndScales) -> Result<Y> {
+    fn postprocess(&mut self, outputs: &Xs, centers_and_scales: CentersAndScales) -> Result<Y> {
+        let x0 = outputs
+            .get::<f32>(0)
+            .ok_or_else(|| anyhow::anyhow!("Failed to get output 0"))?;
+        let x1 = outputs
+            .get::<f32>(1)
+            .ok_or_else(|| anyhow::anyhow!("Failed to get output 1"))?;
+        let xs = (X::from(x0), X::from(x1));
         // Update nk
         self.nk = xs.0.shape()[1];
 
@@ -187,6 +216,7 @@ impl RTMPose {
 
         Ok(Y::default().with_keypointss(&y_kpts))
     }
+
     fn argmax_and_max(arr: &ndarray::ArrayView1<f32>) -> (usize, f32) {
         let mut max_idx = 0;
         let mut max_val = arr[0];
@@ -364,5 +394,13 @@ impl RTMPose {
         let img = Self::warp_affine(img, &warp_mat, (w, h))?;
 
         Ok((img, scale))
+    }
+}
+
+impl Runtime<RTMPose> {
+    /// Run inference with optional bounding boxes for region-specific keypoint detection
+    pub fn run_with_bboxes(&mut self, image: &Image, hbbs: Option<&[Hbb]>) -> Result<Y> {
+        let (model, engines) = self.parts_mut();
+        model.forward_internal(engines, image, hbbs)
     }
 }

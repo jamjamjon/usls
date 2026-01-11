@@ -6,7 +6,7 @@ impl crate::Config {
         self
     }
 
-    /// Set class names from a Vec<String> (owned).
+    /// Set class names from a `Vec<String>` (owned).
     pub fn with_class_names_owned(mut self, names: Vec<String>) -> Self {
         self.inference.class_names = names;
         self
@@ -18,7 +18,7 @@ impl crate::Config {
         self
     }
 
-    /// Set text names from a Vec<String> (owned).
+    /// Set text names from a `Vec<String>` (owned).
     pub fn with_text_names_owned(mut self, names: Vec<String>) -> Self {
         self.inference.text_names = names;
         self
@@ -36,7 +36,7 @@ impl crate::Config {
         self
     }
 
-    /// Set keypoint names from a Vec<String> (owned).
+    /// Set keypoint names from a `Vec<String>` (owned).
     pub fn with_keypoint_names_owned(mut self, names: Vec<String>) -> Self {
         self.inference.keypoint_names = names;
         self
@@ -103,8 +103,14 @@ impl crate::Config {
     }
 
     /// Set max tokens.
-    pub fn with_max_tokens(mut self, max_tokens: usize) -> Self {
+    pub fn with_max_tokens(mut self, max_tokens: u64) -> Self {
         self.inference.max_tokens = Some(max_tokens);
+        self
+    }
+
+    /// Set ignore eos flag.
+    pub fn with_ignore_eos(mut self, ignore_eos: bool) -> Self {
+        self.inference.ignore_eos = ignore_eos;
         self
     }
 
@@ -128,6 +134,16 @@ impl crate::Config {
         self.inference.token_level_class = token_level_class;
         self
     }
+
+    // pub fn with_temperature(mut self, temperature: f32) -> Self {
+    //     self.inference.temperature = temperature;
+    //     self
+    // }
+
+    // pub fn with_topp(mut self, topp: f32) -> Self {
+    //     self.inference.topp = topp;
+    //     self
+    // }
 
     /// Get text confidences.
     pub fn text_confs(&self) -> &[f32] {
@@ -178,6 +194,12 @@ impl crate::Config {
     #[cfg(feature = "vision")]
     pub fn with_yolo_preds_format(mut self, format: crate::YOLOPredsFormat) -> Self {
         self.inference.yolo_preds_format = Some(format);
+        self
+    }
+
+    /// Set Super Resolution up-scaling factor.
+    pub fn with_sr_up_scale(mut self, up_scale: f32) -> Self {
+        self.inference.up_scale = up_scale;
         self
     }
 }

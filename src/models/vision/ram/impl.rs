@@ -4,25 +4,35 @@ use ndarray::Axis;
 use rayon::prelude::*;
 
 use crate::{
-    elapsed_module, ort_inputs, Config, DynConf, Engine, FromConfig, Image, ImageProcessor, Module,
-    Text, X, Y,
+    elapsed_module, inputs, Config, DynConf, Engine, Engines, FromConfig, Image, ImageProcessor,
+    Model, Module, Text, Xs, X, Y,
 };
 
+/// RAM: Recognize Anything Model
 #[derive(Debug, Builder)]
 pub struct Ram {
-    engine: Engine,
-    height: usize,
-    width: usize,
-    batch: usize,
-    confs: DynConf,
-    spec: String,
-    processor: ImageProcessor,
-    names_zh: Vec<String>,
-    names_en: Vec<String>,
+    pub height: usize,
+    pub width: usize,
+    pub batch: usize,
+    pub confs: DynConf,
+    pub spec: String,
+    pub processor: ImageProcessor,
+    pub names_zh: Vec<String>,
+    pub names_en: Vec<String>,
 }
 
-impl Ram {
-    pub fn new(mut config: Config) -> Result<Self> {
+impl Model for Ram {
+    type Input<'a> = &'a [Image];
+
+    fn batch(&self) -> usize {
+        self.batch
+    }
+
+    fn spec(&self) -> &str {
+        &self.spec
+    }
+
+    fn build(mut config: Config) -> Result<(Self, Engines)> {
         let engine = Engine::from_config(config.take_module(&Module::Model)?)?;
         let (batch, height, width, spec) = (
             engine.batch().opt(),
@@ -33,13 +43,12 @@ impl Ram {
         let processor = ImageProcessor::from_config(config.image_processor)?
             .with_image_width(width as _)
             .with_image_height(height as _);
-        let names_zh = config.inference.class_names.clone();
-        let names_en = config.inference.class_names2.clone();
+        let names_zh = config.inference.class_names;
+        let names_en = config.inference.class_names2;
         let nc = names_zh.len();
         let confs = DynConf::new_or_default(&config.inference.class_confs, nc);
 
-        Ok(Self {
-            engine,
+        let model = Self {
             confs,
             height,
             width,
@@ -48,27 +57,28 @@ impl Ram {
             spec,
             names_zh,
             names_en,
-        })
+        };
+
+        Ok((model, engine.into()))
     }
 
-    fn preprocess(&mut self, xs: &[Image]) -> Result<X> {
-        self.processor.process(xs)?.as_host()
+    fn run(&mut self, engines: &mut Engines, images: Self::Input<'_>) -> Result<Vec<Y>> {
+        let x = elapsed_module!("RAM", "preprocess", self.processor.process(images)?);
+        let ys = elapsed_module!(
+            "RAM",
+            "inference",
+            engines.run(&Module::Model, inputs![x]?)?
+        );
+        elapsed_module!("RAM", "postprocess", self.postprocess(&ys))
     }
+}
 
-    fn inference(&mut self, xs: X) -> Result<X> {
-        let output = self.engine.run(ort_inputs![xs]?)?;
-        Ok(X::from(output.get::<f32>(0)?))
-    }
-
-    pub fn forward(&mut self, xs: &[Image]) -> Result<Vec<Y>> {
-        let ys = elapsed_module!("RAM", "preprocess", self.preprocess(xs)?);
-        let ys = elapsed_module!("RAM", "inference", self.inference(ys)?);
-        let ys = elapsed_module!("RAM", "postprocess", self.postprocess(&ys)?);
-
-        Ok(ys)
-    }
-
-    pub fn postprocess(&mut self, xs: &X) -> Result<Vec<Y>> {
+impl Ram {
+    fn postprocess(&self, outputs: &Xs) -> Result<Vec<Y>> {
+        let xs = outputs
+            .get::<f32>(0)
+            .ok_or_else(|| anyhow::anyhow!("Failed to get output"))?;
+        let xs = X::from(xs);
         let ys: Vec<Y> = xs
             .axis_iter(Axis(0))
             .into_par_iter()

@@ -17,13 +17,16 @@ impl crate::Config {
         self
     }
 
-    /// Set resize mode.
-    pub fn with_resize_mode(mut self, mode: crate::ResizeMode) -> Self {
-        self.image_processor.resize_mode = mode;
+    /// Set resize mode type without providing full parameters.
+    ///
+    /// This is a convenience method that allows setting the resize mode variant
+    /// while using the current width, height, and alg from the config.
+    pub fn with_resize_mode_type(mut self, mode_type: crate::ResizeModeType) -> Self {
+        self.image_processor = self.image_processor.with_resize_mode_type(mode_type);
         self
     }
 
-    /// Set resize filter.
+    ///  Set resize filter.
     pub fn with_resize_filter(mut self, filter: crate::ResizeFilter) -> Self {
         self.image_processor = self.image_processor.with_resize_filter(filter);
         self
@@ -41,17 +44,19 @@ impl crate::Config {
         self
     }
 
-    /// Set image width.
-    pub fn with_image_width(mut self, width: u32) -> Self {
-        self.image_processor.image_width = width;
-        self
-    }
+    // TODO: useless, will be removed
+    // /// Set image width.
+    // pub fn with_image_width(mut self, width: u32) -> Self {
+    //     self.image_processor.image_width = width;
+    //     self
+    // }
 
-    /// Set image height.
-    pub fn with_image_height(mut self, height: u32) -> Self {
-        self.image_processor.image_height = height;
-        self
-    }
+    // TODO: useless, will be removed
+    // /// Set image height.
+    // pub fn with_image_height(mut self, height: u32) -> Self {
+    //     self.image_processor.image_height = height;
+    //     self
+    // }
 
     /// Set whether to do resize.
     pub fn with_do_resize(mut self, do_resize: bool) -> Self {
@@ -64,14 +69,6 @@ impl crate::Config {
         self.image_processor.unsigned = unsigned;
         self
     }
-
-    /// Set up scale.
-    pub fn with_up_scale(mut self, up_scale: f32) -> Self {
-        self.image_processor.up_scale = up_scale;
-        self
-    }
-
-    // ===== Super-resolution convenience methods =====
 
     /// Set pad image flag for super-resolution.
     pub fn with_pad_image(mut self, pad: bool) -> Self {

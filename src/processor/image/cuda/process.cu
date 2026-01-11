@@ -834,6 +834,425 @@ extern "C" __global__ void preprocess_fit_adaptive_nchw(
 }
 
 // =============================================================================
+// Transform kernels for ImageTransform system
+// =============================================================================
+
+/// Pad image to multiple of window_size with constant fill
+/// Input: [H, W, C] as u8
+/// Output: [H_padded, W_padded, C] as u8
+extern "C" __global__ void pad_to_multiple_constant(
+    const unsigned char* __restrict__ input,
+    unsigned char* __restrict__ output,
+    int in_height,
+    int in_width,
+    int out_height,
+    int out_width,
+    int channels,
+    unsigned char fill_value
+) {
+    int x = blockIdx.x * blockDim.x + threadIdx.x;
+    int y = blockIdx.y * blockDim.y + threadIdx.y;
+    
+    if (x >= out_width || y >= out_height) return;
+    
+    int out_idx = (y * out_width + x) * channels;
+    
+    if (x < in_width && y < in_height) {
+        int in_idx = (y * in_width + x) * channels;
+        for (int c = 0; c < channels; ++c) {
+            output[out_idx + c] = input[in_idx + c];
+        }
+    } else {
+        for (int c = 0; c < channels; ++c) {
+            output[out_idx + c] = fill_value;
+        }
+    }
+}
+
+/// Pad image to multiple of window_size with reflect fill
+/// Input: [H, W, C] as u8
+/// Output: [H_padded, W_padded, C] as u8
+extern "C" __global__ void pad_to_multiple_reflect(
+    const unsigned char* __restrict__ input,
+    unsigned char* __restrict__ output,
+    int in_height,
+    int in_width,
+    int out_height,
+    int out_width,
+    int channels
+) {
+    int x = blockIdx.x * blockDim.x + threadIdx.x;
+    int y = blockIdx.y * blockDim.y + threadIdx.y;
+    
+    if (x >= out_width || y >= out_height) return;
+    
+    // Reflect padding (matches current CPU semantics: reflect including edge)
+    int src_x = x;
+    int src_y = y;
+    
+    if (src_x >= in_width) {
+        int dx = src_x - in_width;
+        src_x = in_width - 1 - (dx % in_width);
+    }
+    if (src_y >= in_height) {
+        int dy = src_y - in_height;
+        src_y = in_height - 1 - (dy % in_height);
+    }
+    
+    int in_idx = (src_y * in_width + src_x) * channels;
+    int out_idx = (y * out_width + x) * channels;
+    
+    for (int c = 0; c < channels; ++c) {
+        output[out_idx + c] = input[in_idx + c];
+    }
+}
+
+/// Pad image to multiple of window_size with replicate (edge) fill
+extern "C" __global__ void pad_to_multiple_replicate(
+    const unsigned char* __restrict__ input,
+    unsigned char* __restrict__ output,
+    int in_height,
+    int in_width,
+    int out_height,
+    int out_width,
+    int channels
+) {
+    int x = blockIdx.x * blockDim.x + threadIdx.x;
+    int y = blockIdx.y * blockDim.y + threadIdx.y;
+    
+    if (x >= out_width || y >= out_height) return;
+    
+    int src_x = min(x, in_width - 1);
+    int src_y = min(y, in_height - 1);
+    
+    int in_idx = (src_y * in_width + src_x) * channels;
+    int out_idx = (y * out_width + x) * channels;
+    
+    for (int c = 0; c < channels; ++c) {
+        output[out_idx + c] = input[in_idx + c];
+    }
+}
+
+/// Pad image with fixed padding (top, bottom, left, right)
+extern "C" __global__ void pad_fixed(
+    const unsigned char* __restrict__ input,
+    unsigned char* __restrict__ output,
+    int in_height,
+    int in_width,
+    int out_height,
+    int out_width,
+    int channels,
+    int pad_top,
+    int pad_left,
+    unsigned char fill_value
+) {
+    int x = blockIdx.x * blockDim.x + threadIdx.x;
+    int y = blockIdx.y * blockDim.y + threadIdx.y;
+    
+    if (x >= out_width || y >= out_height) return;
+    
+    int out_idx = (y * out_width + x) * channels;
+    int src_x = x - pad_left;
+    int src_y = y - pad_top;
+    
+    if (src_x >= 0 && src_x < in_width && src_y >= 0 && src_y < in_height) {
+        int in_idx = (src_y * in_width + src_x) * channels;
+        for (int c = 0; c < channels; ++c) {
+            output[out_idx + c] = input[in_idx + c];
+        }
+    } else {
+        for (int c = 0; c < channels; ++c) {
+            output[out_idx + c] = fill_value;
+        }
+    }
+}
+
+/// Center crop image
+/// Input: [H, W, C] as u8
+/// Output: [crop_H, crop_W, C] as u8
+extern "C" __global__ void crop_center(
+    const unsigned char* __restrict__ input,
+    unsigned char* __restrict__ output,
+    int in_height,
+    int in_width,
+    int crop_height,
+    int crop_width,
+    int channels
+) {
+    int x = blockIdx.x * blockDim.x + threadIdx.x;
+    int y = blockIdx.y * blockDim.y + threadIdx.y;
+    
+    if (x >= crop_width || y >= crop_height) return;
+    
+    // Match torchvision.transforms.functional.center_crop semantics.
+    // - If crop is larger than input, treat missing pixels as 0 (implicit padding).
+    // - If crop is smaller, crop offset uses round((in - crop) / 2.0) == (diff + 1) / 2 for integer diff.
+    int offset_x;
+    int offset_y;
+
+    if (crop_width > in_width) {
+        offset_x = -((crop_width - in_width) / 2);
+    } else {
+        offset_x = (in_width - crop_width + 1) / 2;
+    }
+
+    if (crop_height > in_height) {
+        offset_y = -((crop_height - in_height) / 2);
+    } else {
+        offset_y = (in_height - crop_height + 1) / 2;
+    }
+
+    int src_x = x + offset_x;
+    int src_y = y + offset_y;
+
+    int out_idx = (y * crop_width + x) * channels;
+
+    if (src_x < 0 || src_x >= in_width || src_y < 0 || src_y >= in_height) {
+        for (int c = 0; c < channels; ++c) {
+            output[out_idx + c] = 0;
+        }
+        return;
+    }
+
+    int in_idx = (src_y * in_width + src_x) * channels;
+    for (int c = 0; c < channels; ++c) {
+        output[out_idx + c] = input[in_idx + c];
+    }
+}
+
+/// Extract a single patch from image (for AnyRes)
+/// Input: [H, W, C] as u8
+/// Output: [patch_H, patch_W, C] as u8
+extern "C" __global__ void extract_patch(
+    const unsigned char* __restrict__ input,
+    unsigned char* __restrict__ output,
+    int in_height,
+    int in_width,
+    int patch_height,
+    int patch_width,
+    int start_y,
+    int start_x,
+    int channels
+) {
+    int x = blockIdx.x * blockDim.x + threadIdx.x;
+    int y = blockIdx.y * blockDim.y + threadIdx.y;
+    
+    if (x >= patch_width || y >= patch_height) return;
+    
+    int src_x = start_x + x;
+    int src_y = start_y + y;
+    
+    // Clamp to image bounds
+    src_x = min(max(src_x, 0), in_width - 1);
+    src_y = min(max(src_y, 0), in_height - 1);
+    
+    int in_idx = (src_y * in_width + src_x) * channels;
+    int out_idx = (y * patch_width + x) * channels;
+    
+    for (int c = 0; c < channels; ++c) {
+        output[out_idx + c] = input[in_idx + c];
+    }
+}
+
+/// Extract multiple patches and stack into batch (for AnyRes SmolVLM/Moondream2)
+/// Input: [H, W, C] as u8
+/// Output: [N, patch_H, patch_W, C] as u8 where N = num_rows * num_cols (+ 1 for global if included)
+extern "C" __global__ void extract_patches_grid(
+    const unsigned char* __restrict__ input,
+    unsigned char* __restrict__ output,
+    int in_height,
+    int in_width,
+    int patch_height,
+    int patch_width,
+    int num_rows,
+    int num_cols,
+    int channels,
+    int include_global  // 1 = include resized global image as last patch
+) {
+    int x = blockIdx.x * blockDim.x + threadIdx.x;
+    int y = blockIdx.y * blockDim.y + threadIdx.y;
+    int patch_idx = blockIdx.z;
+    
+    int total_patches = num_rows * num_cols + (include_global ? 1 : 0);
+    if (x >= patch_width || y >= patch_height || patch_idx >= total_patches) return;
+    
+    int out_idx = (patch_idx * patch_height * patch_width + y * patch_width + x) * channels;
+    
+    if (include_global && patch_idx == total_patches - 1) {
+        // Global patch: bilinear resize from full image
+        float scale_x = static_cast<float>(in_width) / static_cast<float>(patch_width);
+        float scale_y = static_cast<float>(in_height) / static_cast<float>(patch_height);
+        
+        float src_x = (x + 0.5f) * scale_x - 0.5f;
+        float src_y = (y + 0.5f) * scale_y - 0.5f;
+        
+        int x0 = static_cast<int>(floorf(src_x));
+        int y0 = static_cast<int>(floorf(src_y));
+        int x1 = x0 + 1;
+        int y1 = y0 + 1;
+        
+        x0 = max(0, min(x0, in_width - 1));
+        x1 = max(0, min(x1, in_width - 1));
+        y0 = max(0, min(y0, in_height - 1));
+        y1 = max(0, min(y1, in_height - 1));
+        
+        float dx = src_x - floorf(src_x);
+        float dy = src_y - floorf(src_y);
+        
+        for (int c = 0; c < channels; ++c) {
+            float v00 = static_cast<float>(input[(y0 * in_width + x0) * channels + c]);
+            float v01 = static_cast<float>(input[(y0 * in_width + x1) * channels + c]);
+            float v10 = static_cast<float>(input[(y1 * in_width + x0) * channels + c]);
+            float v11 = static_cast<float>(input[(y1 * in_width + x1) * channels + c]);
+            
+            float val = (1.0f - dx) * (1.0f - dy) * v00 +
+                        dx * (1.0f - dy) * v01 +
+                        (1.0f - dx) * dy * v10 +
+                        dx * dy * v11;
+            
+            output[out_idx + c] = static_cast<unsigned char>(clamp(val + 0.5f, 0.0f, 255.0f));
+        }
+    } else {
+        // Regular patch: extract from grid
+        int row = patch_idx / num_cols;
+        int col = patch_idx % num_cols;
+        
+        int cell_height = in_height / num_rows;
+        int cell_width = in_width / num_cols;
+        
+        int start_y = row * cell_height;
+        int start_x = col * cell_width;
+        
+        // Bilinear resize from cell to patch size
+        float scale_x = static_cast<float>(cell_width) / static_cast<float>(patch_width);
+        float scale_y = static_cast<float>(cell_height) / static_cast<float>(patch_height);
+        
+        float src_x = (x + 0.5f) * scale_x - 0.5f + start_x;
+        float src_y = (y + 0.5f) * scale_y - 0.5f + start_y;
+        
+        int x0 = static_cast<int>(floorf(src_x));
+        int y0 = static_cast<int>(floorf(src_y));
+        int x1 = x0 + 1;
+        int y1 = y0 + 1;
+        
+        x0 = max(0, min(x0, in_width - 1));
+        x1 = max(0, min(x1, in_width - 1));
+        y0 = max(0, min(y0, in_height - 1));
+        y1 = max(0, min(y1, in_height - 1));
+        
+        float dx = src_x - floorf(src_x);
+        float dy = src_y - floorf(src_y);
+        
+        for (int c = 0; c < channels; ++c) {
+            float v00 = static_cast<float>(input[(y0 * in_width + x0) * channels + c]);
+            float v01 = static_cast<float>(input[(y0 * in_width + x1) * channels + c]);
+            float v10 = static_cast<float>(input[(y1 * in_width + x0) * channels + c]);
+            float v11 = static_cast<float>(input[(y1 * in_width + x1) * channels + c]);
+            
+            float val = (1.0f - dx) * (1.0f - dy) * v00 +
+                        dx * (1.0f - dy) * v01 +
+                        (1.0f - dx) * dy * v10 +
+                        dx * dy * v11;
+            
+            output[out_idx + c] = static_cast<unsigned char>(clamp(val + 0.5f, 0.0f, 255.0f));
+        }
+    }
+}
+
+/// Batch extract patches with resize and final postprocess (NCHW output)
+/// For AnyRes: extracts patches, resizes each to target size, applies normalize/standardize
+/// Input: [H, W, C] as u8
+/// Output: [N, C, target_H, target_W] as f32
+extern "C" __global__ void dynres_patches_to_nchw(
+    const unsigned char* __restrict__ input,
+    float* __restrict__ output,
+    int in_height,
+    int in_width,
+    int target_height,
+    int target_width,
+    int num_rows,
+    int num_cols,
+    int include_global,
+    float scale,
+    const float* __restrict__ mean,
+    const float* __restrict__ std,
+    int apply_unsigned
+) {
+    int x = blockIdx.x * blockDim.x + threadIdx.x;
+    int y = blockIdx.y * blockDim.y + threadIdx.y;
+    int patch_idx = blockIdx.z;
+    
+    int total_patches = num_rows * num_cols + (include_global ? 1 : 0);
+    if (x >= target_width || y >= target_height || patch_idx >= total_patches) return;
+    
+    const int channels = 3;
+    int hw = target_height * target_width;
+    int patch_size = hw * channels;
+    int out_base = patch_idx * patch_size + y * target_width + x;
+    
+    float src_x, src_y;
+    
+    if (include_global && patch_idx == total_patches - 1) {
+        // Global patch
+        float scale_x = static_cast<float>(in_width) / static_cast<float>(target_width);
+        float scale_y = static_cast<float>(in_height) / static_cast<float>(target_height);
+        src_x = (x + 0.5f) * scale_x - 0.5f;
+        src_y = (y + 0.5f) * scale_y - 0.5f;
+    } else {
+        // Grid patch
+        int row = patch_idx / num_cols;
+        int col = patch_idx % num_cols;
+        int cell_height = in_height / num_rows;
+        int cell_width = in_width / num_cols;
+        int start_y = row * cell_height;
+        int start_x = col * cell_width;
+        
+        float scale_x = static_cast<float>(cell_width) / static_cast<float>(target_width);
+        float scale_y = static_cast<float>(cell_height) / static_cast<float>(target_height);
+        src_x = (x + 0.5f) * scale_x - 0.5f + start_x;
+        src_y = (y + 0.5f) * scale_y - 0.5f + start_y;
+    }
+    
+    int x0 = static_cast<int>(floorf(src_x));
+    int y0 = static_cast<int>(floorf(src_y));
+    int x1 = x0 + 1;
+    int y1 = y0 + 1;
+    
+    x0 = max(0, min(x0, in_width - 1));
+    x1 = max(0, min(x1, in_width - 1));
+    y0 = max(0, min(y0, in_height - 1));
+    y1 = max(0, min(y1, in_height - 1));
+    
+    float dx = src_x - floorf(src_x);
+    float dy = src_y - floorf(src_y);
+    
+    #pragma unroll
+    for (int c = 0; c < channels; ++c) {
+        float v00 = static_cast<float>(input[(y0 * in_width + x0) * channels + c]);
+        float v01 = static_cast<float>(input[(y0 * in_width + x1) * channels + c]);
+        float v10 = static_cast<float>(input[(y1 * in_width + x0) * channels + c]);
+        float v11 = static_cast<float>(input[(y1 * in_width + x1) * channels + c]);
+        
+        float val = (1.0f - dx) * (1.0f - dy) * v00 +
+                    dx * (1.0f - dy) * v01 +
+                    (1.0f - dx) * dy * v10 +
+                    dx * dy * v11;
+        
+        val = clamp(val + 0.5f, 0.0f, 255.0f);
+        val *= scale;
+        
+        if (mean != nullptr && std != nullptr) {
+            val = (val - mean[c]) / std[c];
+        }
+        if (apply_unsigned) {
+            val = fmaxf(val, 0.0f);
+        }
+        
+        output[patch_idx * patch_size + c * hw + y * target_width + x] = val;
+    }
+}
+
+// =============================================================================
 // Batch processing kernels (optional, for when all images have same source size)
 // =============================================================================
 

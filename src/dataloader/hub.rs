@@ -1,5 +1,4 @@
 use anyhow::{Context, Result};
-use indicatif::ProgressStyle;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::io::{Read, Write};
@@ -71,6 +70,7 @@ pub struct Hub {
     repo: String,
 
     /// Directory to store the downloaded file
+    #[allow(dead_code)]
     to: Dir,
 
     /// Time to live (cache duration)
@@ -151,13 +151,6 @@ impl Hub {
         anyhow::bail!("HF hub support is not enabled. Please enable the 'hf-hub' feature.")
     }
 
-    #[cfg(not(feature = "github"))]
-    pub fn try_fetch(&mut self, s: &str) -> Result<String> {
-        unimplemented!(
-            "Failed to download from GitHub releases: enable the 'github' feature (e.g. `--features github`)."
-        )
-    }
-
     /// Attempts to fetch a file from a local path, GitHub release, or Hugging Face repository.
     ///
     /// The `try_fetch` method supports multiple scenarios:
@@ -206,7 +199,6 @@ impl Hub {
     /// let temp_hf_path = Hub::default().try_fetch("BAAI/bge-m3/sentencepiece.bpe.model")
     ///     .expect("Failed to fetch HF file");
     /// ```
-    #[cfg(feature = "github")]
     pub fn try_fetch(&mut self, s: &str) -> Result<String> {
         let span = tracing::info_span!("hub_fetch", source = s);
         let _enter = span.enter();
@@ -240,7 +232,7 @@ impl Hub {
                 pack = pack.with_url(s).with_tag(&tag_).with_file_name(&file_name_);
                 if let Some(n) = retry!(self.max_attempts, self.fetch_get_response(s))?
                     .headers()
-                    .get(http::header::CONTENT_LENGTH)
+                    .get(ureq::http::header::CONTENT_LENGTH)
                     .and_then(|v| v.to_str().ok()?.parse::<u64>().ok())
                 {
                     pack = pack.with_file_size(n);
@@ -416,15 +408,7 @@ impl Hub {
             .with_context(|| format!("Failed to convert PathBuf: {:?} to String", saveout))
     }
 
-    #[cfg(not(feature = "github"))]
-    fn fetch_and_cache_releases(&self, url: &str, cache_path: &Path) -> Result<String> {
-        unimplemented!(
-            "Failed to fetch GitHub releases: enable the 'github' feature (e.g. `--features github`)."
-        )
-    }
-
     /// Fetch releases from GitHub and cache them
-    #[cfg(feature = "github")]
     fn fetch_and_cache_releases(&self, url: &str, cache_path: &Path) -> Result<String> {
         let response = retry!(self.max_attempts, self.fetch_get_response(url))?;
         let body = response
@@ -498,20 +482,7 @@ impl Hub {
         Ok(y)
     }
 
-    #[cfg(not(feature = "github"))]
-    pub fn download<P: AsRef<Path> + std::fmt::Debug>(
-        &self,
-        src: &str,
-        dst: P,
-        message: Option<&str>,
-    ) -> Result<()> {
-        unimplemented!(
-            "Failed to download from GitHub releases: enable the 'github' feature (e.g. `--features github`)."
-        )
-    }
-
     /// Download a file from a github release to a specified path with a progress bar
-    #[cfg(feature = "github")]
     pub fn download<P: AsRef<Path> + std::fmt::Debug>(
         &self,
         src: &str,
@@ -532,16 +503,14 @@ impl Hub {
         let resp = self.fetch_get_response(src)?;
         let ntotal = resp
             .headers()
-            .get(http::header::CONTENT_LENGTH)
+            .get(ureq::http::header::CONTENT_LENGTH)
             .and_then(|v| v.to_str().ok()?.parse::<u64>().ok())
             .context("Content-Length header is missing or invalid")?;
 
-        let pb = crate::build_progress_bar(
-            ntotal,
-            "Fetching",
-            Some(message.unwrap_or_default()),
-            "{prefix:.cyan.bold} {msg} |{bar}| ({percent_precise}%, {binary_bytes}/{binary_total_bytes}, {binary_bytes_per_sec})",
-        )?;
+        let mut pb = crate::PB::fetch(ntotal);
+        if let Some(msg) = message {
+            pb = pb.with_message(msg);
+        }
 
         // Create temporary file in system temp directory (more secure and reliable)
         let mut temp_file = NamedTempFile::new()
@@ -583,18 +552,13 @@ impl Hub {
         })?;
 
         // Update the progress bar
-        pb.set_prefix("Downloaded");
-        pb.set_style(ProgressStyle::with_template(
-            crate::PROGRESS_BAR_STYLE_FINISH_3,
-        )?);
-        pb.finish();
+        pb.finish(None);
 
         tracing::debug!("Successfully downloaded and verified file: {:?}", dst_path);
         Ok(())
     }
 
-    #[cfg(feature = "github")]
-    fn fetch_get_response(&self, url: &str) -> anyhow::Result<http::Response<ureq::Body>> {
+    fn fetch_get_response(&self, url: &str) -> anyhow::Result<ureq::http::Response<ureq::Body>> {
         let config = ureq::Agent::config_builder()
             .proxy(ureq::Proxy::try_from_env())
             .build();
@@ -617,6 +581,7 @@ impl Hub {
         Ok(response)
     }
 
+    #[allow(dead_code)]
     fn cache_file(owner: &str, repo: &str) -> String {
         let safe_owner = owner.replace(|c: char| !c.is_ascii_alphanumeric(), "_");
         let safe_repo = repo.replace(|c: char| !c.is_ascii_alphanumeric(), "_");

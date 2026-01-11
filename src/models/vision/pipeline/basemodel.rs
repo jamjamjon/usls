@@ -2,14 +2,19 @@ use anyhow::Result;
 use ort::tensor::TensorElementType;
 
 use crate::{
-    elapsed_module, ort_inputs, Config, Device, Engine, FromConfig, Image, ImageProcessor, Module,
-    Scale, Task, Version, X,
+    elapsed_module, inputs, Config, Device, Engine, Engines, FromConfig, Image, ImageProcessor,
+    Model, Module, Scale, Task, Version, X,
 };
 
-#[derive(Debug)]
-#[allow(dead_code)]
-pub struct BaseModelVisual {
-    engine: Engine,
+pub type BaseModelVisual = BaseImageModel;
+
+/// BaseImageModel - A simple image model wrapper implementing the Model trait.
+///
+/// This model provides a basic image processing pipeline with a single engine.
+/// It's designed for simple image inference tasks like feature extraction
+/// or encoding that don't require complex multi-engine architectures.
+#[derive(aksr::Builder, Debug)]
+pub struct BaseImageModel {
     height: usize,
     width: usize,
     batch: usize,
@@ -23,8 +28,36 @@ pub struct BaseModelVisual {
     version: Option<Version>,
 }
 
-impl BaseModelVisual {
-    pub fn new(mut config: Config) -> Result<Self> {
+impl BaseImageModel {
+    /// Complete encoding pipeline: preprocess + inference
+    pub fn encode(&mut self, engines: &mut Engines, xs: &[Image]) -> Result<X> {
+        let xs = elapsed_module!("BaseImageModel", "preprocess", self.processor.process(xs)?);
+        let y = elapsed_module!(
+            "BaseImageModel",
+            "inference",
+            engines
+                .run(&Module::Model, inputs![xs]?)?
+                .get::<f32>(0)
+                .ok_or_else(|| anyhow::anyhow!("Failed to get output"))?
+                .to_owned()
+        );
+
+        Ok(y)
+    }
+}
+
+impl Model for BaseImageModel {
+    type Input<'a> = &'a [Image];
+
+    fn batch(&self) -> usize {
+        self.batch
+    }
+
+    fn spec(&self) -> &str {
+        &self.spec
+    }
+
+    fn build(mut config: Config) -> Result<(Self, Engines)> {
         let engine = Engine::from_config(config.take_module(&Module::Model)?)?;
         let err_msg = "You need to specify the image height and image width for visual model.";
         let (batch, height, width, spec) = (
@@ -35,9 +68,10 @@ impl BaseModelVisual {
         );
         let device = *engine.device();
         let dtype = engine
-            .onnx
-            .as_ref()
-            .map(|x| x.inputs.dtypes[0])
+            .inputs
+            .dtypes
+            .first()
+            .copied()
             .unwrap_or(TensorElementType::Float32);
         let processor = ImageProcessor::from_config(config.image_processor)?
             .with_image_width(width as _)
@@ -47,8 +81,7 @@ impl BaseModelVisual {
         let name = config.name;
         let version = config.version;
 
-        Ok(Self {
-            engine,
+        let model = Self {
             height,
             width,
             batch,
@@ -60,36 +93,8 @@ impl BaseModelVisual {
             task,
             scale,
             version,
-        })
-    }
+        };
 
-    pub fn engine(&self) -> &Engine {
-        &self.engine
-    }
-
-    pub fn processor(&self) -> &ImageProcessor {
-        &self.processor
-    }
-
-    pub fn preprocess(&mut self, xs: &[Image]) -> Result<X> {
-        let processed = self.processor.process(xs)?;
-        self.batch = xs.len(); // update
-        processed.as_host()
-    }
-
-    pub fn engine_mut(&mut self) -> &mut Engine {
-        &mut self.engine
-    }
-
-    pub fn inference(&mut self, xs: X) -> Result<X> {
-        let output = self.engine.run(ort_inputs![xs]?)?;
-        Ok(X::from(output.get::<f32>(0)?))
-    }
-
-    pub fn encode(&mut self, xs: &[Image]) -> Result<X> {
-        let xs = elapsed_module!("BaseModelVisual", "visual-preprocess", self.preprocess(xs)?);
-        let xs = elapsed_module!("BaseModelVisual", "visual-inference", self.inference(xs)?);
-
-        Ok(xs)
+        Ok((model, engine.into()))
     }
 }

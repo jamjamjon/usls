@@ -1,4 +1,4 @@
-#[macro_export]
+#[allow(unused_macros)]
 macro_rules! impl_text_processor_config_methods {
     ($ty:ty, $field:ident) => {
         impl $ty {
@@ -36,14 +36,14 @@ macro_rules! impl_text_processor_config_methods {
                 self.$field = self.$field.with_vocab_file(vocab_file);
                 self
             }
-            pub fn with_temperature(mut self, temperature: f32) -> Self {
-                self.$field = self.$field.with_temperature(temperature);
-                self
-            }
-            pub fn with_topp(mut self, topp: f32) -> Self {
-                self.$field = self.$field.with_topp(topp);
-                self
-            }
+            // pub fn with_temperature(mut self, temperature: f32) -> Self {
+            //     self.$field = self.$field.with_temperature(temperature);
+            //     self
+            // }
+            // pub fn with_topp(mut self, topp: f32) -> Self {
+            //     self.$field = self.$field.with_topp(topp);
+            //     self
+            // }
         }
     };
 }

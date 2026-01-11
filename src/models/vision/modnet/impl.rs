@@ -1,24 +1,35 @@
 use aksr::Builder;
 use anyhow::Result;
 use ndarray::Axis;
+use rayon::prelude::*;
 
 use crate::{
-    elapsed_module, ort_inputs, Config, Engine, FromConfig, Image, ImageProcessor, Mask, Module,
-    Ops, X, Y,
+    elapsed_module, inputs, Config, Engine, Engines, FromConfig, Image, ImageProcessor, Mask,
+    Model, Module, Ops, Xs, Y,
 };
 
+/// MODNet: Trimap-Free Portrait Matting in Real Time
 #[derive(Builder, Debug)]
 pub struct MODNet {
-    engine: Engine,
-    height: usize,
-    width: usize,
-    batch: usize,
-    spec: String,
-    processor: ImageProcessor,
+    pub height: usize,
+    pub width: usize,
+    pub batch: usize,
+    pub spec: String,
+    pub processor: ImageProcessor,
 }
 
-impl MODNet {
-    pub fn new(mut config: Config) -> Result<Self> {
+impl Model for MODNet {
+    type Input<'a> = &'a [Image];
+
+    fn batch(&self) -> usize {
+        self.batch
+    }
+
+    fn spec(&self) -> &str {
+        &self.spec
+    }
+
+    fn build(mut config: Config) -> Result<(Self, Engines)> {
         let engine = Engine::from_config(config.take_module(&Module::Model)?)?;
         let spec = engine.spec().to_string();
         let (batch, height, width) = (
@@ -30,58 +41,80 @@ impl MODNet {
             .with_image_width(width as _)
             .with_image_height(height as _);
 
-        Ok(Self {
-            engine,
+        let model = Self {
             height,
             width,
             batch,
             spec,
             processor,
-        })
+        };
+
+        let engines = Engines::from(engine);
+        Ok((model, engines))
     }
 
-    fn preprocess(&mut self, xs: &[Image]) -> Result<X> {
-        self.processor.process(xs)?.as_host()
+    fn run(&mut self, engines: &mut Engines, images: Self::Input<'_>) -> Result<Vec<Y>> {
+        let x = elapsed_module!("MODNet", "preprocess", self.processor.process(images)?);
+        let ys = elapsed_module!(
+            "MODNet",
+            "inference",
+            engines.run(&Module::Model, inputs![x]?)?
+        );
+        elapsed_module!("MODNet", "postprocess", self.postprocess(&ys))
     }
+}
 
-    fn inference(&mut self, xs: X) -> Result<X> {
-        let output = self.engine.run(ort_inputs![xs]?)?;
-        Ok(X::from(output.get::<f32>(0)?))
-    }
+impl MODNet {
+    fn postprocess(&self, outputs: &Xs) -> Result<Vec<Y>> {
+        let xs = outputs
+            .get::<f32>(0)
+            .ok_or_else(|| anyhow::anyhow!("Failed to get output"))?;
+        let ys: Vec<Y> = xs
+            .axis_iter(Axis(0))
+            .into_par_iter()
+            .enumerate()
+            .filter_map(|(idx, luma)| {
+                let info = &self.processor.images_transform_info[idx];
+                let (h1, w1) = (info.height_src, info.width_src);
 
-    pub fn forward(&mut self, xs: &[Image]) -> Result<Vec<Y>> {
-        let ys = elapsed_module!("MODNet", "preprocess", self.preprocess(xs)?);
-        let ys = elapsed_module!("MODNet", "inference", self.inference(ys)?);
-        let ys = elapsed_module!("MODNet", "postprocess", self.postprocess(&ys)?);
+                let luma = luma.mapv(|x| (x * 255.0) as u8);
+                let luma = Ops::resize_luma8_u8(
+                    &luma.into_raw_vec_and_offset().0,
+                    self.width as _,
+                    self.height as _,
+                    w1 as _,
+                    h1 as _,
+                    false,
+                    "Bilinear",
+                )
+                .ok()?;
 
-        Ok(ys)
-    }
+                image::ImageBuffer::from_raw(w1 as _, h1 as _, luma)
+                    .map(|luma| Y::default().with_masks(&[Mask::default().with_mask(luma)]))
+            })
+            .collect();
+        // let mut ys: Vec<Y> = Vec::new();
+        // for (idx, luma) in xs.axis_iter(Axis(0)).enumerate() {
+        //     let info = &self.processor.images_transform_info[idx];
+        //     let (h1, w1) = (info.height_src, info.width_src);
 
-    fn postprocess(&mut self, xs: &X) -> Result<Vec<Y>> {
-        let mut ys: Vec<Y> = Vec::new();
-        for (idx, luma) in xs.axis_iter(Axis(0)).enumerate() {
-            let (h1, w1) = (
-                self.processor.images_transform_info()[idx].height_src,
-                self.processor.images_transform_info()[idx].width_src,
-            );
-
-            let luma = luma.mapv(|x| (x * 255.0) as u8);
-            let luma = Ops::resize_luma8_u8(
-                &luma.into_raw_vec_and_offset().0,
-                self.width as _,
-                self.height as _,
-                w1 as _,
-                h1 as _,
-                false,
-                "Bilinear",
-            )?;
-            let luma: image::ImageBuffer<image::Luma<_>, Vec<_>> =
-                match image::ImageBuffer::from_raw(w1 as _, h1 as _, luma) {
-                    None => continue,
-                    Some(x) => x,
-                };
-            ys.push(Y::default().with_masks(&[Mask::default().with_mask(luma)]));
-        }
+        //     let luma = luma.mapv(|x| (x * 255.0) as u8);
+        //     let luma = Ops::resize_luma8_u8(
+        //         &luma.into_raw_vec_and_offset().0,
+        //         self.width as _,
+        //         self.height as _,
+        //         w1 as _,
+        //         h1 as _,
+        //         false,
+        //         "Bilinear",
+        //     )?;
+        //     let luma: image::ImageBuffer<image::Luma<_>, Vec<_>> =
+        //         match image::ImageBuffer::from_raw(w1 as _, h1 as _, luma) {
+        //             None => continue,
+        //             Some(x) => x,
+        //         };
+        //     ys.push(Y::default().with_masks(&[Mask::default().with_mask(luma)]));
+        // }
 
         Ok(ys)
     }

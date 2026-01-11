@@ -1,7 +1,9 @@
 mod conv;
 mod ctx;
 mod processor;
+mod utils;
 
-pub use conv::compute_convolution_1d;
-pub use ctx::CudaImageProcessContext;
-pub use processor::CudaPreprocessor;
+pub use conv::*;
+pub use ctx::*;
+pub use processor::*;
+pub(crate) use utils::*;

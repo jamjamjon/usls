@@ -5,32 +5,41 @@ use rayon::prelude::*;
 use std::fmt::Write;
 
 use crate::{
-    elapsed_module, Config, DynConf, Engine, FromConfig, Hbb, Image, ImageProcessor, TextProcessor,
-    X, Y,
+    elapsed_module, inputs, Config, DynConf, Engine, Engines, FromConfig, Hbb, Image,
+    ImageProcessor, Model, Module, TextProcessor, Xs, X, Y,
 };
 
 /// Grounding DINO model for open-vocabulary object detection.
 #[derive(Builder, Debug)]
 pub struct GroundingDINO {
-    pub engine: Engine,
-    height: usize,
-    width: usize,
-    batch: usize,
-    confs_visual: DynConf,
-    confs_textual: DynConf,
-    class_names: Vec<String>,
-    class_ids_map: Vec<Option<usize>>,
-    tokens: Vec<String>,
-    token_ids: Vec<f32>,
-    image_processor: ImageProcessor,
-    text_processor: TextProcessor,
-    spec: String,
-    token_level_class: bool,
+    pub height: usize,
+    pub width: usize,
+    pub batch: usize,
+    pub confs_visual: DynConf,
+    pub confs_textual: DynConf,
+    pub class_names: Vec<String>,
+    pub class_ids_map: Vec<Option<usize>>,
+    pub tokens: Vec<String>,
+    pub token_ids: Vec<f32>,
+    pub image_processor: ImageProcessor,
+    pub text_processor: TextProcessor,
+    pub spec: String,
+    pub token_level_class: bool,
 }
 
-impl GroundingDINO {
-    pub fn new(mut config: Config) -> Result<Self> {
-        let engine = Engine::from_config(config.take_module(&crate::Module::Model)?)?;
+impl Model for GroundingDINO {
+    type Input<'a> = &'a [Image];
+
+    fn batch(&self) -> usize {
+        self.batch
+    }
+
+    fn spec(&self) -> &str {
+        &self.spec
+    }
+
+    fn build(mut config: Config) -> Result<(Self, Engines)> {
+        let engine = Engine::from_config(config.take_module(&Module::Model)?)?;
         let spec = engine.spec().to_string();
         let (batch, height, width) = (
             engine.batch().opt(),
@@ -88,8 +97,7 @@ impl GroundingDINO {
             (class_names, class_ids_map, confs_visual, confs_textual)
         };
 
-        Ok(Self {
-            engine,
+        let model = Self {
             batch,
             height,
             width,
@@ -103,12 +111,19 @@ impl GroundingDINO {
             spec,
             class_ids_map,
             token_level_class,
-        })
+        };
+
+        let engines = Engines::from(engine);
+        Ok((model, engines))
     }
 
-    fn preprocess(&mut self, xs: &[Image]) -> Result<Vec<X>> {
-        let image_embeddings = self.image_processor.process(xs)?;
-        self.batch = xs.len();
+    fn run(&mut self, engines: &mut Engines, images: Self::Input<'_>) -> Result<Vec<Y>> {
+        // Preprocess
+        let image_embeddings = elapsed_module!("GroundingDINO", "preprocess", {
+            self.batch = images.len();
+            self.image_processor.process(images)?
+        });
+
         let input_ids = X::from(self.token_ids.clone())
             .insert_axis(0)?
             .repeat(0, self.batch)?;
@@ -119,43 +134,44 @@ impl GroundingDINO {
             .repeat(0, self.batch)?;
         let position_ids = position_ids.insert_axis(0)?.repeat(0, self.batch)?;
 
-        Ok(vec![
-            image_embeddings.as_host()?,
-            input_ids,
-            position_ids,
-            text_self_attention_masks,
-        ])
+        // Inference
+        let ys = elapsed_module!(
+            "GroundingDINO",
+            "inference",
+            engines.run(
+                &Module::Model,
+                inputs![
+                    image_embeddings,
+                    input_ids.view(),
+                    position_ids.view(),
+                    text_self_attention_masks.view()
+                ]?
+            )?
+        );
+
+        // Postprocess
+        elapsed_module!("GroundingDINO", "postprocess", self.postprocess(&ys))
     }
+}
 
-    pub fn forward(&mut self, xs: &[Image]) -> Result<Vec<Y>> {
-        let ys = elapsed_module!("GroundingDINO", "preprocess", self.preprocess(xs)?);
-        let ys = elapsed_module!("GroundingDINO", "inference", self.inference(&ys)?);
-        let ys = elapsed_module!("GroundingDINO", "postprocess", self.postprocess(ys)?);
+impl GroundingDINO {
+    fn postprocess(&self, outputs: &Xs) -> Result<Vec<Y>> {
+        let logits = outputs
+            .get_by_name::<f32>("logits")
+            .ok_or_else(|| anyhow::anyhow!("Failed to get logits"))?;
+        let boxes = outputs
+            .get_by_name::<f32>("boxes")
+            .ok_or_else(|| anyhow::anyhow!("Failed to get boxes"))?;
 
-        Ok(ys)
-    }
-
-    fn inference(&mut self, xs: &[X]) -> Result<(X, X)> {
-        let output = self.engine.run(xs)?;
-        Ok((
-            X::from(output.get_by_name::<f32>("logits")?),
-            X::from(output.get_by_name::<f32>("boxes")?),
-        ))
-    }
-
-    fn postprocess(&self, xs: (X, X)) -> Result<Vec<Y>> {
-        let (logits, boxes) = xs;
         let ys: Vec<Y> = logits
             .axis_iter(Axis(0))
             .into_par_iter()
             .enumerate()
-            .filter_map(|(idx, logits)| {
-                let (image_height, image_width) = (
-                    self.image_processor.images_transform_info()[idx].height_src,
-                    self.image_processor.images_transform_info()[idx].width_src,
-                );
-                let ratio = self.image_processor.images_transform_info()[idx].height_scale;
-                let y_bboxes: Vec<Hbb> = logits
+            .filter_map(|(idx, logits_batch)| {
+                let info = &self.image_processor.images_transform_info[idx];
+                let (image_height, image_width, ratio) =
+                    (info.height_src, info.width_src, info.height_scale);
+                let y_bboxes: Vec<Hbb> = logits_batch
                     .axis_iter(Axis(0))
                     .into_par_iter()
                     .enumerate()

@@ -1,21 +1,27 @@
 #[macro_use]
 mod macros;
 mod config;
+mod cpu;
 #[cfg(feature = "cuda")]
-pub mod cuda;
+mod cuda;
 mod layout;
-pub mod plan;
+mod plan;
 mod processor;
-pub mod resizer;
-#[cfg(feature = "wgpu")]
-pub mod wgpu;
+mod transform;
 
-pub use config::ImageProcessorConfig;
+pub use config::*;
+pub use cpu::*;
 #[cfg(feature = "cuda")]
 pub use cuda::*;
-pub use layout::ImageTensorLayout;
-pub use plan::ImagePlan;
-pub use processor::ImageProcessor;
-pub use resizer::{ResizeAlg, ResizeFilter};
-#[cfg(feature = "wgpu")]
-pub use wgpu::*;
+pub use layout::*;
+pub use plan::*;
+pub use processor::*;
+pub use transform::*;
+
+pub trait TransformExecutor {
+    fn execute_plan(
+        &self,
+        images: &[crate::Image],
+        plan: &crate::ImagePlan,
+    ) -> anyhow::Result<(crate::XAny, Vec<crate::ImageTransformInfo>)>;
+}

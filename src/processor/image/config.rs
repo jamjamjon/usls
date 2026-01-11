@@ -1,17 +1,21 @@
 //! Image processor configuration module.
 
-use crate::{Device, ImagePlan, ImageTensorLayout, ResizeAlg, ResizeFilter, ResizeMode};
+use crate::{
+    AnyResStrategy, Device, ImagePlan, ImageTensorLayout, ResizeAlg, ResizeFilter, ResizeMode,
+    ResizeModeType,
+};
 
 /// Image processor configuration.
-///
-/// Contains all settings for image processing including resizing, normalization,
-/// and tensor layout.
-#[derive(aksr::Builder, Debug, Clone)]
+#[derive(aksr::Builder, Debug, Clone, PartialEq)]
 pub struct ImageProcessorConfig {
+    /// Device for image processing.
+    pub device: Device,
     /// Target image width for resizing.
     pub image_width: u32,
     /// Target image height for resizing.
     pub image_height: u32,
+    /// Image tensor layout format.
+    pub image_tensor_layout: ImageTensorLayout,
     /// Whether to resize the image.
     pub do_resize: bool,
     /// Image resizing mode.
@@ -32,12 +36,8 @@ pub struct ImageProcessorConfig {
     pub pad_image: bool,
     /// Padding size for super resolution.
     pub pad_size: usize,
-    /// Up-scaling factor for super resolution.
-    pub up_scale: f32,
-    /// Image tensor layout format.
-    pub image_tensor_layout: ImageTensorLayout,
-    /// Device for image processing.
-    pub device: Device,
+    /// Dynamic resolution strategy for VLM models.
+    pub anyres_strategy: Option<AnyResStrategy>,
 }
 
 impl Default for ImageProcessorConfig {
@@ -49,57 +49,174 @@ impl Default for ImageProcessorConfig {
             device: Device::Cpu(0),
             image_width: 640,
             image_height: 640,
+            image_tensor_layout: ImageTensorLayout::default(),
             do_resize: true,
-            resize_mode: ResizeMode::FitExact,
+            resize_mode: ResizeMode::default(),
             resize_alg: ResizeAlg::default(),
             padding_value: 114,
-            image_tensor_layout: ImageTensorLayout::NCHW,
             normalize: true,
             image_std: None,
             image_mean: None,
             unsigned: false,
             pad_image: false,
             pad_size: 8,
-            up_scale: 2.0,
+            anyres_strategy: None,
         }
     }
 }
 
 impl ImageProcessorConfig {
-    /// Compile image processing configuration into an ImagePlan.
-    pub fn compile_image_plan(&self) -> ImagePlan {
+    pub(crate) fn compile_image_plan(&self) -> ImagePlan {
         let (mean, std) = match (self.image_mean, self.image_std) {
             (Some(mean), Some(std)) => (Some(mean), Some(std)),
             _ => (None, None),
         };
 
-        ImagePlan {
-            width: self.image_width,
-            height: self.image_height,
-            resize_mode: self.resize_mode.clone(),
-            resize_alg: self.resize_alg,
+        let mut plan = ImagePlan {
+            transforms: vec![],
             layout: self.image_tensor_layout,
             normalize: self.normalize,
             mean,
             std,
-            padding_value: self.padding_value,
             unsigned: self.unsigned,
+            pad_image: self.pad_image,
+            pad_size: self.pad_size,
+            do_resize: self.do_resize,
+        };
+
+        // AnyRes transform takes precedence (for VLM models)
+        if let Some(strategy) = &self.anyres_strategy {
+            plan.add_transform(crate::ImageTransform::AnyRes(strategy.clone()));
+            // After AnyRes, apply resize to each patch
+            plan.add_transform({
+                let mode = match self.resize_mode {
+                    ResizeMode::FitExact { .. } => ResizeMode::FitExact {
+                        width: self.image_width,
+                        height: self.image_height,
+                        alg: self.resize_alg,
+                    },
+                    ResizeMode::FitWidth { .. } => ResizeMode::FitWidth {
+                        width: self.image_width,
+                        height: self.image_height,
+                        alg: self.resize_alg,
+                        padding_value: self.padding_value,
+                    },
+                    ResizeMode::FitHeight { .. } => ResizeMode::FitHeight {
+                        width: self.image_width,
+                        height: self.image_height,
+                        alg: self.resize_alg,
+                        padding_value: self.padding_value,
+                    },
+                    ResizeMode::FitAdaptive { .. } => ResizeMode::FitAdaptive {
+                        width: self.image_width,
+                        height: self.image_height,
+                        alg: self.resize_alg,
+                        padding_value: self.padding_value,
+                    },
+                    ResizeMode::Letterbox { .. } => ResizeMode::Letterbox {
+                        width: self.image_width,
+                        height: self.image_height,
+                        alg: self.resize_alg,
+                        padding_value: self.padding_value,
+                    },
+                };
+                crate::ImageTransform::Resize(mode)
+            });
+        } else if self.pad_image {
+            // Super-resolution path: pad to multiple
+            plan.add_transform(crate::ImageTransform::Pad(crate::PadMode::ToMultiple {
+                window_size: self.pad_size,
+                fill_mode: crate::PadFillMode::Reflect,
+            }));
+        } else if self.do_resize {
+            plan.add_transform({
+                let mode = match self.resize_mode {
+                    ResizeMode::FitExact { .. } => ResizeMode::FitExact {
+                        width: self.image_width,
+                        height: self.image_height,
+                        alg: self.resize_alg,
+                    },
+                    ResizeMode::FitWidth { .. } => ResizeMode::FitWidth {
+                        width: self.image_width,
+                        height: self.image_height,
+                        alg: self.resize_alg,
+                        padding_value: self.padding_value,
+                    },
+                    ResizeMode::FitHeight { .. } => ResizeMode::FitHeight {
+                        width: self.image_width,
+                        height: self.image_height,
+                        alg: self.resize_alg,
+                        padding_value: self.padding_value,
+                    },
+                    ResizeMode::FitAdaptive { .. } => ResizeMode::FitAdaptive {
+                        width: self.image_width,
+                        height: self.image_height,
+                        alg: self.resize_alg,
+                        padding_value: self.padding_value,
+                    },
+                    ResizeMode::Letterbox { .. } => ResizeMode::Letterbox {
+                        width: self.image_width,
+                        height: self.image_height,
+                        alg: self.resize_alg,
+                        padding_value: self.padding_value,
+                    },
+                };
+                crate::ImageTransform::Resize(mode)
+            });
         }
+
+        plan
     }
 
     pub fn with_resize_filter(mut self, resize_filter: ResizeFilter) -> Self {
-        self.resize_alg = ResizeAlg::Convolution(resize_filter);
+        match self.resize_alg {
+            ResizeAlg::Convolution(f) if f != resize_filter => {
+                self.resize_alg = ResizeAlg::Convolution(resize_filter);
+            }
+            ResizeAlg::Interpolation(f) if f != resize_filter => {
+                self.resize_alg = ResizeAlg::Interpolation(resize_filter);
+            }
+            ResizeAlg::SuperSampling(f, m) if f != resize_filter => {
+                self.resize_alg = ResizeAlg::SuperSampling(resize_filter, m);
+            }
+            _ => {}
+        }
+
         self
     }
 
-    pub fn with_resize_filter_str(mut self, resize_filter: &'static str) -> Self {
-        let s = resize_filter.to_lowercase();
-        if s == "nearest" {
-            self.resize_alg = ResizeAlg::Nearest;
-            return self;
-        }
-        let filter: ResizeFilter = resize_filter.parse().unwrap_or_default();
-        self.resize_alg = ResizeAlg::Convolution(filter);
+    pub fn with_resize_mode_type(mut self, mode_type: ResizeModeType) -> Self {
+        self.resize_mode = match mode_type {
+            ResizeModeType::FitExact => ResizeMode::FitExact {
+                width: self.image_width,
+                height: self.image_height,
+                alg: self.resize_alg,
+            },
+            ResizeModeType::FitWidth => ResizeMode::FitWidth {
+                width: self.image_width,
+                height: self.image_height,
+                alg: self.resize_alg,
+                padding_value: self.padding_value,
+            },
+            ResizeModeType::FitHeight => ResizeMode::FitHeight {
+                width: self.image_width,
+                height: self.image_height,
+                alg: self.resize_alg,
+                padding_value: self.padding_value,
+            },
+            ResizeModeType::FitAdaptive => ResizeMode::FitAdaptive {
+                width: self.image_width,
+                height: self.image_height,
+                alg: self.resize_alg,
+                padding_value: self.padding_value,
+            },
+            ResizeModeType::Letterbox => ResizeMode::Letterbox {
+                width: self.image_width,
+                height: self.image_height,
+                alg: self.resize_alg,
+                padding_value: self.padding_value,
+            },
+        };
         self
     }
 }

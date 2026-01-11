@@ -4,30 +4,39 @@ use ndarray::{s, Axis};
 use rayon::prelude::*;
 
 use crate::{
-    elapsed_module, Config, DynConf, Engine, FromConfig, Hbb, Image, ImageProcessor, TextProcessor,
-    X, Y,
+    elapsed_module, inputs, Config, DynConf, Engine, Engines, FromConfig, Hbb, Image,
+    ImageProcessor, Model, Module, TextProcessor, Xs, X, Y,
 };
 
-/// OWL-ViT v2 model for open-vocabulary object detection.
+/// OwlViT v2 model for open-vocabulary object detection.
 #[derive(Debug, Builder)]
 pub struct OWLv2 {
-    engine: Engine,
-    height: usize,
-    width: usize,
-    batch: usize,
-    names: Vec<String>,
-    names_with_prompt: Vec<String>,
-    confs: DynConf,
-    image_processor: ImageProcessor,
-    text_processor: TextProcessor,
-    spec: String,
-    input_ids: X,
-    attention_mask: X,
+    pub height: usize,
+    pub width: usize,
+    pub batch: usize,
+    pub names: Vec<String>,
+    pub names_with_prompt: Vec<String>,
+    pub confs: DynConf,
+    pub image_processor: ImageProcessor,
+    pub text_processor: TextProcessor,
+    pub spec: String,
+    pub input_ids: X,
+    pub attention_mask: X,
 }
 
-impl OWLv2 {
-    pub fn new(mut config: Config) -> Result<Self> {
-        let engine = Engine::from_config(config.take_module(&crate::Module::Model)?)?;
+impl Model for OWLv2 {
+    type Input<'a> = &'a [Image];
+
+    fn batch(&self) -> usize {
+        self.batch
+    }
+
+    fn spec(&self) -> &str {
+        &self.spec
+    }
+
+    fn build(mut config: Config) -> Result<(Self, Engines)> {
+        let engine = Engine::from_config(config.take_module(&Module::Model)?)?;
         let (batch, height, width) = (
             engine.batch().opt(),
             engine.try_height().unwrap_or(&960.into()).opt(),
@@ -67,8 +76,7 @@ impl OWLv2 {
             .into();
         let attention_mask = X::ones_like(&input_ids);
 
-        Ok(Self {
-            engine,
+        let model = Self {
             height,
             width,
             batch,
@@ -80,83 +88,85 @@ impl OWLv2 {
             text_processor,
             input_ids,
             attention_mask,
-        })
+        };
+
+        let engines = Engines::from(engine);
+        Ok((model, engines))
     }
 
-    fn preprocess(&mut self, xs: &[Image]) -> Result<Vec<X>> {
-        let image_embeddings = self.image_processor.process(xs)?.as_host()?;
-        Ok(vec![
-            self.input_ids.clone(),
-            image_embeddings,
-            self.attention_mask.clone(),
-        ])
+    fn run(&mut self, engines: &mut Engines, images: Self::Input<'_>) -> Result<Vec<Y>> {
+        let image_embeddings =
+            elapsed_module!("OWLv2", "preprocess", self.image_processor.process(images)?);
+        let ys = elapsed_module!(
+            "OWLv2",
+            "inference",
+            engines.run(
+                &Module::Model,
+                inputs![
+                    self.input_ids.view(),
+                    image_embeddings,
+                    self.attention_mask.view()
+                ]?
+            )?
+        );
+        elapsed_module!("OWLv2", "postprocess", self.postprocess(&ys))
     }
+}
 
-    fn inference(&mut self, xs: &[X]) -> Result<(X, X)> {
-        let output = self.engine.run(xs)?;
-        Ok((
-            X::from(output.get::<f32>(0)?),
-            X::from(output.get::<f32>(1)?),
-        ))
-    }
+impl OWLv2 {
+    fn postprocess(&self, outputs: &Xs) -> Result<Vec<Y>> {
+        let clss_all = outputs
+            .get::<f32>(0)
+            .ok_or_else(|| anyhow::anyhow!("Failed to get output 0"))?;
+        let bboxes_all = outputs
+            .get::<f32>(1)
+            .ok_or_else(|| anyhow::anyhow!("Failed to get output 1"))?;
+        let ys: Vec<Y> = clss_all
+            .axis_iter(Axis(0))
+            .into_par_iter()
+            .zip(bboxes_all.axis_iter(Axis(0)).into_par_iter())
+            .enumerate()
+            .filter_map(|(idx, (clss, bboxes))| {
+                let info = &self.image_processor.images_transform_info[idx];
+                let (image_height, image_width) = (info.height_src, info.width_src);
 
-    pub fn forward(&mut self, xs: &[Image]) -> Result<Vec<Y>> {
-        let ys = elapsed_module!("OWLv2", "preprocess", self.preprocess(xs)?);
-        let ys = elapsed_module!("OWLv2", "inference", self.inference(&ys)?);
-        let ys = elapsed_module!("OWLv2", "postprocess", self.postprocess(ys)?);
+                let ratio = image_height.max(image_width) as f32;
+                let y_bboxes: Vec<Hbb> = clss
+                    .axis_iter(Axis(0))
+                    .into_par_iter()
+                    .enumerate()
+                    .filter_map(|(i, clss_)| {
+                        let (class_id, &confidence) = clss_
+                            .into_iter()
+                            .enumerate()
+                            .max_by(|a, b| a.1.total_cmp(b.1))?;
 
-        Ok(ys)
-    }
+                        let confidence = 1. / ((-confidence).exp() + 1.);
+                        if confidence < self.confs[class_id] {
+                            return None;
+                        }
 
-    fn postprocess(&mut self, xs: (X, X)) -> Result<Vec<Y>> {
-        let ys: Vec<Y> =
-            xs.0.axis_iter(Axis(0))
-                .into_par_iter()
-                .zip(xs.1.axis_iter(Axis(0)).into_par_iter())
-                .enumerate()
-                .filter_map(|(idx, (clss, bboxes))| {
-                    let (image_height, image_width) = (
-                        self.image_processor.images_transform_info()[idx].height_src,
-                        self.image_processor.images_transform_info()[idx].width_src,
-                    );
+                        let bbox = bboxes.slice(s![i, ..]).mapv(|x| x * ratio);
+                        let (x, y, w, h) = (
+                            (bbox[0] - bbox[2] / 2.).max(0.0f32),
+                            (bbox[1] - bbox[3] / 2.).max(0.0f32),
+                            bbox[2],
+                            bbox[3],
+                        );
 
-                    let ratio = image_height.max(image_width) as f32;
-                    let y_bboxes: Vec<Hbb> = clss
-                        .axis_iter(Axis(0))
-                        .into_par_iter()
-                        .enumerate()
-                        .filter_map(|(i, clss_)| {
-                            let (class_id, &confidence) = clss_
-                                .into_iter()
-                                .enumerate()
-                                .max_by(|a, b| a.1.total_cmp(b.1))?;
+                        Some(
+                            Hbb::default()
+                                .with_xywh(x, y, w, h)
+                                .with_confidence(confidence)
+                                .with_id(class_id)
+                                .with_name(&self.names[class_id]),
+                        )
+                    })
+                    .collect();
 
-                            let confidence = 1. / ((-confidence).exp() + 1.);
-                            if confidence < self.confs[class_id] {
-                                return None;
-                            }
-
-                            let bbox = bboxes.slice(s![i, ..]).mapv(|x| x * ratio);
-                            let (x, y, w, h) = (
-                                (bbox[0] - bbox[2] / 2.).max(0.0f32),
-                                (bbox[1] - bbox[3] / 2.).max(0.0f32),
-                                bbox[2],
-                                bbox[3],
-                            );
-
-                            Some(
-                                Hbb::default()
-                                    .with_xywh(x, y, w, h)
-                                    .with_confidence(confidence)
-                                    .with_id(class_id)
-                                    .with_name(&self.names[class_id]),
-                            )
-                        })
-                        .collect();
-
-                    Some(Y::default().with_hbbs(&y_bboxes))
-                })
-                .collect();
+                Some(Y::default().with_hbbs(&y_bboxes))
+            })
+            .collect();
 
         Ok(ys)
     }

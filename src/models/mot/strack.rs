@@ -1,5 +1,6 @@
-use crate::{Hbb, KalmanFilterXYAH, StateCov, StateMean};
 use std::sync::atomic::{AtomicUsize, Ordering};
+
+use crate::{Hbb, KalmanFilterXYAH, StateCov, StateMean};
 
 /// Global track ID counter for unique track identification
 pub(crate) static GLOBAL_TRACK_ID: AtomicUsize = AtomicUsize::new(0);

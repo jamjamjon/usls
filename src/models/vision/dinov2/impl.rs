@@ -2,51 +2,78 @@ use aksr::Builder;
 use anyhow::Result;
 
 use crate::{
-    elapsed_module, ort_inputs, Config, Engine, FromConfig, Image, ImageProcessor, Module, X,
+    elapsed_module, inputs, Config, Engine, Engines, FromConfig, Image, ImageProcessor, Model,
+    Module, Y,
 };
 
+/// DINOv2: Learning Robust Visual Features without Supervision
 #[derive(Builder, Debug)]
-pub struct DINOv2 {
-    engine: Engine,
-    height: usize,
-    width: usize,
-    batch: usize,
-    processor: ImageProcessor,
+pub struct DINO {
+    pub height: usize,
+    pub width: usize,
+    pub batch: usize,
+    pub spec: String,
+    pub processor: ImageProcessor,
 }
 
-impl DINOv2 {
-    pub fn new(mut config: Config) -> Result<Self> {
+impl Model for DINO {
+    type Input<'a> = &'a [Image];
+
+    fn batch(&self) -> usize {
+        self.batch
+    }
+
+    fn spec(&self) -> &str {
+        &self.spec
+    }
+
+    fn build(mut config: Config) -> Result<(Self, Engines)> {
         let engine = Engine::from_config(config.take_module(&Module::Model)?)?;
-        let (batch, height, width) = (
+        let (batch, height, width, spec) = (
             engine.batch().opt(),
             engine.try_height().unwrap_or(&384.into()).opt(),
             engine.try_width().unwrap_or(&384.into()).opt(),
+            engine.spec().to_string(),
         );
         let processor = ImageProcessor::from_config(config.image_processor)?
             .with_image_width(width as _)
             .with_image_height(height as _);
 
-        Ok(Self {
-            engine,
+        let model = Self {
             height,
             width,
             batch,
+            spec,
             processor,
+        };
+
+        let engines = Engines::from(engine);
+        Ok((model, engines))
+    }
+
+    fn encode(&mut self, engines: &mut Engines, images: Self::Input<'_>) -> Result<crate::Y> {
+        let x = elapsed_module!("DINO", "preprocess", self.processor.process(images)?);
+        let ys = elapsed_module!(
+            "DINO",
+            "inference",
+            engines.run(&Module::Model, inputs![x]?)?
+        );
+        elapsed_module!("DINO", "postprocess", {
+            let x = ys
+                .get::<f32>(0)
+                .ok_or_else(|| anyhow::anyhow!("Failed to get features"))?;
+
+            let y = Y::default().with_embedding(x.to_owned());
+
+            Ok(y)
         })
     }
 
-    fn preprocess(&mut self, xs: &[Image]) -> Result<X> {
-        self.processor.process(xs)?.as_host()
-    }
-
-    pub fn encode_images(&mut self, xs: &[Image]) -> Result<X> {
-        let x = elapsed_module!("DINOv2", "visual-preprocess", self.preprocess(xs)?);
-
-        let output = elapsed_module!("DINOv2", "visual-inference", {
-            let ys = self.engine.run(ort_inputs![x]?)?;
-            X::from(ys.get::<f32>(0)?)
-        });
-
-        Ok(output)
+    fn encode_images(
+        &mut self,
+        engines: &mut Engines,
+        images: &[crate::Image],
+    ) -> Result<crate::Y> {
+        self.encode(engines, images)
     }
 }

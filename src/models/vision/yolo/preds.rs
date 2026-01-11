@@ -48,8 +48,6 @@ pub struct YOLOPredsFormat {
     pub is_bbox_normalized: bool,
     pub apply_nms: bool,
     pub apply_softmax: bool,
-    // ------------------------------------------------
-    // pub is_concatenated: bool,
 }
 
 impl Default for YOLOPredsFormat {
@@ -64,7 +62,6 @@ impl Default for YOLOPredsFormat {
             is_bbox_normalized: false,
             apply_nms: true,
             apply_softmax: false,
-            // is_concatenated: true,
         }
     }
 }
@@ -227,7 +224,7 @@ impl YOLOPredsFormat {
     }
 
     #[allow(clippy::type_complexity)]
-    pub fn parse_preds<'a>(
+    pub(crate) fn parse_preds<'a>(
         &'a self,
         x: ArrayBase<ViewRepr<&'a f32>, Dim<IxDynImpl>>,
         nc: usize,

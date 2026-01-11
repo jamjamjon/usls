@@ -323,15 +323,16 @@ pub(crate) fn module_ts(module_name: &str) -> Arc<Mutex<Ts>> {
 macro_rules! elapsed_global {
     ($label:expr, $code:expr) => {{
         let manager = $crate::global_ts_manager();
-        if manager.is_enabled() {
-            let t = std::time::Instant::now();
-            let ret = $code;
-            let duration = t.elapsed();
-            manager.push_global($label, duration);
-            ret
+        let start = if manager.is_enabled() {
+            Some(std::time::Instant::now())
         } else {
-            $code
+            None
+        };
+        let ret = $code;
+        if let Some(t) = start {
+            manager.push_global($label, t.elapsed());
         }
+        ret
     }};
 }
 
@@ -341,15 +342,16 @@ macro_rules! elapsed_global {
 macro_rules! elapsed_module {
     ($module:expr, $label:expr, $code:expr) => {{
         let manager = $crate::global_ts_manager();
-        if manager.is_enabled() {
-            let t = std::time::Instant::now();
-            let ret = $code;
-            let duration = t.elapsed();
-            manager.push_module($module, $label, duration);
-            ret
+        let start = if manager.is_enabled() {
+            Some(std::time::Instant::now())
         } else {
-            $code
+            None
+        };
+        let ret = $code;
+        if let Some(t) = start {
+            manager.push_module($module, $label, t.elapsed());
         }
+        ret
     }};
 }
 

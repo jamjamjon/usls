@@ -1,139 +1,47 @@
 use aksr::Builder;
 use anyhow::{Context, Result};
-use image::GenericImageView;
 use ndarray::{s, Array, Array2, Array3, Axis, IxDyn};
 use ndarray_npy::ReadNpyExt;
 
 use crate::{
-    elapsed_module, ort_inputs, Config, DType, Engine, FromConfig, Hbb, Hub, Image, ImageProcessor,
-    Keypoint, LogitsSampler, Scale, Task, TextProcessor, X, Y,
+    inputs, AnyResStrategy, Config, DType, Engine, Engines, FromConfig, Hbb, Hub, Image,
+    ImageProcessor, Keypoint, LogitsSampler, Model, Module, Scale, Task, TextProcessor, X, Y,
 };
 
-#[derive(Builder, Debug)]
+/// Moondream2 - A lightweight vision-language model.
+///
+/// This model implements the unified `Model` trait with multi-engine support.
+/// It uses multiple engines:
+/// - `VisualEncoder`: Image encoder
+/// - `VisualProjection`: Image projection
+/// - `TextualDecoder`: Text decoder
+/// - `TextualEncoder`: Text encoder
+/// - `CoordDecoder`: Coordinate decoder (optional)
+/// - `CoordEncoder`: Coordinate encoder (optional)
+/// - `SizeDecoder`: Size decoder (optional)
+/// - `SizeEncoder`: Size encoder (optional)
+///
+/// The engines are managed externally via `Engines` and passed to `run()`.
+#[derive(Debug, Builder)]
 pub struct Moondream2 {
-    vision_encoder: Engine,
-    vision_projection: Engine,
-    text_decoder: Engine,
-    text_encoder: Engine,
-    coord_decoder: Option<Engine>,
-    coord_encoder: Option<Engine>,
-    size_decoder: Option<Engine>,
-    size_encoder: Option<Engine>,
-    initial_kv_cache: X, // TODO: use f16
-    scale: Scale,
-    dtype: DType,
-    max_length: usize,
-    eos_token_id: u32,
-    max_objects: usize,
-    num_patch: usize,
-    patch_size: usize,
-    image_processor: ImageProcessor,
-    text_processor: TextProcessor,
-    seq_len: usize,
+    pub scale: Scale,
+    pub dtype: DType,
+    pub max_length: usize,
+    pub eos_token_id: u32,
+    pub max_objects: usize,
+    pub num_patch: usize,
+    pub patch_size: usize,
+    pub image_processor: ImageProcessor,
+    pub text_processor: TextProcessor,
+    pub seq_len: usize,
+    pub spec: String,
+    pub initial_kv_cache: X,
 }
 
 impl Moondream2 {
-    pub fn new(mut config: Config) -> Result<Self> {
-        let max_length = 2048;
-        let max_objects = 50;
-        let eos_token_id = 50256;
-        let dtype = config
-            .get_module(&crate::Module::VisualEncoder)
-            .map(|e| e.dtype)
-            .unwrap_or(crate::DType::Fp32);
-        let scale = config.scale.take().unwrap_or(Scale::Billion(0.5));
-        let initial_kv_cache: X = KVCache::new(&scale, &dtype)?.0.into();
-        let vision_encoder =
-            Engine::from_config(config.take_module(&crate::Module::VisualEncoder)?)?;
-        let vision_projection =
-            Engine::from_config(config.take_module(&crate::Module::VisualProjection)?)?;
-        let text_decoder =
-            Engine::from_config(config.take_module(&crate::Module::TextualDecoder)?)?;
-        let text_encoder =
-            Engine::from_config(config.take_module(&crate::Module::TextualEncoder)?)?;
-        let coord_decoder = config
-            .take_module(&crate::Module::CoordDecoder)
-            .ok()
-            .map(Engine::from_config)
-            .transpose()?;
-        let coord_encoder = config
-            .take_module(&crate::Module::CoordEncoder)
-            .ok()
-            .map(Engine::from_config)
-            .transpose()?;
-        let size_decoder = config
-            .take_module(&crate::Module::SizeDecoder)
-            .ok()
-            .map(Engine::from_config)
-            .transpose()?;
-        let size_encoder = config
-            .take_module(&crate::Module::SizeEncoder)
-            .ok()
-            .map(Engine::from_config)
-            .transpose()?;
-        let (num_patch, patch_size) = (
-            vision_encoder.batch().opt(),
-            vision_encoder.try_height().unwrap_or(&378.into()).opt(),
-        );
-        let seq_len = vision_projection.inputs_minoptmax[0][1].opt();
-        let image_processor = ImageProcessor::from_config(config.image_processor)?
-            .with_image_width(patch_size as _)
-            .with_image_height(patch_size as _);
-        #[cfg(feature = "vlm")]
-        let text_processor = TextProcessor::from_config(config.text_processor)?;
-        #[cfg(not(feature = "vlm"))]
-        let text_processor = TextProcessor::default();
-
-        Ok(Self {
-            vision_encoder,
-            vision_projection,
-            text_decoder,
-            text_encoder,
-            coord_decoder,
-            coord_encoder,
-            size_encoder,
-            size_decoder,
-            initial_kv_cache,
-            max_length,
-            max_objects,
-            eos_token_id,
-            scale,
-            dtype,
-            num_patch,
-            patch_size,
-            image_processor,
-            text_processor,
-            seq_len,
-        })
-    }
-
-    pub fn encode_image(&mut self, x: &Image) -> Result<X> {
-        let patches_emb = elapsed_module!(
-            "Moondream2",
-            "preprocess_image",
-            self.encode(x)?.clone().insert_axis(0)?
-        );
-        let image_embedding = elapsed_module!("Moondream2", "encode_image", {
-            let ys = self.vision_projection.run(ort_inputs![patches_emb]?)?;
-            X::from(ys.get::<f32>(0)?)
-        });
-
-        Ok(image_embedding)
-    }
-
-    pub fn forward(&mut self, xs: &[Image], task: &Task) -> Result<Vec<Y>> {
-        let mut ys: Vec<Y> = Vec::new();
-        for x in xs.iter() {
-            let y = self.forward_once(x, task)?;
-            ys.push(y);
-        }
-
-        Ok(ys)
-    }
-
-    pub fn forward_once(&mut self, images: &Image, task: &Task) -> Result<Y> {
-        let image_embedding = self.encode_image(images)?;
-        let kv_cache = self.prepare_kv_cache(&image_embedding)?;
+    fn forward_once(&mut self, engines: &mut Engines, image: &Image, task: &Task) -> Result<Y> {
+        let image_embedding = self.encode_image(engines, image)?;
+        let kv_cache = self.prepare_kv_cache(engines, &image_embedding)?;
 
         match task {
             Task::Caption(n) => {
@@ -141,7 +49,7 @@ impl Moondream2 {
                     0 => vec![198., 198., 16438., 8305., 25.],
                     _ => vec![198., 198., 24334., 1159., 25.],
                 };
-                let text = self.generate_text(&input_ids, kv_cache)?;
+                let text = self.generate_text(engines, &input_ids, kv_cache)?;
                 let y = Y::default().with_texts(&[text.into()]);
 
                 Ok(y)
@@ -154,7 +62,7 @@ impl Moondream2 {
                     .cloned()
                     .collect();
 
-                let text = self.generate_text(&input_ids, kv_cache)?;
+                let text = self.generate_text(engines, &input_ids, kv_cache)?;
                 let y = Y::default().with_texts(&[text.into()]);
 
                 Ok(y)
@@ -171,7 +79,7 @@ impl Moondream2 {
                     .cloned()
                     .collect();
                 let (_, y_bboxes) =
-                    self.generate_points_boxes(&input_ids, kv_cache, object, true)?;
+                    self.generate_points_boxes(engines, &input_ids, kv_cache, object, true)?;
 
                 Ok(Y::default().with_hbbs(&y_bboxes))
             }
@@ -187,7 +95,7 @@ impl Moondream2 {
                     .cloned()
                     .collect();
                 let (y_kpts, _) =
-                    self.generate_points_boxes(&input_ids, kv_cache, object, false)?;
+                    self.generate_points_boxes(engines, &input_ids, kv_cache, object, false)?;
 
                 Ok(Y::default().with_keypointss(&y_kpts))
             }
@@ -195,11 +103,19 @@ impl Moondream2 {
         }
     }
 
-    fn generate_text(&mut self, input_ids: &[f32], kv_cache: Array<f32, IxDyn>) -> Result<String> {
+    fn generate_text(
+        &mut self,
+        engines: &mut Engines,
+        input_ids: &[f32],
+        kv_cache: Array<f32, IxDyn>,
+    ) -> Result<String> {
         let input_ids = X::from(input_ids.to_vec()).insert_axis(0)?;
         let mut input_embeds = {
-            let ys = self.text_encoder.run(ort_inputs![input_ids]?)?;
-            X::from(ys.get::<f32>(0)?)
+            let ys = engines.run(&Module::TextualEncoder, inputs![input_ids]?)?;
+            X::from(
+                ys.get::<f32>(0)
+                    .ok_or_else(|| anyhow::anyhow!("Failed to get text embeddings"))?,
+            )
         };
         let logits_sampler = LogitsSampler::new();
         let mut token_ids: Vec<u32> = Vec::new();
@@ -215,11 +131,20 @@ impl Moondream2 {
                 .into_dyn()
                 .into();
             let (logits, new_kv_cache) = {
-                let decoder_outputs = self
-                    .text_decoder
-                    .run(ort_inputs![input_embeds.clone(), kv_cache_slice]?)?;
-                let logits = X::from(decoder_outputs.get_by_name::<f32>("logits")?);
-                let new_kv_cache = X::from(decoder_outputs.get_by_name::<f32>("new_kv_cache")?);
+                let decoder_outputs = engines.run(
+                    &Module::TextualDecoder,
+                    inputs![input_embeds.clone(), kv_cache_slice]?,
+                )?;
+                let logits = X::from(
+                    decoder_outputs
+                        .get_by_name::<f32>("logits")
+                        .ok_or_else(|| anyhow::anyhow!("Failed to get logits"))?,
+                );
+                let new_kv_cache = X::from(
+                    decoder_outputs
+                        .get_by_name::<f32>("new_kv_cache")
+                        .ok_or_else(|| anyhow::anyhow!("Failed to get new_kv_cache"))?,
+                );
                 (logits, new_kv_cache)
             };
 
@@ -249,8 +174,11 @@ impl Moondream2 {
             // encode
             let next_tokens = X::from(vec![token_id as f32]).insert_axis(1)?;
             input_embeds = {
-                let ys = self.text_encoder.run(ort_inputs![next_tokens]?)?;
-                X::from(ys.get::<f32>(0)?)
+                let ys = engines.run(&Module::TextualEncoder, inputs![next_tokens]?)?;
+                X::from(
+                    ys.get::<f32>(0)
+                        .ok_or_else(|| anyhow::anyhow!("Failed to get next token embeddings"))?,
+                )
             };
         }
 
@@ -261,6 +189,7 @@ impl Moondream2 {
 
     fn generate_points_boxes(
         &mut self,
+        engines: &mut Engines,
         input_ids: &[f32],
         kv_cache: Array<f32, IxDyn>,
         object: &str,
@@ -279,14 +208,17 @@ impl Moondream2 {
         // initial input_embeds
         let input_ids = X::from(input_ids.to_vec()).insert_axis(0)?;
         let mut hidden = {
-            let ys = self.text_encoder.run(ort_inputs![input_ids]?)?;
-            X::from(ys.get::<f32>(0)?)
+            let ys = engines.run(&Module::TextualEncoder, inputs![input_ids]?)?;
+            X::from(
+                ys.get::<f32>(0)
+                    .ok_or_else(|| anyhow::anyhow!("Failed to get hidden states"))?,
+            )
         };
         let mut kv_cache = kv_cache;
 
         // generate
         loop {
-            let logits = self.run_decoder(&mut hidden, &mut kv_cache, &mut pos)?;
+            let logits = self.run_decoder(engines, &mut hidden, &mut kv_cache, &mut pos)?;
 
             // decode
             let token_id = logits_sampler.decode(
@@ -304,12 +236,11 @@ impl Moondream2 {
             // cx
             let input: X = hidden.slice(s![0, -1, ..]).into_owned().into_dyn().into();
             let cx = {
-                let ys = self
-                    .coord_decoder
-                    .as_mut()
-                    .unwrap()
-                    .run(ort_inputs![input]?)?;
-                X::from(ys.get::<f32>(0)?)
+                let ys = engines.run(&Module::CoordDecoder, inputs![input]?)?;
+                X::from(
+                    ys.get::<f32>(0)
+                        .ok_or_else(|| anyhow::anyhow!("Failed to get cx output"))?,
+                )
             }; // [1024]
             let ratio = cx.shape()[0] as f32;
             let cx = logits_sampler
@@ -318,24 +249,24 @@ impl Moondream2 {
                 / ratio;
             hidden = {
                 let cx_input = X::from(vec![cx]);
-                let ys = self
-                    .coord_encoder
-                    .as_mut()
-                    .unwrap()
-                    .run(ort_inputs![cx_input]?)?;
-                X::from(ys.get::<f32>(0)?).insert_axis(0)?.insert_axis(0)?
+                let ys = engines.run(&Module::CoordEncoder, inputs![cx_input]?)?;
+                X::from(
+                    ys.get::<f32>(0)
+                        .ok_or_else(|| anyhow::anyhow!("Failed to get cx location output"))?,
+                )
+                .insert_axis(0)?
+                .insert_axis(0)?
             };
 
             // cy
-            let _logits = self.run_decoder(&mut hidden, &mut kv_cache, &mut pos)?;
+            let _logits = self.run_decoder(engines, &mut hidden, &mut kv_cache, &mut pos)?;
             let input: X = hidden.slice(s![0, -1, ..]).into_owned().into_dyn().into();
             let cy = {
-                let ys = self
-                    .coord_decoder
-                    .as_mut()
-                    .unwrap()
-                    .run(ort_inputs![input]?)?;
-                X::from(ys.get::<f32>(0)?)
+                let ys = engines.run(&Module::CoordDecoder, inputs![input]?)?;
+                X::from(
+                    ys.get::<f32>(0)
+                        .ok_or_else(|| anyhow::anyhow!("Failed to get cy output"))?,
+                )
             };
             let ratio = cy.shape()[0] as f32;
 
@@ -346,12 +277,13 @@ impl Moondream2 {
 
             hidden = {
                 let cy_input = X::from(vec![cy]);
-                let ys = self
-                    .coord_encoder
-                    .as_mut()
-                    .unwrap()
-                    .run(ort_inputs![cy_input]?)?;
-                X::from(ys.get::<f32>(0)?).insert_axis(0)?.insert_axis(0)?
+                let ys = engines.run(&Module::CoordEncoder, inputs![cy_input]?)?;
+                X::from(
+                    ys.get::<f32>(0)
+                        .ok_or_else(|| anyhow::anyhow!("Failed to get cy location output"))?,
+                )
+                .insert_axis(0)?
+                .insert_axis(0)?
             };
 
             if !generate_boxes {
@@ -369,15 +301,14 @@ impl Moondream2 {
                 }
             } else {
                 // wh
-                let _logits = self.run_decoder(&mut hidden, &mut kv_cache, &mut pos)?;
+                let _logits = self.run_decoder(engines, &mut hidden, &mut kv_cache, &mut pos)?;
                 let input: X = hidden.slice(s![0, -1, ..]).into_owned().into_dyn().into();
                 let size = {
-                    let ys = self
-                        .size_decoder
-                        .as_mut()
-                        .unwrap()
-                        .run(ort_inputs![input]?)?;
-                    X::from(ys.get::<f32>(0)?)
+                    let ys = engines.run(&Module::SizeDecoder, inputs![input]?)?;
+                    X::from(
+                        ys.get::<f32>(0)
+                            .ok_or_else(|| anyhow::anyhow!("Failed to get size output"))?,
+                    )
                 }; // [2, 1024]
 
                 let ratio = size.shape()[1] as f32;
@@ -396,15 +327,16 @@ impl Moondream2 {
                 )? as f32
                     / ratio;
 
-                hidden = {
-                    let wh_input = X::from(vec![w, h]);
-                    let ys = self
-                        .size_encoder
-                        .as_mut()
-                        .unwrap()
-                        .run(ort_inputs![wh_input]?)?;
-                    X::from(ys.get::<f32>(0)?).insert_axis(0)?.insert_axis(0)?
-                }; // [1024]
+                hidden =
+                    {
+                        let wh_input = X::from(vec![w, h]);
+                        let ys = engines.run(&Module::SizeEncoder, inputs![wh_input]?)?;
+                        X::from(ys.get::<f32>(0).ok_or_else(|| {
+                            anyhow::anyhow!("Failed to get wh size encoder output")
+                        })?)
+                        .insert_axis(0)?
+                        .insert_axis(0)?
+                    }; // [1024]
 
                 let xmin = cx - w / 2.;
                 let ymin = cy - h / 2.;
@@ -431,13 +363,20 @@ impl Moondream2 {
         Ok((y_kpts, y_bboxes))
     }
 
-    fn prepare_kv_cache(&mut self, image_embedding: &X) -> Result<Array<f32, IxDyn>> {
+    fn prepare_kv_cache(
+        &mut self,
+        engines: &mut Engines,
+        image_embedding: &X,
+    ) -> Result<Array<f32, IxDyn>> {
         let kv_cache_new = {
-            let ys = self.text_decoder.run(ort_inputs![
-                image_embedding.clone(),
-                self.initial_kv_cache.clone()
-            ]?)?;
-            X::from(ys.get_by_name::<f32>("new_kv_cache")?)
+            let ys = engines.run(
+                &Module::TextualDecoder,
+                inputs![image_embedding.clone(), self.initial_kv_cache.clone()]?,
+            )?;
+            X::from(
+                ys.get_by_name::<f32>("new_kv_cache")
+                    .ok_or_else(|| anyhow::anyhow!("Failed to get new_kv_cache"))?,
+            )
         };
 
         let kv_cache_new = ndarray::concatenate(
@@ -461,6 +400,7 @@ impl Moondream2 {
 
     fn run_decoder(
         &mut self,
+        engines: &mut Engines,
         input_embeds: &mut X,
         kv_cache: &mut Array<f32, IxDyn>,
         pos: &mut usize,
@@ -471,12 +411,25 @@ impl Moondream2 {
             .into_dyn()
             .into();
         let (hidden, new_kv_cache, logits) = {
-            let decoder_outputs = self
-                .text_decoder
-                .run(ort_inputs![input_embeds.clone(), kv_cache_slice]?)?;
-            let hidden = X::from(decoder_outputs.get_by_name::<f32>("hidden")?);
-            let new_kv_cache = X::from(decoder_outputs.get_by_name::<f32>("new_kv_cache")?);
-            let logits = X::from(decoder_outputs.get_by_name::<f32>("logits")?);
+            let decoder_outputs = engines.run(
+                &Module::TextualDecoder,
+                inputs![input_embeds.clone(), kv_cache_slice]?,
+            )?;
+            let hidden = X::from(
+                decoder_outputs
+                    .get_by_name::<f32>("hidden")
+                    .ok_or_else(|| anyhow::anyhow!("Failed to get hidden"))?,
+            );
+            let new_kv_cache = X::from(
+                decoder_outputs
+                    .get_by_name::<f32>("new_kv_cache")
+                    .ok_or_else(|| anyhow::anyhow!("Failed to get new_kv_cache"))?,
+            );
+            let logits = X::from(
+                decoder_outputs
+                    .get_by_name::<f32>("logits")
+                    .ok_or_else(|| anyhow::anyhow!("Failed to get logits"))?,
+            );
             (hidden, new_kv_cache, logits)
         };
 
@@ -491,62 +444,75 @@ impl Moondream2 {
         Ok(logits)
     }
 
-    fn create_patches(image: &Image, image_patch_size: usize) -> (Vec<Image>, (u32, u32)) {
-        let mut patches = vec![image.clone()];
-        let image = image.to_rgb8();
+    fn process_one(&mut self, x: &Image) -> Result<(X, (usize, usize))> {
+        // ImageProcessor handles AnyRes transform internally
+        // It splits the image into patches based on Moondream2 templates and resizes each
+        let (patches, _infos) = self.image_processor.process_with_info(&[x.clone()])?;
+        let patches = patches.as_host()?;
 
-        let res_templates = vec![(1, 2), (2, 1), (2, 2)];
-        let (im_width, im_height) = image.dimensions();
-        let max_dim = im_width.max(im_height);
-        let selected_template = if max_dim < (image_patch_size as f32 * 1.4) as u32 {
+        // Calculate grid size from number of patches
+        // AnyRes for Moondream2 produces: 1 global_patch + (h * w) local patches
+        let num_patches = patches.dims()[0];
+        let hw = if num_patches <= 2 {
+            // 1 or 2 patches means template (1, 1) with global
             (1, 1)
         } else {
-            let aspect_ratio = im_width as f32 / im_height as f32;
-            res_templates
+            // num_patches = 1 (global) + h * w (grid)
+            // Find template where h * w = num_patches - 1
+            let grid_count = num_patches - 1;
+            let templates = vec![
+                (1usize, 1usize),
+                (1, 2),
+                (1, 3),
+                (1, 4),
+                (1, 5),
+                (2, 1),
+                (2, 2),
+                (2, 3),
+                (2, 4),
+                (2, 5),
+                (3, 1),
+                (3, 2),
+                (3, 3),
+                (3, 4),
+                (3, 5),
+            ];
+            templates
                 .into_iter()
-                .min_by(|a, b| {
-                    let diff_a = ((a.1 as f32 / a.0 as f32) - aspect_ratio).abs();
-                    let diff_b = ((b.1 as f32 / b.0 as f32) - aspect_ratio).abs();
-                    diff_a.partial_cmp(&diff_b).unwrap()
-                })
-                .unwrap()
+                .find(|(h, w)| h * w == grid_count)
+                .unwrap_or((1, 1))
         };
-        let patch_width = im_width / selected_template.1;
-        let patch_height = im_height / selected_template.0;
 
-        for row in 0..selected_template.0 {
-            for col in 0..selected_template.1 {
-                let x_min = col * patch_width;
-                let y_min = row * patch_height;
-                let _x_max = x_min + patch_width;
-                let _y_max = y_min + patch_height;
-                let cropped = image
-                    .view(x_min, y_min, patch_width, patch_height)
-                    .to_image();
-
-                patches.push(Image::from(cropped));
-            }
-        }
-
-        (patches, selected_template)
+        Ok((patches, hw))
     }
 
-    pub fn encode(&mut self, x: &Image) -> Result<X> {
-        let (patches, selected_template) = Self::create_patches(x, self.patch_size);
-        let patches = self.image_processor.process(&patches)?;
-        let template = (
-            (selected_template.0 as usize),
-            (selected_template.1 as usize),
-        );
+    fn encode(&mut self, engines: &mut Engines, x: &Image) -> Result<X> {
+        let (patches, selected_template) = self.process_one(x)?;
         let patch_emb = {
-            let ys = self.vision_encoder.run(ort_inputs![patches]?)?;
-            X::from(ys.get::<f32>(0)?)
+            let ys = engines.run(&Module::VisualEncoder, inputs![patches]?)?;
+            X::from(
+                ys.get::<f32>(0)
+                    .ok_or_else(|| anyhow::anyhow!("Failed to get patch embeddings"))?,
+            )
         };
         let patch_emb = patch_emb.clone().0.into_dimensionality::<ndarray::Ix3>()?;
-        let patch_emb = Self::process_patch_emb(patch_emb, template)?;
+        let patch_emb = Self::process_patch_emb(patch_emb, selected_template)?;
         let patch_emb = X::from(patch_emb.into_dyn()); // TODO .insert_axis(x),
 
         Ok(patch_emb)
+    }
+
+    fn encode_image(&mut self, engines: &mut Engines, x: &Image) -> Result<X> {
+        let patches_emb = self.encode(engines, x)?.clone().insert_axis(0)?;
+        let image_embedding = {
+            let ys = engines.run(&Module::VisualProjection, inputs![patches_emb]?)?;
+            X::from(
+                ys.get::<f32>(0)
+                    .ok_or_else(|| anyhow::anyhow!("Failed to get vision projection output"))?,
+            )
+        };
+
+        Ok(image_embedding)
     }
 
     fn process_patch_emb(patch_emb: Array3<f32>, template: (usize, usize)) -> Result<Array2<f32>> {
@@ -620,6 +586,137 @@ impl Moondream2 {
         }
 
         output
+    }
+}
+
+/// Implement the Model trait for Moondream2.
+impl Model for Moondream2 {
+    type Input<'a> = (&'a [Image], &'a Task);
+
+    fn batch(&self) -> usize {
+        1 // Moondream2 implementation seems to process images one by one in run()
+    }
+
+    fn spec(&self) -> &str {
+        &self.spec
+    }
+
+    fn build(mut config: Config) -> Result<(Self, Engines)> {
+        let max_length = 2048;
+        let max_objects = 50;
+        let eos_token_id = 50256;
+        let dtype = config
+            .get_module(&Module::VisualEncoder)
+            .map(|e| e.dtype)
+            .unwrap_or(DType::Fp32);
+        let scale = config.scale.take().unwrap_or(Scale::Billion(0.5));
+        let initial_kv_cache: X = KVCache::new(&scale, &dtype)?.0.into();
+
+        let vision_encoder = Engine::from_config(config.take_module(&Module::VisualEncoder)?)?;
+        let vision_projection =
+            Engine::from_config(config.take_module(&Module::VisualProjection)?)?;
+        let text_decoder = Engine::from_config(config.take_module(&Module::TextualDecoder)?)?;
+        let text_encoder = Engine::from_config(config.take_module(&Module::TextualEncoder)?)?;
+        let coord_decoder = config
+            .take_module(&Module::CoordDecoder)
+            .ok()
+            .map(Engine::from_config)
+            .transpose()?;
+        let coord_encoder = config
+            .take_module(&Module::CoordEncoder)
+            .ok()
+            .map(Engine::from_config)
+            .transpose()?;
+        let size_decoder = config
+            .take_module(&Module::SizeDecoder)
+            .ok()
+            .map(Engine::from_config)
+            .transpose()?;
+        let size_encoder = config
+            .take_module(&Module::SizeEncoder)
+            .ok()
+            .map(Engine::from_config)
+            .transpose()?;
+
+        let (num_patch, patch_size) = (
+            vision_encoder.batch().opt(),
+            vision_encoder.try_height().unwrap_or(&378.into()).opt(),
+        );
+        let seq_len = vision_projection.inputs.minoptmax[0][1].opt();
+
+        // Moondream2 templates for dynamic resolution
+        let templates: Vec<(u32, u32)> = vec![
+            (1, 1),
+            (1, 2),
+            (1, 3),
+            (1, 4),
+            (1, 5),
+            (2, 1),
+            (2, 2),
+            (2, 3),
+            (2, 4),
+            (2, 5),
+            (3, 1),
+            (3, 2),
+            (3, 3),
+            (3, 4),
+            (3, 5),
+        ];
+        let image_processor = ImageProcessor::from_config(config.image_processor)?
+            .with_image_width(patch_size as _)
+            .with_image_height(patch_size as _)
+            .with_dynres_strategy(Some(AnyResStrategy::Moondream2 {
+                patch_size: patch_size as u32,
+                templates,
+            }));
+        let text_processor = TextProcessor::from_config(config.text_processor)?;
+
+        let model = Self {
+            scale,
+            dtype,
+            max_length,
+            eos_token_id,
+            max_objects,
+            num_patch,
+            patch_size,
+            seq_len,
+            spec: "moondream2".to_string(),
+            initial_kv_cache,
+            image_processor,
+            text_processor,
+        };
+
+        // Build engines collection
+        let mut engines = Engines::new();
+        engines.insert(Module::VisualEncoder, vision_encoder);
+        engines.insert(Module::VisualProjection, vision_projection);
+        engines.insert(Module::TextualDecoder, text_decoder);
+        engines.insert(Module::TextualEncoder, text_encoder);
+
+        if let Some(coord_decoder) = coord_decoder {
+            engines.insert(Module::CoordDecoder, coord_decoder);
+        }
+        if let Some(coord_encoder) = coord_encoder {
+            engines.insert(Module::CoordEncoder, coord_encoder);
+        }
+        if let Some(size_decoder) = size_decoder {
+            engines.insert(Module::SizeDecoder, size_decoder);
+        }
+        if let Some(size_encoder) = size_encoder {
+            engines.insert(Module::SizeEncoder, size_encoder);
+        }
+
+        Ok((model, engines))
+    }
+
+    fn run(&mut self, engines: &mut Engines, (images, task): Self::Input<'_>) -> Result<Vec<Y>> {
+        let mut ys: Vec<Y> = Vec::new();
+        for image in images.iter() {
+            let y = self.forward_once(engines, image, task)?;
+            ys.push(y);
+        }
+
+        Ok(ys)
     }
 }
 

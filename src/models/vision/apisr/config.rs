@@ -1,5 +1,25 @@
+///
+/// > # APISR: Anime Production Inspired Real-World Anime Super-Resolution
+/// >
+/// > Super-resolution model for anime images inspired by anime production techniques.
+/// >
+/// > # Paper & Code
+/// >
+/// > - **GitHub**: [Kiteretsu77/APISR](https://github.com/Kiteretsu77/APISR)
+/// >
+/// > # Model Variants
+/// >
+/// > - **GRL-4x**: 4x super-resolution model
+/// > - **RRDB-2x**: 2x super-resolution model
+/// >
+/// > # Implemented Features / Tasks
+/// >
+/// > - [X] **Super-Resolution**: Anime image super-resolution
+/// >
 /// Model configuration for `APISR`
+///
 impl crate::Config {
+    /// Base configuration for APISR models
     pub fn apisr() -> Self {
         Self::default()
             .with_name("apisr")
@@ -14,15 +34,17 @@ impl crate::Config {
             .with_pad_size(4)
     }
 
+    /// 4x super-resolution model
     pub fn apisr_grl_4x() -> Self {
         Self::apisr()
-            .with_up_scale(4.)
+            .with_sr_up_scale(4.)
             .with_model_file("GRL-4x.onnx")
     }
 
+    /// 2x super-resolution model
     pub fn apisr_rrdb_2x() -> Self {
         Self::apisr()
-            .with_up_scale(2.)
+            .with_sr_up_scale(2.)
             .with_model_file("RRDB-2x.onnx")
     }
 }

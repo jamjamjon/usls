@@ -4,28 +4,37 @@ use ndarray::Axis;
 use rayon::prelude::*;
 
 use crate::{
-    elapsed_module, ort_inputs, Config, DynConf, Engine, FromConfig, Hbb, Image, ImageProcessor,
-    Mask, Module, Obb, Ops, Polygon, X, Y,
+    elapsed_module, inputs, Config, DynConf, Engine, Engines, FromConfig, Hbb, Image,
+    ImageProcessor, Mask, Model, Module, Obb, Ops, Polygon, Xs, X, Y,
 };
 
 /// DB (Differentiable Binarization) model for text detection.
 #[derive(Debug, Builder)]
 pub struct DB {
-    engine: Engine,
-    height: usize,
-    width: usize,
-    batch: usize,
-    confs: DynConf,
-    unclip_ratio: f32,
-    binary_thresh: f32,
-    min_width: f32,
-    min_height: f32,
-    spec: String,
-    processor: ImageProcessor,
+    pub height: usize,
+    pub width: usize,
+    pub batch: usize,
+    pub confs: DynConf,
+    pub unclip_ratio: f32,
+    pub binary_thresh: f32,
+    pub min_width: f32,
+    pub min_height: f32,
+    pub spec: String,
+    pub processor: ImageProcessor,
 }
 
-impl DB {
-    pub fn new(mut config: Config) -> Result<Self> {
+impl Model for DB {
+    type Input<'a> = &'a [Image];
+
+    fn batch(&self) -> usize {
+        self.batch
+    }
+
+    fn spec(&self) -> &str {
+        &self.spec
+    }
+
+    fn build(mut config: Config) -> Result<(Self, Engines)> {
         let engine = Engine::from_config(config.take_module(&Module::Model)?)?;
         let (batch, height, width, spec) = (
             engine.batch().opt(),
@@ -42,8 +51,7 @@ impl DB {
         let min_width = config.inference.min_width.unwrap_or(12.0);
         let min_height = config.inference.min_height.unwrap_or(5.0);
 
-        Ok(Self {
-            engine,
+        let model = Self {
             confs,
             height,
             width,
@@ -54,39 +62,32 @@ impl DB {
             binary_thresh,
             processor,
             spec,
-        })
+        };
+
+        let engines = Engines::from(engine);
+        Ok((model, engines))
     }
 
-    fn preprocess(&mut self, xs: &[Image]) -> Result<X> {
-        self.processor.process(xs)?.as_host()
+    fn run(&mut self, engines: &mut Engines, images: Self::Input<'_>) -> Result<Vec<Y>> {
+        let x = elapsed_module!("DB", "preprocess", self.processor.process(images)?);
+        let ys = elapsed_module!("DB", "inference", engines.run(&Module::Model, inputs![x]?)?);
+        elapsed_module!("DB", "postprocess", self.postprocess(&ys))
     }
+}
 
-    fn inference(&mut self, xs: X) -> Result<X> {
-        let output = self.engine.run(ort_inputs![xs]?)?;
-        Ok(X::from(output.get::<f32>(0)?))
-    }
-
-    pub fn forward(&mut self, xs: &[Image]) -> Result<Vec<Y>> {
-        let ys = elapsed_module!("DB", "preprocess", self.preprocess(xs)?);
-        let ys = elapsed_module!("DB", "inference", self.inference(ys)?);
-        let ys = elapsed_module!("DB", "postprocess", self.postprocess(&ys)?);
-
-        Ok(ys)
-    }
-
-    pub fn postprocess(&mut self, xs: &X) -> Result<Vec<Y>> {
+impl DB {
+    fn postprocess(&mut self, outputs: &Xs) -> Result<Vec<Y>> {
+        let xs = outputs
+            .get::<f32>(0)
+            .ok_or_else(|| anyhow::anyhow!("Failed to get output"))?;
+        let xs = X::from(xs);
         let ys: Vec<Y> = xs
             .axis_iter(Axis(0))
             .into_par_iter()
             .enumerate()
             .filter_map(|(idx, luma)| {
-                // input image
-                let (image_height, image_width) = (
-                    self.processor.images_transform_info()[idx].height_src,
-                    self.processor.images_transform_info()[idx].width_src,
-                );
-
-                // reshape
+                let info = &self.processor.images_transform_info[idx];
+                let (image_height, image_width) = (info.height_src, info.width_src);
                 let ratio = self.processor.images_transform_info()[idx].height_scale;
                 let v = luma
                     .as_slice()?

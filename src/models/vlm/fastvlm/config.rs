@@ -1,5 +1,28 @@
+///
+/// > # FastVLM: Efficient Vision Encoding for Vision Language Models
+/// >
+/// > Efficient vision encoding architecture designed for high-performance vision-language models.
+/// >
+/// > # Paper & Code
+/// >
+/// > - **GitHub**: [apple/ml-fastvlm](https://github.com/apple/ml-fastvlm)
+/// > - **ONNX Models**: [FastVLM-0.5B-ONNX](https://huggingface.co/onnx-community/FastVLM-0.5B-ONNX)
+/// >
+/// > # Model Variants
+/// >
+/// > - **fastvlm-0.5b**: FastVLM 0.5 billion parameter model
+/// >
+/// > # Implemented Features / Tasks
+/// >
+/// > - [X] **Efficient Vision Encoding**: Optimized visual feature extraction
+/// > - [X] **High-Resolution Input**: 1024x1024 image processing
+/// > - [X] **Lightweight Architecture**: 0.5B parameters for efficient inference
+/// > - [X] **ONNX Optimization**: Optimized for ONNX runtime
+/// >
 /// Model configuration for `FastVLM`
+///
 impl crate::Config {
+    /// Base configuration for FastVLM models
     pub fn fastvlm() -> Self {
         Self::default()
             .with_name("fastvlm")
@@ -16,6 +39,7 @@ impl crate::Config {
             .with_config_file("fastvlm/config.json")
     }
 
+    /// FastVLM 0.5 billion parameter model
     pub fn fastvlm_0_5b() -> Self {
         Self::fastvlm()
             .with_scale(crate::Scale::Billion(0.5))

@@ -1,81 +1,46 @@
-use crate::{
-    models::vlm::yoloe::NAMES_YOLOE_4585, Config, ResizeFilter, ResizeMode, Scale, Task, Version,
-};
+use crate::{Config, Scale, Version};
 
+///
+/// > # YOLOE: Real-Time Seeing Anything
+/// >
+/// > Real-time vision-language model for comprehensive object detection and segmentation with text prompts.
+/// >
+/// > # Paper & Code
+/// >
+/// > - **GitHub**: [THU-MIG/yoloe](https://github.com/THU-MIG/yoloe)
+/// >
+/// > # Model Variants
+/// >
+/// > - **yoloe-v8s/m/l-seg-tp**: YOLOE v8 text-prompt segmentation models
+/// > - **yoloe-11s/m/l-seg-tp**: YOLOE 11 text-prompt segmentation models
+/// > - **yoloe-v8s/m/l-seg-vp**: YOLOE v8 visual-prompt segmentation models
+/// > - **yoloe-11s/m/l-seg-vp**: YOLOE 11 visual-prompt segmentation models
+/// >
+/// > # Implemented Features / Tasks
+/// >
+/// > - [X] **Text-Prompt Segmentation**: Segment objects described by text
+/// > - [X] **Visual-Prompt Segmentation**: Segment with visual prompts
+/// > - [X] **Real-Time Performance**: Optimized for real-time inference
+/// > - [X] **Multi-Scale Support**: Various model sizes (S/M/L)
+/// >
+/// Model configuration for `YOLOE`
+///
 impl Config {
-    pub fn yoloe() -> Self {
-        Self::default()
-            .with_name("yoloe")
-            .with_model_ixx(0, 0, 1)
-            .with_model_ixx(0, 1, 3)
-            .with_model_ixx(0, 2, 640)
-            .with_model_ixx(0, 3, 640)
-            .with_resize_mode(ResizeMode::FitAdaptive)
-            .with_resize_filter(ResizeFilter::CatmullRom)
-            .with_task(Task::InstanceSegmentation)
-    }
-
-    pub fn yoloe_seg_pf() -> Self {
-        Self::yolo()
-            .with_class_names(&NAMES_YOLOE_4585)
-            .with_task(Task::InstanceSegmentation)
-    }
-
-    pub fn yoloe_v8s_seg_pf() -> Self {
-        Self::yoloe_seg_pf()
-            .with_version(Version::from(8))
-            .with_scale(Scale::S)
-            .with_model_file("yoloe-v8s-seg-pf.onnx")
-    }
-
-    pub fn yoloe_v8m_seg_pf() -> Self {
-        Self::yoloe_seg_pf()
-            .with_version(Version::from(8))
-            .with_scale(Scale::M)
-            .with_model_file("yoloe-v8m-seg-pf.onnx")
-    }
-
-    pub fn yoloe_v8l_seg_pf() -> Self {
-        Self::yoloe_seg_pf()
-            .with_version(Version::from(8))
-            .with_scale(Scale::L)
-            .with_model_file("yoloe-v8l-seg-pf.onnx")
-    }
-
-    pub fn yoloe_11s_seg_pf() -> Self {
-        Self::yoloe_seg_pf()
-            .with_version(Version::from(11))
-            .with_scale(Scale::S)
-            .with_model_file("yoloe-11s-seg-pf.onnx")
-    }
-
-    pub fn yoloe_11m_seg_pf() -> Self {
-        Self::yoloe_seg_pf()
-            .with_version(Version::from(11))
-            .with_scale(Scale::M)
-            .with_model_file("yoloe-11m-seg-pf.onnx")
-    }
-
-    pub fn yoloe_11l_seg_pf() -> Self {
-        Self::yoloe_seg_pf()
-            .with_version(Version::from(11))
-            .with_scale(Scale::L)
-            .with_model_file("yoloe-11l-seg-pf.onnx")
-    }
-
+    /// Base configuration for YOLOE text-prompt segmentation
     fn yoloe_seg_tp() -> Self {
         Self::yoloe()
             .with_batch_size_all(1)
             .with_nc(80)
             .with_model_ixx(1, 1, (1, 80, 300)) // max nc
-            .with_textual_encoder_file("mobileclip/blt-textual.onnx")
             .with_model_max_length(77)
             .with_textual_encoder_ixx(0, 1, 77)
+            .with_textual_encoder_file("mobileclip/blt-textual.onnx")
             .with_tokenizer_file("clip/tokenizer.json")
             .with_tokenizer_config_file("clip/tokenizer_config.json")
             .with_special_tokens_map_file("clip/special_tokens_map.json")
     }
 
+    /// YOLOE v8 small text-prompt segmentation model
     pub fn yoloe_v8s_seg_tp() -> Self {
         Self::yoloe_seg_tp()
             .with_version(Version::from(8))
@@ -83,6 +48,7 @@ impl Config {
             .with_model_file("yoloe-v8s-seg-prompt.onnx")
     }
 
+    /// YOLOE v8 medium text-prompt segmentation model
     pub fn yoloe_v8m_seg_tp() -> Self {
         Self::yoloe_seg_tp()
             .with_version(Version::from(8))
@@ -90,6 +56,7 @@ impl Config {
             .with_model_file("yoloe-v8m-seg-prompt.onnx")
     }
 
+    /// YOLOE v8 large text-prompt segmentation model
     pub fn yoloe_v8l_seg_tp() -> Self {
         Self::yoloe_seg_tp()
             .with_version(Version::from(8))
@@ -97,6 +64,7 @@ impl Config {
             .with_model_file("yoloe-v8l-seg-prompt.onnx")
     }
 
+    /// YOLOE 11 small text-prompt segmentation model
     pub fn yoloe_11s_seg_tp() -> Self {
         Self::yoloe_seg_tp()
             .with_version(Version::from(11))
@@ -104,6 +72,7 @@ impl Config {
             .with_model_file("yoloe-11s-seg-prompt.onnx")
     }
 
+    /// YOLOE 11 medium text-prompt segmentation model
     pub fn yoloe_11m_seg_tp() -> Self {
         Self::yoloe_seg_tp()
             .with_version(Version::from(11))
@@ -111,6 +80,7 @@ impl Config {
             .with_model_file("yoloe-11m-seg-prompt.onnx")
     }
 
+    /// YOLOE 11 large text-prompt segmentation model
     pub fn yoloe_11l_seg_tp() -> Self {
         Self::yoloe_seg_tp()
             .with_version(Version::from(11))
@@ -118,7 +88,8 @@ impl Config {
             .with_model_file("yoloe-11l-seg-prompt.onnx")
     }
 
-    pub fn yoloe_seg_vp() -> Self {
+    /// Base configuration for YOLOE visual-prompt segmentation
+    fn yoloe_seg_vp() -> Self {
         Self::yoloe()
             .with_batch_size_all(1)
             .with_nc(80)
@@ -137,6 +108,7 @@ impl Config {
             .with_visual_encoder_ixx(1, 3, 80) // 1 / 8 * w
     }
 
+    /// YOLOE v8 small visual-prompt segmentation model
     pub fn yoloe_v8s_seg_vp() -> Self {
         Self::yoloe_seg_vp()
             .with_version(Version::from(8))
@@ -145,6 +117,7 @@ impl Config {
             .with_model_file("yoloe-v8s-seg-prompt.onnx")
     }
 
+    /// YOLOE v8 medium visual-prompt segmentation model
     pub fn yoloe_v8m_seg_vp() -> Self {
         Self::yoloe_seg_vp()
             .with_version(Version::from(8))
@@ -153,6 +126,7 @@ impl Config {
             .with_model_file("yoloe-v8m-seg-prompt.onnx")
     }
 
+    /// YOLOE v8 large visual-prompt segmentation model
     pub fn yoloe_v8l_seg_vp() -> Self {
         Self::yoloe_seg_vp()
             .with_version(Version::from(8))
@@ -161,6 +135,7 @@ impl Config {
             .with_model_file("yoloe-v8l-seg-prompt.onnx")
     }
 
+    /// YOLOE 11 small visual-prompt segmentation model
     pub fn yoloe_11s_seg_vp() -> Self {
         Self::yoloe_seg_vp()
             .with_version(Version::from(11))
@@ -169,6 +144,7 @@ impl Config {
             .with_model_file("yoloe-11s-seg-prompt.onnx")
     }
 
+    /// YOLOE 11 medium visual-prompt segmentation model
     pub fn yoloe_11m_seg_vp() -> Self {
         Self::yoloe_seg_vp()
             .with_version(Version::from(11))
@@ -177,6 +153,7 @@ impl Config {
             .with_model_file("yoloe-11m-seg-prompt.onnx")
     }
 
+    /// YOLOE 11 large visual-prompt segmentation model
     pub fn yoloe_11l_seg_vp() -> Self {
         Self::yoloe_seg_vp()
             .with_version(Version::from(11))

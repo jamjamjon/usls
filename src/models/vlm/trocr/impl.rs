@@ -5,8 +5,8 @@ use rayon::prelude::*;
 use std::str::FromStr;
 
 use crate::{
-    elapsed_module, ort_inputs, Config, Engine, FromConfig, Image, ImageProcessor, LogitsSampler,
-    Scale, TextProcessor, X, Y,
+    elapsed_module, inputs, Config, Engine, Engines, FromConfig, Image, ImageProcessor,
+    LogitsSampler, Model, Module, Scale, TextProcessor, X, Y,
 };
 
 /// TrOCR model variants for different text types.
@@ -43,50 +43,42 @@ impl FromStr for TrOCRKind {
 /// - A processor for image preprocessing and text postprocessing
 #[derive(Debug, Builder)]
 pub struct TrOCR {
-    /// Image encoder engine
-    encoder: Engine,
-    /// Text decoder engine for token generation
-    decoder: Engine,
-    /// Optimized merged decoder engine
-    decoder_merged: Engine,
     /// Maximum length of generated text sequence
-    max_length: u32,
+    pub max_length: u32,
     /// Token ID representing end of sequence
-    eos_token_id: u32,
+    pub eos_token_id: u32,
     /// Token ID used to start text generation
-    decoder_start_token_id: u32,
+    pub decoder_start_token_id: u32,
     /// Number of key-value pairs in decoder attention
-    n_kvs: usize,
+    pub n_kvs: usize,
     /// Image and text processor for pre/post processing
-    image_processor: ImageProcessor,
-    text_processor: TextProcessor,
+    pub image_processor: ImageProcessor,
+    pub text_processor: TextProcessor,
     /// Batch size for inference
-    batch: usize,
+    pub batch: usize,
     /// Input image height
-    height: usize,
+    pub height: usize,
     /// Input image width  
-    width: usize,
+    pub width: usize,
+    pub spec: String,
 }
 
-impl TrOCR {
-    /// Creates a new TrOCR model instance from the given configuration.
-    ///
-    /// # Arguments
-    /// * `config` - The model configuration containing paths to model files and parameters
-    ///
-    /// # Returns
-    /// * `Result<Self>` - A new TrOCR instance if initialization succeeds
-    ///
-    /// # Errors
-    /// Returns an error if:
-    /// - Required model files cannot be loaded
-    /// - Model configuration is invalid
-    /// - Tokenizer initialization fails
-    pub fn new(mut config: Config) -> Result<Self> {
-        let encoder = Engine::from_config(config.take_module(&crate::Module::Visual)?)?;
-        let decoder = Engine::from_config(config.take_module(&crate::Module::TextualDecoder)?)?;
+impl Model for TrOCR {
+    type Input<'a> = &'a [Image];
+
+    fn batch(&self) -> usize {
+        self.batch
+    }
+
+    fn spec(&self) -> &str {
+        &self.spec
+    }
+
+    fn build(mut config: Config) -> Result<(Self, Engines)> {
+        let encoder = Engine::from_config(config.take_module(&Module::Visual)?)?;
+        let decoder = Engine::from_config(config.take_module(&Module::TextualDecoder)?)?;
         let decoder_merged =
-            Engine::from_config(config.take_module(&crate::Module::TextualDecoderMerged)?)?;
+            Engine::from_config(config.take_module(&Module::TextualDecoderMerged)?)?;
         let (batch, height, width) = (
             encoder.batch().opt(),
             encoder.try_height().unwrap_or(&384.into()).opt(),
@@ -116,10 +108,9 @@ impl TrOCR {
         #[cfg(not(feature = "vlm"))]
         let text_processor = TextProcessor::default();
 
-        Ok(Self {
-            encoder,
-            decoder,
-            decoder_merged,
+        let spec = encoder.spec().to_owned();
+
+        let model = Self {
             max_length,
             eos_token_id,
             decoder_start_token_id,
@@ -129,47 +120,42 @@ impl TrOCR {
             height,
             image_processor,
             text_processor,
-        })
+            spec,
+        };
+
+        let mut engines = Engines::default();
+        engines.insert(Module::Visual, encoder);
+        engines.insert(Module::TextualDecoder, decoder);
+        engines.insert(Module::TextualDecoderMerged, decoder_merged);
+        Ok((model, engines))
     }
 
-    /// Encodes the given images into feature vectors using the TrOCR encoder.
-    ///
-    /// This method processes the images through the image processor and then
-    /// encodes them using the encoder engine.
-    ///
-    /// # Arguments
-    /// * `xs` - A slice of `Image` instances to be encoded.
-    ///
-    /// # Errors
-    /// Returns an error if image processing or encoding fails.
-    pub fn encode(&mut self, xs: &[Image]) -> Result<X> {
-        let ys = self.image_processor.process(xs)?;
-        self.batch = xs.len(); // update
-        let output = self.encoder.run(ort_inputs![ys]?)?;
-        Ok(X::from(output.get::<f32>(0)?))
-    }
-
-    /// Performs the forward pass of the TrOCR model, from encoding images to decoding text.
-    ///
-    /// This method encodes the input images, generates token IDs using the decoder,
-    /// and finally decodes the token IDs into text.
-    ///
-    /// # Arguments
-    /// * `xs` - A slice of `Image` instances to be processed.
-    ///
-    /// # Errors
-    /// Returns an error if any step in the forward pass fails.
-    pub fn forward(&mut self, xs: &[Image]) -> Result<Vec<Y>> {
-        let encoder_hidden_states = elapsed_module!("TrOCR", "encode", self.encode(xs)?);
+    fn run(&mut self, engines: &mut Engines, images: Self::Input<'_>) -> Result<Vec<Y>> {
+        let encoder_hidden_states =
+            elapsed_module!("TrOCR", "encode", self.encode_internal(engines, images)?);
         let generated = elapsed_module!("TrOCR", "generate", {
-            self.generate(&encoder_hidden_states)?
+            self.generate_internal(engines, &encoder_hidden_states)?
         });
-        let ys = elapsed_module!("TrOCR", "decode", self.decode(generated)?);
+        elapsed_module!("TrOCR", "decode", self.decode_internal(generated))
+    }
+}
 
-        Ok(ys)
+impl TrOCR {
+    fn encode_internal(&mut self, engines: &mut Engines, xs: &[Image]) -> Result<X> {
+        let ys = self.image_processor.process(xs)?;
+        self.batch = xs.len();
+        let output = engines.run(&Module::Visual, inputs![ys]?)?;
+        let x = output
+            .get::<f32>(0)
+            .ok_or_else(|| anyhow::anyhow!("Failed to get encoder output"))?;
+        Ok(X::from(x))
     }
 
-    fn generate(&mut self, encoder_hidden_states: &X) -> Result<Vec<Vec<u32>>> {
+    fn generate_internal(
+        &mut self,
+        engines: &mut Engines,
+        encoder_hidden_states: &X,
+    ) -> Result<Vec<Vec<u32>>> {
         // input_ids
         let input_ids = X::from(vec![self.decoder_start_token_id as f32])
             .insert_axis(0)?
@@ -177,10 +163,10 @@ impl TrOCR {
 
         // decoder
         let mut decoder_outputs = {
-            let ys = self.decoder.run(ort_inputs![
-                input_ids.clone(),
-                encoder_hidden_states.clone()
-            ]?)?;
+            let ys = engines.run(
+                &Module::TextualDecoder,
+                inputs![input_ids.clone(), encoder_hidden_states.clone()]?,
+            )?;
             (0..ys.len())
                 .map(|i| X::from(ys.get::<f32>(i).unwrap()))
                 .collect::<Vec<_>>()
@@ -248,7 +234,7 @@ impl TrOCR {
 
             // generate
             decoder_outputs = {
-                let ys = self.decoder_merged.run(&xs)?;
+                let ys = engines.run(&Module::TextualDecoderMerged, &xs)?;
                 (0..ys.len())
                     .map(|i| X::from(ys.get::<f32>(i).unwrap()))
                     .collect::<Vec<_>>()
@@ -258,14 +244,7 @@ impl TrOCR {
         Ok(token_ids)
     }
 
-    /// Decodes the given token IDs into text using the TrOCR processor.
-    ///
-    /// # Arguments
-    /// * `token_ids` - A vector of vector of token IDs to be decoded.
-    ///
-    /// # Errors
-    /// Returns an error if decoding fails.
-    pub fn decode(&self, token_ids: Vec<Vec<u32>>) -> Result<Vec<Y>> {
+    fn decode_internal(&self, token_ids: Vec<Vec<u32>>) -> Result<Vec<Y>> {
         // decode
         let texts = self.text_processor.decode_tokens_batch(&token_ids, false)?;
 

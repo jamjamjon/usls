@@ -6,10 +6,10 @@
 //! - **LAPJV**: Hungarian algorithm implementation for data association
 //! - **STrack**: Single object track representation
 
-pub mod bytetrack;
-pub mod kalman_filter;
-pub mod lapjv;
-pub mod strack;
+mod bytetrack;
+mod kalman_filter;
+mod lapjv;
+mod strack;
 
 pub use bytetrack::*;
 pub use kalman_filter::*;

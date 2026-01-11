@@ -1,7 +1,6 @@
 //! Runtime processing context for CUDA backend.
 
-use crate::ImagePlan;
-use crate::{ImageTensorLayout, ResizeFilter, ResizeMode};
+use crate::{ImagePlan, ImageTensorLayout, ResizeFilter, ResizeMode};
 
 /// Runtime processing context for a single image.
 ///
@@ -25,22 +24,65 @@ impl<'a> CudaImageProcessContext<'a> {
 
     #[inline]
     pub fn out_width(&self) -> u32 {
-        self.plan.width
+        // Extract from first Resize transform
+        self.plan
+            .transforms
+            .iter()
+            .find_map(|t| {
+                if let crate::ImageTransform::Resize(mode) = t {
+                    Some(mode.width())
+                } else {
+                    None
+                }
+            })
+            .unwrap_or(self.in_width)
     }
 
     #[inline]
     pub fn out_height(&self) -> u32 {
-        self.plan.height
+        // Extract from first Resize transform
+        self.plan
+            .transforms
+            .iter()
+            .find_map(|t| {
+                if let crate::ImageTransform::Resize(mode) = t {
+                    Some(mode.height())
+                } else {
+                    None
+                }
+            })
+            .unwrap_or(self.in_height)
     }
 
     #[inline]
-    pub fn resize_mode(&self) -> &ResizeMode {
-        &self.plan.resize_mode
+    pub fn resize_mode(&self) -> ResizeMode {
+        // Extract from first Resize transform
+        self.plan
+            .transforms
+            .iter()
+            .find_map(|t| {
+                if let crate::ImageTransform::Resize(mode) = t {
+                    Some(mode.clone())
+                } else {
+                    None
+                }
+            })
+            .unwrap_or_default()
     }
 
     #[inline]
     pub fn resize_filter(&self) -> ResizeFilter {
-        self.plan.resize_alg.filter().unwrap_or_default()
+        self.plan
+            .transforms
+            .iter()
+            .find_map(|t| {
+                if let crate::ImageTransform::Resize(mode) = t {
+                    mode.alg().filter()
+                } else {
+                    None
+                }
+            })
+            .unwrap_or_default()
     }
 
     #[inline]
@@ -67,17 +109,22 @@ impl<'a> CudaImageProcessContext<'a> {
 
     #[inline]
     pub fn padding_value(&self) -> u8 {
-        self.plan.padding_value
+        // Extract from first Resize transform if it's Letterbox
+        self.plan
+            .transforms
+            .iter()
+            .find_map(|t| {
+                if let crate::ImageTransform::Resize(mode) = t {
+                    Some(mode.padding_value())
+                } else {
+                    None
+                }
+            })
+            .unwrap_or(114)
     }
 
     #[inline]
     pub fn unsigned(&self) -> bool {
         self.plan.unsigned
-    }
-
-    #[inline]
-    #[allow(dead_code)]
-    pub fn has_standardize(&self) -> bool {
-        self.plan.has_standardize()
     }
 }

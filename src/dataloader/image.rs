@@ -1,45 +1,17 @@
 use aksr::Builder;
 use anyhow::Result;
-use fast_image_resize::{
-    images::{CroppedImageMut, Image as FImage},
-    pixels::PixelType,
-};
 use image::{DynamicImage, GrayImage, RgbImage, RgbaImage, SubImage};
 use std::path::{Path, PathBuf};
 
-use crate::{build_resizer_filter, Hub, Location, MediaType, X};
-
-/// Information about image transformation including source and destination dimensions.
-#[derive(Builder, Debug, Clone, Default)]
-pub struct ImageTransformInfo {
-    pub width_src: u32,
-    pub height_src: u32,
-    pub width_dst: u32,
-    pub height_dst: u32,
-    pub height_scale: f32,
-    pub width_scale: f32,
-    pub height_pad: f32,
-    pub width_pad: f32,
-}
-
-/// Image resize modes for different scaling strategies.
-#[derive(Debug, Clone, Default)]
-pub enum ResizeMode {
-    /// StretchToFit
-    FitExact,
-    FitWidth,
-    FitHeight,
-    #[default]
-    FitAdaptive,
-    Letterbox,
-}
+use crate::{Hub, X};
 
 /// Image wrapper with metadata and transformation capabilities.
 #[derive(Builder, Clone)]
 pub struct Image {
-    image: RgbImage,
-    source: Option<PathBuf>, // TODO: remove Option?
-    media_type: MediaType,
+    /// `ImageBuffer<Rgb<u8>, Vec<u8>>`
+    pub image: RgbImage, // TODO
+    pub source: Option<PathBuf>,
+    pub timestamp: Option<f64>,
 }
 
 impl Default for Image {
@@ -47,7 +19,7 @@ impl Default for Image {
         Self {
             image: RgbImage::new(0, 0),
             source: None,
-            media_type: MediaType::Unknown,
+            timestamp: None,
         }
     }
 }
@@ -57,8 +29,7 @@ impl std::fmt::Debug for Image {
         f.debug_struct("Image")
             .field("Height", &self.height())
             .field("Width", &self.width())
-            .field("MediaType", &self.media_type)
-            .field("Source", &self.source) // TODO
+            .field("Source", &self.source)
             .finish()
     }
 }
@@ -80,7 +51,7 @@ impl std::ops::DerefMut for Image {
 impl From<DynamicImage> for Image {
     fn from(image: DynamicImage) -> Self {
         Self {
-            image: image.to_rgb8(),
+            image: image.into_rgb8(),
             ..Default::default()
         }
     }
@@ -89,7 +60,7 @@ impl From<DynamicImage> for Image {
 impl From<GrayImage> for Image {
     fn from(image: GrayImage) -> Self {
         Self {
-            image: DynamicImage::from(image).to_rgb8(),
+            image: DynamicImage::from(image).into_rgb8(),
             ..Default::default()
         }
     }
@@ -107,7 +78,7 @@ impl From<RgbImage> for Image {
 impl From<RgbaImage> for Image {
     fn from(image: RgbaImage) -> Self {
         Self {
-            image: DynamicImage::from(image).to_rgb8(),
+            image: DynamicImage::from(image).into_rgb8(),
             ..Default::default()
         }
     }
@@ -156,68 +127,60 @@ impl Image {
         })
     }
 
-    pub fn try_read<P: AsRef<Path>>(path: P) -> Result<Self> {
-        let media_type;
-        let mut path = path.as_ref().to_path_buf();
+    pub fn from_url(url: &str) -> anyhow::Result<Image> {
+        let bytes = ureq::get(url).call()?.into_body().read_to_vec()?;
 
-        // try to fetch from hub or local cache
-        if !path.exists() {
-            let p = match Hub::default()
-                .try_fetch(path.to_str().expect("Failed to convert path to str"))
-            {
-                Ok(p) => {
-                    media_type = MediaType::Image(Location::Remote);
-                    p
-                }
-                Err(err) => {
-                    return Err(anyhow::anyhow!(
-                        "Failed to locate path: {:?} and file also not found in hub. Error: {:?}",
-                        path.display(),
-                        err
-                    ));
-                }
-            };
-            path = PathBuf::from(&p);
-        } else {
-            media_type = MediaType::Image(Location::Local);
+        Ok(image::load_from_memory(&bytes)?.into())
+    }
+
+    pub fn try_read<P: AsRef<Path>>(path: P) -> Result<Self> {
+        let mut path_buf = path.as_ref().to_path_buf();
+        let path_str = path_buf.to_str().unwrap_or("");
+
+        // Check remote
+        if crate::REMOTE_PROTOCOLS
+            .iter()
+            .any(|&p| path_str.starts_with(p))
+        {
+            return Ok(Self {
+                image: Self::from_url(path_str)?.into(),
+                source: Some(path_buf),
+                timestamp: None,
+            });
         }
 
-        let image = image::ImageReader::open(&path)
-            .map_err(|err| {
-                anyhow::anyhow!(
-                    "Failed to open image at {:?}. Error: {:?}",
-                    path.display(),
-                    err
-                )
-            })?
-            .with_guessed_format()
-            .map_err(|err| {
-                anyhow::anyhow!(
-                    "Failed to make a format guess based on the content: {:?}. Error: {:?}",
-                    path.display(),
-                    err
-                )
-            })?
-            .decode()
-            .map_err(|err| {
-                anyhow::anyhow!(
-                    "Failed to decode image at {:?}. Error: {:?}",
-                    path.display(),
-                    err
-                )
-            })?;
+        // Check github Releases
+        if !path_buf.exists() {
+            if let Ok(p) = Hub::default().try_fetch(path_str) {
+                path_buf = PathBuf::from(p);
+            } else {
+                return Err(anyhow::anyhow!(
+                    "Failed to locate path: {:?} (not found locally or in hub)",
+                    path_buf.display()
+                ));
+            }
+        }
+
+        // Local
+        let image = image::ImageReader::open(&path_buf)?
+            .with_guessed_format()?
+            .decode()?;
 
         Ok(Self {
-            image: image.to_rgb8(),
-            media_type,
-            source: Some(path),
+            image: image.into_rgb8(),
+            source: Some(path_buf),
+            timestamp: None,
         })
     }
 
     pub fn save<P: AsRef<Path>>(&self, p: P) -> Result<()> {
-        self.image
-            .save(p.as_ref())
-            .map_err(|err| anyhow::anyhow!("Failed to save image: {:?}", err))
+        match self.image.save(p.as_ref()) {
+            Ok(_) => {
+                tracing::info!("Saved image to: {:?}", p.as_ref().display());
+                Ok(())
+            }
+            Err(err) => Err(anyhow::anyhow!("Failed to save image: {:?}", err)),
+        }
     }
 
     /// (width, height)
@@ -237,14 +200,24 @@ impl Image {
         self.image.as_raw().len() as u32
     }
 
-    pub fn to_u32s(&self) -> Vec<u32> {
+    pub fn to_u32s_into(&self, buffer: &mut Vec<u32>) {
         use rayon::prelude::*;
+        let raw = self.image.as_raw();
+        let (w, h) = self.image.dimensions();
+        let len = (w * h) as usize;
 
-        self.image
-            .as_raw()
-            .par_chunks(3)
-            .map(|c| ((c[0] as u32) << 16) | ((c[1] as u32) << 8) | (c[2] as u32))
-            .collect()
+        if buffer.len() != len {
+            buffer.resize(len, 0);
+        }
+
+        // Use a more robust chunking approach
+        buffer.par_iter_mut().enumerate().for_each(|(i, pixel)| {
+            let offset = i * 3;
+            let r = raw[offset] as u32;
+            let g = raw[offset + 1] as u32;
+            let b = raw[offset + 2] as u32;
+            *pixel = (r << 16) | (g << 8) | b;
+        });
     }
 
     pub fn to_f32s(&self) -> Vec<f32> {
@@ -289,185 +262,12 @@ impl Image {
         self.into_dyn().to_luma8()
     }
 
-    pub fn resize(
-        &self,
-        tw: u32,
-        th: u32,
-        filter: &str,
-        mode: &ResizeMode,
-        padding_value: u8,
-    ) -> Result<Self> {
-        Ok(self
-            .resize_with_info(tw, th, filter, mode, padding_value)?
-            .0)
-    }
-
-    pub fn resize_with_info(
-        &self,
-        tw: u32,
-        th: u32,
-        filter: &str,
-        mode: &ResizeMode,
-        padding_value: u8,
-    ) -> Result<(Self, ImageTransformInfo)> {
-        if tw + th == 0 {
-            anyhow::bail!("Invalid target height: {} or width: {}.", th, tw);
-        }
-
-        let (w0, h0) = self.dimensions();
-        let mut trans_info = ImageTransformInfo::default()
-            .with_width_src(w0)
-            .with_height_src(h0)
-            .with_width_dst(tw)
-            .with_height_dst(th);
-
-        if (w0, h0) == (tw, th) {
-            return Ok((
-                self.clone(),
-                trans_info.with_width_scale(1.).with_height_scale(1.),
-            ));
-        }
-
-        let (mut resizer, config) = build_resizer_filter(filter)?;
-        let x: DynamicImage = self.to_dyn();
-
-        if let ResizeMode::FitExact = mode {
-            let mut dst = FImage::new(tw, th, PixelType::U8x3);
-            resizer.resize(&x, &mut dst, &config)?;
-            trans_info = trans_info
-                .with_height_scale(th as f32 / h0 as f32)
-                .with_width_scale(tw as f32 / w0 as f32);
-
-            Ok((Self::from_u8s(&dst.into_vec(), tw, th)?, trans_info))
-        } else {
-            let (w, h) = match mode {
-                ResizeMode::Letterbox | ResizeMode::FitAdaptive => {
-                    let r = (tw as f32 / w0 as f32).min(th as f32 / h0 as f32);
-                    trans_info = trans_info.with_height_scale(r).with_width_scale(r);
-
-                    (
-                        (w0 as f32 * r).round() as u32,
-                        (h0 as f32 * r).round() as u32,
-                    )
-                }
-                ResizeMode::FitHeight => {
-                    let r = th as f32 / h0 as f32;
-                    trans_info = trans_info.with_height_scale(1.).with_width_scale(r);
-
-                    ((r * w0 as f32).round() as u32, th)
-                }
-                ResizeMode::FitWidth => {
-                    let r = tw as f32 / w0 as f32;
-                    trans_info = trans_info.with_height_scale(r).with_width_scale(1.);
-
-                    (tw, (r * h0 as f32).round() as u32)
-                }
-                _ => unreachable!(),
-            };
-
-            let mut dst = FImage::from_vec_u8(
-                tw,
-                th,
-                vec![padding_value; 3 * th as usize * tw as usize],
-                PixelType::U8x3,
-            )?;
-            let (l, t) = if let ResizeMode::Letterbox = mode {
-                if w == tw {
-                    (0, (th - h) / 2)
-                } else {
-                    ((tw - w) / 2, 0)
-                }
-            } else {
-                (0, 0)
-            };
-
-            let mut dst_cropped = CroppedImageMut::new(&mut dst, l, t, w, h)?;
-            resizer.resize(&x, &mut dst_cropped, &config)?;
-
-            Ok((Self::from_u8s(&dst.into_vec(), tw, th)?, trans_info))
-        }
-    }
-
-    /// Pad the image to the nearest multiple of window_size
-    pub fn pad(&self, window_size: usize) -> Result<(Self, ImageTransformInfo)> {
-        let (width, height) = self.image.dimensions();
-        let (w_old, h_old) = (width as usize, height as usize);
-
-        //  (size // window_size + 1) * window_size - size
-        let h_pad_total = (h_old / window_size + 1) * window_size - h_old;
-        let w_pad_total = (w_old / window_size + 1) * window_size - w_old;
-
-        // Create new image with padded dimensions
-        let (new_w, new_h) = (w_old + w_pad_total, h_old + h_pad_total);
-        let mut padded = RgbImage::new(new_w as u32, new_h as u32);
-
-        // Get raw pixel buffers for high-performance operations
-        let src_pixels = self.image.as_raw();
-        let dst_pixels = padded.as_mut();
-
-        // Copy original image using row-wise memcpy for maximum performance
-        for y in 0..h_old {
-            let src_offset = y * w_old * 3;
-            let dst_offset = y * new_w * 3;
-            let row_bytes = w_old * 3;
-
-            dst_pixels[dst_offset..dst_offset + row_bytes]
-                .copy_from_slice(&src_pixels[src_offset..src_offset + row_bytes]);
-        }
-
-        // Symmetric padding for height - batch copy rows
-        if h_pad_total > 0 {
-            for h_idx in 0..h_pad_total {
-                let src_h = h_old - 1 - (h_idx % h_old);
-                let src_offset = src_h * w_old * 3;
-                let dst_offset = (h_old + h_idx) * new_w * 3;
-                let row_bytes = w_old * 3;
-
-                dst_pixels[dst_offset..dst_offset + row_bytes]
-                    .copy_from_slice(&src_pixels[src_offset..src_offset + row_bytes]);
-            }
-        }
-
-        // Symmetric padding for width - copy pixels in chunks
-        if w_pad_total > 0 {
-            for h_idx in 0..new_h {
-                let row_offset = h_idx * new_w * 3;
-
-                for w_idx in 0..w_pad_total {
-                    let src_w = w_old - 1 - (w_idx % w_old);
-                    let src_pixel_offset = row_offset + src_w * 3;
-                    let dst_pixel_offset = row_offset + (w_old + w_idx) * 3;
-
-                    // Copy RGB values (3 bytes per pixel) - use temporary buffer to avoid borrow conflict
-                    let temp_pixel = [
-                        dst_pixels[src_pixel_offset],
-                        dst_pixels[src_pixel_offset + 1],
-                        dst_pixels[src_pixel_offset + 2],
-                    ];
-                    dst_pixels[dst_pixel_offset..dst_pixel_offset + 3].copy_from_slice(&temp_pixel);
-                }
-            }
-        }
-
-        let images_transform_info = ImageTransformInfo::default()
-            .with_width_src(width)
-            .with_height_src(height)
-            .with_width_dst(new_w as u32)
-            .with_height_dst(new_h as u32)
-            .with_height_pad(h_pad_total as f32)
-            .with_width_pad(w_pad_total as f32);
-
-        Ok((Self::from(padded), images_transform_info))
-    }
-
     pub fn to_ndarray(&self) -> Result<X> {
         X::from_shape_vec(
             &[self.height() as usize, self.width() as usize, 3],
             self.to_f32s(),
         )
     }
-
-    // to_tensor method removed - slsl dependency removed, use to_ndarray() instead
 }
 
 /// Extension trait for converting between vectors of different image types.
