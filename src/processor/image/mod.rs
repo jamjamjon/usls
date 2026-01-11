@@ -2,7 +2,7 @@
 mod macros;
 mod config;
 mod cpu;
-#[cfg(feature = "cuda")]
+#[cfg(feature = "cuda-runtime")]
 mod cuda;
 mod layout;
 mod plan;
@@ -11,7 +11,7 @@ mod transform;
 
 pub use config::*;
 pub use cpu::*;
-#[cfg(feature = "cuda")]
+#[cfg(feature = "cuda-runtime")]
 pub use cuda::*;
 pub use layout::*;
 pub use plan::*;

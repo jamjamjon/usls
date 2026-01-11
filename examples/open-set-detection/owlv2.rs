@@ -26,8 +26,8 @@ pub struct Owlv2Args {
     pub device: Device,
 
     /// Processor device (for pre/post processing)
-    #[arg(long, global = true, default_value = "cpu")]
-    pub processor_device: Device,
+    #[arg(long, global = true)]
+    pub processor_device: Option<Device>,
 
     /// num dry run
     #[arg(long, global = true, default_value_t = 3)]
@@ -47,17 +47,20 @@ pub struct Owlv2Args {
 }
 
 pub fn config(args: &Owlv2Args) -> Result<Config> {
-    let config = match args.kind {
+    let mut config = match args.kind {
         Kind::Base => Config::owlv2_base(),
         Kind::BaseEnsemble => Config::owlv2_base_ensemble(),
         Kind::BaseFt => Config::owlv2_base_ft(),
     }
     .with_model_dtype(args.dtype)
     .with_model_device(args.device)
-    .with_image_processor_device(args.processor_device)
     .with_class_confs(&[0.1])
     .with_model_num_dry_run(args.num_dry_run)
     .with_batch_size_all_min_opt_max(args.min_batch, args.batch, args.max_batch);
+
+    if let Some(device) = args.processor_device {
+        config = config.with_image_processor_device(device);
+    }
 
     Ok(config)
 }

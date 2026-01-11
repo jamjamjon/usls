@@ -17,8 +17,8 @@ pub struct SvtrArgs {
     pub device: Device,
 
     /// Processor device (for pre/post processing)
-    #[arg(long, global = true, default_value = "cpu")]
-    pub processor_device: Device,
+    #[arg(long, global = true)]
+    pub processor_device: Option<Device>,
 
     /// Batch size
     #[arg(long, global = true, default_value_t = 1)]
@@ -42,7 +42,7 @@ pub struct SvtrArgs {
 }
 
 pub fn config(args: &SvtrArgs) -> Result<Config> {
-    let config = match args.variant.as_str() {
+    let mut config = match args.variant.as_str() {
         "ppocr-v3-ch" => Config::ppocr_rec_v3_ch(),
         "ppocr-v4-ch" => Config::ppocr_rec_v4_ch(),
         "ppocr-v3-en" => Config::ppocr_rec_v3_en(),
@@ -56,9 +56,12 @@ pub fn config(args: &SvtrArgs) -> Result<Config> {
     .with_model_ixx(0, 3, args.max_text_length)
     .with_dtype_all(args.dtype)
     .with_device_all(args.device)
-    .with_image_processor_device(args.processor_device)
     .with_batch_size_all_min_opt_max(args.min_batch, args.batch, args.max_batch)
     .with_num_dry_run_all(args.num_dry_run);
+
+    if let Some(device) = args.processor_device {
+        config = config.with_image_processor_device(device);
+    }
 
     Ok(config)
 }

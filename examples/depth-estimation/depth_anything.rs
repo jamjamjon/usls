@@ -1,6 +1,6 @@
 use anyhow::Result;
 use clap::{Parser, ValueEnum};
-use usls::{Config, DType, Scale};
+use usls::{Config, DType, Device, Scale};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
 pub enum Kind {
@@ -13,11 +13,11 @@ pub enum Kind {
 pub struct DepthAnythingArgs {
     /// Device: cpu, cuda:0, mps, coreml, openvino:CPU, etc.
     #[arg(long, global = true, default_value = "cpu")]
-    pub device: String,
+    pub device: Device,
 
     /// Processor device (for pre/post processing)
-    #[arg(long, global = true, default_value = "cpu")]
-    pub processor_device: String,
+    #[arg(long, global = true)]
+    pub processor_device: Option<Device>,
 
     /// Batch size
     #[arg(long, global = true, default_value_t = 1)]
@@ -41,7 +41,7 @@ pub struct DepthAnythingArgs {
 }
 
 pub fn config(args: &DepthAnythingArgs) -> Result<Config> {
-    let config = match (args.ver, &args.scale, args.kind) {
+    let mut config = match (args.ver, &args.scale, args.kind) {
         (1, Scale::S, _) => Config::depth_anything_v1_small(),
         (1, Scale::B, _) => Config::depth_anything_v1_base(),
         (1, Scale::L, _) => Config::depth_anything_v1_large(),
@@ -61,9 +61,12 @@ pub fn config(args: &DepthAnythingArgs) -> Result<Config> {
         ),
     }
     .with_batch_size_all_min_opt_max(1, args.batch, 4)
-    .with_device_all(args.device.parse()?)
-    .with_image_processor_device(args.processor_device.parse()?)
+    .with_device_all(args.device)
     .with_model_dtype(args.dtype);
+
+    if let Some(device) = args.processor_device {
+        config = config.with_image_processor_device(device);
+    }
 
     Ok(config)
 }

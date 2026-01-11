@@ -17,8 +17,8 @@ pub struct FastArgs {
     pub device: Device,
 
     /// Processor device (for pre/post processing)
-    #[arg(long, global = true, default_value = "cpu")]
-    pub processor_device: Device,
+    #[arg(long, global = true)]
+    pub processor_device: Option<Device>,
 
     /// Batch size
     #[arg(long, global = true, default_value_t = 1)]
@@ -50,7 +50,7 @@ pub struct FastArgs {
 }
 
 pub fn config(args: &FastArgs) -> Result<Config> {
-    let config = match args.scale {
+    let mut config = match args.scale {
         Scale::T => Config::fast_tiny(),
         Scale::S => Config::fast_small(),
         Scale::B => Config::fast_base(),
@@ -58,9 +58,12 @@ pub fn config(args: &FastArgs) -> Result<Config> {
     }
     .with_dtype_all(args.dtype)
     .with_device_all(args.device)
-    .with_image_processor_device(args.processor_device)
     .with_batch_size_all_min_opt_max(args.min_batch, args.batch, args.max_batch)
     .with_num_dry_run_all(args.num_dry_run);
+
+    if let Some(device) = args.processor_device {
+        config = config.with_image_processor_device(device);
+    }
 
     Ok(config)
 }
