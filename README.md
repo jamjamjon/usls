@@ -365,6 +365,14 @@ cargo run -r --example yolo -- --help
   - **`tvm`**: Apache TVM.
   - **`vitis`**: Xilinx Vitis AI.
 
+- ### CUDA Support
+  NVIDIA GPU acceleration with CUDA image processing kernels:
+
+  - **`cuda`**: Uses `cuda-version-from-build-system` (auto-detects via `nvcc`).
+  - **`cuda-11040`**, **`cuda-11050`**, **`cuda-11060`**, **`cuda-11070`**, **`cuda-11080`**: CUDA 11.x specific versions.
+  - **`cuda-12000`**, **`cuda-12010`**, **`cuda-12020`**, **`cuda-12030`**, **`cuda-12040`**, **`cuda-12050`**, **`cuda-12060`**, **`cuda-12080`**, **`cuda-12090`**: CUDA 12.x specific versions.
+  - **`cuda-13000`**, **`cuda-13010`**: CUDA 13.x specific versions.
+
   See [ONNX Runtime docs](https://onnxruntime.ai/docs/execution-providers/) and [ORT performance guide](https://ort.pyke.io/perf/execution-providers) for details.
 
 
