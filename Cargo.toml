@@ -49,8 +49,7 @@ ort = { version = "=2.0.0-rc.10", default-features = false, features = [
 cudarc = { version = "0.18.2", optional = true, default-features = false, features = [
   "driver", 
   "nvrtc", 
-  "dynamic-linking",
-  "cuda-version-from-build-system"
+  "dynamic-linking"
 ] }
 ureq = { version = "3.1.4", default-features = false, features = ["rustls", "gzip"] }
 hf-hub = { version = "0.4.3", default-features = false, features = ["ureq", "rustls-tls"], optional = true }
@@ -152,57 +151,57 @@ required-features = ["annotator"]
 [[example]]
 name = "object-detection"
 path = "examples/object-detection/main.rs"
-required-features = ["vision"]
+required-features = ["vision", "annotator"]
 
 [[example]]
 name = "image-classification"
 path = "examples/image-classification/main.rs"
-required-features = ["vision"]
+required-features = ["vision", "annotator"]
 
 [[example]]
 name = "image-segmentation"
 path = "examples/image-segmentation/main.rs"
-required-features = ["vision"]
+required-features = ["vision", "annotator"]
 
 [[example]]
 name = "pose-estimation"
 path = "examples/pose-estimation/main.rs"
-required-features = ["vision"]
+required-features = ["vision", "annotator"]
 
 [[example]]
 name = "depth-estimation"
 path = "examples/depth-estimation/main.rs"
-required-features = ["vision"]
+required-features = ["vision", "annotator"]
 
 [[example]]
 name = "image-matting"
 path = "examples/image-matting/main.rs"
-required-features = ["vision"]
+required-features = ["vision", "annotator"]
 
 [[example]]
 name = "background-removal"
 path = "examples/background-removal/main.rs"
-required-features = ["vision"]
+required-features = ["vision", "annotator"]
 
 [[example]]
 name = "super-resolution"
 path = "examples/super-resolution/main.rs"
-required-features = ["vision"]
+required-features = ["vision", "annotator"]
 
 [[example]]
 name = "ocr"
 path = "examples/ocr/main.rs"
-required-features = ["vision", "vlm"]
+required-features = ["vision", "vlm", "annotator"]
 
 [[example]]
 name = "open-set-detection"
 path = "examples/open-set-detection/main.rs"
-required-features = ["vision", "vlm"]
+required-features = ["vision", "vlm", "annotator"]
 
 [[example]]
 name = "open-set-segmentation"
 path = "examples/open-set-segmentation/main.rs"
-required-features = ["vision", "vlm"]
+required-features = ["vision", "vlm", "annotator"]
 
 [[example]]
 name = "bytetrack"
@@ -212,19 +211,19 @@ required-features = ["mot", "viewer", "video"]
 [[example]]
 name = "embedding"
 path = "examples/embedding/main.rs"
-required-features = ["vision", "vlm"]
+required-features = ["vision", "vlm", "annotator"]
 
 [[example]]
 name = "vlm"
 path = "examples/vlm/main.rs"
-required-features = ["vision", "vlm"]
+required-features = ["vision", "vlm", "annotator"]
 
 [[example]]
 name = "yolo"
 path = "examples/yolo/main.rs"
-required-features = ["vision"]
+required-features = ["vision", "annotator"]
 
 [[example]]
 name = "sapiens"
 path = "examples/sapiens/main.rs"
-required-features = ["vision"]
+required-features = ["vision", "annotator"]
