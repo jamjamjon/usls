@@ -43,9 +43,9 @@ pub struct ImageProcessorConfig {
 impl Default for ImageProcessorConfig {
     fn default() -> Self {
         Self {
-            #[cfg(feature = "cuda")]
+            #[cfg(feature = "cuda-runtime")]
             device: Device::Cuda(0),
-            #[cfg(not(feature = "cuda"))]
+            #[cfg(not(feature = "cuda-runtime"))]
             device: Device::Cpu(0),
             image_width: 640,
             image_height: 640,

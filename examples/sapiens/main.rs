@@ -14,8 +14,8 @@ struct Args {
     pub device: Device,
 
     /// Processor device (for pre/post processing)
-    #[arg(long, global = true, default_value = "cpu")]
-    pub processor_device: Device,
+    #[arg(long, global = true)]
+    pub processor_device: Option<Device>,
 
     /// DType: fp32, fp16, q4f16, etc.
     #[arg(long, default_value = "q4f16")]
@@ -35,12 +35,16 @@ fn main() -> Result<()> {
     let args = Args::parse();
 
     // build
-    let config = Config::sapiens_seg_0_3b()
+    let mut config = Config::sapiens_seg_0_3b()
         .with_model_dtype(args.dtype)
         .with_model_device(args.device)
-        .with_image_processor_device(args.processor_device)
-        .with_model_num_dry_run(args.num_dry_run)
-        .commit()?;
+        .with_model_num_dry_run(args.num_dry_run);
+
+    if let Some(device) = args.processor_device {
+        config = config.with_image_processor_device(device);
+    }
+
+    let config = config.commit()?;
     let mut model = Sapiens::new(config)?;
 
     // load

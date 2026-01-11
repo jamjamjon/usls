@@ -1,6 +1,6 @@
 use anyhow::Result;
 use clap::Args;
-use usls::{Config, DType, Scale};
+use usls::{Config, DType, Device, Scale};
 
 #[derive(Args, Debug)]
 pub struct YoloePromptFreeArgs {
@@ -18,11 +18,11 @@ pub struct YoloePromptFreeArgs {
 
     /// Device: cpu, cuda:0, mps, coreml, openvino:CPU, etc.
     #[arg(long, global = true, default_value = "cpu")]
-    pub device: String,
+    pub device: Device,
 
     /// Processor device (for pre/post processing)
-    #[arg(long, global = true, default_value = "cpu")]
-    pub processor_device: String,
+    #[arg(long, global = true)]
+    pub processor_device: Option<Device>,
 
     /// Batch size
     #[arg(long, global = true, default_value_t = 1)]
@@ -42,7 +42,7 @@ pub struct YoloePromptFreeArgs {
 }
 
 pub fn config(args: &YoloePromptFreeArgs) -> Result<Config> {
-    let config = match (args.ver, &args.scale) {
+    let mut config = match (args.ver, &args.scale) {
         (8, Scale::S) => Config::yoloe_v8s_seg_pf(),
         (8, Scale::M) => Config::yoloe_v8m_seg_pf(),
         (8, Scale::L) => Config::yoloe_v8l_seg_pf(),
@@ -56,10 +56,13 @@ pub fn config(args: &YoloePromptFreeArgs) -> Result<Config> {
         ),
     }
     .with_model_dtype(args.dtype)
-    .with_model_device(args.device.parse()?)
-    .with_image_processor_device(args.processor_device.parse()?)
+    .with_model_device(args.device)
     .with_batch_size_all_min_opt_max(args.min_batch, args.batch, args.max_batch)
     .with_num_dry_run_all(args.num_dry_run);
+
+    if let Some(device) = args.processor_device {
+        config = config.with_image_processor_device(device);
+    }
 
     Ok(config)
 }

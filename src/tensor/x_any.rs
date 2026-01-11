@@ -1,6 +1,6 @@
 use anyhow::Result;
 
-#[cfg(feature = "cuda")]
+#[cfg(feature = "cuda-runtime")]
 use crate::XCuda;
 use crate::X;
 
@@ -28,7 +28,7 @@ pub enum XAny {
     /// CPU tensor (host memory)
     Host(X),
     /// CUDA tensor (device memory) - zero-copy
-    #[cfg(feature = "cuda")]
+    #[cfg(feature = "cuda-runtime")]
     Device(XCuda),
 }
 
@@ -39,18 +39,18 @@ impl XAny {
     }
 
     /// Create from CUDA device tensor.
-    #[cfg(feature = "cuda")]
+    #[cfg(feature = "cuda-runtime")]
     pub fn from_device(cuda_tensor: XCuda) -> Self {
         XAny::Device(cuda_tensor)
     }
 
     /// Check if tensor is on CUDA device.
     pub fn is_device(&self) -> bool {
-        #[cfg(feature = "cuda")]
+        #[cfg(feature = "cuda-runtime")]
         {
             matches!(self, XAny::Device(_))
         }
-        #[cfg(not(feature = "cuda"))]
+        #[cfg(not(feature = "cuda-runtime"))]
         {
             false
         }
@@ -65,7 +65,7 @@ impl XAny {
     pub fn as_host(&self) -> Result<X> {
         match self {
             XAny::Host(x) => Ok(x.clone()), // TODO: clone?
-            #[cfg(feature = "cuda")]
+            #[cfg(feature = "cuda-runtime")]
             XAny::Device(cuda_tensor) => cuda_tensor.to_host(),
         }
     }
@@ -74,13 +74,13 @@ impl XAny {
     pub fn try_host_ref(&self) -> Option<&X> {
         match self {
             XAny::Host(x) => Some(x),
-            #[cfg(feature = "cuda")]
+            #[cfg(feature = "cuda-runtime")]
             XAny::Device(_) => None,
         }
     }
 
     /// Try to get reference to device tensor (fails if on host).
-    #[cfg(feature = "cuda")]
+    #[cfg(feature = "cuda-runtime")]
     pub fn try_device_ref(&self) -> Option<&XCuda> {
         match self {
             XAny::Device(cuda_tensor) => Some(cuda_tensor),
@@ -92,7 +92,7 @@ impl XAny {
     pub fn shape(&self) -> Vec<usize> {
         match self {
             XAny::Host(x) => x.dims().to_vec(),
-            #[cfg(feature = "cuda")]
+            #[cfg(feature = "cuda-runtime")]
             XAny::Device(cuda_tensor) => cuda_tensor.shape.iter().map(|&x| x as usize).collect(),
         }
     }
@@ -112,7 +112,7 @@ impl XAny {
     pub fn insert_axis(self, axis: usize) -> Result<Self> {
         match self {
             XAny::Host(x) => Ok(XAny::Host(x.insert_axis(axis)?)),
-            #[cfg(feature = "cuda")]
+            #[cfg(feature = "cuda-runtime")]
             XAny::Device(cuda_tensor) => Ok(XAny::Device(cuda_tensor.insert_axis(axis)?)),
         }
     }
@@ -126,7 +126,7 @@ impl XAny {
                 let arr = x.0.into_shape_with_order(ndarray::IxDyn(new_shape))?;
                 Ok(XAny::Host(X(arr)))
             }
-            #[cfg(feature = "cuda")]
+            #[cfg(feature = "cuda-runtime")]
             XAny::Device(cuda_tensor) => {
                 let new_shape_i64: Vec<i64> = new_shape.iter().map(|&x| x as i64).collect();
                 Ok(XAny::Device(cuda_tensor.reshape(new_shape_i64)?))
@@ -168,7 +168,7 @@ impl XAny {
             }
         }
 
-        #[cfg(feature = "cuda")]
+        #[cfg(feature = "cuda-runtime")]
         if first_is_device {
             // Extract CUDA tensors and use XCuda::stack
             let cuda_tensors: Vec<XCuda> = tensors
@@ -186,7 +186,7 @@ impl XAny {
             .into_iter()
             .map(|t| match t {
                 XAny::Host(x) => x,
-                #[cfg(feature = "cuda")]
+                #[cfg(feature = "cuda-runtime")]
                 XAny::Device(_) => unreachable!(),
             })
             .collect();
@@ -212,7 +212,7 @@ impl XAny {
             }
         }
 
-        #[cfg(feature = "cuda")]
+        #[cfg(feature = "cuda-runtime")]
         if first_is_device {
             let cuda_tensors: Vec<XCuda> = tensors
                 .into_iter()
@@ -229,7 +229,7 @@ impl XAny {
             .into_iter()
             .map(|t| match t {
                 XAny::Host(x) => x,
-                #[cfg(feature = "cuda")]
+                #[cfg(feature = "cuda-runtime")]
                 XAny::Device(_) => unreachable!(),
             })
             .collect();
@@ -246,7 +246,7 @@ impl From<X> for XAny {
     }
 }
 
-#[cfg(feature = "cuda")]
+#[cfg(feature = "cuda-runtime")]
 impl From<XCuda> for XAny {
     fn from(cuda_tensor: XCuda) -> Self {
         XAny::Device(cuda_tensor)

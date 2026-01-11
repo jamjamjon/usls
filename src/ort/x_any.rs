@@ -22,7 +22,7 @@ impl<'a> TryFrom<&'a XAny> for ort::session::SessionInputValue<'a> {
                     Ok(ort::session::SessionInputValue::from(value))
                 }
             }
-            #[cfg(feature = "cuda")]
+            #[cfg(feature = "cuda-runtime")]
             XAny::Device(cuda_tensor) => {
                 // Zero-copy CUDA path: create ORT CUDA tensor directly
                 use ort::memory::{AllocationDevice, AllocatorType, MemoryInfo, MemoryType};
@@ -63,7 +63,7 @@ impl TryFrom<XAny> for ort::session::SessionInputValue<'static> {
                     .map_err(|e| anyhow::anyhow!("Failed to create Value: {:?}", e))?;
                 Ok(ort::session::SessionInputValue::from(value))
             }
-            #[cfg(feature = "cuda")]
+            #[cfg(feature = "cuda-runtime")]
             XAny::Device(cuda_tensor) => {
                 // Zero-copy CUDA path: create ORT CUDA tensor directly
                 use ort::memory::{AllocationDevice, AllocatorType, MemoryInfo, MemoryType};

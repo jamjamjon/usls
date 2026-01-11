@@ -16,8 +16,8 @@ pub struct Ben2Args {
     pub device: Device,
 
     /// Processor device (for pre/post processing)
-    #[arg(long, global = true, default_value = "cpu")]
-    pub processor_device: Device,
+    #[arg(long, global = true)]
+    pub processor_device: Option<Device>,
 
     /// Batch size
     #[arg(long, global = true, default_value_t = 1)]
@@ -37,15 +37,15 @@ pub struct Ben2Args {
 }
 
 pub fn config(args: &Ben2Args) -> Result<Config> {
-    let config = match args.scale {
-        Scale::B => Config::ben2_base(),
-        _ => unimplemented!(),
+    let mut config = Config::ben2_base()
+        .with_dtype_all(args.dtype)
+        .with_device_all(args.device)
+        .with_batch_size_all_min_opt_max(args.min_batch, args.batch, args.max_batch)
+        .with_num_dry_run_all(args.num_dry_run);
+
+    if let Some(device) = args.processor_device {
+        config = config.with_image_processor_device(device);
     }
-    .with_dtype_all(args.dtype)
-    .with_device_all(args.device)
-    .with_image_processor_device(args.processor_device)
-    .with_batch_size_all_min_opt_max(args.min_batch, args.batch, args.max_batch)
-    .with_num_dry_run_all(args.num_dry_run);
 
     Ok(config)
 }

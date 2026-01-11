@@ -287,7 +287,7 @@ impl Engine {
                                             result.push(Self::preprocess(x, dtype)?.into());
                                         }
                                     }
-                                    #[cfg(feature = "cuda")]
+                                    #[cfg(feature = "cuda-runtime")]
                                     XAny::Device(cuda_tensor) => {
                                         // CUDA zero-copy path
                                         result.push(Self::cuda_tensor_to_ort(cuda_tensor, dtype)?);
@@ -430,7 +430,7 @@ impl Engine {
     }
 
     /// Convert CUDA tensor to ORT input (zero-copy).
-    #[cfg(feature = "cuda")]
+    #[cfg(feature = "cuda-runtime")]
     fn cuda_tensor_to_ort<'a>(
         cuda_tensor: &'a crate::XCuda,
         dtype: &TensorElementType,
@@ -599,14 +599,50 @@ impl Engine {
                 }
             }
             Device::Cuda(id) => {
-                #[cfg(not(feature = "cuda"))]
+                #[cfg(not(any(
+                    feature = "cuda",
+                    feature = "cuda-11040",
+                    feature = "cuda-11050",
+                    feature = "cuda-11060",
+                    feature = "cuda-11070",
+                    feature = "cuda-11080",
+                    feature = "cuda-12000",
+                    feature = "cuda-12010",
+                    feature = "cuda-12020",
+                    feature = "cuda-12030",
+                    feature = "cuda-12040",
+                    feature = "cuda-12050",
+                    feature = "cuda-12060",
+                    feature = "cuda-12080",
+                    feature = "cuda-12090",
+                    feature = "cuda-13000",
+                    feature = "cuda-13010"
+                )))]
                 {
                     anyhow::bail!(feature_help
                         .replace("#EP", "CUDA")
                         .replace("#FEATURE", "cuda"));
                 }
 
-                #[cfg(feature = "cuda")]
+                #[cfg(any(
+                    feature = "cuda",
+                    feature = "cuda-11040",
+                    feature = "cuda-11050",
+                    feature = "cuda-11060",
+                    feature = "cuda-11070",
+                    feature = "cuda-11080",
+                    feature = "cuda-12000",
+                    feature = "cuda-12010",
+                    feature = "cuda-12020",
+                    feature = "cuda-12030",
+                    feature = "cuda-12040",
+                    feature = "cuda-12050",
+                    feature = "cuda-12060",
+                    feature = "cuda-12080",
+                    feature = "cuda-12090",
+                    feature = "cuda-13000",
+                    feature = "cuda-13010"
+                ))]
                 {
                     let ep = ort::execution_providers::CUDAExecutionProvider::default()
                         .with_device_id(id as i32);

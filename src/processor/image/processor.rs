@@ -88,7 +88,7 @@ pub struct ImageProcessor {
     pub images_transform_info: Vec<ImageTransformInfo>,
     device: Device,
     plan: ImagePlan,
-    #[cfg(feature = "cuda")]
+    #[cfg(feature = "cuda-runtime")]
     cuda_preprocessor: Option<crate::CudaPreprocessor>,
 }
 
@@ -98,7 +98,7 @@ impl Default for ImageProcessor {
             device: Device::Cpu(0),
             plan: ImagePlan::default(),
             images_transform_info: vec![],
-            #[cfg(feature = "cuda")]
+            #[cfg(feature = "cuda-runtime")]
             cuda_preprocessor: None,
         }
     }
@@ -108,24 +108,24 @@ impl FromConfig for ImageProcessor {
     type Config = ImageProcessorConfig;
 
     fn from_config(config: ImageProcessorConfig) -> Result<Self> {
-        #[cfg(feature = "cuda")]
+        #[cfg(feature = "cuda-runtime")]
         let cuda_preprocessor = match config.device {
-            Device::Cuda(_device_id) => Some(
+            Device::Cuda(_device_id) | Device::TensorRt(_device_id) => Some(
                 crate::CudaPreprocessor::new(_device_id)
                     .map_err(|e| anyhow::anyhow!("Failed to initialize CUDA preprocessor: {e}"))?,
             ),
             _ => None,
         };
 
-        #[cfg(not(feature = "cuda"))]
-        if matches!(config.device, Device::Cuda(_)) {
+        #[cfg(not(feature = "cuda-runtime"))]
+        if matches!(config.device, Device::Cuda(_) | Device::TensorRt(_)) {
             anyhow::bail!(
-                "ImageProcessor device is CUDA, but crate was built without the `cuda` feature."
+                "ImageProcessor device is CUDA/TensorRT, but crate was built without CUDA support."
             );
         }
 
         match config.device {
-            Device::Cpu(_) | Device::Cuda(_) => {}
+            Device::Cpu(_) | Device::Cuda(_) | Device::TensorRt(_) => {}
             x => anyhow::bail!("Unsupported ImageProcessor device: {x:?}."),
         }
 
@@ -137,7 +137,7 @@ impl FromConfig for ImageProcessor {
             device,
             plan,
             images_transform_info: vec![],
-            #[cfg(feature = "cuda")]
+            #[cfg(feature = "cuda-runtime")]
             cuda_preprocessor,
         })
     }
@@ -369,8 +369,8 @@ impl ImageProcessor {
                 Ok(x)
             }
 
-            Device::Cuda(_) => {
-                #[cfg(feature = "cuda")]
+            Device::Cuda(_) | Device::TensorRt(_) => {
+                #[cfg(feature = "cuda-runtime")]
                 {
                     if let Some(ref cuda_prep) = self.cuda_preprocessor {
                         let (x, infos) = cuda_prep.execute_plan(xs, &self.plan)?;
@@ -380,9 +380,9 @@ impl ImageProcessor {
                         anyhow::bail!("CUDA preprocessor not initialized")
                     }
                 }
-                #[cfg(not(feature = "cuda"))]
+                #[cfg(not(feature = "cuda-runtime"))]
                 {
-                    anyhow::bail!("CUDA device not supported in this build")
+                    anyhow::bail!("CUDA/TensorRT device not supported in this build")
                 }
             }
 
