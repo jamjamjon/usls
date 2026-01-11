@@ -35,7 +35,7 @@ jobs:
       - name: Install dependencies
         run: |
           DEBIAN_FRONTEND=noninteractive apt-get update --fix-missing
-          DEBIAN_FRONTEND=noninteractive apt-get install -y build-essential libssl-dev ca-certificates clang curl pkg-config protobuf-compiler 
+          DEBIAN_FRONTEND=noninteractive apt-get install -y build-essential libssl-dev ca-certificates clang curl pkg-config protobuf-compiler
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -49,7 +49,7 @@ jobs:
       - name: Clippy
         run: |
           if [ "${{ matrix.feature }}" = "all-features" ]; then
-            cargo clippy --all-features --all-targets -- -D warnings
+            cargo clippy --no-default-features --features "all-models,video,viewer,annotator,hf-hub,ort-download-binaries,ort-load-dynamic" --all-targets -- -D warnings
           elif [ "${{ matrix.feature }}" = "" ]; then
             cargo clippy --no-default-features --all-targets -- -D warnings
           else
@@ -74,7 +74,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Check
-        run: cargo check --all-features --all-targets
+        run: cargo check --no-default-features --features "all-models,video,viewer,annotator,hf-hub,ort-download-binaries,ort-load-dynamic" --all-targets
 
   test:
     name: cargo-test
@@ -94,7 +94,7 @@ jobs:
         uses: dtolnay/rust-toolchain@nightly
 
       - name: Test
-        run: cargo +nightly test --all-features --all-targets
+        run: cargo +nightly test --no-default-features --features "all-models,video,viewer,annotator,hf-hub,ort-download-binaries,ort-load-dynamic" --all-targets
 
   build-linux:
     needs: test
@@ -104,7 +104,7 @@ jobs:
 
     strategy:
       matrix:
-        ffmpeg_version: [ "5.0", "5.1", "6.0", "6.1", "7.0", "7.1" ]  # "4.3", "4.4"
+        ffmpeg_version: [ "5.0", "5.1", "6.0", "6.1", "7.0", "7.1" ]
       fail-fast: false
 
     steps:
@@ -120,4 +120,41 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Build
-        run: cargo build --all-features
+        run: cargo build --no-default-features --features "all-models,video,viewer,annotator,hf-hub,ort-download-binaries,ort-load-dynamic"
+
+  cuda:
+    name: CUDA ${{ matrix.cuda_version }}
+    runs-on: ubuntu-latest
+    container:
+      image: nvidia/cuda:${{ matrix.cuda_version }}-devel-ubuntu22.04
+      options: --gpus all
+
+    strategy:
+      fail-fast: false
+      matrix:
+        cuda_version: ["12.4.0", "12.1.0", "11.8.0"]
+        include:
+          - cuda_version: "12.4.0"
+            cudarc_feature: "cuda-12040"
+          - cuda_version: "12.1.0"
+            cudarc_feature: "cuda-12010"
+          - cuda_version: "11.8.0"
+            cudarc_feature: "cuda-11080"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          DEBIAN_FRONTEND=noninteractive apt-get update --fix-missing
+          DEBIAN_FRONTEND=noninteractive apt-get install -y build-essential libssl-dev ca-certificates clang curl pkg-config protobuf-compiler
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Check CUDA
+        run: cargo check --no-default-features --features "${{ matrix.cudarc_feature }},vision,annotator"
+
+      - name: Build CUDA
+        run: cargo build --no-default-features --features "${{ matrix.cudarc_feature }},vision,annotator"
