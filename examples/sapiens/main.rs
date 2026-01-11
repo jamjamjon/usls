@@ -1,32 +1,53 @@
 use anyhow::Result;
-use usls::{models::Sapiens, Annotator, Config, DataLoader};
+use clap::Parser;
+use usls::{models::Sapiens, Annotator, Config, DType, DataLoader, Device, Model};
 
-#[derive(argh::FromArgs)]
-/// Example
+#[path = "../utils/mod.rs"]
+mod utils;
+
+#[derive(Parser)]
+#[command(author, version, about = "Sapiens Example", long_about = None)]
+#[command(propagate_version = true)]
 struct Args {
-    /// device
-    #[argh(option, default = "String::from(\"cpu:0\")")]
-    device: String,
+    /// Device: cpu, cuda:0, mps, coreml, openvino:CPU, etc.
+    #[arg(long, default_value = "cpu")]
+    pub device: Device,
+
+    /// Processor device (for pre/post processing)
+    #[arg(long, global = true, default_value = "cpu")]
+    pub processor_device: Device,
+
+    /// DType: fp32, fp16, q4f16, etc.
+    #[arg(long, default_value = "q4f16")]
+    pub dtype: DType,
+
+    /// Source: image, folder
+    #[arg(long, default_value = "images/paul-george.jpg", value_delimiter = ',')]
+    source: Vec<String>,
+
+    /// num dry run
+    #[arg(long, global = true, default_value_t = 0)]
+    pub num_dry_run: usize,
 }
 
 fn main() -> Result<()> {
-    tracing_subscriber::fmt()
-        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
-        .with_timer(tracing_subscriber::fmt::time::ChronoLocal::rfc_3339())
-        .init();
+    utils::init_logging();
+    let args = Args::parse();
 
-    let args: Args = argh::from_env();
     // build
     let config = Config::sapiens_seg_0_3b()
-        .with_model_device(args.device.parse()?)
+        .with_model_dtype(args.dtype)
+        .with_model_device(args.device)
+        .with_image_processor_device(args.processor_device)
+        .with_model_num_dry_run(args.num_dry_run)
         .commit()?;
     let mut model = Sapiens::new(config)?;
 
     // load
-    let xs = DataLoader::try_read_n(&["images/paul-george.jpg"])?;
+    let xs = DataLoader::new(&args.source)?.try_read()?;
 
     // run
-    let ys = model.forward(&xs)?;
+    let ys = model.run(&xs)?;
 
     // annotate
     let annotator = Annotator::default();

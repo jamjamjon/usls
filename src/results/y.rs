@@ -1,6 +1,7 @@
 use aksr::Builder;
+use std::collections::HashMap;
 
-use crate::{Hbb, Image, Keypoint, Mask, Obb, Polygon, Prob, Text};
+use crate::{Hbb, Image, Keypoint, Mask, Obb, Polygon, Prob, Text, X};
 
 /// Container for inference results for each image.
 ///
@@ -19,6 +20,8 @@ pub struct Y {
     pub polygons: Vec<Polygon>,
     pub masks: Vec<Mask>,
     pub images: Vec<Image>,
+    pub embedding: X,
+    pub extras: HashMap<String, X>,
 }
 
 impl std::fmt::Debug for Y {
@@ -52,7 +55,12 @@ impl std::fmt::Debug for Y {
         if !self.images.is_empty() {
             s.field("Images", &self.images);
         }
-
+        if !self.embedding.is_empty() {
+            s.field("Embeddings", &self.embedding);
+        }
+        if !self.extras.is_empty() {
+            s.field("Extras", &self.extras);
+        }
         s.finish()
     }
 }
@@ -68,5 +76,7 @@ impl Y {
             && self.polygons.is_empty()
             && self.masks.is_empty()
             && self.images.is_empty()
+            && self.embedding.is_empty()
+            && self.extras.is_empty()
     }
 }

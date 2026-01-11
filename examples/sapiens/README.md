@@ -1,7 +1,7 @@
 ## Quick Start
 
 ```shell
-cargo run -r -F sapiens -F cuda --example sapiens -- --device cuda
+cargo run -F cuda --example sapiens -- --dtype q4f16 --device cuda:0 --processor-device cuda:0
 ```
 
 ## Results

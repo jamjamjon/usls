@@ -1,16 +1,33 @@
-//! Unified label catalogs used across models.
-//!
-//! Large sets are embedded as text and lazily loaded at first use to
-//! minimize compile time and memory while keeping a stable API.
+mod bodypart_28;
+mod coco_80;
+mod coco_91;
+mod coco_kpt_17;
+mod coco_kpt_halpe_26;
+mod coco_kpt_wholebody_133;
+mod dota_v1_0_15;
+mod dota_v1_5_16;
+mod hands_kpt_21;
+mod imagenet_1k;
+mod object365;
+mod picodet_layout;
+mod ram_tags_en;
+mod ram_tags_zh;
+mod yolo_doclayout_10;
+mod yoloe_4585;
 
-pub mod coco;
-pub mod dota;
-pub mod hands;
-pub mod imagenet;
-pub mod object365;
-
-pub use coco::*;
-pub use dota::*;
-pub use hands::*;
-pub use imagenet::*;
+pub use bodypart_28::*;
+pub use coco_80::*;
+pub use coco_91::*;
+pub use coco_kpt_17::*;
+pub use coco_kpt_halpe_26::*;
+pub use coco_kpt_wholebody_133::*;
+pub use dota_v1_0_15::*;
+pub use dota_v1_5_16::*;
+pub use hands_kpt_21::*;
+pub use imagenet_1k::*;
 pub use object365::*;
+pub use picodet_layout::*;
+pub use ram_tags_en::*;
+pub use ram_tags_zh::*;
+pub use yolo_doclayout_10::*;
+pub use yoloe_4585::*;

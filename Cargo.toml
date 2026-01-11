@@ -1,57 +1,64 @@
 [package]
 name = "usls"
 edition = "2021"
-version = "0.1.11"
+version = "0.2.0-alpha.1"
 rust-version = "1.87"
 description = "A Rust library integrated with ONNXRuntime, providing a collection of ML models."
 repository = "https://github.com/jamjamjon/usls"
 authors = ["Jamjamjon <xxyydzml@outlook.com>"]
 license = "MIT"
 readme = "README.md"
-exclude = ["assets/*", "examples/*", "runs/*", "benches/*", "tests/*"]
+exclude = ["assets/*", "docs/*", "examples/*", "runs/*", "benches/*", "tests/*"]
 
 
 [dependencies]
 anyhow = { version = "1" }
-slsl = { version = "0.0.7", features = ["rayon"], optional = true }
 aksr = { version = "0.0.7" }
-ab_glyph = { version = "0.2.32" }
-image = { version = "0.25", default-features = false, features = ["rayon"] }
-imageproc = { version = "0.25", default-features = false, features = ["rayon"] }
+slsl = { version = "0.0.7", features = ["rayon"] }
+image = { version = "0.25", default-features = false, features = [
+  "jpeg", "png", "webp", "rayon"
+] }
+imageproc = { version = "0.25", default-features = false, features = ["rayon"], optional = true }
+ab_glyph = { version = "0.2.32", optional = true }
 ndarray = { version = "0.16.1", features = ["rayon"] }
 half = { version = "2.7.1", features = ["bytemuck", "num-traits"] }
 indicatif = { version = "0.18", default-features = false }
 tracing = { version = "0.1" }
 prost = { version = "0.14.1" }
 paste = { version = "1.0.15" }
+num-traits = "0.2.19"
 rand = { version = "0.9" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0" }
 rayon = { version = "1.10.0" }
+bytemuck = { version = "1.19", features = ["derive"] }
 glob = { version = "0.3.3" }
 dirs = { version = "6.0.0" }
 chrono = { version = "0.4.40", default-features = false, features = ["clock", "std"] }
 regex = { version = "1.12.2" }
 tempfile = { version = "3.23.0" }
-fast_image_resize = { version = "5.4.0", default-features = false, features = ["image", "rayon"] }
+fast_image_resize = { version = "5.5.0", default-features = false, features = ["image", "rayon"] }
 minifb = { version = "0.28.0", optional = true }
 video-rs = { version = "0.10.5", features = ["ndarray"], optional = true }
 ndarray-npy = { version = "0.9.1", optional = true  }
-ort = { version = "=2.0.0-rc.10", default-features = false, optional = true, features = [
+ort = { version = "=2.0.0-rc.10", default-features = false, features = [
   "copy-dylibs",
   "half",
   "std",
 ] }
-hf-hub = { version = "0.4.3", default-features = false, features = ["ureq", "native-tls"], optional = true }
+cudarc = { version = "0.18.2", optional = true, default-features = false, features = [
+  "driver", 
+  "nvrtc", 
+  "dynamic-linking"
+] }
+ureq = { version = "3.1.4", default-features = false, features = ["rustls", "gzip"] }
+hf-hub = { version = "0.4.3", default-features = false, features = ["ureq", "rustls-tls"], optional = true }
 tokenizers = { version = "0.22.1", optional = true }
 lru = { version = "0.16.2", default-features = false }
-http = { version = "1.3", optional = true }
-ureq = { version = "3", default-features = false, features = ["rustls", "gzip"], optional = true }
-# Workaround: Pin zune-jpeg to 0.5.5 due to a macOS-specific bug in 0.5.6
-zune-jpeg = "=0.5.5"
+
 
 [dev-dependencies]
-argh = { version = "0.1.13" }
+clap = { version = "4.5", features = ["derive"] }
 tracing-subscriber = { version = "0.3.18", features = ["env-filter", "chrono", "fmt", "ansi"] }
 
 
@@ -63,32 +70,59 @@ debug = 1
 [profile.release]
 opt-level = 3
 lto = "fat"
-codegen-units = 1
+# codegen-units = 1
 panic = "abort"
 debug = false
 strip = true
 
 
 [features]
-default = ["ort-download-binaries", "yolo", "github", "image-default-formats"]
+default = ["ort-download-binaries", "vision", "annotator"]
 
-# Utility features
+# Video / Stream processing
 video = ["dep:video-rs"]
+
+# Viewer
 viewer = ["dep:minifb"]
-image-default-formats = ["image/default-formats"]
 
-# ONNX Runtime features
-ort-download-binaries = ["ort", "ort/download-binaries"]
-ort-load-dynamic = ["ort", "ort/load-dynamic"]
+# Annotator
+annotator = ["dep:ab_glyph", "dep:imageproc"]
 
+# Additional image formats (optional for faster compilation)
+image-gif = ["image/gif"]
+image-bmp = ["image/bmp"] 
+image-ico = ["image/ico"]
+image-avif = ["image/avif"]
+image-tiff = ["image/tiff"]
+image-dds = ["image/dds"]
+image-exr = ["image/exr"]
+image-ff = ["image/ff"]
+image-hdr = ["image/hdr"]
+image-pnm = ["image/pnm"]
+image-qoi = ["image/qoi"]
+image-tga = ["image/tga"]
+image-all-formats = ["image/default-formats"]
 
-# ONNX Runtime execution providers
+# Hugging Face hub support (for downloading models from Hugging Face)
+hf-hub = ["dep:hf-hub"]
+
+# Model Zoo
+vision = []
+vlm = ["vision", "dep:tokenizers", "dep:ndarray-npy"]
+mot = []
+all-models = ["vision", "vlm", "mot"]
+
+# ONNXRuntime loading strategies
+ort-download-binaries = ["ort/download-binaries"]
+ort-load-dynamic = ["ort/load-dynamic"]
+
+# ONNXRuntime Execution providers
 acl = ["ort/acl"]
 armnn = ["ort/armnn"]
 azure = ["ort/azure"]
 cann = ["ort/cann"]
 coreml = ["ort/coreml"]
-cuda = ["ort/cuda"]
+webgpu = ["ort/webgpu"]
 directml = ["ort/directml"]
 migraphx = ["ort/migraphx"]
 nnapi = ["ort/nnapi"]
@@ -102,295 +136,111 @@ tvm = ["ort/tvm"]
 vitis = ["ort/vitis"]
 xnnpack = ["ort/xnnpack"]
 
-# Tokenizers feature (required for vision-language models)
-tokenizers = ["dep:tokenizers"]
+# cuda
+cuda = ["ort/cuda", "dep:cudarc", "cudarc/cuda-version-from-build-system"]
+cuda-11040 = ["ort/cuda", "dep:cudarc", "cudarc/cuda-11040"]
+cuda-11050 = ["ort/cuda", "dep:cudarc", "cudarc/cuda-11050"]
+cuda-11060 = ["ort/cuda", "dep:cudarc", "cudarc/cuda-11060"]
+cuda-11070 = ["ort/cuda", "dep:cudarc", "cudarc/cuda-11070"]
+cuda-11080 = ["ort/cuda", "dep:cudarc", "cudarc/cuda-11080"]
+cuda-12000 = ["ort/cuda", "dep:cudarc", "cudarc/cuda-12000"]
+cuda-12010 = ["ort/cuda", "dep:cudarc", "cudarc/cuda-12010"]
+cuda-12020 = ["ort/cuda", "dep:cudarc", "cudarc/cuda-12020"]
+cuda-12030 = ["ort/cuda", "dep:cudarc", "cudarc/cuda-12030"]
+cuda-12040 = ["ort/cuda", "dep:cudarc", "cudarc/cuda-12040"]
+cuda-12050 = ["ort/cuda", "dep:cudarc", "cudarc/cuda-12050"]
+cuda-12060 = ["ort/cuda", "dep:cudarc", "cudarc/cuda-12060"]
+cuda-12080 = ["ort/cuda", "dep:cudarc", "cudarc/cuda-12080"]
+cuda-12090 = ["ort/cuda", "dep:cudarc", "cudarc/cuda-12090"]
+cuda-13000 = ["ort/cuda", "dep:cudarc", "cudarc/cuda-13000"]
+cuda-13010 = ["ort/cuda", "dep:cudarc", "cudarc/cuda-13010"]
 
-# Hugging Face hub support (for downloading models from Hugging Face)
-hf-hub = ["dep:hf-hub"]
-# GitHub support (for downloading models from GitHub Releases)
-github = ["dep:ureq", "dep:http"]
-
-# SLSL tensor library (used by yolo and clip)
-slsl = ["dep:slsl"]
-
-# Model features
-pipeline = []
-apisr = []
-ben2 = []
-blip = ["tokenizers"]
-clip = ["tokenizers", "slsl"]
-db = []
-depth-anything = []
-depth-pro = []
-dino = []
-fastvlm = ["tokenizers"]
-florence2 = ["tokenizers"]
-grounding-dino = ["tokenizers"]
-image-classifier = ["pipeline"]
-mediapipe-segmenter = []
-modnet = []
-moondream2 = ["tokenizers", "ndarray-npy"]
-mot = []
-owl = ["tokenizers"]
-picodet = []
-rmbg = []
-rfdetr = []
-rtdetr = []
-rtmo = []
-rtmpose = []
-sam = []  # SAM, SAM2
-sam3 = ["tokenizers"]  # SAM3
-slanet = ["pipeline"]
-smolvlm = ["tokenizers"]
-sapiens = []
-svtr = []
-swin2sr = []
-trocr = ["tokenizers"]
-yolo = ["slsl"]
-yoloe = ["yolo", "tokenizers"]
-yolop = []
-ram = []
-
-# Enable all models
-all-models = [
-    "yolo",
-    "yoloe",
-    "sam",
-    "sam3",
-    "clip",
-    "apisr",
-    "image-classifier",
-    "ben2",
-    "blip",
-    "db",
-    "depth-anything",
-    "depth-pro",
-    "dino",
-    "fastvlm",
-    "florence2",
-    "grounding-dino",
-    "mediapipe-segmenter",
-    "modnet",
-    "moondream2",
-    "owl",
-    "picodet",
-    "rfdetr",
-    "rmbg",
-    "rtdetr",
-    "rtmo",
-    "rtmpose",
-    "sapiens",
-    "slanet",
-    "smolvlm",
-    "svtr",
-    "swin2sr",
-    "trocr",
-    "yolop",
-    "mot",
-    "ram",
-]
-
-
-[[example]]
-name = "read_video"
-required-features = ["video"]
 
 [[example]]
 name = "imshow"
-required-features = ["viewer"]
+path = "examples/viewer/imshow.rs"
+required-features = ["video", "viewer"]
 
 [[example]]
-name = "apisr"
-required-features = ["apisr"]
+name = "annotator"
+required-features = ["annotator"]
 
 [[example]]
-name = "ben2"
-required-features = ["ben2"]
+name = "object-detection"
+path = "examples/object-detection/main.rs"
+required-features = ["vision", "annotator"]
 
 [[example]]
-name = "blip"
-required-features = ["blip"]
+name = "image-classification"
+path = "examples/image-classification/main.rs"
+required-features = ["vision", "annotator"]
 
 [[example]]
-name = "classifier"
-required-features = ["image-classifier"]
+name = "image-segmentation"
+path = "examples/image-segmentation/main.rs"
+required-features = ["vision", "annotator"]
 
 [[example]]
-name = "clip"
-required-features = ["clip"]
+name = "pose-estimation"
+path = "examples/pose-estimation/main.rs"
+required-features = ["vision", "annotator"]
 
 [[example]]
-name = "d-fine"
-required-features = ["rtdetr"]
+name = "depth-estimation"
+path = "examples/depth-estimation/main.rs"
+required-features = ["vision", "annotator"]
 
 [[example]]
-name = "db"
-required-features = ["db"]
+name = "image-matting"
+path = "examples/image-matting/main.rs"
+required-features = ["vision", "annotator"]
 
 [[example]]
-name = "deim"
-required-features = ["rtdetr"]
+name = "background-removal"
+path = "examples/background-removal/main.rs"
+required-features = ["vision", "annotator"]
 
 [[example]]
-name = "deimv2"
-required-features = ["rtdetr"]
+name = "super-resolution"
+path = "examples/super-resolution/main.rs"
+required-features = ["vision", "annotator"]
 
 [[example]]
-name = "depth-anything"
-required-features = ["depth-anything"]
+name = "ocr"
+path = "examples/ocr/main.rs"
+required-features = ["vision", "vlm", "annotator"]
 
 [[example]]
-name = "depth-pro"
-required-features = ["depth-pro"]
+name = "open-set-detection"
+path = "examples/open-set-detection/main.rs"
+required-features = ["vision", "vlm", "annotator"]
 
 [[example]]
-name = "dinov2"
-required-features = ["dino"]
+name = "open-set-segmentation"
+path = "examples/open-set-segmentation/main.rs"
+required-features = ["vision", "vlm", "annotator"]
 
 [[example]]
-name = "dinov3"
-required-features = ["dino"]
+name = "bytetrack"
+path = "examples/bytetrack/main.rs"
+required-features = ["mot", "viewer", "video"]
 
 [[example]]
-name = "doclayout-yolo"
-required-features = ["yolo"]
+name = "embedding"
+path = "examples/embedding/main.rs"
+required-features = ["vision", "vlm", "annotator"]
 
 [[example]]
-name = "dwpose"
-required-features = ["rtmpose"]
-
-[[example]]
-name = "fast"
-required-features = ["db"]
-
-[[example]]
-name = "fastsam"
-required-features = ["yolo"]
-
-[[example]]
-name = "fastvlm"
-required-features = ["fastvlm"]
-
-[[example]]
-name = "florence2"
-required-features = ["florence2"]
-
-[[example]]
-name = "grounding-dino"
-required-features = ["grounding-dino"]
-
-[[example]]
-name = "linknet"
-required-features = ["db"]
-
-[[example]]
-name = "mediapipe-selfie-segmentation"
-required-features = ["mediapipe-segmenter"]
-
-[[example]]
-name = "modnet"
-required-features = ["modnet"]
-
-[[example]]
-name = "moondream2"
-required-features = ["moondream2"]
-
-[[example]]
-name = "owlv2"
-required-features = ["owl"]
-
-[[example]]
-name = "picodet-layout"
-required-features = ["picodet"]
-
-[[example]]
-name = "rfdetr"
-required-features = ["rfdetr"]
-
-[[example]]
-name = "rmbg"
-required-features = ["rmbg"]
-
-[[example]]
-name = "rtdetr"
-required-features = ["rtdetr"]
-
-[[example]]
-name = "ultralytics-rtdetr"
-required-features = ["rtdetr"]
-
-[[example]]
-name = "rtmo"
-required-features = ["rtmo"]
-
-[[example]]
-name = "rtmpose"
-required-features = ["rtmpose", "yolo"]
-
-[[example]]
-name = "rtmw"
-required-features = ["rtmpose"]
-
-[[example]]
-name = "sam"
-required-features = ["sam"]
-
-[[example]]
-name = "sam2"
-required-features = ["sam"]
-
-[[example]]
-name = "sam3"
-required-features = ["sam3"]
-
-[[example]]
-name = "sapiens"
-required-features = ["sapiens"]
-
-[[example]]
-name = "slanet"
-required-features = ["slanet"]
-
-[[example]]
-name = "smolvlm"
-required-features = ["smolvlm"]
-
-[[example]]
-name = "svtr"
-required-features = ["svtr"]
-
-[[example]]
-name = "swin2sr"
-required-features = ["swin2sr"]
-
-[[example]]
-name = "trocr"
-required-features = ["trocr"]
+name = "vlm"
+path = "examples/vlm/main.rs"
+required-features = ["vision", "vlm", "annotator"]
 
 [[example]]
 name = "yolo"
-required-features = ["yolo"]
+path = "examples/yolo/main.rs"
+required-features = ["vision", "annotator"]
 
 [[example]]
-name = "yolo-sam2"
-required-features = ["yolo", "sam"]
-
-[[example]]
-name = "yolo-track"
-required-features = ["yolo", "mot", "viewer"]
-
-[[example]]
-name = "yoloe-prompt"
-required-features = ["yoloe"]
-
-[[example]]
-name = "yoloe-prompt-free"
-required-features = ["yoloe"]
-
-[[example]]
-name = "yolop"
-required-features = ["yolop"]
-
-[[example]]
-name = "ram"
-required-features = ["ram"]
+name = "sapiens"
+path = "examples/sapiens/main.rs"
+required-features = ["vision", "annotator"]

@@ -11,9 +11,22 @@ env:
 
 jobs:
   lints:
-    name: Rustfmt & Clippy
+    name: Clippy Matrix (${{ matrix.feature }})
     runs-on: ubuntu-latest
     container: jrottenberg/ffmpeg:7.1-ubuntu
+    strategy:
+      fail-fast: false
+      matrix:
+        feature:
+          - "all-features"
+          - ""
+          - "vision"
+          - "vlm"
+          - "ort-download-binaries"
+          - "ort-load-dynamic"
+          - "video"
+          - "viewer"
+          - "annotator"
 
     steps:
       - name: Checkout
@@ -22,7 +35,7 @@ jobs:
       - name: Install dependencies
         run: |
           DEBIAN_FRONTEND=noninteractive apt-get update --fix-missing
-          DEBIAN_FRONTEND=noninteractive apt-get install -y build-essential libssl-dev ca-certificates clang curl pkg-config protobuf-compiler 
+          DEBIAN_FRONTEND=noninteractive apt-get install -y build-essential libssl-dev ca-certificates clang curl pkg-config protobuf-compiler
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -30,10 +43,18 @@ jobs:
           components: rustfmt, clippy
 
       - name: Rustfmt
+        if: matrix.feature == 'all-features'
         run: cargo fmt --all -- --check
 
       - name: Clippy
-        run: cargo clippy --all-features --all-targets -- -D warnings
+        run: |
+          if [ "${{ matrix.feature }}" = "all-features" ]; then
+            cargo clippy --no-default-features --features "all-models,video,viewer,annotator,hf-hub,ort-download-binaries,ort-load-dynamic" --all-targets -- -D warnings
+          elif [ "${{ matrix.feature }}" = "" ]; then
+            cargo clippy --no-default-features --all-targets -- -D warnings
+          else
+            cargo clippy --no-default-features --features "${{ matrix.feature }}" --all-targets -- -D warnings
+          fi
 
   check:
     name: cargo-check
@@ -53,7 +74,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Check
-        run: cargo check --all-features --all-targets
+        run: cargo check --no-default-features --features "all-models,video,viewer,annotator,hf-hub,ort-download-binaries,ort-load-dynamic" --all-targets
 
   test:
     name: cargo-test
@@ -73,7 +94,7 @@ jobs:
         uses: dtolnay/rust-toolchain@nightly
 
       - name: Test
-        run: cargo +nightly test --all-features --all-targets
+        run: cargo +nightly test --no-default-features --features "all-models,video,viewer,annotator,hf-hub,ort-download-binaries,ort-load-dynamic" --all-targets
 
   build-linux:
     needs: test
@@ -83,7 +104,7 @@ jobs:
 
     strategy:
       matrix:
-        ffmpeg_version: [ "5.0", "5.1", "6.0", "6.1", "7.0", "7.1" ]  # "4.3", "4.4"
+        ffmpeg_version: [ "5.0", "5.1", "6.0", "6.1", "7.0", "7.1" ]
       fail-fast: false
 
     steps:
@@ -99,4 +120,4 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Build
-        run: cargo build --all-features
+        run: cargo build --no-default-features --features "all-models,video,viewer,annotator,hf-hub,ort-download-binaries,ort-load-dynamic"
