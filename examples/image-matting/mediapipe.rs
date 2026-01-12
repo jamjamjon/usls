@@ -17,8 +17,8 @@ pub struct MediapipeArgs {
     pub device: Device,
 
     /// Processor device (for pre/post processing)
-    #[arg(long, global = true)]
-    pub processor_device: Option<Device>,
+    #[arg(long, global = true, default_value = "cpu")]
+    pub processor_device: Device,
 
     /// Batch size
     #[arg(long, global = true, default_value_t = 1)]
@@ -38,18 +38,15 @@ pub struct MediapipeArgs {
 }
 
 pub fn config(args: &MediapipeArgs) -> Result<Config> {
-    let mut config = match args.variant.as_str() {
+    let config = match args.variant.as_str() {
         "selfie-segmentation" => Config::mediapipe_selfie_segmentater(),
         _ => anyhow::bail!("Unsupported MediaPipe variant: {}", args.variant),
     }
     .with_dtype_all(args.dtype)
     .with_device_all(args.device)
     .with_batch_size_all_min_opt_max(args.min_batch, args.batch, args.max_batch)
-    .with_num_dry_run_all(args.num_dry_run);
-
-    if let Some(device) = args.processor_device {
-        config = config.with_image_processor_device(device);
-    }
+    .with_num_dry_run_all(args.num_dry_run)
+    .with_image_processor_device(args.processor_device);
 
     Ok(config)
 }

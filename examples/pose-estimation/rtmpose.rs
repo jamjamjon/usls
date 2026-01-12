@@ -17,8 +17,8 @@ pub struct RtmposeArgs {
     pub device: Device,
 
     /// Processor device (for pre/post processing)
-    #[arg(long, global = true)]
-    pub processor_device: Option<Device>,
+    #[arg(long, global = true, default_value = "cpu")]
+    pub processor_device: Device,
 
     /// Batch size
     #[arg(long, global = true, default_value_t = 1)]
@@ -42,7 +42,7 @@ pub struct RtmposeArgs {
 }
 
 pub fn config(args: &RtmposeArgs) -> Result<Config> {
-    let mut config = match args.scale {
+    let config = match args.scale {
         Scale::T => match args.is_coco {
             true => Config::rtmpose_17_t(),
             false => Config::rtmpose_26_t(),
@@ -68,11 +68,8 @@ pub fn config(args: &RtmposeArgs) -> Result<Config> {
     .with_dtype_all(args.dtype)
     .with_device_all(args.device)
     .with_batch_size_all_min_opt_max(args.min_batch, args.batch, args.max_batch)
-    .with_num_dry_run_all(args.num_dry_run);
-
-    if let Some(device) = args.processor_device {
-        config = config.with_image_processor_device(device);
-    }
+    .with_num_dry_run_all(args.num_dry_run)
+    .with_image_processor_device(args.processor_device);
 
     Ok(config)
 }

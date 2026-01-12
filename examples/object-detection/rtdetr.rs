@@ -21,8 +21,8 @@ pub struct RtdetrArgs {
     pub device: Device,
 
     /// Processor device (for pre/post processing)
-    #[arg(long, global = true)]
-    pub processor_device: Option<Device>,
+    #[arg(long, global = true, default_value = "cpu")]
+    pub processor_device: Device,
 
     /// Batch size
     #[arg(long, global = true, default_value_t = 1)]
@@ -42,7 +42,7 @@ pub struct RtdetrArgs {
 }
 
 pub fn config(args: &RtdetrArgs) -> Result<Config> {
-    let mut config = match args.ver {
+    let config = match args.ver {
         Version(1, 0, _) => match args.scale {
             Scale::Named(ref name) if name == "r18" => Config::rtdetr_v1_r18(),
             Scale::Named(ref name) if name == "r18-obj365" => Config::rtdetr_v1_r18_obj365(),
@@ -73,11 +73,8 @@ pub fn config(args: &RtdetrArgs) -> Result<Config> {
     .with_model_dtype(args.dtype)
     .with_model_device(args.device)
     .with_batch_size_all_min_opt_max(args.min_batch, args.batch, args.max_batch)
-    .with_num_dry_run_all(args.num_dry_run);
-
-    if let Some(device) = args.processor_device {
-        config = config.with_image_processor_device(device);
-    }
+    .with_num_dry_run_all(args.num_dry_run)
+    .with_image_processor_device(args.processor_device);
 
     Ok(config)
 }

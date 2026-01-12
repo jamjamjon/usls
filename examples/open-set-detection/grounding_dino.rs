@@ -40,8 +40,8 @@ pub struct GroundingDINOArgs {
     pub device: Device,
 
     /// Processor device (for pre/post processing)
-    #[arg(long, global = true)]
-    pub processor_device: Option<Device>,
+    #[arg(long, global = true, default_value = "cpu")]
+    pub processor_device: Device,
 
     /// num dry run
     #[arg(long, global = true, default_value_t = 3)]
@@ -61,7 +61,7 @@ pub struct GroundingDINOArgs {
 }
 
 pub fn config(args: &GroundingDINOArgs) -> Result<Config> {
-    let mut config = match args.kind {
+    let config = match args.kind {
         Kind::Tiny => Config::grounding_dino_tiny(),
         Kind::Base => Config::grounding_dino_base(),
         Kind::LlmdetTiny => Config::llmdet_tiny(),
@@ -82,11 +82,8 @@ pub fn config(args: &GroundingDINOArgs) -> Result<Config> {
     .with_text_confs(&[0.25])
     .with_model_num_dry_run(args.num_dry_run)
     .with_token_level_class(args.token_level_class)
-    .with_batch_size_all_min_opt_max(args.min_batch, args.batch, args.max_batch);
-
-    if let Some(device) = args.processor_device {
-        config = config.with_image_processor_device(device);
-    }
+    .with_batch_size_all_min_opt_max(args.min_batch, args.batch, args.max_batch)
+    .with_image_processor_device(args.processor_device);
 
     Ok(config)
 }

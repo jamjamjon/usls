@@ -13,8 +13,8 @@ pub struct Sam3ImageArgs {
     pub device: Device,
 
     /// Processor device (for pre/post processing)
-    #[arg(long, global = true)]
-    pub processor_device: Option<Device>,
+    #[arg(long, global = true, default_value = "cpu")]
+    pub processor_device: Device,
 
     /// Vision encoder batch
     #[arg(long, default_value_t = 1)]
@@ -46,7 +46,7 @@ pub struct Sam3ImageArgs {
 }
 
 pub fn config(args: &Sam3ImageArgs) -> Result<Config> {
-    let mut config = Config::sam3_image()
+    let config = Config::sam3_image()
         .with_visual_encoder_batch_min_opt_max(1, args.vision_batch, 8)
         .with_textual_encoder_batch_min_opt_max(1, args.text_batch, 16)
         .with_encoder_batch_min_opt_max(1, args.geo_batch, 16)
@@ -54,11 +54,8 @@ pub fn config(args: &Sam3ImageArgs) -> Result<Config> {
         .with_dtype_all(args.dtype)
         .with_class_confs(&[args.conf])
         .with_device_all(args.device)
-        .with_num_dry_run_all(args.num_dry_run);
-
-    if let Some(device) = args.processor_device {
-        config = config.with_image_processor_device(device);
-    }
+        .with_num_dry_run_all(args.num_dry_run)
+        .with_image_processor_device(args.processor_device);
 
     Ok(config)
 }

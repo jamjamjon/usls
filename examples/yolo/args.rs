@@ -31,8 +31,8 @@ pub struct YoloArgs {
     pub device: Device,
 
     /// Processor device (for pre/post processing)
-    #[arg(long, global = true)]
-    pub processor_device: Option<Device>,
+    #[arg(long, global = true, default_value = "cpu")]
+    pub processor_device: Device,
 
     /// Batch size
     #[arg(long, global = true, default_value_t = 1)]
@@ -128,13 +128,9 @@ pub fn config(args: &YoloArgs) -> Result<Config> {
             0,
             3,
             (args.min_image_width, args.image_width, args.max_image_width),
-        );
-
-    if let Some(device) = args.processor_device {
-        config = config.with_image_processor_device(device);
-    }
-
-    config = config.with_model_num_dry_run(args.num_dry_run);
+        )
+        .with_image_processor_device(args.processor_device)
+        .with_model_num_dry_run(args.num_dry_run);
 
     if args.use_coco_80_classes {
         config = config.with_class_names(&NAMES_COCO_80);

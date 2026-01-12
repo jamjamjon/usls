@@ -110,10 +110,17 @@ impl FromConfig for ImageProcessor {
     fn from_config(config: ImageProcessorConfig) -> Result<Self> {
         #[cfg(feature = "cuda-runtime")]
         let cuda_preprocessor = match config.device {
-            Device::Cuda(_device_id) | Device::TensorRt(_device_id) => Some(
-                crate::CudaPreprocessor::new(_device_id)
-                    .map_err(|e| anyhow::anyhow!("Failed to initialize CUDA preprocessor: {e}"))?,
-            ),
+            Device::Cuda(_device_id) | Device::TensorRt(_device_id) => {
+                tracing::info!(
+                    "ImageProcessor using CUDA device {:?}. Ensure model inference also uses CUDA/TensorRT EP for optimal performance.",
+                    config.device
+                );
+                Some(
+                    crate::CudaPreprocessor::new(_device_id).map_err(|e| {
+                        anyhow::anyhow!("Failed to initialize CUDA preprocessor: {e}")
+                    })?,
+                )
+            }
             _ => None,
         };
 

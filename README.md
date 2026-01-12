@@ -23,8 +23,6 @@
   <a href="#-model-zoo">📦 <strong>Model Zoo</strong></a>
 </p>
 
-<!-- --- -->
-
 <br/>
 
 **usls** is a cross-platform Rust library powered by ONNX Runtime for efficient inference of SOTA vision and vision-language models (***typically under 1B parameters***).
@@ -56,26 +54,37 @@ Run the **YOLO-Series demo** to explore models with different tasks, precision a
 - **Execution Providers**: `CPU`, `CUDA`, `TensorRT`, `CoreML`, `OpenVINO`, and more
 
 ```bash
-# CPU: Object detection, YOLOv8n, FP16
+# CPU: Object detection with YOLOv8n (FP16)
 cargo run -r --example yolo -- --task detect --ver 8 --scale n --dtype fp16
 
-# NVIDIA CUDA: Instance segmentation, YOLO11m
-cargo run -r -F cuda --example yolo -- --task segment --ver 11 --scale m --device cuda:0 --processor-device cuda:0
+# CUDA model + CPU processor: Instance segmentation with YOLO11m
+cargo run -r -F cuda --example yolo -- --task segment --ver 11 --scale m --device cuda:0 --processor-device cpu
 
-# NVIDIA TensorRT
-cargo run -r -F tensorrt --example yolo -- --device tensorrt:0 --processor-device cuda:0
+# CUDA model + CUDA processor: Pose estimation with YOLO11m
+cargo run -r -F cuda-full --example yolo -- --task pose --ver 11 --scale m --device cuda:0 --processor-device cuda:0
+
+# TensorRT model + CPU processor
+cargo run -r -F tensorrt --example yolo -- --device tensorrt:0 --processor-device cpu
+
+# TensorRT model + CUDA processor (CUDA 12.4)
+cargo run -r -F tensorrt-cuda-12040 --example yolo -- --device tensorrt:0 --processor-device cuda:0
 
 # Apple Silicon CoreML
 cargo run -r -F coreml --example yolo -- --device coreml
 
-# Intel OpenVINO: CPU/GPU/VPU acceleration
+# Intel OpenVINO (CPU/GPU/VPU)
 cargo run -r -F openvino -F ort-load-dynamic --example yolo -- --device openvino:CPU
 
 # Show all available options
 cargo run -r --example yolo -- --help
 ```
-
+> ⚠️ **Warning**: `--dtype q8` is not supported with `--processor-device cuda:0`. Use `--processor-device cpu` or a different precision (e.g., `fp16`, `q4f16`).
+>
 > See [YOLO Examples](./examples/yolo/README.md) for more details and use cases.
+>
+> See [Device Combination Guide](#-device-combination-guide) for feature and device configurations.
+
+
 
 ### Performance
 
@@ -83,34 +92,37 @@ cargo run -r --example yolo -- --help
 >
 >**Setup:** YOLOv8n-Det on 5000 coco2017val images
 
+
 #### Batch = 1
 
 | Backend | DType | Preprocess | Inference | Postprocess | Total |
 | --- | --- | --- | --- | --- | --- |
-| **TensorRT** | FP32 | 330.870µs | 1.829ms | 610.023µs | 2.770ms |
-| **CUDA** | FP32 | 245.181µs | 4.143ms | 433.166µs | 4.877ms |
-| **CUDA** | FP16 | 324.337µs | 3.753ms | 401.215µs | 4.479ms |
-| **CPU** | FP32 | 5.751ms | 41.825ms | 2.274ms | 49.850ms |
-| **CPU** | FP16 | 5.830ms | 55.281ms | 2.397ms | 63.508ms |
+| **TensorRT EP + CUDA processor** | FP16 | 252.029µs | 1.669ms | 435.488µs | 2.357ms |
+| **TensorRT EP + CPU processor** | FP16 | 804.315µs | 2.877ms | 264.489µs | 3.946ms |
+| **CUDA EP + CUDA processor** | FP32 | 256.842µs | 4.108ms | 287.730µs | 4.653ms |
+| **CUDA EP + CUDA processor** | FP16 | 252.456µs | 3.702ms | 291.365µs | 4.246ms |
+| **CUDA EP + CPU processor** | FP32 | 884.493µs | 5.376ms | 267.707µs | 6.528ms |
+| **CUDA EP + CPU processor** | FP16 | 802.863µs | 4.693ms | 259.588µs | 5.756ms |
+| **CPU EP + CPU processor** | FP32 | 5.659ms | 23.994ms | 2.159ms | 31.812ms |
+| **CPU EP + CPU processor** | FP16 | 5.778ms | 33.958ms | 2.283ms | 42.019ms |
 
 #### Batch = 8
 
 | Backend | DType | Preprocess | Inference | Postprocess | Total |
 | --- | --- | --- | --- | --- | --- |
-| **TensorRT** | FP32 | 1.660ms | 10.001ms | 1.565ms | 13.226ms |
-| **CUDA** | FP32 | 2.104ms | 24.367ms | 1.419ms | 27.89ms |
-| **CUDA** | FP16 | 1.600ms | 19.705ms | 1.517ms | 22.822ms |
-| **CPU** | FP32 | 19.970ms | 396.454ms | 6.961ms | 423.385ms |
-| **CPU** | FP16 | 19.952ms | 466.687ms | 7.200ms | 493.839ms |
-
-
+| **TensorRT EP + CUDA processor** | FP16 | 1.712ms | 10.295ms | 1.525ms | 13.532ms |
+| **TensorRT EP + CPU processor** | FP16 | 18.489ms | 28.692ms | 1.399ms | 48.580ms |
+| **CUDA EP + CUDA processor** | FP32 | 1.504ms | 24.225ms | 1.448ms | 27.177ms |
+| **CUDA EP + CUDA processor** | FP16 | 1.617ms | 18.785ms | 1.411ms | 21.813ms |
+| **CUDA EP + CPU processor** | FP32 | 18.580ms | 44.257ms | 1.365ms | 64.202ms |
+| **CUDA EP + CPU processor** | FP16 | 18.468ms | 37.092ms | 1.367ms | 56.927ms |
+| **CPU EP + CPU processor** | FP32 | 19.240ms | 256.380ms | 5.067ms | 280.687ms |
+| **CPU EP + CPU processor** | FP16 | 19.124ms | 310.916ms | 5.092ms | 335.132ms |
 
 
 ## 📦 Model Zoo
 
 > **Status:** ✅ **Supported**  |  ❓ **Unknown**  |  ❌ **Not Supported For Now**
-
-***TODO: Update the status***
 
 <details closed>
 <summary><b>🔥 YOLO-Series</b></summary>
@@ -302,7 +314,6 @@ cargo run -r --example yolo -- --help
 </details>
 
 
-
 <details closed>
 <summary><b>🌌 Others</b></summary>
 
@@ -346,7 +357,10 @@ cargo run -r --example yolo -- --help
 - ### Execution Providers
   Hardware acceleration for inference. Enable the one matching your hardware:
 
-  - **`cuda`**, **`tensorrt`**: NVIDIA GPU acceleration (includes CUDA image processing).
+  - **`cuda`**: NVIDIA CUDA execution provider (pure model inference acceleration).
+  - **`tensorrt`**: NVIDIA TensorRT execution provider (pure model inference acceleration).
+  - **`cuda-full`**: `cuda` + `cuda-runtime-build` (Model + Image Preprocessing acceleration).
+  - **`tensorrt-full`**: `tensorrt` + `cuda-runtime-build` (Model + Image Preprocessing acceleration).
   - **`coreml`**: Apple Silicon (macOS/iOS).
   - **`openvino`**: Intel CPU/GPU/VPU.
   - **`onednn`**: Intel Deep Neural Network Library.
@@ -366,15 +380,38 @@ cargo run -r --example yolo -- --help
   - **`vitis`**: Xilinx Vitis AI.
 
 - ### CUDA Support
-  NVIDIA GPU acceleration with CUDA image processing kernels:
+  NVIDIA GPU acceleration with CUDA image processing kernels (requires `cudarc`):
 
-  - **`cuda`**: Uses `cuda-version-from-build-system` (auto-detects via `nvcc`).
-  - **`cuda-11040`**, **`cuda-11050`**, **`cuda-11060`**, **`cuda-11070`**, **`cuda-11080`**: CUDA 11.x specific versions.
-  - **`cuda-12000`**, **`cuda-12010`**, **`cuda-12020`**, **`cuda-12030`**, **`cuda-12040`**, **`cuda-12050`**, **`cuda-12060`**, **`cuda-12080`**, **`cuda-12090`**: CUDA 12.x specific versions.
-  - **`cuda-13000`**, **`cuda-13010`**: CUDA 13.x specific versions.
+  - **`cuda-full`**: Uses `cuda-version-from-build-system` (auto-detects via `nvcc`).
+  - **`cuda-11040`**, **`cuda-11050`**, **`cuda-11060`**, **`cuda-11070`**, **`cuda-11080`**: CUDA 11.x versions (Model + Preprocess).
+  - **`cuda-12000`**, **`cuda-12010`**, **`cuda-12020`**, **`cuda-12030`**, **`cuda-12040`**, **`cuda-12050`**, **`cuda-12060`**, **`cuda-12080`**, **`cuda-12090`**: CUDA 12.x versions (Model + Preprocess).
+  - **`cuda-13000`**, **`cuda-13010`**: CUDA 13.x versions (Model + Preprocess).
 
-  See [ONNX Runtime docs](https://onnxruntime.ai/docs/execution-providers/) and [ORT performance guide](https://ort.pyke.io/perf/execution-providers) for details.
+- ### TensorRT Support
+  NVIDIA TensorRT execution provider with CUDA runtime libraries:
 
+  - **`tensorrt-full`**: Uses `cuda-version-from-build-system` (auto-detects via `nvcc`).
+  - **`tensorrt-cuda-11040`**, **`tensorrt-cuda-11050`**, **`tensorrt-cuda-11060`**, **`tensorrt-cuda-11070`**, **`tensorrt-cuda-11080`**: TensorRT + CUDA 11.x runtime.
+  - **`tensorrt-cuda-12000`**, **`tensorrt-cuda-12010`**, **`tensorrt-cuda-12020`**, **`tensorrt-cuda-12030`**, **`tensorrt-cuda-12040`**, **`tensorrt-cuda-12050`**, **`tensorrt-cuda-12060`**, **`tensorrt-cuda-12080`**, **`tensorrt-cuda-12090`**: TensorRT + CUDA 12.x runtime.
+  - **`tensorrt-cuda-13000`**, **`tensorrt-cuda-13010`**: TensorRT + CUDA 13.x runtime.
+
+  > **Note**: `tensorrt-cuda-*` features enable **TensorRT execution provider** with CUDA runtime libraries for image processing. The "cuda" in the name refers to `cudarc` dependency.
+
+---
+
+## 🚀 Device Combination Guide
+
+| Scenario | Model Device (`--device`) | Processor Device (`--processor-device`) | Required Features (`-F`) |
+| :--- | :--- | :--- | :--- |
+| **CPU Only** | `cpu` | `cpu` | `vision` (default) |
+| **GPU Inference (Slow Preprocess)** | `cuda` | `cpu` | `cuda` |
+| **GPU Inference (Fast Preprocess)** | `cuda` | `cuda` | `cuda-full` or `cuda-120xxx` |
+| **TensorRT (Slow Preprocess)** | `tensorrt` | `cpu` | `tensorrt` |
+| **TensorRT (Fast Preprocess)** | `tensorrt` | `cuda` | `tensorrt-full` or `tensorrt-cuda-120xxx` |
+
+> ⚠️ In multi-GPU environments (e.g., `cuda:0`, `cuda:1`), you **MUST** ensure that both `--device` and `--processor-device` use the **SAME GPU ID**. 
+
+---
 
 ## ❓ FAQ
 
