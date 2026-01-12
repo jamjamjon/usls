@@ -21,10 +21,10 @@ YOLOE with prompt support for flexible object detection and segmentation.
 ### YOLOE-Prompt
 ```bash
 # Visual prompt
-cargo run -F cuda -F vlm --example open-set-segmentation -- yoloe-prompt --dtype q4f16 --device cuda:0 --processor-device cuda:0 --source ./assets/bus.jpg --kind visual
+cargo run -F cuda-full -F vlm --example open-set-segmentation -- yoloe-prompt --dtype q4f16 --device cuda:0 --processor-device cuda:0 --source ./assets/bus.jpg --kind visual
 
 # Textual prompt
-cargo run -F cuda -F vlm --example open-set-segmentation -- yoloe-prompt --dtype q4f16 --device cuda:0 --processor-device cuda:0 --kind textual --labels person,bus
+cargo run -F cuda-full -F vlm --example open-set-segmentation -- yoloe-prompt --dtype q4f16 --device cuda:0 --processor-device cuda:0 --kind textual --labels person,bus
 
 ```
 
@@ -34,23 +34,23 @@ cargo run -F cuda -F vlm --example open-set-segmentation -- yoloe-prompt --dtype
 ### Text-based Segmentation
 ```bash
 # Single text prompt
-cargo run -F cuda -F vlm --example open-set-segmentation -- sam3-image --dtype q4f16 --device cuda:0 --processor-device cuda:0 --source assets/kids.jpg -p shoe 
+cargo run -F cuda-full -F vlm --example open-set-segmentation -- sam3-image --dtype q4f16 --device cuda:0 --processor-device cuda:0 --source assets/kids.jpg -p shoe 
 
 
 # Multiple text prompts
-cargo run -F cuda -F vlm --example open-set-segmentation -- sam3-image --dtype q4f16 --device cuda:0 --processor-device cuda:0 --source assets/kids.jpg -p shoe -p "person in blue vest" 
+cargo run -F cuda-full -F vlm --example open-set-segmentation -- sam3-image --dtype q4f16 --device cuda:0 --processor-device cuda:0 --source assets/kids.jpg -p shoe -p "person in blue vest" 
 
 # Multiple prompts on multiple images
-cargo run -F cuda -F vlm --example open-set-segmentation -- sam3-image --dtype q4f16 --device cuda:0 --processor-device cuda:0 --source assets/kids.jpg --source assets/bus.jpg -p bus -p cat -p shoe -p cellphone -p person -p "short hair"
+cargo run -F cuda-full -F vlm --example open-set-segmentation -- sam3-image --dtype q4f16 --device cuda:0 --processor-device cuda:0 --source assets/kids.jpg --source assets/bus.jpg -p bus -p cat -p shoe -p cellphone -p person -p "short hair"
 
 # Visual prompt (bbox)
-cargo run -F cuda -F vlm --example open-set-segmentation -- sam3-image --dtype q4f16 --device cuda:0 --processor-device cuda:0 --source assets/kids.jpg -p "pos:480,290,110,360"
+cargo run -F cuda-full -F vlm --example open-set-segmentation -- sam3-image --dtype q4f16 --device cuda:0 --processor-device cuda:0 --source assets/kids.jpg -p "pos:480,290,110,360"
 
 # Visual prompt: multi-boxes prompting(with positive and negative boxes)
-cargo run -F cuda -F vlm --example open-set-segmentation -- sam3-image --dtype q4f16 --device cuda:0 --processor-device cuda:0 --source assets/kids.jpg -p "pos:480,290,110,360;neg:370,280,115,375"
+cargo run -F cuda-full -F vlm --example open-set-segmentation -- sam3-image --dtype q4f16 --device cuda:0 --processor-device cuda:0 --source assets/kids.jpg -p "pos:480,290,110,360;neg:370,280,115,375"
 
 # Text + negative box
-cargo run -F cuda -F vlm --example open-set-segmentation -- sam3-image --dtype q4f16 --device cuda:0 --processor-device cuda:0 --source assets/000000136466.jpg -p "handle;neg:40,183,278,21"
+cargo run -F cuda-full -F vlm --example open-set-segmentation -- sam3-image --dtype q4f16 --device cuda:0 --processor-device cuda:0 --source assets/000000136466.jpg -p "handle;neg:40,183,278,21"
 ```
 
 #### Prompt Format

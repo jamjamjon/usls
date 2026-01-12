@@ -18,8 +18,8 @@ pub struct Swin2SRArgs {
     pub device: Device,
 
     /// Processor device (for pre/post processing)
-    #[arg(long, global = true)]
-    pub processor_device: Option<Device>,
+    #[arg(long, global = true, default_value = "cpu")]
+    pub processor_device: Device,
 
     /// num dry run
     #[arg(long, global = true, default_value_t = 3)]
@@ -39,7 +39,7 @@ pub struct Swin2SRArgs {
 }
 
 pub fn config(args: &Swin2SRArgs) -> Result<Config> {
-    let mut config = match args.kind.as_str() {
+    let config = match args.kind.as_str() {
         "lightweight" => Config::swin2sr_lightweight_x2_64(),
         "classical-2x" => Config::swin2sr_classical_x2_64(),
         "classical-4x" => Config::swin2sr_classical_x4_64(),
@@ -50,11 +50,8 @@ pub fn config(args: &Swin2SRArgs) -> Result<Config> {
     .with_model_dtype(args.dtype)
     .with_model_device(args.device)
     .with_batch_size_all_min_opt_max(args.min_batch, args.batch, args.max_batch)
-    .with_num_dry_run_all(args.num_dry_run);
-
-    if let Some(device) = args.processor_device {
-        config = config.with_image_processor_device(device);
-    }
+    .with_num_dry_run_all(args.num_dry_run)
+    .with_image_processor_device(args.processor_device);
 
     Ok(config)
 }

@@ -61,6 +61,26 @@ cargo run -r -F vision --example yolo -- --ver 11 --task obb --scale n --image-w
 
 **`cargo run -r -F vision --example yolo -- --help` for more config**
 
+## GPU Acceleration
+
+For NVIDIA GPU acceleration, use the following features:
+
+```bash
+# CUDA for both model and image processor
+cargo run -r -F cuda-full --example yolo -- --task detect --ver 8 --scale n --use-coco-80-classes --dtype fp16 --device cuda:0 --processor-device cuda:0
+
+# TensorRT for model, CUDA for image processor
+cargo run -r -F tensorrt-full --example yolo -- --task detect --ver 8 --scale n --use-coco-80-classes --dtype fp32 --device tensorrt:0 --processor-device cuda:0
+
+# TensorRT for model, CPU for image processor
+cargo run -r -F tensorrt --example yolo -- --task detect --ver 8 --scale n --use-coco-80-classes --dtype fp32 --device tensorrt:0 --processor-device cpu
+
+# CUDA for model only, CPU for image processor
+cargo run -r -F cuda --example yolo -- --task detect --ver 8 --scale n --use-coco-80-classes --dtype fp16 --device cuda:0 --processor-device cpu
+```
+
+> **Note**: Use `cuda-full` or `tensorrt-full` for GPU-accelerated image processing. Use `cuda` or `tensorrt` for model-only acceleration.
+
 ## Other YOLOv8 Solution Models
 
 |          Model          |           Weights    |                                                                                                                                  

@@ -6,11 +6,11 @@ This directory contains examples for image matting and segmentation models.
 
 ### MediaPipe Selfie Segmentation with Background Removal
 ```bash
-cargo run -F cuda --example image-matting -- mediapipe  --device cuda --processor-device cuda
+cargo run -F cuda-full --example image-matting -- mediapipe  --device cuda --processor-device cuda
 ```
 
 ### MODNet Portrait Matting
 ```bash
-cargo run -F cuda --example image-matting -- modnet  --device cuda --processor-device cuda
+cargo run -F cuda-full --example image-matting -- modnet  --device cuda --processor-device cuda
 ```
 

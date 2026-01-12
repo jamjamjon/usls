@@ -26,7 +26,7 @@ Vision-language model for image and text embeddings.
 
 **Usage:**
 ```bash
-cargo run -F cuda -F vlm --example embedding -- clip  --device cuda --processor-device cuda --dtype q4f16 --variant mobileclip2-s0
+cargo run -F cuda-full -F vlm --example embedding -- clip  --device cuda --processor-device cuda --dtype q4f16 --variant mobileclip2-s0
 ```
 
 ### DINO (Self-Distillation with No Labels)
@@ -44,5 +44,5 @@ Self-supervised vision transformer for image embeddings.
 
 **Usage:**
 ```bash
-cargo run -F cuda -F vlm --example embedding -- dino   --device cuda --processor-device cuda --dtype q4f16 --variant v3-s --batch 2
+cargo run -F cuda-full -F vlm --example embedding -- dino   --device cuda --processor-device cuda --dtype q4f16 --variant v3-s --batch 2
 ```

@@ -7,52 +7,52 @@ This directory contains examples for various image segmentation models, ranging 
 
 ### rfdetr
 ```bash
-cargo run -F vlm -F cuda --example image-segmentation -- rfdetr  --device cuda --processor-device cuda
+cargo run -F cuda-full --example image-segmentation -- rfdetr  --device cuda --processor-device cuda
 ```
 
 ### yoloe-prompt-free
 ```bash
-cargo run -F vlm -F cuda --example image-segmentation -- yoloe-prompt-free  --device cuda --processor-device cuda
+cargo run  -F cuda-full --example image-segmentation -- yoloe-prompt-free  --device cuda --processor-device cuda
 ```
 
 ### FastSAM
 ```bash
-cargo run -F vlm -F cuda --example image-segmentation -- fastsam  --device cuda --processor-device cuda
+cargo run  -F cuda-full --example image-segmentation -- fastsam  --device cuda --processor-device cuda
 ```
 
 ### YOLOP: Driving Perception
 ```bash
-cargo run -F vlm -F cuda --example image-segmentation -- yolop  --device cuda --processor-device cuda --source images/car-view.jpg
+cargo run  -F cuda-full --example image-segmentation -- yolop  --device cuda --processor-device cuda --source images/car-view.jpg
 ```
 ### sam
 
 ```bash
-cargo run -F vlm -F cuda --example image-segmentation -- sam  --device cuda --processor-device cuda --source images/truck.jpg
+cargo run  -F cuda-full --example image-segmentation -- sam  --device cuda --processor-device cuda --source images/truck.jpg
 ```
 
 ### sam2
 
 ```bash
-cargo run -F vlm -F cuda --example image-segmentation -- sam2  --device cuda --processor-device cuda --source images/truck.jpg
+cargo run  -F cuda-full --example image-segmentation -- sam2  --device cuda --processor-device cuda --source images/truck.jpg
 ```
 
 ### sam3-tracker
 
 ```bash
 # Single point
-cargo run -F vlm -F cuda --example image-segmentation -- sam3-tracker  --device cuda --processor-device cuda --source images/truck.jpg -p "pos:500,375" 
+cargo run  -F cuda-full --example image-segmentation -- sam3-tracker  --device cuda --processor-device cuda --dtype q4f16 --source images/truck.jpg -p "pos:500,375" 
 
 # Two positive points
-cargo run -F vlm -F cuda --example image-segmentation -- sam3-tracker  --device cuda --processor-device cuda --source images/truck.jpg -p "pos:500,375;pos:1125,625"
+cargo run  -F cuda-full --example image-segmentation -- sam3-tracker  --device cuda --processor-device cuda --dtype q4f16 --source images/truck.jpg -p "pos:500,375;pos:1125,625"
 
 # Box prompt (xywh: x, y, width, height)
-cargo run -F vlm -F cuda --example image-segmentation -- sam3-tracker  --device cuda --processor-device cuda --source images/truck.jpg -p "pos:425,600,275,275"
+cargo run  -F cuda-full --example image-segmentation -- sam3-tracker  --device cuda --processor-device cuda --dtype q4f16 --source images/truck.jpg -p "pos:425,600,275,275"
 
 # Box + negative point
-cargo run -F vlm -F cuda --example image-segmentation -- sam3-tracker  --device cuda --processor-device cuda --source images/truck.jpg -p "pos:425,600,275,275;neg:575,750"
+cargo run -F cuda-full --example image-segmentation -- sam3-tracker  --device cuda --processor-device cuda --dtype q4f16 --source images/truck.jpg -p "pos:425,600,275,275;neg:575,750"
 
 # Multiple boxes
-cargo run -F vlm -F cuda --example image-segmentation -- sam3-tracker  --device cuda --processor-device cuda --source images/truck.jpg -p "pos:75,275,1650,575;pos:425,600,275,275;pos:1375,550,275,250;pos:1240,675,160,75" # -p "pos:75,275,1650,575" -p "pos:425,600,275,275" -p "pos:1375,550,275,250" -p "pos:1240,675,160,75"
+cargo run  -F cuda-full --example image-segmentation -- sam3-tracker  --device cuda --processor-device cuda --dtype q4f16 --source images/truck.jpg -p "pos:75,275,1650,575;pos:425,600,275,275;pos:1375,550,275,250;pos:1240,675,160,75" # -p "pos:75,275,1650,575" -p "pos:425,600,275,275" -p "pos:1375,550,275,250" -p "pos:1240,675,160,75"
 ```
 ## Prompt Format
 

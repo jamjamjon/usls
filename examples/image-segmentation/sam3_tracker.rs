@@ -13,8 +13,8 @@ pub struct Sam3TrackerArgs {
     pub device: Device,
 
     /// Processor device (for pre/post processing)
-    #[arg(long, global = true)]
-    pub processor_device: Option<Device>,
+    #[arg(long, global = true, default_value = "cpu")]
+    pub processor_device: Device,
 
     /// Vision encoder batch
     #[arg(long, default_value_t = 1)]
@@ -38,16 +38,13 @@ pub struct Sam3TrackerArgs {
 }
 
 pub fn config(args: &Sam3TrackerArgs) -> Result<Config> {
-    let mut config = Config::sam3_tracker()
+    let config = Config::sam3_tracker()
         .with_visual_encoder_batch_min_opt_max(1, args.vision_batch, 8)
         .with_decoder_batch_min_opt_max(1, args.decoder_batch, 8)
         .with_dtype_all(args.dtype)
         .with_device_all(args.device)
-        .with_num_dry_run_all(args.num_dry_run);
-
-    if let Some(device) = args.processor_device {
-        config = config.with_image_processor_device(device);
-    }
+        .with_num_dry_run_all(args.num_dry_run)
+        .with_image_processor_device(args.processor_device);
 
     Ok(config)
 }

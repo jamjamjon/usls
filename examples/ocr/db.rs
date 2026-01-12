@@ -17,8 +17,8 @@ pub struct DbArgs {
     pub device: Device,
 
     /// Processor device (for pre/post processing)
-    #[arg(long, global = true)]
-    pub processor_device: Option<Device>,
+    #[arg(long, global = true, default_value = "cpu")]
+    pub processor_device: Device,
 
     /// Batch size
     #[arg(long, global = true, default_value_t = 1)]
@@ -58,7 +58,7 @@ pub struct DbArgs {
 }
 
 pub fn config(args: &DbArgs) -> Result<Config> {
-    let mut config = match args.variant.as_str() {
+    let config = match args.variant.as_str() {
         "ppocr-v3-ch" => Config::ppocr_det_v3_ch(),
         "ppocr-v4-ch" => Config::ppocr_det_v4_ch(),
         "ppocr-v4-server-ch" => Config::ppocr_det_v4_server_ch(),
@@ -72,11 +72,8 @@ pub fn config(args: &DbArgs) -> Result<Config> {
     .with_dtype_all(args.dtype)
     .with_device_all(args.device)
     .with_batch_size_all_min_opt_max(args.min_batch, args.batch, args.max_batch)
-    .with_num_dry_run_all(args.num_dry_run);
-
-    if let Some(device) = args.processor_device {
-        config = config.with_image_processor_device(device);
-    }
+    .with_num_dry_run_all(args.num_dry_run)
+    .with_image_processor_device(args.processor_device);
 
     Ok(config)
 }

@@ -13,10 +13,10 @@ Image captioning model.
 **Usage:**
 ```bash
 # Unconditional caption
-cargo run -F cuda -F vlm --example vlm  -- blip  --device cuda:0 --processor-device cuda:0  --source ./assets/bus.jpg
+cargo run -F cuda-full -F vlm --example vlm  -- blip  --device cuda:0 --processor-device cuda:0  --source ./assets/bus.jpg
 
 # Conditional caption
-cargo run -F cuda -F vlm --example vlm  -- blip  --device cuda:0 --processor-device cuda:0  --source ./assets/bus.jpg --prompt "this image depicts"
+cargo run -F cuda-full -F vlm --example vlm  -- blip  --device cuda:0 --processor-device cuda:0  --source ./assets/bus.jpg --prompt "this image depicts"
 ```
 
 ### FastVLM
@@ -27,7 +27,7 @@ Fast vision-language model for image understanding.
 
 **Usage:**
 ```bash
-cargo run -F cuda -F vlm --example vlm  -- fastvlm  --device cuda:0 --processor-device cuda:0 --dtype q4f16 --source ./assets/bus.jpg --scale 0.5b --prompt "Describe the image in detail."
+cargo run -F cuda-full -F vlm --example vlm  -- fastvlm  --device cuda:0 --processor-device cuda:0 --dtype q4f16 --source ./assets/bus.jpg --scale 0.5b --prompt "Describe the image in detail."
 
 ```
 

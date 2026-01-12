@@ -4,13 +4,13 @@
 ### APISR
 
 ```shell
-cargo run -F cuda --example super-resolution  apisr   --device cuda:0 --processor-device cuda:0 
+cargo run -F cuda-full --example super-resolution  apisr   --device cuda:0 --processor-device cuda:0 
 ```
 
 ### Swin2SR
 
 ```shell
-cargo run -F cuda --example super-resolution  swin2sr   --device cuda:0 --processor-device cuda:0 
+cargo run -F cuda-full --example super-resolution  swin2sr   --device cuda:0 --processor-device cuda:0 
 ```
 
 # Results

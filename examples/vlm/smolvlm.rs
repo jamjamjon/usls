@@ -21,8 +21,8 @@ pub struct SmolvlmArgs {
     pub device: Device,
 
     /// Processor device (for pre/post processing)
-    #[arg(long, global = true)]
-    pub processor_device: Option<Device>,
+    #[arg(long, global = true, default_value = "cpu")]
+    pub processor_device: Device,
 
     /// Batch size
     #[arg(long, global = true, default_value_t = 1)]
@@ -54,7 +54,7 @@ pub struct SmolvlmArgs {
 }
 
 pub fn config(args: &SmolvlmArgs) -> Result<Config> {
-    let mut config = match (args.scale.clone(), args.ver) {
+    let config = match (args.scale.clone(), args.ver) {
         (Scale::Million(256.0), Version(1, 0, _)) => Config::smolvlm_256m(),
         (Scale::Million(500.0), Version(1, 0, _)) => Config::smolvlm_500m(),
         (Scale::Million(256.0), Version(2, 0, _)) => Config::smolvlm2_256m(),
@@ -70,11 +70,8 @@ pub fn config(args: &SmolvlmArgs) -> Result<Config> {
     .with_batch_size_all_min_opt_max(args.min_batch, args.batch, args.max_batch)
     .with_num_dry_run_all(args.num_dry_run)
     .with_max_tokens(args.max_tokens)
-    .with_ignore_eos(args.ignore_eos);
-
-    if let Some(device) = args.processor_device {
-        config = config.with_image_processor_device(device);
-    }
+    .with_ignore_eos(args.ignore_eos)
+    .with_image_processor_device(args.processor_device);
 
     Ok(config)
 }

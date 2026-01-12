@@ -14,10 +14,16 @@ Execute a model demo (e.g., `RF-DETR`) with hardware acceleration:
 
 ```bash
 # Model and processor on CUDA
-cargo run -F cuda --example object-detection rfdetr --dtype q4f16 --device cuda:0 --processor-device cuda:0
+cargo run -F cuda-full --example object-detection rfdetr --dtype q4f16 --device cuda:0 --processor-device cuda:0
+
+#  CUDA for model, CPU for image processor
+cargo run -F cuda --example object-detection rfdetr --dtype fp16 --device cuda:0 --processor-device cpu
 
 #  TensorRT for model, CUDA for image processor
-cargo run -F tensorrt,cuda --example object-detection rfdetr --dtype fp32 --device tensorrt:0 --processor-device cuda:0
+cargo run -F tensorrt-full --example object-detection rfdetr --dtype fp32 --device tensorrt:0 --processor-device cuda:0
+
+#  TensorRT for model, CPU for image processor
+cargo run -F tensorrt --example object-detection rfdetr --dtype fp32 --device tensorrt:0 --processor-device cpu
 ```
 
 > **Note**: Always use `--release` (or `-r`) for production to enable compiler optimizations.
