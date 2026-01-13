@@ -141,7 +141,7 @@ impl Hub {
             .with_retries(self_.max_attempts as usize)
             .with_progress(true)
             .build()?;
-        self_.hf_repo = Some(hf_api.model(format!("{}/{}", owner, repo)));
+        self_.hf_repo = Some(hf_api.model(format!("{owner}/{repo}")));
 
         Ok(self_)
     }
