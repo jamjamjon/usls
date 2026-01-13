@@ -17,7 +17,7 @@ impl Image {
         padding_value: u8,
     ) -> Result<(Self, ImageTransformInfo)> {
         if tw + th == 0 {
-            anyhow::bail!("Invalid target height: {} or width: {}.", th, tw);
+            anyhow::bail!("Invalid target height: {th} or width: {tw}.");
         }
 
         let (w0, h0) = self.dimensions();

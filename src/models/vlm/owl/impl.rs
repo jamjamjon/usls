@@ -50,7 +50,7 @@ impl Model for OWLv2 {
             );
         }
         let names_with_prompt: Vec<String> =
-            names.iter().map(|x| format!("a photo of {}", x)).collect();
+            names.iter().map(|x| format!("a photo of {x}")).collect();
         let n = names.len();
         let confs = DynConf::new_or_default(config.class_confs(), n);
         let image_processor = ImageProcessor::from_config(config.image_processor)?

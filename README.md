@@ -53,6 +53,9 @@ Run the **YOLO-Series demo** to explore models with different tasks, precision a
 - **Precision**: `fp32`, `fp16`, `q8`, `q4`, `q4f16`, `bnb4`
 - **Execution Providers**: `CPU`, `CUDA`, `TensorRT`, `CoreML`, `OpenVINO`, and more
 
+
+### Examples
+
 ```bash
 # CPU: Object detection with YOLOv8n (FP16)
 cargo run -r --example yolo -- --task detect --ver 8 --scale n --dtype fp16
@@ -68,6 +71,12 @@ cargo run -r -F tensorrt --example yolo -- --device tensorrt:0 --processor-devic
 
 # TensorRT model + CUDA processor (CUDA 12.4)
 cargo run -r -F tensorrt-cuda-12040 --example yolo -- --device tensorrt:0 --processor-device cuda:0
+
+# TensorRT-RTX model + CUDA processor
+cargo run -r -F nvrtx-full --example yolo -- --device nvrtx:0 --processor-device cuda:0
+
+# TensorRT-RTX model + CPU processor
+cargo run -r -F nvrtx --example yolo -- --device nvrtx:0
 
 # Apple Silicon CoreML
 cargo run -r -F coreml --example yolo -- --device coreml
@@ -88,17 +97,19 @@ cargo run -r --example yolo -- --help
 
 ### Performance
 
->**Environment:** NVIDIA RTX 3060Ti (TensorRT v10.11.0.33, CUDA 12.8) / Intel i5-12400F  
+>**Environment:** NVIDIA RTX 3060Ti (TensorRT-10.11.0.33, CUDA 12.8, TensorRT-RTX-1.3.0.35) / Intel i5-12400F  
 >
->**Setup:** YOLOv8n-Det on 5000 coco2017val images
+>**Setup:** YOLOv8n-detect model (640×640), COCO2017 validation set (5,000 images), no warm-up
 
 
 #### Batch = 1
 
 | Backend | DType | Preprocess | Inference | Postprocess | Total |
 | --- | --- | --- | --- | --- | --- |
-| **TensorRT EP + CUDA processor** | FP16 | 252.029µs | 1.669ms | 435.488µs | 2.357ms |
+| **TensorRT EP + CUDA processor** | FP16 | 252.029µs | 1.494ms | 435.488µs | 2.182ms |
 | **TensorRT EP + CPU processor** | FP16 | 804.315µs | 2.877ms | 264.489µs | 3.946ms |
+| **TensorRT-RTX EP + CUDA processor** | FP32 |  261.607µs | 3.280ms | 394.933µs | 3.936ms |
+| **TensorRT-RTX EP + CPU processor** | FP32 | 850.883µs | 4.494ms |279.605µs  | 5.625ms |
 | **CUDA EP + CUDA processor** | FP32 | 256.842µs | 4.108ms | 287.730µs | 4.653ms |
 | **CUDA EP + CUDA processor** | FP16 | 252.456µs | 3.702ms | 291.365µs | 4.246ms |
 | **CUDA EP + CPU processor** | FP32 | 884.493µs | 5.376ms | 267.707µs | 6.528ms |
@@ -112,6 +123,8 @@ cargo run -r --example yolo -- --help
 | --- | --- | --- | --- | --- | --- |
 | **TensorRT EP + CUDA processor** | FP16 | 1.712ms | 10.295ms | 1.525ms | 13.532ms |
 | **TensorRT EP + CPU processor** | FP16 | 18.489ms | 28.692ms | 1.399ms | 48.580ms |
+| **TensorRT-RTX EP + CUDA processor** | FP32 | 1.467ms | 19.668ms | 1.396ms | 22.531ms |
+| **TensorRT-RTX EP + CPU processor** | FP32 | 18.329ms | 37.447ms | 1.372ms | 57.148ms |
 | **CUDA EP + CUDA processor** | FP32 | 1.504ms | 24.225ms | 1.448ms | 27.177ms |
 | **CUDA EP + CUDA processor** | FP16 | 1.617ms | 18.785ms | 1.411ms | 21.813ms |
 | **CUDA EP + CPU processor** | FP32 | 18.580ms | 44.257ms | 1.365ms | 64.202ms |
@@ -359,8 +372,10 @@ cargo run -r --example yolo -- --help
 
   - **`cuda`**: NVIDIA CUDA execution provider (pure model inference acceleration).
   - **`tensorrt`**: NVIDIA TensorRT execution provider (pure model inference acceleration).
+  - **`nvrtx`**: NVIDIA NvTensorRT-RTX execution provider (pure model inference acceleration).
   - **`cuda-full`**: `cuda` + `cuda-runtime-build` (Model + Image Preprocessing acceleration).
   - **`tensorrt-full`**: `tensorrt` + `cuda-runtime-build` (Model + Image Preprocessing acceleration).
+  - **`nvrtx-full`**: `nvrtx` + `cuda-runtime-build` (Model + Image Preprocessing acceleration).
   - **`coreml`**: Apple Silicon (macOS/iOS).
   - **`openvino`**: Intel CPU/GPU/VPU.
   - **`onednn`**: Intel Deep Neural Network Library.
@@ -397,6 +412,16 @@ cargo run -r --example yolo -- --help
 
   > **Note**: `tensorrt-cuda-*` features enable **TensorRT execution provider** with CUDA runtime libraries for image processing. The "cuda" in the name refers to `cudarc` dependency.
 
+- ### NVRTX Support
+  NVIDIA NvTensorRT-RTX execution provider with CUDA runtime libraries:
+
+  - **`nvrtx-full`**: Uses `cuda-version-from-build-system` (auto-detects via `nvcc`). 
+  - **`nvrtx-cuda-11040`**, **`nvrtx-cuda-11050`**, **`nvrtx-cuda-11060`**, **`nvrtx-cuda-11070`**, **`nvrtx-cuda-11080`**: NVRTX + CUDA 11.x runtime.
+  - **`nvrtx-cuda-12000`**, **`nvrtx-cuda-12010`**, **`nvrtx-cuda-12020`**, **`nvrtx-cuda-12030`**, **`nvrtx-cuda-12040`**, **`nvrtx-cuda-12050`**, **`nvrtx-cuda-12060`**, **`nvrtx-cuda-12080`**, **`nvrtx-cuda-12090`**: NVRTX + CUDA 12.x runtime.
+  - **`nvrtx-cuda-13000`**, **`nvrtx-cuda-13010`**: NVRTX + CUDA 13.x runtime.
+
+  > **Note**: `nvrtx-cuda-*` features enable **NVRTX execution provider** with CUDA runtime libraries for image processing. The "cuda" in the name refers to `cudarc` dependency.
+
 ---
 
 ## 🚀 Device Combination Guide
@@ -418,6 +443,14 @@ cargo run -r --example yolo -- --help
 - **ONNX Runtime Issues**: For ONNX Runtime related errors, please check the [ort](https://github.com/pykeio/ort) issues or [onnxruntime](https://github.com/microsoft/onnxruntime) issues.
 - **Other Issues**: For other questions or bug reports, see [issues](https://github.com/jamjamjon/usls/issues) or open a new discussion.
 
+
+#### ⚠️ Compatibility Note
+
+If you encounter linking errors with `__isoc23_strtoll` or similar glibc symbols, use the dynamic loading feature:
+
+```bash
+cargo run -F ort-load-dynamic --example
+```
 
 #### **Why no LM models?**
 

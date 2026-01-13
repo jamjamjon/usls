@@ -75,7 +75,7 @@ fn run_blip(config: Config, source: &Source, args: &blip::BlipArgs) -> Result<()
 
     for xs in &xs {
         let ys = model.forward((&xs, args.prompt.as_deref()))?;
-        println!("{:#?}", ys);
+        println!("{ys:#?}");
     }
 
     Ok(())
@@ -144,7 +144,7 @@ fn run_florence2(config: Config, source: &Source, args: &florence2::Florence2Arg
                     }
                 }
             }
-            _ => println!("{:?}", ys),
+            _ => println!("{ys:?}"),
         }
     }
 
@@ -168,7 +168,7 @@ fn run_moondream2(
 
         match task {
             Task::Caption(_) => {
-                println!("{}:", task);
+                println!("{task}:");
                 for (i, y) in ys.iter().enumerate() {
                     let texts = y.texts();
                     if !texts.is_empty() {
@@ -177,7 +177,7 @@ fn run_moondream2(
                 }
             }
             Task::Vqa(query) => {
-                println!("Question: {}", query);
+                println!("Question: {query}");
                 for (i, y) in ys.iter().enumerate() {
                     let texts = y.texts();
                     if !texts.is_empty() {
@@ -211,7 +211,7 @@ fn run_moondream2(
                     }
                 }
             }
-            _ => println!("{:?}", ys),
+            _ => println!("{ys:?}"),
         }
     }
 

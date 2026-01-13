@@ -107,7 +107,7 @@ impl TextProcessorConfig {
                         max_length: n as _,
                         ..Default::default()
                     }))
-                    .map_err(|err| anyhow::anyhow!("Failed to truncate: {}", err))?
+                    .map_err(|err| anyhow::anyhow!("Failed to truncate: {err}"))?
                     .clone(),
                 None => tokenizer
                     .with_padding(Some(PaddingParams {

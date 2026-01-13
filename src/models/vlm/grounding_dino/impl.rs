@@ -60,7 +60,7 @@ impl Model for GroundingDINO {
         }
         let token_level_class = config.inference.token_level_class;
         let text_prompt = class_names.iter().fold(String::new(), |mut acc, text| {
-            write!(&mut acc, "{}.", text).unwrap();
+            write!(&mut acc, "{text}.").unwrap();
             acc
         });
         let class_confs = config.class_confs().to_vec();

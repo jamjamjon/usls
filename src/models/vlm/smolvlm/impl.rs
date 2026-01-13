@@ -175,7 +175,7 @@ impl SmolVLM {
         );
 
         match nw_nh {
-            (1, 1) => format!("{}{}", s1, s_global),
+            (1, 1) => format!("{s1}{s_global}"),
             _ => {
                 let mut s = String::with_capacity(
                     s1.len()
@@ -195,7 +195,7 @@ impl SmolVLM {
                     }
                     s.push('\n');
                 }
-                format!("{}\n{}", s, s_global)
+                format!("{s}\n{s_global}")
             }
         }
     }

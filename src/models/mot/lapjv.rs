@@ -16,7 +16,7 @@ const LARGE: f64 = 1_000_000.0;
 pub fn lapjv(cost: &[Vec<f64>]) -> Result<(Vec<u64>, Vec<u64>)> {
     let n = cost.len();
     if n == 0 {
-        anyhow::bail!("cost.len() must be greater than 0, got: {}", n);
+        anyhow::bail!("cost.len() must be greater than 0, got: {n}");
     }
 
     // Create mutable copy of cost matrix for computation
@@ -42,7 +42,7 @@ pub fn lapjv(cost: &[Vec<f64>]) -> Result<(Vec<u64>, Vec<u64>)> {
     }
 
     if ret > 0 {
-        anyhow::bail!("Algorithm failed to converge, ret = {}", ret);
+        anyhow::bail!("Algorithm failed to converge, ret = {ret}");
     }
 
     // Convert assignment to separate row and column vectors
@@ -67,10 +67,10 @@ fn ccrt_dense(
     v: &mut [f64],
     y: &mut [isize],
 ) -> usize {
-    debug_assert!(cost.len() == n, "cost.len() must be equal to {}", n);
-    debug_assert!(x.len() == n, "x.len() must be equal to {}", n);
-    debug_assert!(y.len() == n, "y.len() must be equal to {}", n);
-    debug_assert!(v.len() == n, "v.len() must be equal to {}", n);
+    debug_assert!(cost.len() == n, "cost.len() must be equal to {n}");
+    debug_assert!(x.len() == n, "x.len() must be equal to {n}");
+    debug_assert!(y.len() == n, "y.len() must be equal to {n}");
+    debug_assert!(v.len() == n, "v.len() must be equal to {n}");
 
     // Initialize dual variables and assignments
     x.fill(-1);
@@ -370,7 +370,7 @@ mod tests {
             vec![7.0, 8.0, 9.0],
         ];
         let res = lapjv(&cost);
-        assert!(res.is_ok(), "expected Ok, got {:?}", res);
+        assert!(res.is_ok(), "expected Ok, got {res:?}");
         let (row_indices, col_indices) = res.unwrap();
         assert_eq!(row_indices, vec![0, 1, 2]);
         assert_eq!(col_indices, vec![2, 0, 1]);
@@ -385,7 +385,7 @@ mod tests {
             vec![13., 14., 15., 16.],
         ];
         let res = lapjv(&cost);
-        assert!(res.is_ok(), "expected Ok, got {:?}", res);
+        assert!(res.is_ok(), "expected Ok, got {res:?}");
         let (row_indices, col_indices) = res.unwrap();
         assert_eq!(row_indices, vec![0, 1, 2, 3]);
         assert_eq!(col_indices, vec![3, 0, 1, 2]);
@@ -401,7 +401,7 @@ mod tests {
             vec![17., 18., 19., 20., 5.],
         ];
         let res = lapjv(&cost);
-        assert!(res.is_ok(), "expected Ok, got {:?}", res);
+        assert!(res.is_ok(), "expected Ok, got {res:?}");
         let (row_indices, col_indices) = res.unwrap();
         assert_eq!(row_indices, vec![0, 1, 2, 3, 4]);
         assert_eq!(col_indices, vec![0, 2, 1, 3, 4]);
@@ -452,7 +452,7 @@ mod tests {
             ],
         ];
         let res = lapjv(&cost);
-        assert!(res.is_ok(), "expected Ok, got {:?}", res);
+        assert!(res.is_ok(), "expected Ok, got {res:?}");
         let (row_indices, col_indices) = res.unwrap();
         assert_eq!(row_indices, vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
         assert_eq!(col_indices, vec![8, 0, 2, 7, 9, 3, 5, 4, 6, 1]);
@@ -503,7 +503,7 @@ mod tests {
             ],
         ];
         let res = lapjv(&cost);
-        assert!(res.is_ok(), "expected Ok, got {:?}", res);
+        assert!(res.is_ok(), "expected Ok, got {res:?}");
         let (row_indices, col_indices) = res.unwrap();
         assert_eq!(row_indices, vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
         assert_eq!(col_indices, vec![5, 0, 1, 7, 9, 3, 2, 8, 4, 6]);

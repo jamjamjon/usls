@@ -208,7 +208,7 @@ impl XAny {
         let first_is_device = tensors[0].is_device();
         for (i, t) in tensors.iter().enumerate().skip(1) {
             if t.is_device() != first_is_device {
-                anyhow::bail!("concat: mixed device types at tensor {}", i);
+                anyhow::bail!("concat: mixed device types at tensor {i}");
             }
         }
 

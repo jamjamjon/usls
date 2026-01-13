@@ -68,7 +68,7 @@ impl InstanceMeta {
                 let name = if label.is_empty() {
                     name.to_string()
                 } else {
-                    format!(" {}", name)
+                    format!(" {name}")
                 };
                 label.push_str(&name);
             }
@@ -78,9 +78,9 @@ impl InstanceMeta {
         if let Some(confidence) = self.confidence {
             if show_conf {
                 if label.is_empty() {
-                    label.push_str(&format!("{:.decimal_places$}", confidence));
+                    label.push_str(&format!("{confidence:.decimal_places$}"));
                 } else {
-                    label.push_str(&format!(" {:.decimal_places$}", confidence));
+                    label.push_str(&format!(" {confidence:.decimal_places$}"));
                 }
             }
         }

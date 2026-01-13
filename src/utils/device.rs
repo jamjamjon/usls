@@ -4,6 +4,7 @@ pub enum Device {
     Cuda(usize),
     Wgpu(usize),
     TensorRt(usize),
+    NvRtx(usize),
     OpenVino(&'static str),
     DirectMl(usize),
     Cann(usize),
@@ -31,16 +32,17 @@ impl Default for Device {
 impl std::fmt::Display for Device {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         let x = match self {
-            Self::Cpu(i) => format!("CPU:{}", i),
-            Self::Cuda(i) => format!("CUDA:{}(NVIDIA)", i),
-            Self::Wgpu(i) => format!("WGPU:{}(Cross-platform)", i),
-            Self::TensorRt(i) => format!("TensorRT:{}(NVIDIA)", i),
-            Self::Cann(i) => format!("CANN:{}(Huawei)", i),
-            Self::OpenVino(s) => format!("OpenVINO:{}(Intel)", s),
-            Self::DirectMl(i) => format!("DirectML:{}(Microsoft)", i),
-            Self::Qnn(i) => format!("QNN:{}(Qualcomm)", i),
-            Self::MiGraphX(i) => format!("MIGraphX:{}(AMD)", i),
-            Self::Rocm(i) => format!("ROCm:{}(AMD)", i),
+            Self::Cpu(i) => format!("CPU:{i}"),
+            Self::Cuda(i) => format!("CUDA:{i}(NVIDIA)"),
+            Self::Wgpu(i) => format!("WGPU:{i}(Cross-platform)"),
+            Self::TensorRt(i) => format!("TensorRT:{i}(NVIDIA)"),
+            Self::NvRtx(i) => format!("TensorRT-RTX:{i}(NVIDIA)"),
+            Self::Cann(i) => format!("CANN:{i}(Huawei)"),
+            Self::OpenVino(s) => format!("OpenVINO:{s}(Intel)"),
+            Self::DirectMl(i) => format!("DirectML:{i}(Microsoft)"),
+            Self::Qnn(i) => format!("QNN:{i}(Qualcomm)"),
+            Self::MiGraphX(i) => format!("MIGraphX:{i}(AMD)"),
+            Self::Rocm(i) => format!("ROCm:{i}(AMD)"),
             Self::CoreMl => "CoreML(Apple)".to_string(),
             Self::Azure => "Azure(Microsoft)".to_string(),
             Self::Xnnpack => "XNNPACK".to_string(),
@@ -52,7 +54,7 @@ impl std::fmt::Display for Device {
             Self::Tvm => "TVM(Apache)".to_string(),
             Self::Vitis => "VitisAI(AMD)".to_string(),
         };
-        write!(f, "{}", x)
+        write!(f, "{x}")
     }
 }
 
@@ -78,6 +80,7 @@ impl std::str::FromStr for Device {
             "cuda" => Ok(Self::Cuda(parse_device_id(id_part))),
             "wgpu" => Ok(Self::Wgpu(parse_device_id(id_part))),
             "trt" | "tensorrt" => Ok(Self::TensorRt(parse_device_id(id_part))),
+            "trt-rtx" | "tensorrt-rtx" | "nvrtx" => Ok(Self::NvRtx(parse_device_id(id_part))),
             "coreml" | "mps" => Ok(Self::CoreMl),
             "openvino" => {
                 // For OpenVino, use the user input directly after first colon (trimmed)
@@ -112,6 +115,7 @@ impl Device {
             | Self::Cuda(i)
             | Self::Wgpu(i)
             | Self::TensorRt(i)
+            | Self::NvRtx(i)
             | Self::Cann(i)
             | Self::Qnn(i)
             | Self::Rocm(i)

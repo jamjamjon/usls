@@ -30,7 +30,7 @@ impl std::str::FromStr for ColorMap256 {
             "extendedkindlmann" => Ok(Self::ExtendedKindLmann),
             "kindlmann" => Ok(Self::KindLmann),
             "smoothcoolwarm" => Ok(Self::SmoothCoolWarm),
-            _ => Err(anyhow::anyhow!("Unsupported colormap: {}", s)),
+            _ => Err(anyhow::anyhow!("Unsupported colormap: {s}")),
         }
     }
 }

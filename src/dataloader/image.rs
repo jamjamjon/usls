@@ -179,7 +179,7 @@ impl Image {
                 tracing::info!("Saved image to: {:?}", p.as_ref().display());
                 Ok(())
             }
-            Err(err) => Err(anyhow::anyhow!("Failed to save image: {:?}", err)),
+            Err(err) => Err(anyhow::anyhow!("Failed to save image: {err:?}")),
         }
     }
 

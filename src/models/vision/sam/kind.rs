@@ -22,7 +22,7 @@ impl std::str::FromStr for SamKind {
             "mobile-sam" | "mobile_sam" | "mobilesam" => Ok(Self::MobileSam),
             "sam-hq" | "sam_hq" | "samhq" => Ok(Self::SamHq),
             "edge-sam" | "edge_sam" | "edgesam" => Ok(Self::EdgeSam),
-            _ => anyhow::bail!("Unknown SAM kind: {}", s),
+            _ => anyhow::bail!("Unknown SAM kind: {s}"),
         }
     }
 }

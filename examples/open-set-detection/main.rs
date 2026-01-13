@@ -62,7 +62,7 @@ fn main() -> Result<()> {
 
             // Run & Annotate
             let ys = model.run(&xs)?;
-            println!("{:?}", ys);
+            println!("{ys:?}");
             for (x, y) in xs.iter().zip(ys.iter()) {
                 annotator.annotate(x, y)?.save(format!(
                     "{}.jpg",
@@ -82,7 +82,7 @@ fn main() -> Result<()> {
 
             // Run & Annotate
             let ys = model.run(&xs)?;
-            println!("{:?}", ys);
+            println!("{ys:?}");
             for (x, y) in xs.iter().zip(ys.iter()) {
                 annotator.annotate(x, y)?.save(format!(
                     "{}.jpg",

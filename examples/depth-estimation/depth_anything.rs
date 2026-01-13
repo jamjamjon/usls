@@ -60,7 +60,7 @@ pub fn config(args: &DepthAnythingArgs) -> Result<Config> {
             args.kind
         ),
     }
-    .with_batch_size_all_min_opt_max(1, args.batch, 4)
+    .with_batch_size_min_opt_max_all(1, args.batch, 4)
     .with_device_all(args.device)
     .with_model_dtype(args.dtype)
     .with_image_processor_device(args.processor_device);

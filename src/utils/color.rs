@@ -67,7 +67,7 @@ impl std::str::FromStr for Color {
     fn from_str(x: &str) -> Result<Self, Self::Err> {
         let hex = x.trim_start_matches('#');
         let hex = match hex.len() {
-            6 => format!("{}ff", hex),
+            6 => format!("{hex}ff"),
             8 => hex.to_string(),
             _ => {
                 return Err(anyhow::anyhow!(

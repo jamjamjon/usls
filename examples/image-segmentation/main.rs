@@ -206,7 +206,7 @@ fn run_sam3_tracker(
         .iter()
         .map(|s| s.parse())
         .collect::<std::result::Result<Vec<_>, _>>()
-        .map_err(|e| anyhow::anyhow!("{}", e))?;
+        .map_err(|e| anyhow::anyhow!("{e}"))?;
 
     let mut model = Sam3Tracker::new(config)?;
     let annotator = Annotator::default()

@@ -235,7 +235,7 @@ impl Annotator {
     /// - Prints the loaded font path on success
     pub fn with_font(mut self, path: &str) -> Result<Self> {
         self.text_renderer = self.text_renderer.with_font(path)?;
-        println!("font: {:?}", path);
+        println!("font: {path:?}");
         Ok(self)
     }
 

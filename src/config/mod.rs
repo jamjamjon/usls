@@ -1,9 +1,9 @@
 mod r#impl;
-mod impl_all;
 mod impl_ep;
 mod impl_image_processor;
 mod impl_inference;
 mod impl_modules;
+mod impl_ort;
 #[cfg(feature = "vlm")]
 mod impl_text_processor;
 mod inference_params;

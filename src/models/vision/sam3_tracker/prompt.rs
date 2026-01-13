@@ -303,12 +303,7 @@ impl std::str::FromStr for Sam3Prompt {
                         prompt =
                             prompt.with_positive_box(coords[0], coords[1], coords[2], coords[3])
                     }
-                    n => {
-                        return Err(format!(
-                            "pos: expects 2 (point) or 4 (box) coords, got {}",
-                            n
-                        ))
-                    }
+                    n => return Err(format!("pos: expects 2 (point) or 4 (box) coords, got {n}")),
                 }
             } else if let Some(coords_str) = part.strip_prefix("neg:") {
                 let coords = Self::parse_coords(coords_str)?;
@@ -318,17 +313,11 @@ impl std::str::FromStr for Sam3Prompt {
                         prompt =
                             prompt.with_negative_box(coords[0], coords[1], coords[2], coords[3])
                     }
-                    n => {
-                        return Err(format!(
-                            "neg: expects 2 (point) or 4 (box) coords, got {}",
-                            n
-                        ))
-                    }
+                    n => return Err(format!("neg: expects 2 (point) or 4 (box) coords, got {n}")),
                 }
             } else {
                 return Err(format!(
-                    "Invalid format: '{}'. Use 'pos:x,y' (point) or 'pos:x,y,w,h' (box)",
-                    part
+                    "Invalid format: '{part}'. Use 'pos:x,y' (point) or 'pos:x,y,w,h' (box)"
                 ));
             }
         }

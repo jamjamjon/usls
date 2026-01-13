@@ -61,7 +61,7 @@ impl std::str::FromStr for DType {
             "f4e2m1" => Ok(Self::Fp4e2m1),
             "complex64" => Ok(Self::Complex64),
             "complex128" => Ok(Self::Complex128),
-            x => anyhow::bail!("Unsupported DType: {}", x),
+            x => anyhow::bail!("Unsupported DType: {x}"),
         }
     }
 }
@@ -111,6 +111,6 @@ impl std::fmt::Display for DType {
             Self::Complex64 => "complex64",
             Self::Complex128 => "complex128",
         };
-        write!(f, "{}", x)
+        write!(f, "{x}")
     }
 }

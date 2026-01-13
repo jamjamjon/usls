@@ -183,7 +183,7 @@ impl std::fmt::Display for Task {
             Self::Sam3Tracker => "sam3-tracker",
             _ => todo!(),
         };
-        write!(f, "{}", x)
+        write!(f, "{x}")
     }
 }
 
@@ -251,33 +251,26 @@ impl Task {
             }
             Self::RegionProposal => "Locate the region proposals in the image.".to_string(),
             Self::OpenSetDetection(text) => {
-                format!("Locate {} in the image.", text)
+                format!("Locate {text} in the image.")
             }
             Self::CaptionToPhraseGrounding(text) => {
-                format!("Locate the phrases in the caption: {}", text)
+                format!("Locate the phrases in the caption: {text}")
             }
             Self::ReferringExpressionSegmentation(text) => {
-                format!("Locate {} in the image with mask", text)
+                format!("Locate {text} in the image with mask")
             }
             Self::RegionToSegmentation(x0, y0, x1, y1) => {
                 format!(
-                    "What is the polygon mask of region <loc_{}><loc_{}><loc_{}><loc_{}>",
-                    x0, y0, x1, y1
+                    "What is the polygon mask of region <loc_{x0}><loc_{y0}><loc_{x1}><loc_{y1}>"
                 )
             }
             Self::RegionToCategory(x0, y0, x1, y1) => {
-                format!(
-                    "What is the region <loc_{}><loc_{}><loc_{}><loc_{}>?",
-                    x0, y0, x1, y1
-                )
+                format!("What is the region <loc_{x0}><loc_{y0}><loc_{x1}><loc_{y1}>?")
             }
             Self::RegionToDescription(x0, y0, x1, y1) => {
-                format!(
-                    "What does the region <loc_{}><loc_{}><loc_{}><loc_{}> describe?",
-                    x0, y0, x1, y1
-                )
+                format!("What does the region <loc_{x0}><loc_{y0}><loc_{x1}><loc_{y1}> describe?")
             }
-            x => anyhow::bail!("Unsupported Florence2 task: {:?}", x),
+            x => anyhow::bail!("Unsupported Florence2 task: {x:?}"),
         };
 
         Ok(prompt)

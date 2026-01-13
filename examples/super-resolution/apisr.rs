@@ -50,7 +50,7 @@ pub fn config(args: &APISRArgs) -> Result<Config> {
     }
     .with_model_dtype(args.dtype)
     .with_model_device(args.device)
-    .with_batch_size_all_min_opt_max(args.min_batch, args.batch, args.max_batch)
+    .with_batch_size_min_opt_max_all(args.min_batch, args.batch, args.max_batch)
     .with_num_dry_run_all(args.num_dry_run)
     .with_image_processor_device(args.processor_device);
 

@@ -344,7 +344,7 @@ fn run_svtr(config: Config, source: &Source) -> Result<()> {
 
     for xs in &dl {
         let ys = model.forward(&xs)?;
-        println!("ys: {:?}", ys);
+        println!("ys: {ys:?}");
     }
     Ok(())
 }
@@ -358,7 +358,7 @@ fn run_trocr(config: Config, source: &Source) -> Result<()> {
 
     for xs in &xs {
         let ys = model.forward(&xs)?;
-        println!("{:?}", ys);
+        println!("{ys:?}");
     }
     Ok(())
 }

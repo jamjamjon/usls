@@ -92,9 +92,7 @@ impl Model for YOLO {
                     Some(task) => {
                         if task_parsed != task {
                             anyhow::bail!(
-                                "Task specified: {:?} is inconsistent with parsed from yolo_preds_format: {:?}",
-                                task,
-                                task_parsed
+                                "Task specified: {task:?} is inconsistent with parsed from yolo_preds_format: {task_parsed:?}"
                             );
                         }
                         task_parsed
@@ -148,7 +146,7 @@ impl Model for YOLO {
                             YOLOPredsFormat::n_cxcywh_clss_r_a()
                         }
                         (task, version) => {
-                            anyhow::bail!("Task: {:?} is unsupported for Version: {:?}. Try using `.with_yolo_preds()` for customization.", task, version)
+                            anyhow::bail!("Task: {task:?} is unsupported for Version: {version:?}. Try using `.with_yolo_preds()` for customization.")
                         }
                     };
 
@@ -162,17 +160,14 @@ impl Model for YOLO {
                         }
                         Version(10, 0, _) => YOLOPredsFormat::n_a_xyxy_confcls().apply_nms(false),
                         _ => {
-                            anyhow::bail!(
-                                "No clear YOLO Task specified for Version: {:?}.",
-                                version
-                            )
+                            anyhow::bail!("No clear YOLO Task specified for Version: {version:?}.")
                         }
                     };
 
                     (layout, Task::ObjectDetection)
                 }
                 (Some(task), None) => {
-                    anyhow::bail!("No clear YOLO Version specified for Task: {:?}.", task)
+                    anyhow::bail!("No clear YOLO Version specified for Task: {task:?}.")
                 }
                 (None, None) => {
                     anyhow::bail!("No clear YOLO Task and Version specified.")
@@ -267,10 +262,10 @@ impl Model for YOLO {
             topk,
         );
         if !classes_excluded.is_empty() {
-            info = format!("{}, classes_excluded: {:?}", info, classes_excluded);
+            info = format!("{info}, classes_excluded: {classes_excluded:?}");
         }
         if !classes_retained.is_empty() {
-            info = format!("{}, classes_retained: {:?}", info, classes_retained);
+            info = format!("{info}, classes_retained: {classes_retained:?}");
         }
         let processor = ImageProcessor::from_config(config.image_processor)?
             .with_image_width(width as _)

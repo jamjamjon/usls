@@ -32,7 +32,7 @@ impl Default for ORTConfig {
             graph_opt_level: Default::default(),
             num_intra_threads: None,
             num_inter_threads: None,
-            ep: EpConfig::new(),
+            ep: EpConfig::default(),
         }
     }
 }
@@ -54,7 +54,7 @@ impl ORTConfig {
             match Hub::is_valid_github_release_url(&self.file) {
                 Some((owner, repo, tag, _file_name)) => {
                     let stem = try_fetch_file_stem(&self.file)?;
-                    self.spec = format!("{}/{}-{}-{}-{}", name, owner, repo, tag, stem);
+                    self.spec = format!("{name}/{owner}-{repo}-{tag}-{stem}");
                     self.file = Hub::default().try_fetch(&self.file)?;
                 }
                 None => {
@@ -62,12 +62,12 @@ impl ORTConfig {
                     match self.dtype {
                         d @ (DType::Auto | DType::Fp32) => {
                             if self.file.is_empty() {
-                                self.file = format!("{}.onnx", d);
+                                self.file = format!("{d}.onnx");
                             }
                         }
                         dtype => {
                             if self.file.is_empty() {
-                                self.file = format!("{}.onnx", dtype);
+                                self.file = format!("{dtype}.onnx");
                             } else {
                                 let pos = self.file.len() - 5; // .onnx
                                 let suffix = self.file.split_off(pos);
@@ -77,7 +77,7 @@ impl ORTConfig {
                     }
 
                     let stem = try_fetch_file_stem(&self.file)?;
-                    self.spec = format!("{}/{}", name, stem);
+                    self.spec = format!("{name}/{stem}");
 
                     let parts: Vec<&str> = self.file.split('/').filter(|x| !x.is_empty()).collect();
                     if parts.len() > 1 {
@@ -126,111 +126,4 @@ impl ORTConfig {
         self.iiixs.push(Iiix::from((0, 0, x)));
         self
     }
-
-    pub fn with_cpu_arena_allocator(mut self, x: bool) -> Self {
-        self.ep.cpu.arena_allocator = x;
-        self
-    }
-
-    pub fn with_openvino_dynamic_shapes(mut self, x: bool) -> Self {
-        self.ep.openvino.dynamic_shapes = x;
-        self
-    }
-
-    pub fn with_openvino_opencl_throttling(mut self, x: bool) -> Self {
-        self.ep.openvino.opencl_throttling = x;
-        self
-    }
-
-    pub fn with_openvino_qdq_optimizer(mut self, x: bool) -> Self {
-        self.ep.openvino.qdq_optimizer = x;
-        self
-    }
-
-    pub fn with_openvino_num_threads(mut self, x: usize) -> Self {
-        self.ep.openvino.num_threads = Some(x);
-        self
-    }
-
-    pub fn with_onednn_arena_allocator(mut self, x: bool) -> Self {
-        self.ep.onednn.arena_allocator = x;
-        self
-    }
-
-    pub fn with_tensorrt_fp16(mut self, x: bool) -> Self {
-        self.ep.tensorrt.fp16 = x;
-        self
-    }
-
-    pub fn with_tensorrt_engine_cache(mut self, x: bool) -> Self {
-        self.ep.tensorrt.engine_cache = x;
-        self
-    }
-
-    pub fn with_tensorrt_timing_cache(mut self, x: bool) -> Self {
-        self.ep.tensorrt.timing_cache = x;
-        self
-    }
-
-    pub fn with_coreml_static_input_shapes(mut self, x: bool) -> Self {
-        self.ep.coreml.static_input_shapes = x;
-        self
-    }
-
-    pub fn with_coreml_subgraph_running(mut self, x: bool) -> Self {
-        self.ep.coreml.subgraph_running = x;
-        self
-    }
-
-    pub fn with_cann_graph_inference(mut self, x: bool) -> Self {
-        self.ep.cann.graph_inference = x;
-        self
-    }
-
-    pub fn with_cann_dump_graphs(mut self, x: bool) -> Self {
-        self.ep.cann.dump_graphs = x;
-        self
-    }
-
-    pub fn with_cann_dump_om_model(mut self, x: bool) -> Self {
-        self.ep.cann.dump_om_model = x;
-        self
-    }
-
-    pub fn with_nnapi_cpu_only(mut self, x: bool) -> Self {
-        self.ep.nnapi.cpu_only = x;
-        self
-    }
-
-    pub fn with_nnapi_disable_cpu(mut self, x: bool) -> Self {
-        self.ep.nnapi.disable_cpu = x;
-        self
-    }
-
-    pub fn with_nnapi_fp16(mut self, x: bool) -> Self {
-        self.ep.nnapi.fp16 = x;
-        self
-    }
-
-    pub fn with_nnapi_nchw(mut self, x: bool) -> Self {
-        self.ep.nnapi.nchw = x;
-        self
-    }
-
-    pub fn with_armnn_arena_allocator(mut self, x: bool) -> Self {
-        self.ep.armnn.arena_allocator = x;
-        self
-    }
-
-    pub fn with_migraphx_fp16(mut self, x: bool) -> Self {
-        self.ep.migraphx.fp16 = x;
-        self
-    }
-
-    pub fn with_migraphx_exhaustive_tune(mut self, x: bool) -> Self {
-        self.ep.migraphx.exhaustive_tune = x;
-        self
-    }
-
-    // TODO: EP methods
 }

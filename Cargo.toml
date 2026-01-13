@@ -2,7 +2,7 @@
 name = "usls"
 edition = "2021"
 version = "0.2.0-alpha.1"
-rust-version = "1.87"
+rust-version = "1.88"
 description = "A Rust library integrated with ONNXRuntime, providing a collection of ML models."
 repository = "https://github.com/jamjamjon/usls"
 authors = ["Jamjamjon <xxyydzml@outlook.com>"]
@@ -19,7 +19,7 @@ image = { version = "0.25", default-features = false, features = [
 ] }
 imageproc = { version = "0.25", default-features = false, features = ["rayon"], optional = true }
 ab_glyph = { version = "0.2.32", optional = true }
-ndarray = { version = "0.16.1", features = ["rayon"] }
+ndarray = { version = "0.17", features = ["rayon"] }
 half = { version = "2.7.1", features = ["bytemuck", "num-traits"] }
 indicatif = { version = "0.18", default-features = false }
 tracing = { version = "0.1" }
@@ -39,8 +39,9 @@ tempfile = { version = "3.23.0" }
 fast_image_resize = { version = "5.5.0", default-features = false, features = ["image", "rayon"] }
 minifb = { version = "0.28.0", optional = true }
 video-rs = { version = "0.10.5", features = ["ndarray"], optional = true }
-ndarray-npy = { version = "0.9.1", optional = true  }
-ort = { version = "=2.0.0-rc.10", default-features = false, features = [
+ndarray-npy = { version = "0.10", optional = true  }
+ort = { version = "=2.0.0-rc.11", default-features = false, features = [
+  "tls-rustls",
   "copy-dylibs",
   "half",
   "std",
@@ -60,7 +61,6 @@ lru = { version = "0.16.2", default-features = false }
 clap = { version = "4.5", features = ["derive"] }
 tracing-subscriber = { version = "0.3.18", features = ["env-filter", "chrono", "fmt", "ansi"] }
 
-
 [profile.dev]
 opt-level = 0
 incremental = true
@@ -78,42 +78,9 @@ strip = true
 [features]
 default = ["ort-download-binaries", "vision", "annotator"]
 
-# Video / Stream processing
-video = ["dep:video-rs"]
-
-# Viewer
-viewer = ["dep:minifb"]
-
-# Annotator
-annotator = ["dep:ab_glyph", "dep:imageproc"]
-
-# Additional image formats (optional for faster compilation)
-image-gif = ["image/gif"]
-image-bmp = ["image/bmp"] 
-image-ico = ["image/ico"]
-image-avif = ["image/avif"]
-image-tiff = ["image/tiff"]
-image-dds = ["image/dds"]
-image-exr = ["image/exr"]
-image-ff = ["image/ff"]
-image-hdr = ["image/hdr"]
-image-pnm = ["image/pnm"]
-image-qoi = ["image/qoi"]
-image-tga = ["image/tga"]
-image-all-formats = ["image/default-formats"]
-
-# Hugging Face hub support (for downloading models from Hugging Face)
-hf-hub = ["dep:hf-hub"]
-
-# Model Zoo
-vision = []
-vlm = ["vision", "dep:tokenizers", "dep:ndarray-npy"]
-mot = []
-all-models = ["vision", "vlm", "mot"]
-
 # ONNXRuntime loading strategies
 ort-download-binaries = ["ort/download-binaries"]
-ort-load-dynamic = ["ort/load-dynamic"]
+ort-load-dynamic = ["ort/load-dynamic"] 
 
 # Cuda features (Internal use)
 cuda-runtime = ["dep:cudarc"]
@@ -153,24 +120,6 @@ rocm = ["ort/rocm"]
 tvm = ["ort/tvm"]
 vitis = ["ort/vitis"]
 xnnpack = ["ort/xnnpack"]
-tensorrt = ["ort/tensorrt"]
-tensorrt-full = ["tensorrt", "cuda-runtime-build"]
-tensorrt-cuda-11040 = ["tensorrt", "cuda-runtime-11040"]
-tensorrt-cuda-11050 = ["tensorrt", "cuda-runtime-11050"]
-tensorrt-cuda-11060 = ["tensorrt", "cuda-runtime-11060"]
-tensorrt-cuda-11070 = ["tensorrt", "cuda-runtime-11070"]
-tensorrt-cuda-11080 = ["tensorrt", "cuda-runtime-11080"]
-tensorrt-cuda-12000 = ["tensorrt", "cuda-runtime-12000"]
-tensorrt-cuda-12010 = ["tensorrt", "cuda-runtime-12010"]
-tensorrt-cuda-12020 = ["tensorrt", "cuda-runtime-12020"]
-tensorrt-cuda-12030 = ["tensorrt", "cuda-runtime-12030"]
-tensorrt-cuda-12040 = ["tensorrt", "cuda-runtime-12040"]
-tensorrt-cuda-12050 = ["tensorrt", "cuda-runtime-12050"]
-tensorrt-cuda-12060 = ["tensorrt", "cuda-runtime-12060"]
-tensorrt-cuda-12080 = ["tensorrt", "cuda-runtime-12080"]
-tensorrt-cuda-12090 = ["tensorrt", "cuda-runtime-12090"]
-tensorrt-cuda-13000 = ["tensorrt", "cuda-runtime-13000"]
-tensorrt-cuda-13010 = ["tensorrt", "cuda-runtime-13010"]
 cuda = ["ort/cuda"]
 cuda-full = ["cuda", "cuda-runtime-build"]
 cuda-11040 = ["cuda", "cuda-runtime-11040"]
@@ -189,6 +138,77 @@ cuda-12080 = ["cuda", "cuda-runtime-12080"]
 cuda-12090 = ["cuda", "cuda-runtime-12090"]
 cuda-13000 = ["cuda", "cuda-runtime-13000"]
 cuda-13010 = ["cuda", "cuda-runtime-13010"]
+tensorrt = ["ort/tensorrt"]
+tensorrt-full = ["tensorrt", "cuda-runtime-build"]
+tensorrt-cuda-11040 = ["tensorrt", "cuda-runtime-11040"]
+tensorrt-cuda-11050 = ["tensorrt", "cuda-runtime-11050"]
+tensorrt-cuda-11060 = ["tensorrt", "cuda-runtime-11060"]
+tensorrt-cuda-11070 = ["tensorrt", "cuda-runtime-11070"]
+tensorrt-cuda-11080 = ["tensorrt", "cuda-runtime-11080"]
+tensorrt-cuda-12000 = ["tensorrt", "cuda-runtime-12000"]
+tensorrt-cuda-12010 = ["tensorrt", "cuda-runtime-12010"]
+tensorrt-cuda-12020 = ["tensorrt", "cuda-runtime-12020"]
+tensorrt-cuda-12030 = ["tensorrt", "cuda-runtime-12030"]
+tensorrt-cuda-12040 = ["tensorrt", "cuda-runtime-12040"]
+tensorrt-cuda-12050 = ["tensorrt", "cuda-runtime-12050"]
+tensorrt-cuda-12060 = ["tensorrt", "cuda-runtime-12060"]
+tensorrt-cuda-12080 = ["tensorrt", "cuda-runtime-12080"]
+tensorrt-cuda-12090 = ["tensorrt", "cuda-runtime-12090"]
+tensorrt-cuda-13000 = ["tensorrt", "cuda-runtime-13000"]
+tensorrt-cuda-13010 = ["tensorrt", "cuda-runtime-13010"]
+nvrtx = ["ort/nvrtx"]
+nvrtx-full = ["nvrtx", "cuda-runtime-build"]
+nvrtx-cuda-11040 = ["nvrtx", "cuda-runtime-11040"]
+nvrtx-cuda-11050 = ["nvrtx", "cuda-runtime-11050"]
+nvrtx-cuda-11060 = ["nvrtx", "cuda-runtime-11060"]
+nvrtx-cuda-11070 = ["nvrtx", "cuda-runtime-11070"]
+nvrtx-cuda-11080 = ["nvrtx", "cuda-runtime-11080"]
+nvrtx-cuda-12000 = ["nvrtx", "cuda-runtime-12000"]
+nvrtx-cuda-12010 = ["nvrtx", "cuda-runtime-12010"]
+nvrtx-cuda-12020 = ["nvrtx", "cuda-runtime-12020"]
+nvrtx-cuda-12030 = ["nvrtx", "cuda-runtime-12030"]
+nvrtx-cuda-12040 = ["nvrtx", "cuda-runtime-12040"]
+nvrtx-cuda-12050 = ["nvrtx", "cuda-runtime-12050"]
+nvrtx-cuda-12060 = ["nvrtx", "cuda-runtime-12060"]
+nvrtx-cuda-12080 = ["nvrtx", "cuda-runtime-12080"]
+nvrtx-cuda-12090 = ["nvrtx", "cuda-runtime-12090"]
+nvrtx-cuda-13000 = ["nvrtx", "cuda-runtime-13000"]
+nvrtx-cuda-13010 = ["nvrtx", "cuda-runtime-13010"]
+
+
+# Video / Stream processing
+video = ["dep:video-rs"]
+
+# Viewer
+viewer = ["dep:minifb"]
+
+# Annotator
+annotator = ["dep:ab_glyph", "dep:imageproc"]
+
+# Additional image formats (optional for faster compilation)
+image-gif = ["image/gif"]
+image-bmp = ["image/bmp"] 
+image-ico = ["image/ico"]
+image-avif = ["image/avif"]
+image-tiff = ["image/tiff"]
+image-dds = ["image/dds"]
+image-exr = ["image/exr"]
+image-ff = ["image/ff"]
+image-hdr = ["image/hdr"]
+image-pnm = ["image/pnm"]
+image-qoi = ["image/qoi"]
+image-tga = ["image/tga"]
+image-all-formats = ["image/default-formats"]
+
+# Hugging Face hub support (for downloading models from Hugging Face)
+hf-hub = ["dep:hf-hub"]
+
+# Model Zoo
+vision = []
+vlm = ["vision", "dep:tokenizers", "dep:ndarray-npy"]
+mot = []
+all-models = ["vision", "vlm", "mot"]
+
 
 
 [[example]]

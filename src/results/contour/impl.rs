@@ -285,10 +285,7 @@ mod tests {
 
         assert!(
             diff <= tolerance,
-            "Contour point count should be similar. Ours: {}, imageproc: {}, diff: {}",
-            our_len,
-            imageproc_len,
-            diff
+            "Contour point count should be similar. Ours: {our_len}, imageproc: {imageproc_len}, diff: {diff}"
         );
     }
 

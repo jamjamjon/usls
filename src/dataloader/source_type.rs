@@ -194,7 +194,7 @@ impl std::str::FromStr for SourceType {
             return Ok(Self::Video(path.to_path_buf()));
         }
 
-        anyhow::bail!("Could not identify source type: {}", s)
+        anyhow::bail!("Could not identify source type: {s}")
     }
 }
 
@@ -215,7 +215,7 @@ impl SourceType {
             Self::Directory(path) => {
                 let p_str = path
                     .to_str()
-                    .ok_or_else(|| anyhow::anyhow!("Invalid path: {:?}", path))?;
+                    .ok_or_else(|| anyhow::anyhow!("Invalid path: {path:?}"))?;
 
                 let mut all_exts = IMAGE_EXTENSIONS.to_vec();
                 all_exts.extend_from_slice(VIDEO_EXTENSIONS);

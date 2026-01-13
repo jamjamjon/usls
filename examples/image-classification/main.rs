@@ -84,7 +84,7 @@ where
 
     for xs in &dl {
         let ys = model.forward(&xs)?;
-        println!("{:?}", ys);
+        println!("{ys:?}");
         for (x, y) in xs.iter().zip(ys.iter()) {
             if !y.is_empty() {
                 annotator.annotate(x, y)?.save(format!(

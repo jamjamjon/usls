@@ -771,9 +771,7 @@ mod tests {
         // Position should update (Kalman filter smoothing)
         assert!(
             (pos2.0 - pos1.0).abs() > 0.0 || (pos2.1 - pos1.1).abs() > 0.0,
-            "Track position should update! pos1={:?}, pos2={:?}",
-            pos1,
-            pos2
+            "Track position should update! pos1={pos1:?}, pos2={pos2:?}"
         );
     }
 }

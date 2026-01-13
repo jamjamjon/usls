@@ -48,7 +48,7 @@ impl FastVLM {
         self.batch = batch;
 
         // prompt
-        let prompt = format!("<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n<|im_start|>user\n<image>\n{}<|im_end|>\n<|im_start|>assistant\n", text);
+        let prompt = format!("<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n<|im_start|>user\n<image>\n{text}<|im_end|>\n<|im_start|>assistant\n");
         let input_ids: Vec<f32> = self.text_processor.encode_text_ids(&prompt, true)?;
 
         // inputs embeds
