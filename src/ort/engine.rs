@@ -179,7 +179,7 @@ impl FromConfig for Engine {
             inputs_minoptmax = Self::build_ort_inputs(&input_metadata, &config.iiixs)?;
 
             // session
-            ort::init().commit()?;
+            // ort::init().commit();
             session = Self::build_session(
                 &config.file,
                 config.device,
@@ -530,6 +530,44 @@ impl Engine {
             .unwrap_or(1);
 
         match device {
+            Device::NvRtx(id) => {
+                #[cfg(not(feature = "nvrtx"))]
+                {
+                    anyhow::bail!(feature_help
+                        .replace("#EP", "NvTensorRT-RTX")
+                        .replace("#FEATURE", "nvrtx"));
+                }
+                #[cfg(feature = "nvrtx")]
+                {
+                    let (spec_min, spec_opt, spec_max) =
+                        Self::generate_shape_specs(&inputs.names, &inputs_minoptmax)?;
+
+                    let ep = ort::ep::nvrtx::NVRTX::default()
+                        .with_device_id(id as _)
+                        .with_runtime_cache_path(
+                            crate::Dir::Cache
+                                .crate_dir_default_with_subs(&["caches", "tensorrt-rtx"])?
+                                .display(),
+                        )
+                        .with_profile_min_shapes(spec_min)
+                        .with_profile_opt_shapes(spec_opt)
+                        .with_profile_max_shapes(spec_max);
+
+                    match ep.is_available() {
+                        Ok(true) => {
+                            info!(
+                                "Initial model serialization with NVTensorRT-RTX may require a wait..."
+                            );
+                            ep.register(&mut builder).map_err(|err| {
+                                anyhow::anyhow!("Failed to register NVTensorRT-RTX: {}", err)
+                            })?;
+                        }
+                        _ => {
+                            anyhow::bail!(compile_help.replace("#EP", "NVTensorRT-RTX"))
+                        }
+                    }
+                }
+            }
             Device::TensorRt(id) => {
                 #[cfg(not(feature = "tensorrt"))]
                 {
@@ -540,45 +578,24 @@ impl Engine {
 
                 #[cfg(feature = "tensorrt")]
                 {
-                    // generate shapes
-                    let mut spec_min = String::new();
-                    let mut spec_opt = String::new();
-                    let mut spec_max = String::new();
-                    for (i, name) in inputs.names.iter().enumerate() {
-                        if i != 0 {
-                            spec_min.push(',');
-                            spec_opt.push(',');
-                            spec_max.push(',');
-                        }
-                        let mut s_min = format!("{}:", name);
-                        let mut s_opt = format!("{}:", name);
-                        let mut s_max = format!("{}:", name);
-                        for d in inputs_minoptmax[i].iter() {
-                            let min_ = &format!("{}x", d.min());
-                            let opt_ = &format!("{}x", d.opt());
-                            let max_ = &format!("{}x", d.max());
-                            s_min += min_;
-                            s_opt += opt_;
-                            s_max += max_;
-                        }
-                        s_min.pop();
-                        s_opt.pop();
-                        s_max.pop();
-                        spec_min += &s_min;
-                        spec_opt += &s_opt;
-                        spec_max += &s_max;
-                    }
+                    let (spec_min, spec_opt, spec_max) =
+                        Self::generate_shape_specs(&inputs.names, &inputs_minoptmax)?;
+                    let cache_path =
+                        crate::Dir::Cache.crate_dir_default_with_subs(&["caches", "tensorrt"])?;
 
                     let ep = ort::execution_providers::TensorRTExecutionProvider::default()
                         .with_device_id(id as i32)
+                        .with_max_workspace_size(config.ep.tensorrt.max_workspace_size)
+                        .with_builder_optimization_level(
+                            config.ep.tensorrt.builder_optimization_level,
+                        )
                         .with_fp16(config.ep.tensorrt.fp16)
                         .with_engine_cache(config.ep.tensorrt.engine_cache)
                         .with_timing_cache(config.ep.tensorrt.timing_cache)
-                        .with_engine_cache_path(
-                            crate::Dir::Cache
-                                .crate_dir_default_with_subs(&["caches", "tensorrt"])?
-                                .display(),
-                        )
+                        .with_dump_ep_context_model(config.ep.tensorrt.dump_ep_context_model)
+                        .with_engine_cache_path(cache_path.display())
+                        .with_timing_cache_path(cache_path.display())
+                        .with_ep_context_file_path(cache_path.display())
                         .with_profile_min_shapes(spec_min)
                         .with_profile_opt_shapes(spec_opt)
                         .with_profile_max_shapes(spec_max);
@@ -609,7 +626,12 @@ impl Engine {
                 #[cfg(feature = "cuda")]
                 {
                     let ep = ort::execution_providers::CUDAExecutionProvider::default()
-                        .with_device_id(id as i32);
+                        .with_device_id(id as i32)
+                        .with_conv_max_workspace(config.ep.cuda.conv_max_workspace)
+                        .with_prefer_nhwc(config.ep.cuda.prefer_nhwc)
+                        .with_tf32(config.ep.cuda.tf32)
+                        .with_fuse_conv_bias(config.ep.cuda.fuse_conv_bias)
+                        .with_cuda_graph(config.ep.cuda.cuda_graph);
                     match ep.is_available() {
                         Ok(true) => {
                             ep.register(&mut builder).map_err(|err| {
@@ -1040,7 +1062,7 @@ impl Engine {
                 match ep.is_available() {
                     Ok(true) => {
                         ep.register(&mut builder)
-                            .map_err(|err| anyhow::anyhow!("Failed to register CPU: {}", err))?;
+                            .map_err(|err| anyhow::anyhow!("Failed to register CPU: {err}"))?;
                     }
                     _ => anyhow::bail!(compile_help.replace("#EP", "CPU")),
                 }
@@ -1059,12 +1081,67 @@ impl Engine {
                 1 => GraphOptimizationLevel::Level1,
                 2 => GraphOptimizationLevel::Level2,
                 3 => GraphOptimizationLevel::Level3,
-                _ => anyhow::bail!("Invalid graph optimization level: {}", level),
+                _ => anyhow::bail!("Invalid graph optimization level: {level}"),
             })?;
         }
 
         let session = builder.commit_from_file(model_file)?;
         Ok(session)
+    }
+
+    /// Generate shape specifications for TensorRT and TensorRT-RTX
+    #[inline]
+    #[allow(unused)]
+    fn generate_shape_specs(
+        names: &[String],
+        inputs_minoptmax: &[Vec<crate::MinOptMax>],
+    ) -> anyhow::Result<(String, String, String)> {
+        anyhow::ensure!(
+            names.len() == inputs_minoptmax.len(),
+            "Failed to generate shape specs: names and inputs_minoptmax length mismatch"
+        );
+
+        use std::fmt::Write;
+
+        let n = 128;
+        let mut spec_min = String::with_capacity(n);
+        let mut spec_opt = String::with_capacity(n);
+        let mut spec_max = String::with_capacity(n);
+
+        for (i, name) in names.iter().enumerate() {
+            if i != 0 {
+                spec_min.push(',');
+                spec_opt.push(',');
+                spec_max.push(',');
+            }
+
+            // Write name prefix
+            spec_min.push_str(name);
+            spec_min.push(':');
+            spec_opt.push_str(name);
+            spec_opt.push(':');
+            spec_max.push_str(name);
+            spec_max.push(':');
+
+            // Write dimensions
+            for (j, d) in inputs_minoptmax[i].iter().enumerate() {
+                if j != 0 {
+                    spec_min.push('x');
+                    spec_opt.push('x');
+                    spec_max.push('x');
+                }
+
+                // Use write! for more efficient number formatting
+                write!(spec_min, "{}", d.min())
+                    .map_err(|_| anyhow::anyhow!("Failed to write min shape for input {name}"))?;
+                write!(spec_opt, "{}", d.opt())
+                    .map_err(|_| anyhow::anyhow!("Failed to write opt shape for input {name}"))?;
+                write!(spec_max, "{}", d.max())
+                    .map_err(|_| anyhow::anyhow!("Failed to write max shape for input {name}"))?;
+            }
+        }
+
+        Ok((spec_min, spec_opt, spec_max))
     }
 
     fn build_ort_inputs(xs: &OrtTensorAttr, iiixs: &[Iiix]) -> Result<Vec<Vec<MinOptMax>>> {
@@ -1206,17 +1283,11 @@ impl Engine {
     pub fn load_onnx<P: AsRef<std::path::Path>>(p: P) -> Result<onnx::ModelProto> {
         let path_ref = p.as_ref();
         let f = std::fs::read(path_ref).map_err(|err| {
-            anyhow::anyhow!(
-                "Failed to read ONNX file '{:?}': {}. Error: {}",
-                path_ref,
-                err,
-                err
-            )
+            anyhow::anyhow!("Failed to read ONNX file '{path_ref:?}': {err}. Error: {err}")
         })?;
         onnx::ModelProto::decode(f.as_slice()).map_err(|err| {
             anyhow::anyhow!(
-                "Failed to read the ONNX model: The file might be incomplete or corrupted. More detailed: {}",
-                err
+                "Failed to read the ONNX model: The file might be incomplete or corrupted. More detailed: {err}"
             )
         })
     }
@@ -1259,26 +1330,31 @@ impl Engine {
         let session = self.session.as_ref()?;
         match session.metadata() {
             Err(_) => None,
-            Ok(metadata) => metadata.custom(key).ok().flatten(),
+            Ok(metadata) => metadata.custom(key),
         }
     }
 
+    // TODO: use ort.session.metadata()
     pub fn ir_version(&self) -> Option<usize> {
         self.metadata.ir_version
     }
 
+    // TODO: use ort.session.metadata()
     pub fn opset_version(&self) -> Option<usize> {
         self.metadata.opset_version
     }
 
+    // TODO: use ort.session.metadata()
     pub fn producer_name(&self) -> Option<String> {
         self.metadata.producer_name.clone()
     }
 
+    // TODO: use ort.session.metadata()
     pub fn producer_version(&self) -> Option<String> {
         self.metadata.producer_version.clone()
     }
 
+    // TODO: use ort.session.metadata()
     pub fn model_version(&self) -> Option<usize> {
         self.metadata.model_version
     }

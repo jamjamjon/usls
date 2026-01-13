@@ -1,60 +1,77 @@
-//! Hardware-specific configuration structures for different execution providers.
-//!
-//! This module provides specialized configuration structures for various ep
-//! accelerators, promoting better separation of concerns and maintainability.
-
 use serde::{Deserialize, Serialize};
 
 /// CPU execution provider configuration.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CpuConfig {
-    /// Enable CPU arena allocator for memory management.
     pub arena_allocator: bool,
+}
+
+impl Default for CpuConfig {
+    fn default() -> Self {
+        Self {
+            arena_allocator: true,
+        }
+    }
 }
 
 /// CUDA execution provider configuration.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CudaConfig {
-    pub memory_limit: Option<usize>,
+    // TODO: pub memory_limit: Option<usize>,
+    // TODO: cudnn_conv_algo_search
     pub cuda_graph: bool,
-    pub skip_layer_norm_strict_mode: bool,
     pub fuse_conv_bias: bool,
+    /// Configure whether the Exhaustive search can use as much memory as it needs.
+    /// The default is true. When false, the memory used for the search is limited to 32 MB, which will impact its ability to find an optimal convolution algorithm.
     pub conv_max_workspace: bool,
+    pub tf32: bool,
+    /// Configure whether to prefer [N, H, W, C] layout operations over the default [N, C, H, W] layout.
+    /// Tensor cores usually operate more efficiently with the NHWC layout, so enabling this option for convolution-heavy models on Tensor core-enabled GPUs may provide a significant performance improvement.
+    pub prefer_nhwc: bool,
+}
+
+impl Default for CudaConfig {
+    fn default() -> Self {
+        Self {
+            cuda_graph: false,
+            fuse_conv_bias: true,
+            conv_max_workspace: true,
+            tf32: false,
+            prefer_nhwc: true,
+        }
+    }
 }
 
 /// NVIDIA TensorRT execution provider configuration.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TensorRtConfig {
-    /// Enable FP16 precision for faster inference.
     pub fp16: bool,
-    /// Enable engine caching to speed up subsequent runs.
     pub engine_cache: bool,
-    /// Enable timing cache for optimization.
     pub timing_cache: bool,
+    pub dump_ep_context_model: bool,
+    pub builder_optimization_level: u8,
+    pub max_workspace_size: usize,
 }
 
-/// Intel OpenVINO execution provider configuration.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct OpenVinoConfig {
-    /// Enable dynamic shapes support.
-    pub dynamic_shapes: bool,
-    /// Enable OpenCL throttling.
-    pub opencl_throttling: bool,
-    /// Enable QDQ (Quantize-Dequantize) optimizer.
-    pub qdq_optimizer: bool,
-    /// Number of threads for OpenVINO execution.
-    pub num_threads: Option<usize>,
+impl Default for TensorRtConfig {
+    fn default() -> Self {
+        Self {
+            fp16: true,
+            engine_cache: true,
+            timing_cache: false,
+            dump_ep_context_model: false,   // TODO
+            builder_optimization_level: 5,  // 3, 0-5
+            max_workspace_size: 1073741824, // 1G
+        }
+    }
 }
 
-/// Intel oneDNN execution provider configuration.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct OneDnnConfig {
-    /// Enable arena allocator for memory management.
-    pub arena_allocator: bool,
-}
+/// NVIDIA TensorRT-RTX execution provider configuration.
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+pub struct NvRtxConfig;
 
 /// Apple CoreML execution provider configuration.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CoreMlConfig {
     /// Use static input shapes for optimization.
     pub static_input_shapes: bool,
@@ -68,8 +85,54 @@ pub struct CoreMlConfig {
     pub specialization_strategy: u8,
 }
 
+impl Default for CoreMlConfig {
+    fn default() -> Self {
+        Self {
+            static_input_shapes: false,
+            subgraph_running: true,
+            model_format: 0,            // MLProgram
+            compute_units: 0,           // All
+            specialization_strategy: 1, // FastPrediction
+        }
+    }
+}
+
+/// Intel OpenVINO execution provider configuration.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OpenVinoConfig {
+    pub dynamic_shapes: bool,
+    pub opencl_throttling: bool,
+    pub qdq_optimizer: bool,
+    pub num_threads: usize,
+}
+
+impl Default for OpenVinoConfig {
+    fn default() -> Self {
+        Self {
+            dynamic_shapes: true,
+            opencl_throttling: true,
+            qdq_optimizer: true,
+            num_threads: 8,
+        }
+    }
+}
+
+/// Intel oneDNN execution provider configuration.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OneDnnConfig {
+    pub arena_allocator: bool,
+}
+
+impl Default for OneDnnConfig {
+    fn default() -> Self {
+        Self {
+            arena_allocator: true,
+        }
+    }
+}
+
 /// Huawei CANN execution provider configuration.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CannConfig {
     /// Enable graph inference mode.
     pub graph_inference: bool,
@@ -78,9 +141,18 @@ pub struct CannConfig {
     /// Enable OM model dumping.
     pub dump_om_model: bool,
 }
+impl Default for CannConfig {
+    fn default() -> Self {
+        Self {
+            graph_inference: true,
+            dump_graphs: false,
+            dump_om_model: true,
+        }
+    }
+}
 
 /// Android NNAPI execution provider configuration.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NnapiConfig {
     /// Force CPU-only execution.
     pub cpu_only: bool,
@@ -92,15 +164,34 @@ pub struct NnapiConfig {
     pub nchw: bool,
 }
 
+impl Default for NnapiConfig {
+    fn default() -> Self {
+        Self {
+            cpu_only: false,
+            disable_cpu: false,
+            fp16: true,
+            nchw: false,
+        }
+    }
+}
+
 /// ARM NN execution provider configuration.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ArmNnConfig {
     /// Enable arena allocator for memory management.
     pub arena_allocator: bool,
 }
 
+impl Default for ArmNnConfig {
+    fn default() -> Self {
+        Self {
+            arena_allocator: true,
+        }
+    }
+}
+
 /// AMD MIGraphX execution provider configuration.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MiGraphXConfig {
     /// Enable FP16 precision.
     pub fp16: bool,
@@ -108,11 +199,18 @@ pub struct MiGraphXConfig {
     pub exhaustive_tune: bool,
 }
 
+impl Default for MiGraphXConfig {
+    fn default() -> Self {
+        Self {
+            fp16: true,
+            exhaustive_tune: false,
+        }
+    }
+}
+
 /// WebGPU execution provider configuration.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct WebGpuConfig {
-    // TODO
-}
+pub struct WebGpuConfig {}
 
 /// Unified ep configuration containing all execution provider configs.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -123,6 +221,8 @@ pub struct EpConfig {
     pub cuda: CudaConfig,
     /// TensorRT execution provider configuration.
     pub tensorrt: TensorRtConfig,
+    /// NVIDIA TensorRT-RTX execution provider configuration.
+    pub nvrtx: NvRtxConfig,
     /// OpenVINO execution provider configuration.
     pub openvino: OpenVinoConfig,
     /// oneDNN execution provider configuration.
@@ -139,62 +239,4 @@ pub struct EpConfig {
     pub migraphx: MiGraphXConfig,
     /// WebGPU execution provider configuration.
     pub webgpu: WebGpuConfig,
-}
-
-impl EpConfig {
-    /// Create a new ep configuration with sensible defaults.
-    pub fn new() -> Self {
-        Self {
-            cpu: CpuConfig {
-                arena_allocator: true,
-            },
-            cuda: CudaConfig {
-                memory_limit: None,
-                cuda_graph: false,
-                skip_layer_norm_strict_mode: false,
-                fuse_conv_bias: false,
-                conv_max_workspace: false,
-            },
-            tensorrt: TensorRtConfig {
-                fp16: true,
-                engine_cache: true,
-                timing_cache: false,
-            },
-            openvino: OpenVinoConfig {
-                dynamic_shapes: true,
-                opencl_throttling: true,
-                qdq_optimizer: true,
-                num_threads: None,
-            },
-            onednn: OneDnnConfig {
-                arena_allocator: true,
-            },
-            coreml: CoreMlConfig {
-                static_input_shapes: false,
-                subgraph_running: true,
-                model_format: 0,            // MLProgram
-                compute_units: 0,           // All
-                specialization_strategy: 1, // FastPrediction
-            },
-            cann: CannConfig {
-                graph_inference: true,
-                dump_graphs: false,
-                dump_om_model: true,
-            },
-            nnapi: NnapiConfig {
-                cpu_only: false,
-                disable_cpu: false,
-                fp16: true,
-                nchw: false,
-            },
-            armnn: ArmNnConfig {
-                arena_allocator: true,
-            },
-            migraphx: MiGraphXConfig {
-                fp16: true,
-                exhaustive_tune: false,
-            },
-            webgpu: WebGpuConfig {},
-        }
-    }
 }

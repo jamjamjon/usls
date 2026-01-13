@@ -56,7 +56,7 @@ pub fn config(args: &SvtrArgs) -> Result<Config> {
     .with_model_ixx(0, 3, args.max_text_length)
     .with_dtype_all(args.dtype)
     .with_device_all(args.device)
-    .with_batch_size_all_min_opt_max(args.min_batch, args.batch, args.max_batch)
+    .with_batch_size_min_opt_max_all(args.min_batch, args.batch, args.max_batch)
     .with_num_dry_run_all(args.num_dry_run)
     .with_image_processor_device(args.processor_device);
 

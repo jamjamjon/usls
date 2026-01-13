@@ -72,7 +72,7 @@ use crate::{ImageProcessorConfig, InferenceParams, Module, ORTConfig, Scale, Tas
 ///     .with_model_dtype(DType::Fp16)
 ///     .with_model_device(Device::Cuda(0))
 ///     .with_image_processor_device(Device::Cuda(0))
-///     .with_batch_size_all_min_opt_max(1, 1, 8)
+///     .with_batch_size_min_opt_max_all(1, 1, 8)
 ///     .commit()?;  // Resolve paths and finalize
 /// # Ok(())
 /// # }
@@ -131,7 +131,7 @@ impl Config {
                         y.push_str(&x.to_string());
                     }
                     if let Some(ref x) = self.scale {
-                        y.push_str(&format!("-{}", x));
+                        y.push_str(&format!("-{x}"));
                     }
                     if let Some(ref x) = self.task {
                         y.push_str(&format!("-{}", x.yolo_str()));
@@ -150,16 +150,23 @@ impl Config {
                 match config.device {
                     crate::Device::Cuda(_) => {
                         if !cfg!(feature = "cuda") {
-                            anyhow::bail!("CUDA execution provider for module ({:?}) requires the 'cuda' feature. \n\
+                            anyhow::bail!("CUDA execution provider for module ({module:?}) requires the 'cuda' feature. \n\
                             Consider enabling it by adding '-F cuda'.\n\
-                            If you also need CUDA image processing, use '-F cuda-full' or a version-specific feature like '-F cuda-12040'.", module);
+                            If you also need CUDA image processing, use '-F cuda-full' or a version-specific feature like '-F cuda-12040'.");
                         }
                     }
                     crate::Device::TensorRt(_) => {
                         if !cfg!(feature = "tensorrt") {
-                            anyhow::bail!("TensorRT execution provider for module ({:?}) requires the 'tensorrt' feature. \n\
+                            anyhow::bail!("TensorRT execution provider for module ({module:?}) requires the 'tensorrt' feature. \n\
                             Consider enabling it by adding '-F tensorrt'. \n\
-                            If you also need CUDA image processing, use '-F tensorrt-full' or a version-specific feature like '-F tensorrt-cuda-12040'.", module);
+                            If you also need CUDA image processing, use '-F tensorrt-full' or a version-specific feature like '-F tensorrt-cuda-12040'.");
+                        }
+                    }
+                    crate::Device::NvRtx(_) => {
+                        if !cfg!(feature = "nvrtx") {
+                            anyhow::bail!("NvTensorRT-RTX execution provider for module ({module:?}) requires the 'nvrtx' feature. \n\
+                            Consider enabling it by adding '-F nvrtx'. \n\
+                            If you also need CUDA image processing, enable both '-F nvrtx' and a CUDA runtime feature like '-F cuda-12040'.");
                         }
                     }
                     _ => {}
@@ -187,19 +194,17 @@ impl Config {
                         match m_dev {
                             crate::Device::Cpu(_) => {
                                 anyhow::bail!(
-                                    "Device mismatch: ImageProcessor is on CUDA({}) but Module ({:?}) is on CPU. \n\
+                                    "Device mismatch: ImageProcessor is on CUDA({cuda_id}) but Module ({module:?}) is on CPU. \n\
                                     CUDA image processing requires CUDA or TensorRT execution provider for model inference. \n\
-                                    Consider enabling it by adding '-F cuda-full', '-F tensorrt-full', or a version-specific feature like '-F cuda-12040' or '-F tensorrt-cuda-12040'.",
-                                    cuda_id, module
+                                    Consider enabling it by adding '-F cuda-full', '-F tensorrt-full', or a version-specific feature like '-F cuda-12040' or '-F tensorrt-cuda-12040'."
                                 );
                             }
                             crate::Device::Cuda(model_cuda_id) => {
                                 // Check GPU ID consistency
                                 if cuda_id != model_cuda_id {
                                     anyhow::bail!(
-                                        "Device ID mismatch: ImageProcessor is on CUDA({}) but Module ({:?}) is on CUDA({}). \n\
-                                        They must use the same GPU ID to avoid performance loss and illegal memory access.",
-                                        cuda_id, module, model_cuda_id
+                                        "Device ID mismatch: ImageProcessor is on CUDA({cuda_id}) but Module ({module:?}) is on CUDA({model_cuda_id}). \n\
+                                        They must use the same GPU ID to avoid performance loss and illegal memory access."
                                     );
                                 }
                             }
@@ -207,9 +212,17 @@ impl Config {
                                 // Check GPU ID consistency
                                 if cuda_id != tensorrt_id {
                                     anyhow::bail!(
-                                        "Device ID mismatch: ImageProcessor is on CUDA({}) but Module ({:?}) is on TensorRT({}). \n\
-                                        They must use the same GPU ID to avoid performance loss and illegal memory access.",
-                                        cuda_id, module, tensorrt_id
+                                        "Device ID mismatch: ImageProcessor is on CUDA({cuda_id}) but Module ({module:?}) is on TensorRT({tensorrt_id}). \n\
+                                        They must use the same GPU ID to avoid performance loss and illegal memory access."
+                                    );
+                                }
+                            }
+                            crate::Device::NvRtx(nvrtx_id) => {
+                                // Check GPU ID consistency
+                                if cuda_id != nvrtx_id {
+                                    anyhow::bail!(
+                                        "Device ID mismatch: ImageProcessor is on CUDA({cuda_id}) but Module ({module:?}) is on NvTensorRT-RTX({nvrtx_id}). \n\
+                                        They must use the same GPU ID to avoid performance loss and illegal memory access."
                                     );
                                 }
                             }
@@ -217,7 +230,7 @@ impl Config {
                         }
                     }
                     _ => {
-                        anyhow::bail!("Unsupported ImageProcessor device: {:?}. Only CUDA and CPU are supported.", p_dev);
+                        anyhow::bail!("Unsupported ImageProcessor device: {p_dev:?}. Only CUDA and CPU are supported.");
                     }
                 }
             }

@@ -32,9 +32,9 @@ impl std::fmt::Display for ResizeAlg {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Nearest => write!(f, "Nearest"),
-            Self::Convolution(filter) => write!(f, "Convolution({})", filter),
-            Self::Interpolation(filter) => write!(f, "Interpolation({})", filter),
-            Self::SuperSampling(filter, m) => write!(f, "SuperSampling({}, {})", filter, m),
+            Self::Convolution(filter) => write!(f, "Convolution({filter})"),
+            Self::Interpolation(filter) => write!(f, "Interpolation({filter})"),
+            Self::SuperSampling(filter, m) => write!(f, "SuperSampling({filter}, {m})"),
         }
     }
 }

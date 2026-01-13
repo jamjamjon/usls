@@ -50,7 +50,7 @@ impl std::fmt::Display for Module {
             Self::CoordDecoder => write!(f, "coord_decoder"),
             Self::VisualProjection => write!(f, "visual_projection"),
             Self::TextualProjection => write!(f, "textual_projection"),
-            Self::Custom(name) => write!(f, "custom({})", name),
+            Self::Custom(name) => write!(f, "custom({name})"),
         }
     }
 }

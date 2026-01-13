@@ -87,7 +87,7 @@ fn demo_hbb_styles(
             Hbb::default()
                 .with_xyxy(x, 450.0, x + 280.0, 700.0)
                 .with_id(i + 4)
-                .with_name(&format!("thickness={}", thickness))
+                .with_name(&format!("thickness={thickness}"))
                 .with_confidence(0.88)
                 .with_style(
                     HbbStyle::default()
@@ -98,7 +98,7 @@ fn demo_hbb_styles(
         );
 
         // Add thickness label
-        let label = format!("Direction: {}", name);
+        let label = format!("Direction: {name}");
         hbbs.push(
             Hbb::default()
                 .with_xyxy(x + 10.0, 720.0, x + 270.0, 750.0)

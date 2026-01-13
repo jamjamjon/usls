@@ -292,8 +292,7 @@ impl Hub {
                                     let releases =
                                     match self.get_releases(&self.owner, &self.repo, &self.to, &self.ttl) {
                                         Err(err) => anyhow::bail!(
-                                            "Failed to download: No releases found in this repo. Error: {}",
-                                            err
+                                            "Failed to download: No releases found in this repo. Error: {err}"
                                         ),
                                         Ok(releases) => releases,
                                     };
@@ -302,9 +301,7 @@ impl Hub {
                                     let tags: Vec<String> = releases.iter().map(|x| x.tag_name.clone()).collect();
                                     if !tags.contains(&tag_.to_string()) {
                                         anyhow::bail!(
-                                            "Failed to download: Tag `{}` not found in GitHub releases. Available tags: {:?}",
-                                            tag_,
-                                            tags
+                                            "Failed to download: Tag `{tag_}` not found in GitHub releases. Available tags: {tags:?}"
                                         );
                                     } else {
                                         // Validate the file
@@ -313,10 +310,7 @@ impl Hub {
                                                 release.assets.iter().map(|x| x.name.as_str()).collect();
                                             if !files.contains(&file_name_) {
                                                 anyhow::bail!(
-                                                    "Failed to download: The file `{}` is missing in tag `{}`. Available files: {:?}",
-                                                    file_name_,
-                                                    tag_,
-                                                    files
+                                                    "Failed to download: The file `{file_name_}` is missing in tag `{tag_}`. Available files: {files:?}"
                                                 );
                                             } else {
                                                 for f_ in release.assets.iter() {
@@ -337,8 +331,7 @@ impl Hub {
                                 dst
                             }
                             _ => anyhow::bail!(
-                                "Failed to download file from github releases due to invalid format. Expected: <tag>/<file>, got: {}",
-                                s
+                                "Failed to download file from github releases due to invalid format. Expected: <tag>/<file>, got: {s}"
                             ),
                         }
             }
@@ -405,7 +398,7 @@ impl Hub {
         saveout
             .to_str()
             .map(|s| s.to_string())
-            .with_context(|| format!("Failed to convert PathBuf: {:?} to String", saveout))
+            .with_context(|| format!("Failed to convert PathBuf: {saveout:?} to String"))
     }
 
     /// Fetch releases from GitHub and cache them
@@ -421,7 +414,7 @@ impl Hub {
             .parent()
             .context("Invalid cache path: no parent directory found")?;
         std::fs::create_dir_all(parent_dir)
-            .with_context(|| format!("Failed to create cache directory: {:?}", parent_dir))?;
+            .with_context(|| format!("Failed to create cache directory: {parent_dir:?}"))?;
 
         // Create temporary file
         let mut temp_file = tempfile::NamedTempFile::new_in(parent_dir)
@@ -433,9 +426,9 @@ impl Hub {
             .context("Failed to write to temporary cache file")?;
 
         // Persist temporary file as the cache
-        temp_file.persist(cache_path).with_context(|| {
-            format!("Failed to persist temporary cache file to {:?}", cache_path)
-        })?;
+        temp_file
+            .persist(cache_path)
+            .with_context(|| format!("Failed to persist temporary cache file to {cache_path:?}"))?;
 
         Ok(body)
     }
@@ -497,7 +490,7 @@ impl Hub {
         // Ensure parent directory exists for the final destination
         if let Some(parent_dir) = dst_path.parent() {
             std::fs::create_dir_all(parent_dir)
-                .with_context(|| format!("Failed to create parent directory: {:?}", parent_dir))?;
+                .with_context(|| format!("Failed to create parent directory: {parent_dir:?}"))?;
         }
 
         let resp = self.fetch_get_response(src)?;
@@ -537,18 +530,13 @@ impl Hub {
         // Verify download completeness
         if downloaded_bytes as u64 != ntotal {
             anyhow::bail!(
-                "The downloaded file is incomplete. Expected: {} bytes, got: {} bytes",
-                ntotal,
-                downloaded_bytes
+                "The downloaded file is incomplete. Expected: {ntotal} bytes, got: {downloaded_bytes} bytes"
             );
         }
 
         // Only persist the temporary file to the final destination if download is complete
         temp_file.persist(dst_path).with_context(|| {
-            format!(
-                "Failed to move temporary file to final destination: {:?}",
-                dst_path
-            )
+            format!("Failed to move temporary file to final destination: {dst_path:?}")
         })?;
 
         // Update the progress bar
@@ -568,14 +556,14 @@ impl Hub {
         // Without token: 60 requests/hour, with token: 5000 requests/hour
         let mut request = agent.get(url);
         if let Ok(token) = std::env::var("GITHUB_TOKEN") {
-            request = request.header("Authorization", &format!("Bearer {}", token));
+            request = request.header("Authorization", &format!("Bearer {token}"));
         }
 
         let response = request
             .call()
-            .map_err(|err| anyhow::anyhow!("Failed to GET response from {}: {}", url, err))?;
+            .map_err(|err| anyhow::anyhow!("Failed to GET response from {url}: {err}"))?;
         if response.status() != 200 {
-            anyhow::bail!("Failed to fetch data from remote due to: {:?}", response);
+            anyhow::bail!("Failed to fetch data from remote due to: {response:?}");
         }
 
         Ok(response)
@@ -585,7 +573,7 @@ impl Hub {
     fn cache_file(owner: &str, repo: &str) -> String {
         let safe_owner = owner.replace(|c: char| !c.is_ascii_alphanumeric(), "_");
         let safe_repo = repo.replace(|c: char| !c.is_ascii_alphanumeric(), "_");
-        format!("releases-{}-{}.json", safe_owner, safe_repo)
+        format!("releases-{safe_owner}-{safe_repo}.json")
     }
 
     fn get_releases(
@@ -600,10 +588,8 @@ impl Hub {
             .join(Self::cache_file(owner, repo));
         let is_file_expired = Self::is_file_expired(&cache, ttl)?;
         let body = if is_file_expired {
-            let gh_api_release = format!(
-                "https://api.github.com/repos/{}/{}/releases?per_page=100",
-                owner, repo
-            );
+            let gh_api_release =
+                format!("https://api.github.com/repos/{owner}/{repo}/releases?per_page=100");
             self.fetch_and_cache_releases(&gh_api_release, &cache)?
         } else {
             std::fs::read_to_string(&cache)?
@@ -758,7 +744,7 @@ impl Hub {
         fn print_node(node: &TreeNode, name: &str, prefix: &str, is_last: bool, is_root: bool) {
             if !is_root {
                 let connector = if is_last { "└── " } else { "├── " };
-                println!("{}{}{}", prefix, connector, name);
+                println!("{prefix}{connector}{name}");
             }
 
             let mut children: Vec<_> = node.children.iter().collect();

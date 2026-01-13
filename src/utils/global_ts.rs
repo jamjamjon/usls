@@ -103,7 +103,7 @@ impl GlobalTsManager {
         if let Ok(modules) = self.module_ts.lock() {
             // Available modules for summary
             if let Some(ts) = modules.get(module_name) {
-                println!("\n=== {} Module Performance Summary ===", module_name);
+                println!("\n=== {module_name} Module Performance Summary ===");
                 // Module summary
                 ts.summary();
             } else {
@@ -228,7 +228,7 @@ impl GlobalTsManager {
             return;
         }
 
-        println!("\n{}", title);
+        println!("\n{title}");
         println!("───────────────────────────────────────────────────────────────");
 
         // Calculate column widths
@@ -256,8 +256,7 @@ impl GlobalTsManager {
         // Print data rows
         for (task, count, avg, min, max, total) in data {
             println!(
-                " {:<width_task$} {:<width_count$} {:<width_time$.decimal_places$?} {:<width_time$.decimal_places$?} {:<width_time$.decimal_places$?} {:<width_time$.decimal_places$?}",
-                task, count, avg, min, max, total
+                " {task:<width_task$} {count:<width_count$} {avg:<width_time$.decimal_places$?} {min:<width_time$.decimal_places$?} {max:<width_time$.decimal_places$?} {total:<width_time$.decimal_places$?}"
             );
         }
 
@@ -473,10 +472,10 @@ mod tests {
             .map(|i| {
                 thread::spawn(move || {
                     let manager = global_ts_manager();
-                    manager.push_global(&format!("task_{}", i), Duration::from_millis(i * 10));
+                    manager.push_global(&format!("task_{i}"), Duration::from_millis(i * 10));
                     manager.push_module(
                         "concurrent_module",
-                        &format!("subtask_{}", i),
+                        &format!("subtask_{i}"),
                         Duration::from_millis(i * 5),
                     );
                 })

@@ -141,7 +141,7 @@ fn run_sam3_image(
         .iter()
         .map(|s| s.parse())
         .collect::<std::result::Result<Vec<_>, _>>()
-        .map_err(|e| anyhow::anyhow!("{}", e))?;
+        .map_err(|e| anyhow::anyhow!("{e}"))?;
 
     let mut model = Sam3Image::new(config)?;
     let dl = DataLoader::new(source)?

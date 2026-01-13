@@ -84,8 +84,7 @@ pub(crate) fn try_fetch_file_stem<P: AsRef<std::path::Path>>(p: P) -> anyhow::Re
     let stem = p
         .file_stem()
         .ok_or(anyhow::anyhow!(
-            "Failed to get the `file_stem` of `model_file`: {:?}",
-            p
+            "Failed to get the `file_stem` of `model_file`: {p:?}"
         ))?
         .to_str()
         .ok_or(anyhow::anyhow!("Failed to convert from `&OsStr` to `&str`"))?;
@@ -204,7 +203,8 @@ pub(crate) fn generate_random_string(length: usize) -> String {
 /// ```
 pub fn timestamp(delimiter: Option<&str>) -> String {
     let delimiter = delimiter.unwrap_or("");
-    let format = format!("%Y{0}%m{0}%d{0}%H{0}%M{0}%S{0}%f", delimiter);
+    let format =
+        format!("%Y{delimiter}%m{delimiter}%d{delimiter}%H{delimiter}%M{delimiter}%S{delimiter}%f");
     chrono::Local::now().format(&format).to_string()
 }
 

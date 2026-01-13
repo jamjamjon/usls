@@ -67,7 +67,7 @@ impl std::str::FromStr for Version {
                 let patch = parts[2].parse::<u8>()?;
                 Ok(Self(major, minor, Some(patch)))
             }
-            _ => anyhow::bail!("Invalid version format: {}", s),
+            _ => anyhow::bail!("Invalid version format: {s}"),
         }
     }
 }

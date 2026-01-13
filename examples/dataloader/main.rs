@@ -24,12 +24,12 @@ fn main() -> anyhow::Result<()> {
     // Read the first valid image from a source
     let image = DataLoader::new("./assets/bus.jpg")?.try_read_one()?;
     println!("## DataLoader: loaded 1 image with try_read_one():");
-    println!("  - {:?}", image);
+    println!("  - {image:?}");
 
     // Read the Nth valid image (0-indexed)
     let image = DataLoader::new("./assets/*.jpg")?.try_read_nth(2)?;
     println!("## DataLoader: loaded n-th image with try_read_nth():");
-    println!("  - {:?}", image);
+    println!("  - {image:?}");
 
     // --- Range of Items ---
     // Read a specific range of images using Rust range syntax
@@ -39,7 +39,7 @@ fn main() -> anyhow::Result<()> {
         images.len()
     );
     for image in images {
-        println!("  - {:?}", image);
+        println!("  - {image:?}");
     }
 
     // --- Batch Loading ---
@@ -59,7 +59,7 @@ fn main() -> anyhow::Result<()> {
         images.len()
     );
     for image in images {
-        println!("  - {:?}", image);
+        println!("  - {image:?}");
     }
 
     // =========================================================================

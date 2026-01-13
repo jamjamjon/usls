@@ -82,7 +82,7 @@ pub fn config(args: &GroundingDINOArgs) -> Result<Config> {
     .with_text_confs(&[0.25])
     .with_model_num_dry_run(args.num_dry_run)
     .with_token_level_class(args.token_level_class)
-    .with_batch_size_all_min_opt_max(args.min_batch, args.batch, args.max_batch)
+    .with_batch_size_min_opt_max_all(args.min_batch, args.batch, args.max_batch)
     .with_image_processor_device(args.processor_device);
 
     Ok(config)

@@ -138,7 +138,7 @@ impl Perf {
                         } else {
                             Duration::ZERO
                         };
-                        let full_name = format!("{}::{}", module_name, name);
+                        let full_name = format!("{module_name}::{name}");
 
                         // Categorize based on module type
                         if module_name == "DATALOADER"
@@ -213,7 +213,7 @@ impl Perf {
         sorted_models.sort_by(|a, b| b.1.cmp(&a.1));
 
         for (model_name, total_time) in sorted_models {
-            main_data.push((format!("🤖 {}", model_name), total_time));
+            main_data.push((format!("🤖 {model_name}"), total_time));
         }
 
         main_data.push(("🎨 Visualization".to_string(), annotator_total));
@@ -265,7 +265,7 @@ impl Perf {
                             let task_name = &detail_name[module_end + 2..];
                             let formatted_task = format_task_with_emoji(task_name);
                             // Format: " ├─ 🧬 textual-inference" or " └─ 🧬 textual-inference"
-                            let tree_prefix = format!(" ├─ {}", formatted_task);
+                            let tree_prefix = format!(" ├─ {formatted_task}");
                             max_display_width = max_display_width.max(tree_prefix.chars().count());
                         }
                     }
@@ -322,15 +322,7 @@ impl Perf {
             let extra_padding = if bar_length < max_bar_length { 1 } else { 0 };
             let padding = " ".repeat(base_padding + extra_padding);
 
-            println!(
-                "{:<width$}│{}{}{:.3?} ({:.2}%)",
-                name,
-                bar,
-                padding,
-                value,
-                percentage,
-                width = alignment_width,
-            );
+            println!("{name:<alignment_width$}│{bar}{padding}{value:.3?} ({percentage:.2}%)",);
 
             // Add tree-style breakdown for model inference categories
             if !name.contains("Data Loading") && !name.contains("Visualization") {
@@ -383,7 +375,7 @@ fn format_task_with_emoji(task_name: &str) -> String {
         name if name.contains("generate") => "🎲",
         _ => fallback_emojis.choose(&mut rand::rng()).map_or("🟢", |v| v),
     };
-    format!("{} {}", emoji, task_name)
+    format!("{emoji} {task_name}")
 }
 
 // Helper function to print tree-style model breakdown
@@ -436,7 +428,7 @@ fn print_tree_breakdown(
         let bar = "█".repeat(bar_length);
 
         // Calculate consistent spacing for tree items with intelligent alignment
-        let tree_prefix = format!(" {} {}", branch, task_name);
+        let tree_prefix = format!(" {branch} {task_name}");
 
         // Calculate padding to align values from the longest bar position
         let value_start_position = alignment_width + 1 + chart_width; // +1 for the │ separator
@@ -450,14 +442,7 @@ fn print_tree_breakdown(
         let extra_padding = 1;
         let padding = " ".repeat(base_padding + extra_padding);
 
-        println!(
-            "{:<width$}│{}{}{:.3?}",
-            tree_prefix,
-            bar,
-            padding,
-            avg_time,
-            width = alignment_width
-        );
+        println!("{tree_prefix:<alignment_width$}│{bar}{padding}{avg_time:.3?}");
     }
 }
 

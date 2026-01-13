@@ -41,8 +41,7 @@ impl DynConf {
     pub fn new(confs: &[f32], n: usize) -> anyhow::Result<Self> {
         if confs.is_empty() && n != 0 {
             return Err(anyhow::anyhow!(
-                "Cannot create DynConf: no values provided but {} elements required",
-                n
+                "Cannot create DynConf: no values provided but {n} elements required"
             ));
         }
 
@@ -55,8 +54,7 @@ impl DynConf {
         } else {
             let val = confs.last().ok_or_else(|| {
                 anyhow::anyhow!(
-                    "Cannot create DynConf: empty confs slice but {} elements required",
-                    n
+                    "Cannot create DynConf: empty confs slice but {n} elements required"
                 )
             })?;
             let mut result = Vec::with_capacity(n);

@@ -37,9 +37,9 @@ impl std::fmt::Display for Scale {
             Self::P => write!(f, "p"),
             Self::A => write!(f, "a"),
             Self::F => write!(f, "f"),
-            Self::Million(x) => write!(f, "{}m", x),
-            Self::Billion(x) => write!(f, "{}b", x),
-            Scale::Named(x) => write!(f, "{}", x),
+            Self::Million(x) => write!(f, "{x}m"),
+            Self::Billion(x) => write!(f, "{x}b"),
+            Scale::Named(x) => write!(f, "{x}"),
         }
     }
 }
@@ -62,7 +62,7 @@ impl TryFrom<char> for Scale {
             'p' => Ok(Self::P),
             'a' => Ok(Self::A),
             'f' => Ok(Self::F),
-            x => anyhow::bail!("Unsupported model scale: {:?}", x),
+            x => anyhow::bail!("Unsupported model scale: {x:?}"),
         }
     }
 }

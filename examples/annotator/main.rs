@@ -92,8 +92,8 @@ fn blank_canvas(width: u32, height: u32, bg: Color) -> RgbaImage {
 fn save_to(img: &RgbaImage, sub_dir: &str, name: &str) -> anyhow::Result<()> {
     let path = usls::Dir::Current
         .base_dir_with_subs(&["runs", "Annotate", sub_dir])?
-        .join(format!("{}.png", name));
+        .join(format!("{name}.png"));
     img.save(path.display().to_string())?;
-    println!("  Saved: {}/{}.png", sub_dir, name);
+    println!("  Saved: {sub_dir}/{name}.png");
     Ok(())
 }

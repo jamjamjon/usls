@@ -537,8 +537,7 @@ mod tests_mbr {
         let iou = unordered.iou(&ordered);
         assert!(
             iou > 0.99,
-            "Should be nearly identical after normalization, got IoU={}",
-            iou
+            "Should be nearly identical after normalization, got IoU={iou}"
         );
     }
 
@@ -557,6 +556,6 @@ mod tests_mbr {
             [647.8755, 86.52783],
         ]);
         let iou = obb1.iou(&obb2);
-        assert!(iou > 0.7, "Similar OBBs should have high IoU, got {}", iou);
+        assert!(iou > 0.7, "Similar OBBs should have high IoU, got {iou}");
     }
 }

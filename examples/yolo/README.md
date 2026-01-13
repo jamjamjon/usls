@@ -1,12 +1,13 @@
 <h1 align='center'>YOLO-Series</h1>
 
-|      Detection     |    Instance Segmentation   |   Pose     | 
-| :---------------: | :------------------------: |:---------------: |
-| <img src='https://github.com/jamjamjon/assets/releases/download/yolo/demo-det.png'  width="300px">  | <img src='https://github.com/jamjamjon/assets/releases/download/yolo/demo-seg.png'  width="300px"> |<img src='https://github.com/jamjamjon/assets/releases/download/yolo/demo-pose.png'  width="300px">  | 
-
-|    Classification   |    Obb   |
+|    Instance Segmentation    |    Obb   |
 | :------------------------: |:------------------------: |
-|<img src='https://github.com/jamjamjon/assets/releases/download/yolo/demo-cls.png'  width="300px"> |<img src='https://github.com/jamjamjon/assets/releases/download/yolo/demo-obb-2.png'  width="628px">
+|<img src='https://github.com/jamjamjon/assets/releases/download/yolo/demo-seg.jpg'  width="350px"> |<img src='https://github.com/jamjamjon/assets/releases/download/yolo/demo-obb.jpg'  width="500px">
+
+
+|      Detection     |      Pose     |      Classification   | 
+| :------------------------: |:------------------------: |:------------------------: |
+| <img src='https://github.com/jamjamjon/assets/releases/download/yolo/demo-det.jpg'  width="300px">  | <img src='https://github.com/jamjamjon/assets/releases/download/yolo/demo-pose.jpg'  width="300px">  | <img src='https://github.com/jamjamjon/assets/releases/download/yolo/demo-cls.jpg'  width="400px">  |
 
 |    Head Detection   |    Fall Detection   | Trash Detection   |
 | :------------------------: |:------------------------: |:------------------------: |

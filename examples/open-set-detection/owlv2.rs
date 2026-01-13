@@ -56,7 +56,7 @@ pub fn config(args: &Owlv2Args) -> Result<Config> {
     .with_model_device(args.device)
     .with_class_confs(&[0.1])
     .with_model_num_dry_run(args.num_dry_run)
-    .with_batch_size_all_min_opt_max(args.min_batch, args.batch, args.max_batch)
+    .with_batch_size_min_opt_max_all(args.min_batch, args.batch, args.max_batch)
     .with_image_processor_device(args.processor_device);
 
     Ok(config)

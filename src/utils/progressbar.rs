@@ -62,8 +62,8 @@ pub enum PBComponent {
 impl std::fmt::Display for PBComponent {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
-            Self::Prefix => write!(f, "{{prefix:>{}.cyan.bold}}", PREFIX_LENGTH),
-            Self::FinishedPrefix => write!(f, "{{prefix:>{}.green.bold}}", PREFIX_LENGTH),
+            Self::Prefix => write!(f, "{{prefix:>{PREFIX_LENGTH}.cyan.bold}}"),
+            Self::FinishedPrefix => write!(f, "{{prefix:>{PREFIX_LENGTH}.green.bold}}"),
             Self::Message => write!(f, "{{msg}}"),
             Self::Bar => write!(f, "|{{bar}}|"),
             Self::HumanPos => write!(f, "{{human_pos}}"),
@@ -267,7 +267,7 @@ impl PB {
         } else {
             self.prefix
         };
-        self.inner.set_prefix(format!("{:>PREFIX_LENGTH$}", prefix));
+        self.inner.set_prefix(format!("{prefix:>PREFIX_LENGTH$}"));
     }
 
     fn build_template(&self, completed: bool) -> String {
@@ -291,7 +291,7 @@ impl PB {
             }
 
             use std::fmt::Write;
-            let _ = write!(&mut template, "{}", comp);
+            let _ = write!(&mut template, "{comp}");
         }
 
         template

@@ -291,7 +291,7 @@ impl DataLoader {
                 SourceType::DynamicImage(img) => Some(Image::from(img.clone())),
                 _ => None,
             })
-            .ok_or_else(|| anyhow::anyhow!("No valid image found at index {}", index))
+            .ok_or_else(|| anyhow::anyhow!("No valid image found at index {index}"))
     }
 
     /// Read a range of images from the source synchronously and in parallel.
@@ -543,9 +543,9 @@ impl DataLoader {
         let device_name = if cfg!(target_os = "macos") {
             index.to_string()
         } else if cfg!(target_os = "linux") {
-            format!("/dev/video{}", index)
+            format!("/dev/video{index}")
         } else if cfg!(target_os = "windows") {
-            format!("video={}", index)
+            format!("video={index}")
         } else {
             return;
         };
@@ -614,7 +614,7 @@ impl DataLoader {
 
                             if let Some(rgb8) = image::RgbImage::from_raw(width, height, rgb_data) {
                                 let mut img = Image::from(rgb8);
-                                img.source = Some(format!("Webcam {}", index).into());
+                                img.source = Some(format!("Webcam {index}").into());
                                 images.push(img);
 
                                 if images.len() >= batch_size {

@@ -73,7 +73,7 @@ impl Engines {
     ) -> Result<Xs<'a>> {
         self.engines
             .get_mut(module)
-            .ok_or_else(|| anyhow::anyhow!("Engine not found for module: {:?}", module))?
+            .ok_or_else(|| anyhow::anyhow!("Engine not found for module: {module:?}"))?
             .run(inputs)
     }
 

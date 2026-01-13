@@ -122,9 +122,7 @@ impl DepthAnything {
         let range = max_ - min_;
         if range <= f32::EPSILON {
             return Err(anyhow::anyhow!(
-                "Invalid depth range: min={}, max={}",
-                min_,
-                max_
+                "Invalid depth range: min={min_}, max={max_}"
             ));
         }
 

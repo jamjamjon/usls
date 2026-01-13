@@ -21,7 +21,7 @@ pub fn config(args: &DepthProArgs) -> Result<Config> {
     let config = Config::depth_pro()
         .with_dtype_all(args.dtype)
         .with_device_all(args.device)
-        .with_batch_size_all_min_opt_max(1, 1, 1)
+        .with_batch_size_min_opt_max_all(1, 1, 1)
         .with_num_dry_run_all(0)
         .with_image_processor_device(args.processor_device);
 

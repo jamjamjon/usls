@@ -43,9 +43,7 @@ impl Ops<'_> {
     pub fn normalize(x: &mut Array<f32, IxDyn>, min: f32, max: f32) -> Result<()> {
         if min >= max {
             anyhow::bail!(
-                "Invalid range in `normalize`: `min` ({}) must be less than `max` ({}).",
-                min,
-                max
+                "Invalid range in `normalize`: `min` ({min}) must be less than `max` ({max})."
             );
         }
         let range = max - min;
@@ -247,7 +245,7 @@ impl Ops<'_> {
     ) -> Result<Array<f32, IxDyn>> {
         let d_max = xs.ndim();
         if d_max != 3 {
-            anyhow::bail!("`interpolate_3d`: The input's ndim: {} is not 3.", d_max);
+            anyhow::bail!("`interpolate_3d`: The input's ndim: {d_max} is not 3.");
         }
         let (n, h, w) = (xs.shape()[0], xs.shape()[1], xs.shape()[2]);
         let mut ys = Array3::zeros((n, th as usize, tw as usize));

@@ -73,7 +73,7 @@ impl Moondream2 {
                     .chain(
                         &self
                             .text_processor
-                            .encode_text_ids(&format!(" {}", object), false)?,
+                            .encode_text_ids(&format!(" {object}"), false)?,
                     )
                     .chain(&[628.])
                     .cloned()
@@ -89,7 +89,7 @@ impl Moondream2 {
                     .chain(
                         &self
                             .text_processor
-                            .encode_text_ids(&format!(" {}", object), false)?,
+                            .encode_text_ids(&format!(" {object}"), false)?,
                     )
                     .chain(&[628.])
                     .cloned()
@@ -99,7 +99,7 @@ impl Moondream2 {
 
                 Ok(Y::default().with_keypointss(&y_kpts))
             }
-            x => anyhow::bail!("Unsupported Moondream2 task: {}", x),
+            x => anyhow::bail!("Unsupported Moondream2 task: {x}"),
         }
     }
 
@@ -725,7 +725,7 @@ struct KVCache(pub Array<f32, IxDyn>);
 
 impl KVCache {
     pub fn new(scale: &Scale, dtype: &DType) -> Result<Self> {
-        let f = format!("moondream2/{}-initial-kv-cache-{}.npy", scale, dtype);
+        let f = format!("moondream2/{scale}-initial-kv-cache-{dtype}.npy");
         let f = Hub::default().try_fetch(&f)?;
         let file = std::fs::File::open(f)?;
         let x = Array::<f32, IxDyn>::read_npy(file)?.into_dyn();

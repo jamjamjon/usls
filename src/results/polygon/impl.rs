@@ -76,8 +76,7 @@ impl<const N: usize> TryFrom<[[f32; 2]; N]> for Polygon {
     fn try_from(coords: [[f32; 2]; N]) -> Result<Self, Self::Error> {
         if N < 3 {
             return Err(anyhow::anyhow!(
-                "Polygon must have at least 3 points, got {}",
-                N
+                "Polygon must have at least 3 points, got {N}"
             ));
         }
         Ok(Self {
@@ -93,8 +92,7 @@ impl<const N: usize> TryFrom<&[[f32; 2]; N]> for Polygon {
     fn try_from(coords: &[[f32; 2]; N]) -> Result<Self, Self::Error> {
         if N < 3 {
             return Err(anyhow::anyhow!(
-                "Polygon must have at least 3 points, got {}",
-                N
+                "Polygon must have at least 3 points, got {N}"
             ));
         }
         Ok(Self {

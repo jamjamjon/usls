@@ -25,7 +25,7 @@ impl Dir {
         };
 
         let  p = p.ok_or_else(|| {
-            anyhow::anyhow!("Failed to retrieve base path for {:?}. Unsupported operating system. Now supports Linux, MacOS, Windows.", self)
+            anyhow::anyhow!("Failed to retrieve base path for {self:?}. Unsupported operating system. Now supports Linux, MacOS, Windows.")
         })?;
 
         Ok(p)
@@ -39,7 +39,7 @@ impl Dir {
         let mut p = self.base_dir()?;
 
         if let Dir::Home = self {
-            p.push(format!(".{}", crate_name));
+            p.push(format!(".{crate_name}"));
         } else {
             p.push(crate_name);
         }
@@ -135,9 +135,7 @@ impl Dir {
         let path = path.as_ref();
         if let Err(err) = std::fs::create_dir_all(path) {
             return Err(anyhow::anyhow!(
-                "Failed to create directory at {:?}: {}",
-                path,
-                err
+                "Failed to create directory at {path:?}: {err}"
             ));
         }
         Ok(())

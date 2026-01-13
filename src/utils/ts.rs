@@ -35,10 +35,7 @@ impl std::ops::Index<&str> for Ts {
     fn index(&self, index: &str) -> &Self::Output {
         self.map.get(index).unwrap_or_else(|| {
             let available_keys: Vec<&str> = self.map.keys().map(|s| s.as_str()).collect();
-            panic!(
-                "Key '{}' was not found in Ts. Available keys: {:?}",
-                index, available_keys
-            )
+            panic!("Key '{index}' was not found in Ts. Available keys: {available_keys:?}")
         })
     }
 }
@@ -81,7 +78,7 @@ impl Ts {
             "\n\n{:<width_task$}{:<width_count$}{:<width_time$}{:<width_time$}{:<width_time$}{:<width_time$}",
             "Task", "Count", "Mean", "Min", "Max", "Total",
         );
-        println!("{}", sep);
+        println!("{sep}");
 
         if self.is_empty() {
             println!("No data available");
@@ -97,11 +94,10 @@ impl Ts {
                 if iter.peek().is_none() {
                     let avg = self
                         .avg()
-                        .map_or(place_holder.into(), |x| format!("{:.decimal_places$?}", x));
+                        .map_or(place_holder.into(), |x| format!("{x:.decimal_places$?}"));
                     let total = format!("{:.decimal_places$?}", self.sum());
                     println!(
-                        "{:<width_task$}{:<width_count$}{:<width_time$}{:<width_time$}{:<width_time$}{:<width_time$}",
-                        task, place_holder, avg, place_holder, place_holder, total
+                        "{task:<width_task$}{place_holder:<width_count$}{avg:<width_time$}{place_holder:<width_time$}{place_holder:<width_time$}{total:<width_time$}"
                     );
                 } else {
                     let durations = &self.map[task];
@@ -109,19 +105,18 @@ impl Ts {
                     let total = format!("{:.decimal_places$?}", self.sum_by_key(task));
                     let avg = self
                         .avg_by_key(task)
-                        .map_or(place_holder.into(), |x| format!("{:.decimal_places$?}", x));
+                        .map_or(place_holder.into(), |x| format!("{x:.decimal_places$?}"));
                     let min = durations
                         .iter()
                         .min()
-                        .map_or(place_holder.into(), |x| format!("{:.decimal_places$?}", x));
+                        .map_or(place_holder.into(), |x| format!("{x:.decimal_places$?}"));
                     let max = durations
                         .iter()
                         .max()
-                        .map_or(place_holder.into(), |x| format!("{:.decimal_places$?}", x));
+                        .map_or(place_holder.into(), |x| format!("{x:.decimal_places$?}"));
 
                     println!(
-                        "{:<width_task$}{:<width_count$}{:<width_time$}{:<width_time$}{:<width_time$}{:<width_time$}",
-                        task, count, avg, min, max, total
+                        "{task:<width_task$}{count:<width_count$}{avg:<width_time$}{min:<width_time$}{max:<width_time$}{total:<width_time$}"
                     );
                 }
             }

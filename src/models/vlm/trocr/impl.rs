@@ -25,7 +25,7 @@ impl FromStr for TrOCRKind {
         match s.to_lowercase().as_str() {
             "printed" => Ok(Self::Printed),
             "handwritten" | "hand-written" => Ok(Self::HandWritten),
-            x => anyhow::bail!("Unsupported TrOCRKind: {}", x),
+            x => anyhow::bail!("Unsupported TrOCRKind: {x}"),
         }
     }
 }
