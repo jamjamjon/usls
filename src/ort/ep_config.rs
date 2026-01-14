@@ -36,7 +36,7 @@ impl Default for CudaConfig {
             cuda_graph: false,
             fuse_conv_bias: false,
             conv_max_workspace: true,
-            tf32: false,
+            tf32: true,
             prefer_nhwc: true,
         }
     }
