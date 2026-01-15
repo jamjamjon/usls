@@ -60,7 +60,7 @@ impl Default for TensorRtConfig {
             engine_cache: true,
             timing_cache: false,
             dump_ep_context_model: false,   // TODO
-            builder_optimization_level: 5,  // 3, 0-5
+            builder_optimization_level: 3,  // 3, 0-5
             max_workspace_size: 1073741824, // 1G
         }
     }
