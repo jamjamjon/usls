@@ -40,6 +40,7 @@
 - **🏗️ Unified API**: Single `Model` trait inference with `run()`/`forward()`/`encode_images()`/`encode_texts()` and unified `Y` output
 - **📥 Auto-Management**: Automatic model download (HuggingFace/GitHub), caching and path resolution
 - **📦 Multiple Inputs**: Image, directory, video, webcam, stream and combinations
+- **🎯 Precision Support**: FP32, FP16, INT8, UINT8, Q4, Q4F16, BNB4, and more
 - **🛠️ Full-Stack Suite**: `DataLoader`, `Annotator`, and `Viewer` for complete workflows
 - **🌱 Model Ecosystem**: 50+ SOTA vision and VLM models
 
@@ -48,23 +49,23 @@
 Run the **YOLO-Series demo** to explore models with different tasks, precision and execution providers:
 
 - **Tasks**: `detect`, `segment`, `pose`, `classify`, `obb`
-- **Versions**: `YOLOv5`, `YOLOv6`, `YOLOv7`, `YOLOv8`, `YOLOv9`, `YOLOv10`, `YOLO11`, `YOLOv12`, `YOLOv13`
+- **Versions**: `YOLOv5`, `YOLOv6`, `YOLOv7`, `YOLOv8`, `YOLOv9`, `YOLOv10`, `YOLO11`, `YOLOv12`, `YOLOv13`, `YOLO26`
 - **Scales**: `n`, `s`, `m`, `l`, `x`
 - **Precision**: `fp32`, `fp16`, `q8`, `q4`, `q4f16`, `bnb4`
-- **Execution Providers**: `CPU`, `CUDA`, `TensorRT`, `CoreML`, `OpenVINO`, and more
+- **Execution Providers**: `CPU`, `CUDA`, `TensorRT`, `TensorRT-RTX`, `CoreML`, `OpenVINO`, and more
 
 
 ### Examples
 
 ```bash
-# CPU: Object detection with YOLOv8n (FP16)
-cargo run -r --example yolo -- --task detect --ver 8 --scale n --dtype fp16
+# CPU: Object detection with YOLO26n (FP16)
+cargo run -r --example yolo -- --task detect --ver 26 --scale n --dtype fp16
 
 # CUDA model + CPU processor: Instance segmentation with YOLO11m
 cargo run -r -F cuda --example yolo -- --task segment --ver 11 --scale m --device cuda:0 --processor-device cpu
 
-# CUDA model + CUDA processor: Pose estimation with YOLO11m
-cargo run -r -F cuda-full --example yolo -- --task pose --ver 11 --scale m --device cuda:0 --processor-device cuda:0
+# CUDA model + CUDA processor: Pose estimation with YOLOv8m
+cargo run -r -F cuda-full --example yolo -- --task pose --ver 8 --scale s --device cuda:0 --processor-device cuda:0
 
 # TensorRT model + CPU processor
 cargo run -r -F tensorrt --example yolo -- --device tensorrt:0 --processor-device cpu
@@ -87,50 +88,54 @@ cargo run -r -F openvino -F ort-load-dynamic --example yolo -- --device openvino
 # Show all available options
 cargo run -r --example yolo -- --help
 ```
-> ⚠️ **Warning**: `--dtype q8` is not supported with `--processor-device cuda:0`. Use `--processor-device cpu` or a different precision (e.g., `fp16`, `q4f16`).
 >
 > See [YOLO Examples](./examples/yolo/README.md) for more details and use cases.
 >
 > See [Device Combination Guide](#-device-combination-guide) for feature and device configurations.
 
+⚠️ **Warning**: When encountering CUDA errors (e.g., `CUDA failure 1: invalid argument`), use `--processor-device cpu` instead of `--processor-device cuda:0` to avoid CUDA memory transfer issues.
 
 
 ### Performance
 
 >**Environment:** NVIDIA RTX 3060Ti (TensorRT-10.11.0.33, CUDA 12.8, TensorRT-RTX-1.3.0.35) / Intel i5-12400F  
 >
->**Setup:** YOLOv8n-detect model (640×640), COCO2017 validation set (5,000 images), no warm-up
+>**Setup:** YOLO26n-detect model (640×640), COCO2017 validation set (5,000 images), no warm-up
 
 
 #### Batch = 1
 
 | Backend | DType | Preprocess | Inference | Postprocess | Total |
 | --- | --- | --- | --- | --- | --- |
-| **TensorRT EP + CUDA processor** | FP16 | 252.029µs | 1.494ms | 435.488µs | 2.182ms |
-| **TensorRT EP + CPU processor** | FP16 | 804.315µs | 2.877ms | 264.489µs | 3.946ms |
-| **TensorRT-RTX EP + CUDA processor** | FP32 |  261.607µs | 3.280ms | 394.933µs | 3.936ms |
-| **TensorRT-RTX EP + CPU processor** | FP32 | 850.883µs | 4.494ms |279.605µs  | 5.625ms |
-| **CUDA EP + CUDA processor** | FP32 | 256.842µs | 4.108ms | 287.730µs | 4.653ms |
-| **CUDA EP + CUDA processor** | FP16 | 252.456µs | 3.702ms | 291.365µs | 4.246ms |
-| **CUDA EP + CPU processor** | FP32 | 884.493µs | 5.376ms | 267.707µs | 6.528ms |
-| **CUDA EP + CPU processor** | FP16 | 802.863µs | 4.693ms | 259.588µs | 5.756ms |
-| **CPU EP + CPU processor** | FP32 | 5.659ms | 23.994ms | 2.159ms | 31.812ms |
-| **CPU EP + CPU processor** | FP16 | 5.778ms | 33.958ms | 2.283ms | 42.019ms |
+| **TensorRT EP + CUDA processor** | FP16 | 234.570µs | 1.333ms  | 253.631µs | 1.821ms |
+| **TensorRT EP + CPU processor** | FP16 | 783.852µs | 2.438ms | 83.701µs | 3.306ms |
+| **TensorRT-RTX EP + CUDA processor** | FP32 | 232.003µs | 2.934ms | 192.660µs | 3.359ms |
+| **TensorRT-RTX EP + CUDA processor** | FP16 | ❓ | ❓ | ❓ | ❓ |
+| **TensorRT-RTX EP + CPU processor** | FP32 | 794.292µs | 3.974ms | 83.926µs | 4.852ms |
+| **TensorRT-RTX EP + CPU processor** | FP16 | ❓ | ❓ | ❓ | ❓ |
+| **CUDA EP + CUDA processor** | FP32 | 242.752µs | 5.053ms | 95.968µs | 5.392ms |
+| **CUDA EP + CUDA processor** | FP16 | 244.065µs | 3.684ms | 100.828µs | 4.029ms |
+| **CUDA EP + CPU processor** | FP32 | 796.886µs | 6.044ms | 74.687µs | 6.916ms |
+| **CUDA EP + CPU processor** | FP16 | 787.805µs | 4.565ms | 71.001µs | 5.424ms |
+| **CPU EP + CPU processor** | FP32 | 971.332µs | 20.243ms | 59.022µs | 21.273ms |
+| **CPU EP + CPU processor** | FP16 | 954.297µs | 23.155ms | 59.197µs | 24.168ms |
 
 #### Batch = 8
 
 | Backend | DType | Preprocess | Inference | Postprocess | Total |
 | --- | --- | --- | --- | --- | --- |
-| **TensorRT EP + CUDA processor** | FP16 | 1.712ms | 10.295ms | 1.525ms | 13.532ms |
-| **TensorRT EP + CPU processor** | FP16 | 18.489ms | 28.692ms | 1.399ms | 48.580ms |
-| **TensorRT-RTX EP + CUDA processor** | FP32 | 1.467ms | 19.668ms | 1.396ms | 22.531ms |
-| **TensorRT-RTX EP + CPU processor** | FP32 | 18.329ms | 37.447ms | 1.372ms | 57.148ms |
-| **CUDA EP + CUDA processor** | FP32 | 1.504ms | 24.225ms | 1.448ms | 27.177ms |
-| **CUDA EP + CUDA processor** | FP16 | 1.617ms | 18.785ms | 1.411ms | 21.813ms |
-| **CUDA EP + CPU processor** | FP32 | 18.580ms | 44.257ms | 1.365ms | 64.202ms |
-| **CUDA EP + CPU processor** | FP16 | 18.468ms | 37.092ms | 1.367ms | 56.927ms |
-| **CPU EP + CPU processor** | FP32 | 19.240ms | 256.380ms | 5.067ms | 280.687ms |
-| **CPU EP + CPU processor** | FP16 | 19.124ms | 310.916ms | 5.092ms | 335.132ms |
+| **TensorRT EP + CUDA processor** | FP16 | 2.100ms | 6.497ms | 203.484µs | 8.801ms |
+| **TensorRT EP + CPU processor** | FP16 | 18.913ms | 26.406ms | 194.782µs | 45.514ms |
+| **TensorRT-RTX EP + CUDA processor** | FP32 | 2.161ms | 15.370ms | 167.937µs | 17.699ms |
+| **TensorRT-RTX EP + CUDA processor** | FP16 | ❓ | ❓ | ❓ | ❓ |
+| **TensorRT-RTX EP + CPU processor** | FP32 | 18.988ms | 35.101ms | 173.829µs | 54.263ms |
+| **TensorRT-RTX EP + CPU processor** | FP16 | ❓ | ❓ | ❓ | ❓ |
+| **CUDA EP + CUDA processor** | FP32 | 2.222ms | 24.479ms | 160.767µs | 26.862ms |
+| **CUDA EP + CUDA processor** | FP16 | 2.262ms | 14.842ms | 135.593µs | 17.240ms |
+| **CUDA EP + CPU processor** | FP32 | 19.037ms | 44.720ms | 190.740µs | 63.948ms |
+| **CUDA EP + CPU processor** | FP16 | 18.245ms | 33.865ms | 183.226µs | 52.293ms |
+| **CPU EP + CPU processor** | FP32 | 17.852ms | 216.872ms | 158.297µs | 234.883ms |
+| **CPU EP + CPU processor** | FP16 | 17.698ms | 255.365ms | 117.239µs | 273.180ms |
 
 
 ## 📦 Model Zoo
@@ -151,6 +156,7 @@ cargo run -r --example yolo -- --help
 | [YOLOv10](https://github.com/THU-MIG/yolov10) | Object Detection | [demo](./examples/yolo) | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ | 
 | [YOLOv12](https://github.com/sunsmarterjie/yolov12) | Image Classification<br />Object Detection<br />Instance Segmentation | [demo](./examples/yolo) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | 
 | [YOLOv13](https://github.com/iMoonLab/yolov13) | Object Detection | [demo](./examples/yolo) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | 
+| [YOLO26](https://github.com/ultralytics/ultralytics) | Object Detection<br />Instance Segmentation<br />Image Classification<br />Oriented Object Detection<br />Keypoint Detection | [demo](./examples/yolo) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | 
 
 </details>
 

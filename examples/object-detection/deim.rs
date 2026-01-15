@@ -5,15 +5,15 @@ use usls::{Config, DType, Device, Scale};
 #[derive(Args, Debug)]
 pub struct DeimArgs {
     /// Scale: n, s, m, b, l
-    #[arg(long, default_value = "s")]
+    #[arg(long, global = true, default_value = "s")]
     pub scale: Scale,
 
     /// Dtype: fp32, fp16, q4f16, etc.
-    #[arg(long, default_value = "fp16")]
+    #[arg(long, global = true, default_value = "fp16")]
     pub dtype: DType,
 
     /// version: 1, 2
-    #[arg(long, default_value = "2", value_parser = clap::value_parser!(u8).range(1..=2))]
+    #[arg(long, global = true, default_value = "2", value_parser = clap::value_parser!(u8).range(1..=2))]
     pub ver: u8,
 
     /// Device: cpu, cuda:0, mps, coreml, openvino:CPU, etc.

@@ -170,6 +170,39 @@ impl YOLOPredsFormat {
         }
     }
 
+    pub fn n_a_xyxy_confcls_xycs() -> Self {
+        // YOLO26 Pose : NAXYxyConfClsXycs
+        Self {
+            bbox: Some(BoxType::Xyxy),
+            clss: ClssType::ConfCls,
+            kpts: Some(KptsType::Xycs),
+            anchors: Some(AnchorsPosition::Before),
+            ..Default::default()
+        }
+    }
+
+    pub fn n_a_xyxy_confcls_coefs() -> Self {
+        // YOLO26 Segment : NAXYxyConfClsCoefs
+        Self {
+            bbox: Some(BoxType::Xyxy),
+            clss: ClssType::ConfCls,
+            coefs: Some(true),
+            anchors: Some(AnchorsPosition::Before),
+            ..Default::default()
+        }
+    }
+
+    pub fn n_a_cxcywh_confcls_r() -> Self {
+        // YOLO26 Obb : NACxcywhConfClsR
+        Self {
+            bbox: Some(BoxType::Cxcywh),
+            clss: ClssType::ConfCls,
+            obb: Some(true),
+            anchors: Some(AnchorsPosition::Before),
+            ..Default::default()
+        }
+    }
+
     pub fn task(&self) -> Task {
         match self.obb {
             Some(_) => Task::OrientedObjectDetection,

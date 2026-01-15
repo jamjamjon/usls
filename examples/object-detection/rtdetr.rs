@@ -5,15 +5,15 @@ use usls::{Config, DType, Device, Scale, Version};
 #[derive(Args, Debug)]
 pub struct RtdetrArgs {
     /// Scale: r18, r18-obj365, r34, r50, r50-obj365, r101, r101-obj365 (v1); s, m, ms, l, x (v2/v4)
-    #[arg(long, default_value = "r18-obj365")]
+    #[arg(long, global = true, default_value = "s")]
     pub scale: Scale,
 
     /// Version: 1, 2, 4
-    #[arg(long, default_value = "1")]
+    #[arg(long, global = true, default_value = "4")]
     pub ver: Version,
 
     /// Dtype: fp32, fp16, q4f16, etc.
-    #[arg(long, default_value = "f16")]
+    #[arg(long, global = true, default_value = "f16")]
     pub dtype: DType,
 
     /// Device: cpu, cuda:0, mps, coreml, openvino:CPU, etc.

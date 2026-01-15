@@ -11,19 +11,19 @@ pub struct YoloArgs {
     pub model: Option<String>,
 
     /// Dtype: fp32, fp16, q4f16, etc.
-    #[arg(long, default_value = "fp32")]
+    #[arg(long, global = true, default_value = "fp16")]
     pub dtype: DType,
 
     /// Task: det, seg, pose, classify, obb
-    #[arg(long, default_value = "det")]
+    #[arg(long, global = true, default_value = "det")]
     pub task: Task,
 
     /// Version
-    #[arg(long, default_value_t = 8.0)]
+    #[arg(long, global = true, default_value_t = 8.0)]
     pub ver: f32,
 
     /// Scale: n, s, m, l, x
-    #[arg(long, default_value = "n")]
+    #[arg(long, global = true, default_value = "n")]
     pub scale: Scale,
 
     /// Device: cpu, cuda:0, mps, coreml, openvino:CPU, etc.

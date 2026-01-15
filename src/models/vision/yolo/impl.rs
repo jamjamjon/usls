@@ -112,7 +112,10 @@ impl Model for YOLO {
                         }
                         (
                             Task::ImageClassification,
-                            Version(8, 0, _) | Version(11, 0, _) | Version(12, 0, _),
+                            Version(8, 0, _)
+                            | Version(11, 0, _)
+                            | Version(12, 0, _)
+                            | Version(26, 0, _),
                         ) => YOLOPredsFormat::n_clss(),
                         (
                             Task::ObjectDetection,
@@ -126,14 +129,20 @@ impl Model for YOLO {
                             | Version(12, 0, _)
                             | Version(13, 0, _),
                         ) => YOLOPredsFormat::n_cxcywh_clss_a(),
-                        (Task::ObjectDetection, Version(10, 0, _)) => {
+                        (Task::ObjectDetection, Version(10, 0, _) | Version(26, 0, _)) => {
                             YOLOPredsFormat::n_a_xyxy_confcls().apply_nms(false)
                         }
                         (Task::KeypointsDetection, Version(8, 0, _) | Version(11, 0, _)) => {
                             YOLOPredsFormat::n_cxcywh_clss_xycs_a()
                         }
+                        (Task::KeypointsDetection, Version(26, 0, _)) => {
+                            YOLOPredsFormat::n_a_xyxy_confcls_xycs()
+                        }
                         (Task::InstanceSegmentation, Version(5, 0, _)) => {
                             YOLOPredsFormat::n_a_cxcywh_confclss_coefs()
+                        }
+                        (Task::InstanceSegmentation, Version(26, 0, _)) => {
+                            YOLOPredsFormat::n_a_xyxy_confcls_coefs()
                         }
                         (
                             Task::InstanceSegmentation,
@@ -144,6 +153,9 @@ impl Model for YOLO {
                         ) => YOLOPredsFormat::n_cxcywh_clss_coefs_a(),
                         (Task::OrientedObjectDetection, Version(8, 0, _) | Version(11, 0, _)) => {
                             YOLOPredsFormat::n_cxcywh_clss_r_a()
+                        }
+                        (Task::OrientedObjectDetection, Version(26, 0, _)) => {
+                            YOLOPredsFormat::n_a_cxcywh_confcls_r()
                         }
                         (task, version) => {
                             anyhow::bail!("Task: {task:?} is unsupported for Version: {version:?}. Try using `.with_yolo_preds()` for customization.")
@@ -311,11 +323,9 @@ impl Model for YOLO {
 
 impl YOLO {
     pub(crate) fn postprocess(&self, outputs: &Xs) -> Result<Vec<Y>> {
-        // let t = std::time::Instant::now();
         let preds = outputs
             .get::<f32>(0)
             .ok_or(anyhow::anyhow!("Failed to get the first output"))?;
-        // println!("Postprocess: {:?}", t.elapsed());
 
         let ys: Vec<Y> = preds
             .axis_iter(Axis(0))

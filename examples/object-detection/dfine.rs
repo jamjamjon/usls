@@ -27,11 +27,11 @@ pub enum Kind {
 #[derive(Args, Debug)]
 pub struct DfineArgs {
     /// Model variant
-    #[arg(long, value_enum, default_value = "n-coco")]
+    #[arg(long, global = true, value_enum, default_value = "n-coco")]
     pub kind: Kind,
 
     /// Dtype: fp32, fp16, q4f16, etc.
-    #[arg(long, default_value = "fp32")]
+    #[arg(long, global = true, default_value = "fp32")]
     pub dtype: DType,
 
     /// Device: cpu, cuda:0, mps, coreml, openvino:CPU, etc.
