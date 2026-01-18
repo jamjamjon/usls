@@ -58,7 +58,7 @@ impl Model for MODNet {
         let ys = elapsed_module!(
             "MODNet",
             "inference",
-            engines.run(&Module::Model, inputs![x]?)?
+            engines.run(&Module::Model, inputs![&x]?)?
         );
         elapsed_module!("MODNet", "postprocess", self.postprocess(&ys))
     }

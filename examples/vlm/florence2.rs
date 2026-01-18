@@ -8,13 +8,29 @@ pub struct Florence2Args {
     #[arg(long, default_value = "base")]
     pub scale: Scale,
 
-    /// Dtype: fp32, fp16, q4f16, etc.
+    /// Visual Dtype: fp32, fp16, q4f16, etc.
     #[arg(long, default_value = "fp16")]
-    pub dtype: DType,
+    pub visual_dtype: DType,
 
-    /// Device: cpu, cuda:0, mps, coreml, openvino:CPU, etc.
+    /// Visual Device: cpu, cuda:0, mps, coreml, openvino:CPU, etc.
     #[arg(long, global = true, default_value = "cpu")]
-    pub device: Device,
+    pub visual_device: Device,
+
+    /// Textual Encoder Dtype: fp32, fp16, q4f16, etc.
+    #[arg(long, default_value = "fp16")]
+    pub textual_encoder_dtype: DType,
+
+    /// Textual Encoder Device: cpu, cuda:0, mps, coreml, openvino:CPU, etc.
+    #[arg(long, global = true, default_value = "cpu")]
+    pub textual_encoder_device: Device,
+
+    /// Textual Decoder Dtype: fp32, fp16, q4f16, etc.
+    #[arg(long, default_value = "fp16")]
+    pub textual_decoder_dtype: DType,
+
+    /// Textual Decoder Device: cpu, cuda:0, mps, coreml, openvino:CPU, etc.
+    #[arg(long, global = true, default_value = "cpu")]
+    pub textual_decoder_device: Device,
 
     /// Processor device (for pre/post processing)
     #[arg(long, global = true, default_value = "cpu")]
@@ -48,8 +64,12 @@ pub fn config(args: &Florence2Args) -> Result<Config> {
         Scale::Named(ref name) if name == "large-ft" => Config::florence2().with_scale(Scale::L),
         _ => anyhow::bail!("Unsupported Florence2 scale: {}", args.scale),
     }
-    .with_dtype_all(args.dtype)
-    .with_device_all(args.device)
+    .with_visual_dtype(args.visual_dtype)
+    .with_visual_device(args.visual_device)
+    .with_textual_encoder_dtype(args.textual_encoder_dtype)
+    .with_textual_encoder_device(args.textual_encoder_device)
+    .with_textual_decoder_dtype(args.textual_decoder_dtype)
+    .with_textual_decoder_device(args.textual_decoder_device)
     .with_batch_size_min_opt_max_all(args.min_batch, args.batch, args.max_batch)
     .with_num_dry_run_all(args.num_dry_run)
     .with_image_processor_device(args.processor_device);

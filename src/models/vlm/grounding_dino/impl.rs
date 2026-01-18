@@ -141,7 +141,7 @@ impl Model for GroundingDINO {
             engines.run(
                 &Module::Model,
                 inputs![
-                    image_embeddings,
+                    &image_embeddings,
                     input_ids.view(),
                     position_ids.view(),
                     text_self_attention_masks.view()

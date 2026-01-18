@@ -11,7 +11,7 @@ mod owlv2;
 mod utils;
 
 #[derive(Parser)]
-#[command(author, version, about = "Open-Set Segmentation Examples")]
+#[command(author, version, about = "Open-Set Detection Examples")]
 #[command(propagate_version = true)]
 struct Cli {
     /// Source: image path, folder, or video
@@ -19,17 +19,18 @@ struct Cli {
     pub source: Source,
 
     /// Confidence thresholds (comma-separated for per-class, or single value for all)
-    #[arg(long, global = true, value_delimiter = ',')]
+    #[arg(long, global = true, value_delimiter = ',', default_values_t = vec![0.5])]
     pub confs: Vec<f32>,
 
-    /// Text prompts, labels (comma-separated)
+    /// Prompts, labels
     #[arg(
+        short = 'p',
         long,
         global = true,
         value_delimiter = ',',
         default_value = "person,bus,a dog,cat,stop sign,tie,eye glasses,tree,camera,hand,a shoe,balcony,window"
     )]
-    pub labels: Vec<String>,
+    pub prompts: Vec<String>,
 
     #[command(subcommand)]
     pub command: Commands,
@@ -56,7 +57,7 @@ fn main() -> Result<()> {
             // Build model
             let config = grounding_dino::config(args)?
                 .with_class_confs(&cli.confs)
-                .with_text_names_owned(cli.labels)
+                .with_text_names_owned(cli.prompts)
                 .commit()?;
             let mut model = GroundingDINO::new(config)?;
 
@@ -76,7 +77,7 @@ fn main() -> Result<()> {
         Commands::Owlv2(args) => {
             // Build model
             let config = owlv2::config(args)?
-                .with_text_names_owned(cli.labels)
+                .with_text_names_owned(cli.prompts)
                 .commit()?;
             let mut model = OWLv2::new(config)?;
 

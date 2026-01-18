@@ -105,7 +105,7 @@ impl Model for ImageClassifier {
         let ys = elapsed_module!(
             "Image-Classifier",
             "inference",
-            engines.run(&Module::Model, inputs![xs]?)?
+            engines.run(&Module::Model, inputs![&xs]?)?
         );
         let ys = elapsed_module!("Image-Classifier", "postprocess", self.postprocess(&ys)?);
 

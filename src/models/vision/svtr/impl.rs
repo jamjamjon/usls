@@ -65,7 +65,7 @@ impl Model for SVTR {
         let ys = elapsed_module!(
             "SVTR",
             "inference",
-            engines.run(&Module::Model, inputs![x]?)?
+            engines.run(&Module::Model, inputs![&x]?)?
         );
         elapsed_module!("SVTR", "postprocess", self.postprocess(&ys))
     }

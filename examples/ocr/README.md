@@ -25,9 +25,10 @@ cargo run -F cuda-full -F vlm --example ocr -- svtr --device cuda:0 --processor-
 ```
 
 
-### Table Structure Recognition: Trocr
+### Text Recognition: TrOCR
 ```bash
-cargo run -F cuda-full -F vlm --example ocr -- trocr --device cuda:0 --processor-device cuda:0 --source ./examples/ocr/images-rec
+# Using module-specific device/dtype for visual encoder and textual decoder
+cargo run -r -F cuda-full -F vlm --example ocr -- trocr --visual-dtype fp16 --visual-device cuda:0 --textual-decoder-dtype fp16 --textual-decoder-device cuda:0 --processor-device cuda:0 --scale s --kind printed --source ./examples/ocr/images-rec
 ```
 
 ### Document Layout detection: Doclayout-yolo

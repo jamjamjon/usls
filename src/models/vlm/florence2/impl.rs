@@ -142,7 +142,7 @@ impl Florence2 {
         let visual_embeddings = elapsed_module!("Florence2", "visual-encode", {
             let xs = self.image_processor.process(xs_visual)?;
             self.batch = xs_visual.len(); // update
-            let ys = self.vision_encoder.run(inputs![xs]?)?;
+            let ys = self.vision_encoder.run(inputs![&xs]?)?;
             X::from(
                 ys.get::<f32>(0)
                     .ok_or_else(|| anyhow::anyhow!("Failed to get vision embeddings"))?,

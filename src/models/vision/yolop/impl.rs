@@ -64,7 +64,7 @@ impl Model for YOLOPv2 {
         let ys = elapsed_module!(
             "YOLOPv2",
             "inference",
-            engines.run(&Module::Model, inputs![x]?)?
+            engines.run(&Module::Model, inputs![&x]?)?
         );
         elapsed_module!("YOLOPv2", "postprocess", self.postprocess(&ys))
     }

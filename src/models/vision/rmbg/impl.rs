@@ -57,7 +57,7 @@ impl Model for RMBG {
         let ys = elapsed_module!(
             "RMBG",
             "inference",
-            engines.run(&Module::Model, inputs![x]?)?
+            engines.run(&Module::Model, inputs![&x]?)?
         );
         elapsed_module!("RMBG", "postprocess", self.postprocess(&ys))
     }

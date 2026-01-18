@@ -12,13 +12,21 @@ pub struct TrocrArgs {
     #[arg(long, default_value = "printed")]
     pub kind: TrOCRKind,
 
-    /// Dtype: fp32, fp16, q4f16, etc.
-    #[arg(long, default_value = "fp32")]
-    pub dtype: DType,
+    /// Visual Dtype: fp32, fp16, q4f16, etc.
+    #[arg(long, default_value = "fp16")]
+    pub visual_dtype: DType,
 
-    /// Device: cpu, cuda:0, mps, coreml, openvino:CPU, etc.
+    /// Visual Device: cpu, cuda:0, mps, coreml, openvino:CPU, etc.
     #[arg(long, global = true, default_value = "cpu")]
-    pub device: Device,
+    pub visual_device: Device,
+
+    /// Textual Decoder Dtype: fp32, fp16, q4f16, etc.
+    #[arg(long, default_value = "fp16")]
+    pub textual_decoder_dtype: DType,
+
+    /// Textual Decoder Device: cpu, cuda:0, mps, coreml, openvino:CPU, etc.
+    #[arg(long, global = true, default_value = "cpu")]
+    pub textual_decoder_device: Device,
 
     /// Processor device (for pre/post processing)
     #[arg(long, global = true, default_value = "cpu")]
@@ -53,8 +61,10 @@ pub fn config(args: &TrocrArgs) -> Result<Config> {
         },
         _ => anyhow::bail!("Unsupported TrOCR scale: {}", args.scale),
     }
-    .with_dtype_all(args.dtype)
-    .with_device_all(args.device)
+    .with_visual_dtype(args.visual_dtype)
+    .with_visual_device(args.visual_device)
+    .with_textual_decoder_dtype(args.textual_decoder_dtype)
+    .with_textual_decoder_device(args.textual_decoder_device)
     .with_batch_size_min_opt_max_all(args.min_batch, args.batch, args.max_batch)
     .with_num_dry_run_all(args.num_dry_run)
     .with_image_processor_device(args.processor_device);

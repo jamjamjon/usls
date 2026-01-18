@@ -81,7 +81,7 @@ impl Model for DepthAnything {
         let ys = elapsed_module!(
             "DepthAnything",
             "inference",
-            engines.run(&Module::Model, inputs![x]?)?
+            engines.run(&Module::Model, inputs![&x]?)?
         );
         elapsed_module!("DepthAnything", "postprocess", self.postprocess(&ys))
     }

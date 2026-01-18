@@ -58,7 +58,7 @@ impl Model for DepthPro {
         let ys = elapsed_module!(
             "DepthPro",
             "inference",
-            engines.run(&Module::Model, inputs![x]?)?
+            engines.run(&Module::Model, inputs![&x]?)?
         );
         elapsed_module!("DepthPro", "postprocess", self.postprocess(&ys))
     }

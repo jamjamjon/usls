@@ -92,7 +92,7 @@ impl Model for SAM {
 impl SAM {
     fn encode(&mut self, engines: &mut Engines, xs: &[Image]) -> Result<Vec<X>> {
         let xs_ = self.processor.process(xs)?;
-        let output = engines.run(&Module::Encoder, inputs![xs_]?)?;
+        let output = engines.run(&Module::Encoder, inputs![&xs_]?)?;
         let xs_out: Vec<X> = (0..output.len())
             .map(|i| X::from(output.get::<f32>(i).unwrap()))
             .collect();

@@ -19,38 +19,106 @@ YOLOE with prompt support for flexible object detection and segmentation.
 
 
 ### YOLOE-Prompt
+
+#### # Visual prompt
+
 ```bash
-# Visual prompt
-cargo run -F cuda-full -F vlm --example open-set-segmentation -- yoloe-prompt --dtype q4f16 --device cuda:0 --processor-device cuda:0 --source ./assets/bus.jpg --kind visual
+cargo run -F cuda-full -F vlm --example open-set-segmentation -- yoloe-prompt \
+--model-dtype q4f16 --model-device cuda:0 \
+--visual-encoder-dtype q4f16 --visual-encoder-device cuda:0 \
+--textual-encoder-dtype q4f16 --textual-encoder-device cuda:0 \
+--processor-device cuda:0 \
+--source ./assets/bus.jpg \
+--kind visual
+```
 
-# Textual prompt
-cargo run -F cuda-full -F vlm --example open-set-segmentation -- yoloe-prompt --dtype q4f16 --device cuda:0 --processor-device cuda:0 --kind textual --labels person,bus
 
+#### Textual prompt
+
+```bash
+cargo run -F cuda-full -F vlm --example open-set-segmentation -- yoloe-prompt \
+--model-dtype q4f16 --model-device cuda:0 \
+--visual-encoder-dtype q4f16 --visual-encoder-device cuda:0 \
+--textual-encoder-dtype q4f16 --textual-encoder-device cuda:0 \
+--processor-device cuda:0 \
+--kind textual -p person -p bus
 ```
 
 
 ### SAM3-Image
 
-### Text-based Segmentation
+#### Single text prompt
+
 ```bash
-# Single text prompt
-cargo run -F cuda-full -F vlm --example open-set-segmentation -- sam3-image --dtype q4f16 --device cuda:0 --processor-device cuda:0 --source assets/kids.jpg -p shoe 
+cargo run -F cuda-full -F vlm --example open-set-segmentation -- sam3-image \
+--visual-encoder-dtype q4f16 --visual-encoder-device cuda:0 \
+--textual-encoder-dtype q4f16 --textual-encoder-device cuda:0 \
+--geo-encoder-dtype q4f16 --geo-encoder-device cuda:0 \
+--decoder-dtype q4f16 --decoder-device cuda:0 \
+--processor-device cuda:0 \
+--source assets/kids.jpg -p shoe
+``` 
 
 
-# Multiple text prompts
-cargo run -F cuda-full -F vlm --example open-set-segmentation -- sam3-image --dtype q4f16 --device cuda:0 --processor-device cuda:0 --source assets/kids.jpg -p shoe -p "person in blue vest" 
+#### Multiple text prompts
 
-# Multiple prompts on multiple images
-cargo run -F cuda-full -F vlm --example open-set-segmentation -- sam3-image --dtype q4f16 --device cuda:0 --processor-device cuda:0 --source assets/kids.jpg --source assets/bus.jpg -p bus -p cat -p shoe -p cellphone -p person -p "short hair"
+```bash
+cargo run -F cuda-full -F vlm --example open-set-segmentation -- sam3-image \
+--visual-encoder-dtype q4f16 --visual-encoder-device cuda:0 \
+--textual-encoder-dtype q4f16 --textual-encoder-device cuda:0 \
+--geo-encoder-dtype q4f16 --geo-encoder-device cuda:0 \
+--decoder-dtype q4f16 --decoder-device cuda:0 \
+--processor-device cuda:0 \
+-p shoe \
+-p "person in blue vest"
+```
 
-# Visual prompt (bbox)
-cargo run -F cuda-full -F vlm --example open-set-segmentation -- sam3-image --dtype q4f16 --device cuda:0 --processor-device cuda:0 --source assets/kids.jpg -p "pos:480,290,110,360"
+#### Multiple prompts on multiple images
+```bash
+cargo run -F cuda-full -F vlm --example open-set-segmentation -- sam3-image \
+--visual-encoder-dtype q4f16 --visual-encoder-device cuda:0 \
+--textual-encoder-dtype q4f16 --textual-encoder-device cuda:0 \
+--geo-encoder-dtype q4f16 --geo-encoder-device cuda:0 \
+--decoder-dtype q4f16 --decoder-device cuda:0 \
+--processor-device cuda:0 \
+--source "assets/kids.jpg | assets/bus.jpg" -p bus -p cat -p shoe -p cellphone -p person -p "short hair"
+```
 
-# Visual prompt: multi-boxes prompting(with positive and negative boxes)
-cargo run -F cuda-full -F vlm --example open-set-segmentation -- sam3-image --dtype q4f16 --device cuda:0 --processor-device cuda:0 --source assets/kids.jpg -p "pos:480,290,110,360;neg:370,280,115,375"
+#### Visual prompt (bbox)
 
-# Text + negative box
-cargo run -F cuda-full -F vlm --example open-set-segmentation -- sam3-image --dtype q4f16 --device cuda:0 --processor-device cuda:0 --source assets/000000136466.jpg -p "handle;neg:40,183,278,21"
+```bash
+cargo run -F cuda-full -F vlm --example open-set-segmentation -- sam3-image \
+--visual-encoder-dtype q4f16 --visual-encoder-device cuda:0 \
+--textual-encoder-dtype q4f16 --textual-encoder-device cuda:0 \
+--geo-encoder-dtype q4f16 --geo-encoder-device cuda:0 \
+--decoder-dtype q4f16 --decoder-device cuda:0 \
+--processor-device cuda:0 \
+--source assets/kids.jpg -p "pos:480,290,110,360"
+```
+
+#### Visual prompt: multi-boxes prompting(with positive and negative boxes)
+
+```bash
+cargo run -F cuda-full -F vlm --example open-set-segmentation -- sam3-image \
+--visual-encoder-dtype q4f16 --visual-encoder-device cuda:0 \
+--textual-encoder-dtype q4f16 --textual-encoder-device cuda:0 \
+--geo-encoder-dtype q4f16 --geo-encoder-device cuda:0 \
+--decoder-dtype q4f16 --decoder-device cuda:0 \
+--processor-device cuda:0 \
+--source assets/kids.jpg -p "pos:480,290,110,360;neg:370,280,115,375"
+```
+
+#### Text + negative box
+
+```bash
+cargo run -F cuda-full -F vlm --example open-set-segmentation -- sam3-image \
+--visual-encoder-dtype q4f16 --visual-encoder-device cuda:0 \
+--textual-encoder-dtype q4f16 --textual-encoder-device cuda:0 \
+--geo-encoder-dtype q4f16 --geo-encoder-device cuda:0 \
+--decoder-dtype q4f16 --decoder-device cuda:0 \
+--processor-device cuda:0 \
+--source assets/oven.jpg \
+-p "handle;neg:40,183,278,21"
 ```
 
 #### Prompt Format
@@ -84,7 +152,9 @@ cargo run -F cuda-full -F vlm --example open-set-segmentation -- sam3-image --dt
 
 |model|demo|
 |---|---|
+|sam3-image multi-text|![](https://github.com/jamjamjon/assets/releases/download/sam3/demo-kids.jpg)|
+|sam3-image multi-text|![](https://github.com/jamjamjon/assets/releases/download/sam3/demo-bus.jpg)|
+|sam3-image visual-pos|![](https://github.com/jamjamjon/assets/releases/download/sam3/demo-visual-pos.jpg)|
+|sam3-image visual-pos-neg|![](https://github.com/jamjamjon/assets/releases/download/sam3/demo-visual-pos-neg.jpg)|
 |yoloe-text-prompt|![](https://github.com/jamjamjon/assets/releases/download/yoloe/demo-text-bus-person.jpg)|
 |yoloe-visual-prompt|![](https://github.com/jamjamjon/assets/releases/download/yoloe/demo-visual-prompt.jpg)|
-|sam3-image|![](https://github.com/jamjamjon/assets/releases/download/sam3/demo-shoes-person-in-blue-vest.jpg)|
-|sam3-image|![](https://github.com/jamjamjon/assets/releases/download/sam3/demo.jpg)|
