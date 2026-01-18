@@ -174,6 +174,10 @@ impl Config {
 
                 *config = std::mem::take(config).try_commit(name)?;
 
+                if !module.is_vision() {
+                    continue;
+                }
+
                 // 2. Device compatibility check
                 let p_dev = self.image_processor.device;
                 let m_dev = config.device;

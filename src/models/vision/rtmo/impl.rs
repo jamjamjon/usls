@@ -68,7 +68,7 @@ impl Model for RTMO {
         let ys = elapsed_module!(
             "RTMO",
             "inference",
-            engines.run(&Module::Model, inputs![x]?)?
+            engines.run(&Module::Model, inputs![&x]?)?
         );
         elapsed_module!("RTMO", "postprocess", self.postprocess(&ys))
     }

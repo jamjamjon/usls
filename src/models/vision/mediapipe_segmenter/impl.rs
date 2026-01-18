@@ -62,7 +62,7 @@ impl Model for MediaPipeSegmenter {
         let ys = elapsed_module!(
             "MediaPipeSegmenter",
             "inference",
-            engines.run(&Module::Model, inputs![x]?)?
+            engines.run(&Module::Model, inputs![&x]?)?
         );
         elapsed_module!("MediaPipeSegmenter", "postprocess", self.postprocess(&ys))
     }

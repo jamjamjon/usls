@@ -77,6 +77,15 @@ impl Engines {
             .run(inputs)
     }
 
+    // TODO: more efficient way to run with XAny
+    pub fn run_xany(&mut self, module: &Module, input: crate::XAny) -> Result<Xs<'_>> {
+        match input {
+            crate::XAny::Host(_) => self.run(module, crate::inputs![input]?),
+            #[cfg(feature = "cuda-runtime")]
+            x @ crate::XAny::Device(_) => self.run(module, crate::inputs![&x]?),
+        }
+    }
+
     /// Iterates over all module-engine pairs.
     pub fn iter(&self) -> impl Iterator<Item = (&Module, &Engine)> {
         self.engines.iter()

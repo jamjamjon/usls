@@ -93,49 +93,33 @@ cargo run -r --example yolo -- --help
 >
 > See [Device Combination Guide](#-device-combination-guide) for feature and device configurations.
 
-⚠️ **Warning**: When encountering CUDA errors (e.g., `CUDA failure 1: invalid argument`), use `--processor-device cpu` instead of `--processor-device cuda:0` to avoid CUDA memory transfer issues.
 
 
 ### Performance
 
 >**Environment:** NVIDIA RTX 3060Ti (TensorRT-10.11.0.33, CUDA 12.8, TensorRT-RTX-1.3.0.35) / Intel i5-12400F  
 >
->**Setup:** YOLO26n-detect model (640×640), COCO2017 validation set (5,000 images), no warm-up
+>**Setup:** COCO2017 validation set (5,000 images), Resolution: 640x640, Conf thresholds: [0.35, 0.3, ..]
+>
+> ***Results are for rough reference only.***
 
 
-#### Batch = 1
+| Model | EP | ImageProcessor | DType | Batch Size | Preprocess | Inference | Postprocess | Total |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| **YOLO26n** | TensorRT | CUDA | FP16 | 1 | ~233µs | ~1.3ms | ~14µs | **~1.55ms** |
+| **YOLO26n** | TensorRT-RTX | CUDA | FP32 | 1 | ~233µs | ~2.0ms | ~10µs | **~2.24ms** |
+| **YOLO26n** | TensorRT-RTX | CUDA | FP16 | 1 | ❓ | ❓ | ❓ | ❓ |
+| **YOLO26n** | CUDA | CUDA | FP32 | 1 | ~233µs | ~5.0ms | ~17µs | **~5.25ms** |
+| **YOLO26n** | CUDA | CUDA | FP16 | 1 | ~233µs | ~3.6ms | ~17µs | **~3.85ms** |
+| **YOLO26n** | CUDA | CPU | FP32 | 1 | ~800µs | ~6.5ms | ~14µs | **~7.31ms** |
+| **YOLO26n** | CUDA | CPU | FP16 | 1 | ~800µs | ~5.0ms | ~14µs | **~5.81ms** |
+| **YOLO26n** | CPU | CPU | FP32 | 1 | ~970µs | ~20.5ms | ~14µs | **~21.48ms** |
+| **YOLO26n** | CPU | CPU | FP16 | 1 | ~970µs | ~25.0ms | ~14µs | **~25.98ms** |
+| **YOLO26n** | TensorRT | CUDA | FP16 | 8 | ~1.2ms | ~6.0ms | ~55µs | **~7.26ms** |
+| **YOLO26n** | TensorRT | CPU | FP16 | 8 | ~18.0ms | ~25.5ms | ~55µs | **~43.56ms** |
 
-| Backend | DType | Preprocess | Inference | Postprocess | Total |
-| --- | --- | --- | --- | --- | --- |
-| **TensorRT EP + CUDA processor** | FP16 | 234.570µs | 1.333ms  | 253.631µs | 1.821ms |
-| **TensorRT EP + CPU processor** | FP16 | 783.852µs | 2.438ms | 83.701µs | 3.306ms |
-| **TensorRT-RTX EP + CUDA processor** | FP32 | 232.003µs | 2.934ms | 192.660µs | 3.359ms |
-| **TensorRT-RTX EP + CUDA processor** | FP16 | ❓ | ❓ | ❓ | ❓ |
-| **TensorRT-RTX EP + CPU processor** | FP32 | 794.292µs | 3.974ms | 83.926µs | 4.852ms |
-| **TensorRT-RTX EP + CPU processor** | FP16 | ❓ | ❓ | ❓ | ❓ |
-| **CUDA EP + CUDA processor** | FP32 | 242.752µs | 5.053ms | 95.968µs | 5.392ms |
-| **CUDA EP + CUDA processor** | FP16 | 244.065µs | 3.684ms | 100.828µs | 4.029ms |
-| **CUDA EP + CPU processor** | FP32 | 796.886µs | 6.044ms | 74.687µs | 6.916ms |
-| **CUDA EP + CPU processor** | FP16 | 787.805µs | 4.565ms | 71.001µs | 5.424ms |
-| **CPU EP + CPU processor** | FP32 | 971.332µs | 20.243ms | 59.022µs | 21.273ms |
-| **CPU EP + CPU processor** | FP16 | 954.297µs | 23.155ms | 59.197µs | 24.168ms |
 
-#### Batch = 8
 
-| Backend | DType | Preprocess | Inference | Postprocess | Total |
-| --- | --- | --- | --- | --- | --- |
-| **TensorRT EP + CUDA processor** | FP16 | 2.100ms | 6.497ms | 203.484µs | 8.801ms |
-| **TensorRT EP + CPU processor** | FP16 | 18.913ms | 26.406ms | 194.782µs | 45.514ms |
-| **TensorRT-RTX EP + CUDA processor** | FP32 | 2.161ms | 15.370ms | 167.937µs | 17.699ms |
-| **TensorRT-RTX EP + CUDA processor** | FP16 | ❓ | ❓ | ❓ | ❓ |
-| **TensorRT-RTX EP + CPU processor** | FP32 | 18.988ms | 35.101ms | 173.829µs | 54.263ms |
-| **TensorRT-RTX EP + CPU processor** | FP16 | ❓ | ❓ | ❓ | ❓ |
-| **CUDA EP + CUDA processor** | FP32 | 2.222ms | 24.479ms | 160.767µs | 26.862ms |
-| **CUDA EP + CUDA processor** | FP16 | 2.262ms | 14.842ms | 135.593µs | 17.240ms |
-| **CUDA EP + CPU processor** | FP32 | 19.037ms | 44.720ms | 190.740µs | 63.948ms |
-| **CUDA EP + CPU processor** | FP16 | 18.245ms | 33.865ms | 183.226µs | 52.293ms |
-| **CPU EP + CPU processor** | FP32 | 17.852ms | 216.872ms | 158.297µs | 234.883ms |
-| **CPU EP + CPU processor** | FP16 | 17.698ms | 255.365ms | 117.239µs | 273.180ms |
 
 
 ## 📦 Model Zoo
@@ -483,7 +467,10 @@ This is a personal project maintained in spare time, so progress on performance 
 
 ## 🙏 Acknowledgments
 
-This project is built on top of [ort (ONNX Runtime for Rust)](https://github.com/pykeio/ort), which provides seamless Rust bindings for [ONNX Runtime](https://github.com/microsoft/onnxruntime). Special thanks to the `ort` maintainers.
+- This project is built on top of [ort (ONNX Runtime for Rust)](https://github.com/pykeio/ort), which provides seamless Rust bindings for [ONNX Runtime](https://github.com/microsoft/onnxruntime). Special thanks to the `ort` maintainers.
+
+- Special thanks to [@kadu-v](https://github.com/kadu-v) for the [jamtrack-rs](https://github.com/kadu-v/jamtrack-rs) project, which inspired our ByteTracker implementation
+
 
 Thanks to all the open-source libraries and their maintainers that make this project possible. See [Cargo.toml](Cargo.toml) for a complete list of dependencies.
 

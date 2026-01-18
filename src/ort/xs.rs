@@ -5,7 +5,10 @@
 use half::{bf16, f16};
 use ndarray::Array;
 use num_traits::{cast, NumCast};
-use ort::{session::SessionOutputs, tensor::PrimitiveTensorElementType, tensor::TensorElementType};
+use ort::{
+    memory::AllocationDevice, session::SessionOutputs, tensor::PrimitiveTensorElementType,
+    tensor::TensorElementType, value::ValueType,
+};
 use rayon::prelude::*;
 use std::{
     any::{Any, TypeId},
@@ -15,91 +18,10 @@ use std::{
 
 use crate::{OrtTensorAttr, XView, X};
 
-/// CachedX serves as a "Physical Type Mirror", holding the owned tensor data extracted
-/// from the backend (ORT) in its original physical format.
-enum CachedX {
-    F32(X<f32>),
-    F16(X<f16>),
-    BF16(X<bf16>),
-    F64(X<f64>),
-    I8(X<i8>),
-    I16(X<i16>),
-    I32(X<i32>),
-    I64(X<i64>),
-    U8(X<u8>),
-    U16(X<u16>),
-    U32(X<u32>),
-    U64(X<u64>),
-    Bool(X<bool>),
-}
-
-impl CachedX {
-    fn convert_to<T: NumCast + Send + Sync>(&self) -> Option<(Vec<usize>, Vec<T>)> {
-        macro_rules! convert_branch {
-            ($tensor:expr) => {{
-                let shape = $tensor.0.shape().to_vec();
-                let data: Option<Vec<T>> = if $tensor.0.len() > 1024 {
-                    $tensor
-                        .0
-                        .as_slice_memory_order()
-                        .map(|s| s.par_iter().map(|&x| cast(x)).collect())
-                        .unwrap_or_else(|| {
-                            $tensor
-                                .0
-                                .iter()
-                                .copied()
-                                .collect::<Vec<_>>()
-                                .par_iter()
-                                .map(|&x| cast(x))
-                                .collect()
-                        })
-                } else {
-                    $tensor
-                        .0
-                        .as_slice_memory_order()
-                        .map(|s| s.iter().map(|&x| cast(x)).collect())
-                        .unwrap_or_else(|| $tensor.0.iter().map(|&x| cast(x)).collect())
-                };
-                data.map(|d| (shape, d))
-            }};
-        }
-
-        match self {
-            Self::F32(t) => convert_branch!(t),
-            Self::F16(t) => convert_branch!(t),
-            Self::BF16(t) => convert_branch!(t),
-            Self::F64(t) => convert_branch!(t),
-            Self::I8(t) => convert_branch!(t),
-            Self::I16(t) => convert_branch!(t),
-            Self::I32(t) => convert_branch!(t),
-            Self::I64(t) => convert_branch!(t),
-            Self::U8(t) => convert_branch!(t),
-            Self::U16(t) => convert_branch!(t),
-            Self::U32(t) => convert_branch!(t),
-            Self::U64(t) => convert_branch!(t),
-            Self::Bool(t) => {
-                let shape = t.0.shape().to_vec();
-                let slice: Vec<bool> =
-                    t.0.as_slice_memory_order()
-                        .map(|s| s.to_vec())
-                        .unwrap_or_else(|| t.0.iter().copied().collect());
-                let data: Option<Vec<T>> = slice
-                    .par_iter()
-                    .map(|&x| {
-                        let v = if x { 1i64 } else { 0i64 };
-                        cast(v)
-                    })
-                    .collect();
-                data.map(|d| (shape, d))
-            }
-        }
-    }
-}
-
 #[derive(Default)]
 struct PerOutputCache {
-    actual: OnceLock<CachedX>,
-    typed: OnceLock<Mutex<HashMap<TypeId, Box<dyn Any + Send + Sync>>>>,
+    host: OnceLock<Option<ort::value::DynValue>>,
+    typed: Mutex<HashMap<TypeId, Box<dyn Any + Send + Sync>>>,
 }
 
 /// Xs is a "Type Alignment Layer" wrapping ONNX Runtime's SessionOutputs.
@@ -138,12 +60,6 @@ impl<'s> Xs<'s> {
         }
     }
 
-    fn typed_cache(&self, index: usize) -> &Mutex<HashMap<TypeId, Box<dyn Any + Send + Sync>>> {
-        self.caches[index]
-            .typed
-            .get_or_init(|| Mutex::new(HashMap::new()))
-    }
-
     pub fn len(&self) -> usize {
         self.metadata.names.len()
     }
@@ -163,127 +79,190 @@ impl<'s> Xs<'s> {
         if index >= self.metadata.names.len() {
             return None;
         }
-        let name = &self.metadata.names[index];
-        self.get_by_name::<T>(name)
+        self.get_by_index::<T>(index)
     }
 
-    fn get_actual(&self, index: usize) -> Option<&CachedX> {
-        if let Some(t) = self.caches[index].actual.get() {
-            Some(t)
-        } else {
-            let name = &self.metadata.names[index];
-            let value = self.outputs.get(name)?;
-            let ty = *value.data_type();
-            let cached: CachedX = match ty {
-                TensorElementType::Float32 => CachedX::F32(
-                    value
-                        .try_extract_array::<f32>()
-                        .ok()?
-                        .to_owned()
-                        .into_dyn()
-                        .into(),
-                ),
-                TensorElementType::Float16 => CachedX::F16(
-                    value
-                        .try_extract_array::<f16>()
-                        .ok()?
-                        .to_owned()
-                        .into_dyn()
-                        .into(),
-                ),
-                TensorElementType::Bfloat16 => CachedX::BF16(
-                    value
-                        .try_extract_array::<bf16>()
-                        .ok()?
-                        .to_owned()
-                        .into_dyn()
-                        .into(),
-                ),
-                TensorElementType::Float64 => CachedX::F64(
-                    value
-                        .try_extract_array::<f64>()
-                        .ok()?
-                        .to_owned()
-                        .into_dyn()
-                        .into(),
-                ),
-                TensorElementType::Int8 => CachedX::I8(
-                    value
-                        .try_extract_array::<i8>()
-                        .ok()?
-                        .to_owned()
-                        .into_dyn()
-                        .into(),
-                ),
-                TensorElementType::Int16 => CachedX::I16(
-                    value
-                        .try_extract_array::<i16>()
-                        .ok()?
-                        .to_owned()
-                        .into_dyn()
-                        .into(),
-                ),
-                TensorElementType::Int32 => CachedX::I32(
-                    value
-                        .try_extract_array::<i32>()
-                        .ok()?
-                        .to_owned()
-                        .into_dyn()
-                        .into(),
-                ),
-                TensorElementType::Int64 => CachedX::I64(
-                    value
-                        .try_extract_array::<i64>()
-                        .ok()?
-                        .to_owned()
-                        .into_dyn()
-                        .into(),
-                ),
-                TensorElementType::Uint8 => CachedX::U8(
-                    value
-                        .try_extract_array::<u8>()
-                        .ok()?
-                        .to_owned()
-                        .into_dyn()
-                        .into(),
-                ),
-                TensorElementType::Uint16 => CachedX::U16(
-                    value
-                        .try_extract_array::<u16>()
-                        .ok()?
-                        .to_owned()
-                        .into_dyn()
-                        .into(),
-                ),
-                TensorElementType::Uint32 => CachedX::U32(
-                    value
-                        .try_extract_array::<u32>()
-                        .ok()?
-                        .to_owned()
-                        .into_dyn()
-                        .into(),
-                ),
-                TensorElementType::Uint64 => CachedX::U64(
-                    value
-                        .try_extract_array::<u64>()
-                        .ok()?
-                        .to_owned()
-                        .into_dyn()
-                        .into(),
-                ),
-                TensorElementType::Bool => CachedX::Bool(
-                    value
-                        .try_extract_array::<bool>()
-                        .ok()?
-                        .to_owned()
-                        .into_dyn()
-                        .into(),
-                ),
-                _ => return None,
-            };
+    #[inline]
+    fn get_by_index<T>(&self, index: usize) -> Option<XView<'_, T>>
+    where
+        T: PrimitiveTensorElementType + NumCast + Send + Sync + Clone + 'static,
+    {
+        if let Some(v) = self.caches[index].host.get().and_then(|o| o.as_ref()) {
+            if let Ok(arr) = v.try_extract_array::<T>() {
+                return Some(XView::from(arr.into_dyn()));
+            }
+        }
 
-            let _ = self.caches[index].actual.set(cached);
-            self.caches[index].actual.get()
+        let v = &self.outputs[index];
+
+        if let Ok(tensor) = v.downcast_ref::<ort::value::DynTensorValueType>() {
+            if !tensor.memory_info().is_cpu_accessible() {
+                if let Some(host) = self.ensure_host(index) {
+                    if let Ok(arr) = host.try_extract_array::<T>() {
+                        return Some(XView::from(arr.into_dyn()));
+                    }
+                }
+                return self.get_converted::<T>(index);
+            }
+        }
+
+        if let Ok(arr) = v.try_extract_array::<T>() {
+            return Some(XView::from(arr.into_dyn()));
+        }
+
+        if let Some(host) = self.ensure_host(index) {
+            if let Ok(arr) = host.try_extract_array::<T>() {
+                return Some(XView::from(arr.into_dyn()));
+            }
+        }
+
+        self.get_converted::<T>(index)
+    }
+
+    #[inline]
+    fn ensure_host(&self, index: usize) -> Option<&ort::value::DynValue> {
+        let cached = self.caches[index]
+            .host
+            .get_or_init(|| self.transfer_to_host(index));
+        cached.as_ref()
+    }
+
+    fn transfer_to_host(&self, index: usize) -> Option<ort::value::DynValue> {
+        let name = &self.metadata.names[index];
+        let value = &self.outputs[index];
+
+        let owned = value.view().try_upgrade().ok()?;
+        let tensor = owned.downcast::<ort::value::DynTensorValueType>().ok()?;
+        let mem_info = tensor.memory_info();
+        if mem_info.is_cpu_accessible() {
+            return Some(tensor.into_dyn());
+        }
+
+        match tensor.to(AllocationDevice::CPU, 0) {
+            Ok(cpu_tensor) => {
+                if cpu_tensor.memory_info().is_cpu_accessible() {
+                    Some(cpu_tensor.into_dyn())
+                } else {
+                    tracing::warn!(
+                        "tensor.to(CPU) returned non-CPU-accessible memory for '{}': device={:?} device_id={} cpu_accessible={} ",
+                        name,
+                        cpu_tensor.memory_info().allocation_device(),
+                        cpu_tensor.memory_info().device_id(),
+                        cpu_tensor.memory_info().is_cpu_accessible(),
+                    );
+                    tensor
+                        .to(AllocationDevice::CUDA_PINNED, 0)
+                        .ok()
+                        .map(|t| t.into_dyn())
+                }
+            }
+            Err(e) => {
+                tracing::error!(
+                    "Failed to transfer tensor '{}' to CPU (device={:?} device_id={}): {:?}",
+                    name,
+                    mem_info.allocation_device(),
+                    mem_info.device_id(),
+                    e
+                );
+                tensor
+                    .to(AllocationDevice::CUDA_PINNED, 0)
+                    .ok()
+                    .map(|t| t.into_dyn())
+            }
+        }
+    }
+
+    fn get_converted<T>(&self, index: usize) -> Option<XView<'_, T>>
+    where
+        T: PrimitiveTensorElementType + NumCast + Send + Sync + Clone + 'static,
+    {
+        let type_id = TypeId::of::<T>();
+        let mut guard = self.caches[index].typed.lock().ok()?;
+
+        if let Some(ptr) = guard
+            .get(&type_id)
+            .and_then(|any| any.downcast_ref::<X<T>>().map(|t| t as *const X<T>))
+        {
+            drop(guard);
+            let t: &X<T> = unsafe { &*ptr };
+            return Some(XView::from(t.0.view().into_dyn()));
+        }
+
+        let value = self.caches[index]
+            .host
+            .get()
+            .and_then(|o| o.as_ref())
+            .unwrap_or_else(|| &self.outputs[index]);
+
+        let converted = Self::convert_value::<T>(value)?;
+        guard.insert(type_id, Box::new(converted));
+
+        let ptr = guard
+            .get(&type_id)
+            .and_then(|any| any.downcast_ref::<X<T>>().map(|t| t as *const X<T>))?;
+        drop(guard);
+
+        let t: &X<T> = unsafe { &*ptr };
+        Some(XView::from(t.0.view().into_dyn()))
+    }
+
+    fn convert_value<T>(value: &ort::value::DynValue) -> Option<X<T>>
+    where
+        T: PrimitiveTensorElementType + NumCast + Send + Sync + Clone + 'static,
+    {
+        let ValueType::Tensor { ty, .. } = value.dtype() else {
+            return None;
+        };
+
+        macro_rules! cast_tensor {
+            ($src:ty) => {{
+                let (shape, data) = value.try_extract_tensor::<$src>().ok()?;
+                let shape: Vec<usize> = shape.iter().map(|&d| d as usize).collect();
+                let data: Option<Vec<T>> = if data.len() > 1024 {
+                    data.par_iter().map(|&x| cast(x)).collect()
+                } else {
+                    data.iter().map(|&x| cast(x)).collect()
+                };
+                let arr = Array::from_shape_vec(ndarray::IxDyn(&shape), data?).ok()?;
+                Some(arr.into())
+            }};
+        }
+
+        match *ty {
+            TensorElementType::Float32 => cast_tensor!(f32),
+            TensorElementType::Float16 => cast_tensor!(f16),
+            TensorElementType::Bfloat16 => cast_tensor!(bf16),
+            TensorElementType::Float64 => cast_tensor!(f64),
+            TensorElementType::Int8 => cast_tensor!(i8),
+            TensorElementType::Int16 => cast_tensor!(i16),
+            TensorElementType::Int32 => cast_tensor!(i32),
+            TensorElementType::Int64 => cast_tensor!(i64),
+            TensorElementType::Uint8 => cast_tensor!(u8),
+            TensorElementType::Uint16 => cast_tensor!(u16),
+            TensorElementType::Uint32 => cast_tensor!(u32),
+            TensorElementType::Uint64 => cast_tensor!(u64),
+            TensorElementType::Bool => {
+                let (shape, data) = value.try_extract_tensor::<bool>().ok()?;
+                let shape: Vec<usize> = shape.iter().map(|&d| d as usize).collect();
+                let data: Option<Vec<T>> = if data.len() > 1024 {
+                    data.par_iter()
+                        .map(|&x| {
+                            let v = if x { 1i64 } else { 0i64 };
+                            cast(v)
+                        })
+                        .collect()
+                } else {
+                    data.iter()
+                        .map(|&x| {
+                            let v = if x { 1i64 } else { 0i64 };
+                            cast(v)
+                        })
+                        .collect()
+                };
+                let arr = Array::from_shape_vec(ndarray::IxDyn(&shape), data?).ok()?;
+                Some(arr.into())
+            }
+            _ => None,
         }
     }
 
@@ -292,53 +271,7 @@ impl<'s> Xs<'s> {
         T: PrimitiveTensorElementType + NumCast + Send + Sync + Clone + 'static,
     {
         let index = *self.metadata.name_to_index.get(name)?;
-        let value = self.outputs.get(name)?;
-
-        let type_id = TypeId::of::<T>();
-
-        // Check if requested type matches actual ORT output type - zero-copy path
-        let actual_type = *value.data_type();
-        let requested_type = T::into_tensor_element_type();
-
-        if actual_type == requested_type {
-            // Types match - use zero-copy extraction
-            if let Ok(arr) = value.try_extract_array::<T>() {
-                return Some(XView::from(arr.into_dyn()));
-            }
-        }
-
-        // Types don't match or extraction failed - use conversion path with caching
-        let cache = self.typed_cache(index);
-        let mut guard = cache.lock().ok()?;
-
-        // Check if we already have a cached host-owned copy of the requested type
-        if let Some(ptr) = guard.get(&type_id).and_then(|any| {
-            any.downcast_ref::<Box<X<T>>>()
-                .map(|b| (&**b) as *const X<T>)
-        }) {
-            drop(guard);
-            let t: &X<T> = unsafe { &*ptr };
-            return Some(XView::from(t.0.view().into_dyn()));
-        }
-
-        let actual = self.get_actual(index)?;
-        let (shape, data) = actual.convert_to::<T>()?;
-        let arr = Array::from_shape_vec(ndarray::IxDyn(&shape), data).ok()?;
-        let converted: X<T> = arr.into();
-        guard.insert(type_id, Box::new(Box::new(converted)));
-
-        let ptr = guard.get(&type_id).and_then(|any| {
-            any.downcast_ref::<Box<X<T>>>()
-                .map(|b| (&**b) as *const X<T>)
-        })?;
-
-        drop(guard);
-        let t: &X<T> = unsafe { &*ptr };
-        Some(XView::from(t.0.view().into_dyn()))
-    }
-
-    pub fn raw(&self) -> &SessionOutputs<'s> {
-        &self.outputs
+        self.get_by_index::<T>(index)
     }
 
     pub fn into_inner(self) -> SessionOutputs<'s> {
@@ -349,43 +282,5 @@ impl<'s> Xs<'s> {
 impl<'s> From<SessionOutputs<'s>> for Xs<'s> {
     fn from(outputs: SessionOutputs<'s>) -> Self {
         Self::new(outputs)
-    }
-}
-
-pub struct EngineOutputIter<'a, 's> {
-    output: &'a Xs<'s>,
-    index: usize,
-}
-
-impl<'a, 's> Iterator for EngineOutputIter<'a, 's> {
-    type Item = &'a ort::value::Value;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.index < self.output.metadata.names.len() {
-            let name = &self.output.metadata.names[self.index];
-            self.index += 1;
-            self.output.outputs.get(name)
-        } else {
-            None
-        }
-    }
-
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        let remaining = self.output.metadata.names.len() - self.index;
-        (remaining, Some(remaining))
-    }
-}
-
-impl<'a, 's> ExactSizeIterator for EngineOutputIter<'a, 's> {}
-
-impl<'a, 's> IntoIterator for &'a Xs<'s> {
-    type Item = &'a ort::value::Value;
-    type IntoIter = EngineOutputIter<'a, 's>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        EngineOutputIter {
-            output: self,
-            index: 0,
-        }
     }
 }

@@ -26,7 +26,8 @@ Vision-language model for image and text embeddings.
 
 **Usage:**
 ```bash
-cargo run -F cuda-full -F vlm --example embedding -- clip  --device cuda --processor-device cuda --dtype q4f16 --variant mobileclip2-s0
+# Using module-specific device/dtype for visual and textual encoders
+cargo run -F cuda-full -F vlm --example embedding -- clip --visual-dtype fp16 --visual-device cuda:0 --textual-dtype fp16 --textual-device cuda:0 --processor-device cuda:0 --variant mobileclip2-s0
 ```
 
 ### DINO (Self-Distillation with No Labels)

@@ -18,13 +18,29 @@ pub struct YoloePromptArgs {
     #[arg(long, default_value = "8")]
     pub ver: u8,
 
-    /// Dtype: fp32, fp16, q4f16, etc.
+    /// Model Dtype: fp32, fp16, q4f16, etc.
     #[arg(long, default_value = "fp32")]
-    pub dtype: DType,
+    pub model_dtype: DType,
 
-    /// Device: cpu, cuda:0, mps, coreml, openvino:CPU, etc.
+    /// Model Device: cpu, cuda:0, mps, coreml, openvino:CPU, etc.
     #[arg(long, global = true, default_value = "cpu")]
-    pub device: Device,
+    pub model_device: Device,
+
+    /// Visual Encoder Dtype: fp32, fp16, q4f16, etc.
+    #[arg(long, default_value = "fp32")]
+    pub visual_encoder_dtype: DType,
+
+    /// Visual Encoder Device: cpu, cuda:0, mps, coreml, openvino:CPU, etc.
+    #[arg(long, global = true, default_value = "cpu")]
+    pub visual_encoder_device: Device,
+
+    /// Textual Encoder Dtype: fp32, fp16, q4f16, etc.
+    #[arg(long, default_value = "fp32")]
+    pub textual_encoder_dtype: DType,
+
+    /// Textual Encoder Device: cpu, cuda:0, mps, coreml, openvino:CPU, etc.
+    #[arg(long, global = true, default_value = "cpu")]
+    pub textual_encoder_device: Device,
 
     /// Processor device (for pre/post processing)
     #[arg(long, global = true, default_value = "cpu")]
@@ -52,7 +68,7 @@ pub struct YoloePromptArgs {
 }
 
 pub fn config(args: &YoloePromptArgs) -> Result<Config> {
-    let config = match (args.ver, &args.scale, args.kind) {
+    let mut config = match (args.ver, &args.scale, args.kind) {
         (8, Scale::S, Kind::Visual) => Config::yoloe_v8s_seg_vp(),
         (8, Scale::M, Kind::Visual) => Config::yoloe_v8m_seg_vp(),
         (8, Scale::L, Kind::Visual) => Config::yoloe_v8l_seg_vp(),
@@ -72,12 +88,25 @@ pub fn config(args: &YoloePromptArgs) -> Result<Config> {
             args.kind
         ),
     }
-    .with_dtype_all(args.dtype)
-    .with_device_all(args.device)
-    // .with_textual_encoder_dtype("fp16".parse()?)  // optional
+    .with_model_dtype(args.model_dtype)
+    .with_model_device(args.model_device)
     .with_batch_size_min_opt_max_all(args.min_batch, args.batch, args.max_batch)
     .with_num_dry_run_all(args.num_dry_run)
     .with_image_processor_device(args.processor_device);
+
+    // Conditionally set encoder dtype/device based on kind
+    match args.kind {
+        Kind::Textual => {
+            config = config
+                .with_textual_encoder_dtype(args.textual_encoder_dtype)
+                .with_textual_encoder_device(args.textual_encoder_device);
+        }
+        Kind::Visual => {
+            config = config
+                .with_visual_encoder_dtype(args.visual_encoder_dtype)
+                .with_visual_encoder_device(args.visual_encoder_device);
+        }
+    }
 
     Ok(config)
 }

@@ -63,7 +63,7 @@ impl Model for Sapiens {
         let ys = elapsed_module!(
             "Sapiens",
             "inference",
-            engines.run(&Module::Model, inputs![x]?)?
+            engines.run(&Module::Model, inputs![&x]?)?
         );
         elapsed_module!("Sapiens", "postprocess", self.postprocess(&ys))
     }

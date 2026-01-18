@@ -56,7 +56,7 @@ impl Model for DINO {
         let ys = elapsed_module!(
             "DINO",
             "inference",
-            engines.run(&Module::Model, inputs![x]?)?
+            engines.run(&Module::Model, inputs![&x]?)?
         );
         elapsed_module!("DINO", "postprocess", {
             let x = ys

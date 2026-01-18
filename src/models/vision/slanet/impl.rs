@@ -76,7 +76,7 @@ impl Model for SLANet {
         let ys = elapsed_module!(
             "SLANet",
             "inference",
-            engines.run(&Module::Model, inputs![xs]?)?
+            engines.run(&Module::Model, inputs![&xs]?)?
         );
         elapsed_module!("SLANet", "postprocess", self.postprocess(&ys))
     }

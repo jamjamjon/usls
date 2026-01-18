@@ -33,26 +33,27 @@ cargo run  -F cuda-full --example image-segmentation -- sam  --device cuda --pro
 ### sam2
 
 ```bash
-cargo run  -F cuda-full --example image-segmentation -- sam2  --device cuda --processor-device cuda --source images/truck.jpg
+# Using module-specific device/dtype for encoder and decoder
+cargo run -F cuda-full --example image-segmentation -- sam2 --scale t --encoder-dtype fp32 --encoder-device cuda:0 --decoder-dtype fp32 --decoder-device cuda:0 --processor-device cuda:0 --source images/truck.jpg
 ```
 
 ### sam3-tracker
 
 ```bash
-# Single point
-cargo run  -F cuda-full --example image-segmentation -- sam3-tracker  --device cuda --processor-device cuda --dtype q4f16 --source images/truck.jpg -p "pos:500,375" 
+# Single point (using module-specific device/dtype)
+cargo run -F cuda-full --example image-segmentation -- sam3-tracker --vision-dtype q4f16 --vision-device cuda:0 --decoder-dtype fp16 --decoder-device cuda:0 --processor-device cuda:0 --source images/truck.jpg -p "pos:500,375" 
 
 # Two positive points
-cargo run  -F cuda-full --example image-segmentation -- sam3-tracker  --device cuda --processor-device cuda --dtype q4f16 --source images/truck.jpg -p "pos:500,375;pos:1125,625"
+cargo run -F cuda-full --example image-segmentation -- sam3-tracker --vision-dtype q4f16 --vision-device cuda:0 --decoder-dtype fp16 --decoder-device cuda:0 --processor-device cuda:0 --source images/truck.jpg -p "pos:500,375;pos:1125,625"
 
 # Box prompt (xywh: x, y, width, height)
-cargo run  -F cuda-full --example image-segmentation -- sam3-tracker  --device cuda --processor-device cuda --dtype q4f16 --source images/truck.jpg -p "pos:425,600,275,275"
+cargo run -F cuda-full --example image-segmentation -- sam3-tracker --vision-dtype q4f16 --vision-device cuda:0 --decoder-dtype fp16 --decoder-device cuda:0 --processor-device cuda:0 --source images/truck.jpg -p "pos:425,600,275,275"
 
 # Box + negative point
-cargo run -F cuda-full --example image-segmentation -- sam3-tracker  --device cuda --processor-device cuda --dtype q4f16 --source images/truck.jpg -p "pos:425,600,275,275;neg:575,750"
+cargo run -F cuda-full --example image-segmentation -- sam3-tracker --vision-dtype q4f16 --vision-device cuda:0 --decoder-dtype fp16 --decoder-device cuda:0 --processor-device cuda:0 --source images/truck.jpg -p "pos:425,600,275,275;neg:575,750"
 
 # Multiple boxes
-cargo run  -F cuda-full --example image-segmentation -- sam3-tracker  --device cuda --processor-device cuda --dtype q4f16 --source images/truck.jpg -p "pos:75,275,1650,575;pos:425,600,275,275;pos:1375,550,275,250;pos:1240,675,160,75" # -p "pos:75,275,1650,575" -p "pos:425,600,275,275" -p "pos:1375,550,275,250" -p "pos:1240,675,160,75"
+cargo run -F cuda-full --example image-segmentation -- sam3-tracker --vision-dtype q4f16 --vision-device cuda:0 --decoder-dtype fp16 --decoder-device cuda:0 --processor-device cuda:0 --source images/truck.jpg -p "pos:75,275,1650,575;pos:425,600,275,275;pos:1375,550,275,250;pos:1240,675,160,75"
 ```
 ## Prompt Format
 

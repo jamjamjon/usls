@@ -1,5 +1,8 @@
 //! Multi-object tracking (MOT) utilities.
 //!
+//! This implementation borrows heavily from the jamtrack-rs project by kadu-v:
+//! https://github.com/kadu-v/jamtrack-rs
+//!
 //! This module provides tracking algorithms and utilities for tracking objects across video frames:
 //! - **ByteTracker**: ByteTrack algorithm for multi-object tracking
 //! - **KalmanFilter**: Kalman filter implementation for object state prediction

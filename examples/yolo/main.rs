@@ -17,7 +17,7 @@ struct Cli {
     source: Source,
 
     /// Confidence thresholds (comma-separated for per-class, or single value for all)
-    #[arg(long, global = true, value_delimiter = ',')]
+    #[arg(long, global = true, value_delimiter = ',', default_values_t = vec![0.35, 0.3])]
     pub confs: Vec<f32>,
 
     /// Exclude classes
@@ -37,11 +37,7 @@ fn main() -> Result<()> {
     let cli = Cli::parse();
 
     let config = args::config(&cli.args)?
-        .with_class_confs(if cli.confs.is_empty() {
-            &[0.35, 0.3]
-        } else {
-            &cli.confs
-        })
+        .with_class_confs(&cli.confs)
         .retain_classes(&cli.retain_classes)
         .exclude_classes(&cli.exclude_classes)
         .commit()?;
