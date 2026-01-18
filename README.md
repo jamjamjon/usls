@@ -99,24 +99,24 @@ cargo run -r --example yolo -- --help
 
 >**Environment:** NVIDIA RTX 3060Ti (TensorRT-10.11.0.33, CUDA 12.8, TensorRT-RTX-1.3.0.35) / Intel i5-12400F  
 >
->**Setup:** COCO2017 validation set (5,000 images), Resolution: 640x640, Conf thresholds: [0.35, 0.3, ..]
+>**Setup:** YOLO26n, COCO2017 validation set (5,000 images), Resolution: 640x640, Conf thresholds: [0.35, 0.3, ..]
 >
 > ***Results are for rough reference only.***
 
 
-| Model | EP | ImageProcessor | DType | Batch Size | Preprocess | Inference | Postprocess | Total |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| **YOLO26n** | TensorRT | CUDA | FP16 | 1 | ~233µs | ~1.3ms | ~14µs | **~1.55ms** |
-| **YOLO26n** | TensorRT-RTX | CUDA | FP32 | 1 | ~233µs | ~2.0ms | ~10µs | **~2.24ms** |
-| **YOLO26n** | TensorRT-RTX | CUDA | FP16 | 1 | ❓ | ❓ | ❓ | ❓ |
-| **YOLO26n** | CUDA | CUDA | FP32 | 1 | ~233µs | ~5.0ms | ~17µs | **~5.25ms** |
-| **YOLO26n** | CUDA | CUDA | FP16 | 1 | ~233µs | ~3.6ms | ~17µs | **~3.85ms** |
-| **YOLO26n** | CUDA | CPU | FP32 | 1 | ~800µs | ~6.5ms | ~14µs | **~7.31ms** |
-| **YOLO26n** | CUDA | CPU | FP16 | 1 | ~800µs | ~5.0ms | ~14µs | **~5.81ms** |
-| **YOLO26n** | CPU | CPU | FP32 | 1 | ~970µs | ~20.5ms | ~14µs | **~21.48ms** |
-| **YOLO26n** | CPU | CPU | FP16 | 1 | ~970µs | ~25.0ms | ~14µs | **~25.98ms** |
-| **YOLO26n** | TensorRT | CUDA | FP16 | 8 | ~1.2ms | ~6.0ms | ~55µs | **~7.26ms** |
-| **YOLO26n** | TensorRT | CPU | FP16 | 8 | ~18.0ms | ~25.5ms | ~55µs | **~43.56ms** |
+| EP | Image<br>Processor | DType | Batch | Preprocess | Inference | Postprocess | Total |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| TensorRT | CUDA | FP16 | 1 | ~233µs | ~1.3ms | ~14µs | **~1.55ms** |
+| TensorRT-RTX | CUDA | FP32 | 1 | ~233µs | ~2.0ms | ~10µs | **~2.24ms** |
+| TensorRT-RTX | CUDA | FP16 | 1 | ❓ | ❓ | ❓ | ❓ |
+| CUDA | CUDA | FP32 | 1 | ~233µs | ~5.0ms | ~17µs | **~5.25ms** |
+| CUDA | CUDA | FP16 | 1 | ~233µs | ~3.6ms | ~17µs | **~3.85ms** |
+| CUDA | CPU | FP32 | 1 | ~800µs | ~6.5ms | ~14µs | **~7.31ms** |
+| CUDA | CPU | FP16 | 1 | ~800µs | ~5.0ms | ~14µs | **~5.81ms** |
+| CPU | CPU | FP32 | 1 | ~970µs | ~20.5ms | ~14µs | **~21.48ms** |
+| CPU | CPU | FP16 | 1 | ~970µs | ~25.0ms | ~14µs | **~25.98ms** |
+| TensorRT | CUDA | FP16 | **8** | ~1.2ms | ~6.0ms | ~55µs | **~7.26ms** |
+| TensorRT | CPU | FP16 | **8** | ~18.0ms | ~25.5ms | ~55µs | **~43.56ms** |
 
 
 
