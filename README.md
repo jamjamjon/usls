@@ -93,6 +93,7 @@ cargo run -r --example yolo -- --help
 >
 > See [Device Combination Guide](#-device-combination-guide) for feature and device configurations.
 
+⚠️ **Warning**: When encountering CUDA errors (e.g., `CUDA failure 1: invalid argument`), use `--processor-device cpu` instead of `--processor-device cuda:0` to avoid CUDA memory transfer issues.
 
 
 ### Performance
