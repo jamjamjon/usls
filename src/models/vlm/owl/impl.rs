@@ -104,7 +104,7 @@ impl Model for OWLv2 {
                 &Module::Model,
                 inputs![
                     self.input_ids.view(),
-                    image_embeddings,
+                    &image_embeddings,
                     self.attention_mask.view()
                 ]?
             )?

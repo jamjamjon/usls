@@ -14,7 +14,7 @@ Execute a model demo (e.g., `RF-DETR`) with hardware acceleration:
 
 ```bash
 # Model and processor on CUDA
-cargo run -F cuda-full --example object-detection rfdetr --dtype q4f16 --device cuda:0 --processor-device cuda:0
+cargo run -F cuda-full --example object-detection rfdetr --dtype fp32 --device cuda:0 --processor-device cuda:0
 
 #  CUDA for model, CPU for image processor
 cargo run -F cuda --example object-detection rfdetr --dtype fp16 --device cuda:0 --processor-device cpu
@@ -35,6 +35,7 @@ Standard arguments shared across all examples (see specific README.md for detail
 | Argument | Description | Example |
 |----------|-------------|---------|
 | `--source` | Input media source | `path/to/img.jpg` |
+| `-p`, `--prompts` | Text prompts or labels | `-p "cat"`, `-p "person" -p "dog"` |
 | `--device` | Inference device | `cpu`, `cuda:0`, `tensorrt:0` |
 | `--processor-device` | Pre-processing device | `cpu`, `cuda:0` |
 | `--dtype` | Model precision | `fp32`, `fp16`, `q4f16`, `q8` |
@@ -43,6 +44,19 @@ Standard arguments shared across all examples (see specific README.md for detail
 
 > **Note**: Device support requires corresponding Cargo features. DType support depends on model. See [Model Zoo](../README.md#-model-zoo) for dtype support per model.
 
+
+### Flexible Device & Dtype Configuration
+
+You can set different device and dtype for each module to optimize memory usage and performance.
+This is especially useful when you have limited GPU memory - you can run memory-intensive modules on CPU while keeping performance-critical modules on GPU.
+
+```bash
+--vision-dtype q4f16 --vision-device cuda:0    # Vision encoder (GPU, quantized)
+--text-dtype fp32 --text-device cpu           # Text encoder (CPU, full precision)
+--geo-dtype bnb4 --geo-device cpu            # Geometry encoder (CPU, quantized)
+--decoder-dtype fp16 --decoder-device cuda:0  # Decoder (GPU, half precision)
+--processor-device cuda:0                     # Image processor (GPU)
+```
 
 
 

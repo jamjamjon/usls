@@ -18,6 +18,8 @@ pub struct RTDETR {
     pub confs: DynConf,
     pub processor: ImageProcessor,
     pub spec: String,
+    pub classes_excluded: Vec<usize>,
+    pub classes_retained: Vec<usize>,
 }
 
 impl Model for RTDETR {
@@ -41,6 +43,14 @@ impl Model for RTDETR {
         let spec = engine.spec().to_owned();
         let names: Vec<String> = config.inference.class_names;
         let confs = DynConf::new_or_default(&config.inference.class_confs, names.len());
+        let classes_excluded = config.inference.classes_excluded;
+        let classes_retained = config.inference.classes_retained;
+        if !classes_excluded.is_empty() {
+            tracing::info!("classes_excluded: {classes_excluded:?}");
+        }
+        if !classes_retained.is_empty() {
+            tracing::info!("classes_retained: {classes_retained:?}");
+        }
         let processor = ImageProcessor::from_config(config.image_processor)?
             .with_image_width(width as _)
             .with_image_height(height as _);
@@ -53,6 +63,8 @@ impl Model for RTDETR {
             names,
             confs,
             processor,
+            classes_excluded,
+            classes_retained,
         };
 
         let engines = Engines::from(engine);
@@ -67,7 +79,7 @@ impl Model for RTDETR {
         let ys = elapsed_module!(
             "RTDETR",
             "inference",
-            engines.run(&Module::Model, inputs![x1, x2]?)?
+            engines.run(&Module::Model, inputs![&x1, x2]?)?
         );
         elapsed_module!("RTDETR", "postprocess", self.postprocess(&ys))
     }
@@ -101,6 +113,20 @@ impl RTDETR {
                     .filter_map(|(i, &score)| {
                         let class_id = labels[i] as usize;
                         if score < self.confs[class_id] {
+                            return None;
+                        }
+
+                        // filter out class id
+                        if !self.classes_excluded.is_empty()
+                            && self.classes_excluded.contains(&class_id)
+                        {
+                            return None;
+                        }
+
+                        // filter by class id
+                        if !self.classes_retained.is_empty()
+                            && !self.classes_retained.contains(&class_id)
+                        {
                             return None;
                         }
                         let xyxy = boxes.slice(s![i, ..]).mapv(|x| x / ratio);

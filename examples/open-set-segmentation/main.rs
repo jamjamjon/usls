@@ -24,14 +24,9 @@ struct Cli {
     #[arg(long, global = true, value_delimiter = ',')]
     pub confs: Vec<f32>,
 
-    /// Text prompts, labels (comma-separated)
-    #[arg(
-        long,
-        global = true,
-        value_delimiter = ',',
-        default_value = "person,bus"
-    )]
-    pub labels: Vec<String>,
+    /// Prompts: "text", "text;pos:x,y", etc.
+    #[arg(short = 'p', long, global = true, default_value = "person")]
+    pub prompts: Vec<String>,
 
     #[command(subcommand)]
     pub command: Commands,
@@ -57,15 +52,17 @@ fn main() -> Result<()> {
 
     match &cli.command {
         Commands::Sam3Image(args) => {
-            let config = sam3_image::config(args)?.commit()?;
-            run_sam3_image(config, cli.source, &annotator, args)?
+            let config = sam3_image::config(args)?
+                .with_class_confs(&cli.confs)
+                .commit()?;
+            run_sam3_image(config, cli.source, &annotator, args, &cli.prompts)?
         }
 
         Commands::YOLOEPrompt(args) => {
             let config = yoloe_prompt::config(args)?
                 .with_class_confs(&cli.confs)
                 .commit()?;
-            run_yoloe_prompt(config, cli.source, &annotator, args, &cli.labels)?
+            run_yoloe_prompt(config, cli.source, &annotator, args, &cli.prompts)?
         }
     }
     usls::perf(false);
@@ -78,7 +75,7 @@ fn run_yoloe_prompt(
     source: Source,
     annotator: &Annotator,
     args: &yoloe_prompt::YoloePromptArgs,
-    labels: &[String],
+    prompts: &[String],
 ) -> Result<()> {
     let mut model = YOLOEPrompt::new(config)?;
 
@@ -92,7 +89,7 @@ fn run_yoloe_prompt(
             )?
         }
         Kind::Textual => {
-            model.encode_class_names(&labels.iter().map(|x| x.as_str()).collect::<Vec<_>>())?
+            model.encode_class_names(&prompts.iter().map(|x| x.as_str()).collect::<Vec<_>>())?
         }
     };
 
@@ -132,12 +129,12 @@ fn run_sam3_image(
     source: Source,
     annotator: &Annotator,
     args: &sam3_image::Sam3ImageArgs,
+    prompts: &[String],
 ) -> Result<()> {
-    if args.prompt.is_empty() {
+    if prompts.is_empty() {
         anyhow::bail!("No prompt. Use -p \"text\" or -p \"text;pos:x,y,w,h\"");
     }
-    let prompts: Vec<Sam3Prompt> = args
-        .prompt
+    let prompts: Vec<Sam3Prompt> = prompts
         .iter()
         .map(|s| s.parse())
         .collect::<std::result::Result<Vec<_>, _>>()
@@ -145,7 +142,7 @@ fn run_sam3_image(
 
     let mut model = Sam3Image::new(config)?;
     let dl = DataLoader::new(source)?
-        .with_batch(args.vision_batch)
+        .with_batch(args.visual_encoder_batch)
         .with_progress_bar(true)
         .stream()?;
 

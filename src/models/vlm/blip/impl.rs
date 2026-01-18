@@ -86,7 +86,7 @@ impl Blip {
     fn encode_images_internal(&mut self, engines: &mut Engines, xs: &[Image]) -> Result<X> {
         let ys = self.image_processor.process(xs)?;
         self.batch = xs.len();
-        let output = engines.run(&Module::Visual, inputs![ys]?)?;
+        let output = engines.run(&Module::Visual, inputs![&ys]?)?;
 
         let x = output
             .get::<f32>(0)

@@ -67,7 +67,7 @@ impl Model for Ram {
         let ys = elapsed_module!(
             "RAM",
             "inference",
-            engines.run(&Module::Model, inputs![x]?)?
+            engines.run(&Module::Model, inputs![&x]?)?
         );
         elapsed_module!("RAM", "postprocess", self.postprocess(&ys))
     }

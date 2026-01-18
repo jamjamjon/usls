@@ -41,7 +41,7 @@ uv run inference.py \
 
 # Text + Negative box (mixed prompt)
 uv run inference.py \
-    --image ../../assets/000000136466.jpg \
+    --image ../../assets/oven.jpg \
     --text "handle" \
     --boxes "neg:40,183,278,21" \
     --model-dir ./onnx-models \

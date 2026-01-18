@@ -12,11 +12,11 @@ Image captioning model.
 
 **Usage:**
 ```bash
-# Unconditional caption
-cargo run -F cuda-full -F vlm --example vlm  -- blip  --device cuda:0 --processor-device cuda:0  --source ./assets/bus.jpg
+# Unconditional caption (using module-specific device/dtype)
+cargo run -F cuda-full -F vlm --example vlm -- blip --visual-dtype fp32 --visual-device cuda:0 --textual-dtype fp32 --textual-device cuda:0 --processor-device cuda:0 --source ./assets/bus.jpg
 
 # Conditional caption
-cargo run -F cuda-full -F vlm --example vlm  -- blip  --device cuda:0 --processor-device cuda:0  --source ./assets/bus.jpg --prompt "this image depicts"
+cargo run -F cuda-full -F vlm --example vlm -- blip --visual-dtype fp32 --visual-device cuda:0 --textual-dtype fp32 --textual-device cuda:0 --processor-device cuda:0 --source ./assets/bus.jpg --prompt "this image depicts"
 ```
 
 ### FastVLM
@@ -51,7 +51,8 @@ Microsoft's Florence-2 unified vision foundation model.
 
 **Usage:**
 ```bash
-cargo run -F cuda -F vlm --example vlm  -- florence2  --device cuda:0 --processor-device cuda:0 --dtype f16 --source ./assets/bus.jpg --scale base --task "Caption: 0"
+# Using module-specific device/dtype for visual, textual encoder, and textual decoder
+cargo run -r -F cuda-full -F vlm --example vlm -- florence2 --visual-dtype fp16 --visual-device cuda:0 --textual-encoder-dtype fp16 --textual-encoder-device cuda:0 --textual-decoder-dtype fp16 --textual-decoder-device cuda:0 --processor-device cuda:0 --source ./assets/bus.jpg --scale base --task "Caption: 0"
 
 # TODO:
 # let tasks = [
@@ -101,8 +102,11 @@ Compact vision-language model for various vision tasks.
 
 **Usage:**
 ```bash
-cargo run --release --example vlm -- --source ./assets/bus.jpg moondream2 --scale 0.5b --task "Caption: 0"
-cargo run --release --example vlm -- --source ./assets/bus.jpg moondream2 --task "Vqa: What is in the image?"
+# Using module-specific device/dtype for all 8 modules
+cargo run -F cuda-full -F vlm --example vlm -- --source ./assets/bus.jpg moondream2 --scale 0.5b --visual-encoder-dtype int8 --visual-encoder-device cuda:0 --visual-projection-dtype int8 --visual-projection-device cuda:0 --textual-encoder-dtype int8 --textual-encoder-device cuda:0 --textual-decoder-dtype int8 --textual-decoder-device cuda:0 --coord-encoder-dtype int8 --coord-encoder-device cuda:0 --coord-decoder-dtype int8 --coord-decoder-device cuda:0 --size-encoder-dtype int8 --size-encoder-device cuda:0 --size-decoder-dtype int8 --size-decoder-device cuda:0 --processor-device cuda:0 --task "Caption: 0"
+
+# VQA example
+cargo run -F cuda-full -F vlm --example vlm -- --source ./assets/bus.jpg moondream2 --visual-encoder-dtype int8 --visual-encoder-device cuda:0 --textual-decoder-dtype int8 --textual-decoder-device cuda:0 --processor-device cuda:0 --task "Vqa: What is in the image?"
 ```
 
 ### SmolVLM
@@ -118,5 +122,5 @@ Small vision-language model optimized for efficiency.
 
 **Usage:**
 ```bash
-cargo run --release --example vlm -- --source ./assets/bus.jpg smolvlm --scale 256m --ver 2 --prompt "Can you describe this image?"
+cargo run -F vlm --example vlm -- --source ./assets/bus.jpg smolvlm --scale 256m --ver 2 --prompt "Can you describe this image?"
 ```

@@ -8,13 +8,21 @@ pub struct BlipArgs {
     #[arg(long, default_value = "v1-base-caption")]
     pub variant: String,
 
-    /// Dtype: fp32, fp16, q4f16, etc.
+    /// Visual Dtype: fp32
     #[arg(long, default_value = "fp32")]
-    pub dtype: DType,
+    pub visual_dtype: DType,
 
-    /// Device: cpu, cuda:0, mps, coreml, openvino:CPU, etc.
+    /// Visual Device: cpu, cuda:0, mps, coreml, openvino:CPU, etc.
     #[arg(long, global = true, default_value = "cpu")]
-    pub device: Device,
+    pub visual_device: Device,
+
+    /// Textual Dtype: fp32
+    #[arg(long, default_value = "fp32")]
+    pub textual_dtype: DType,
+
+    /// Textual Device: cpu, cuda:0, mps, coreml, openvino:CPU, etc.
+    #[arg(long, global = true, default_value = "cpu")]
+    pub textual_device: Device,
 
     /// Processor device (for pre/post processing)
     #[arg(long, global = true, default_value = "cpu")]
@@ -46,8 +54,10 @@ pub fn config(args: &BlipArgs) -> Result<Config> {
         "v1-base-caption" => Config::blip_v1_base_caption(),
         _ => anyhow::bail!("Unsupported BLIP variant: {}", args.variant),
     }
-    .with_dtype_all(args.dtype)
-    .with_device_all(args.device)
+    .with_visual_dtype(args.visual_dtype)
+    .with_visual_device(args.visual_device)
+    .with_textual_dtype(args.textual_dtype)
+    .with_textual_device(args.textual_device)
     .with_batch_size_min_opt_max_all(args.min_batch, args.batch, args.max_batch)
     .with_num_dry_run_all(args.num_dry_run)
     .with_image_processor_device(args.processor_device);

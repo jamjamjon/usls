@@ -21,7 +21,7 @@ struct Cli {
     pub source: Source,
 
     /// Confidence thresholds (comma-separated for per-class, or single value for all)
-    #[arg(long, global = true, value_delimiter = ',')]
+    #[arg(long, global = true, value_delimiter = ',', default_values_t = vec![0.5])]
     pub confs: Vec<f32>,
 
     #[command(subcommand)]

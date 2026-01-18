@@ -26,7 +26,7 @@ struct Cli {
     pub source: Source,
 
     /// Confidence thresholds (comma-separated for per-class, or single value for all)
-    #[arg(long, global = true, value_delimiter = ',')]
+    #[arg(long, global = true, value_delimiter = ',', default_values_t = vec![0.5])]
     pub confs: Vec<f32>,
 
     #[command(subcommand)]
@@ -116,7 +116,9 @@ fn main() -> Result<()> {
             run::<YOLOPv2>(config, &cli.source, &annotator)
         }
         Commands::Fastsam(args) => {
-            let config = fastsam::config(args)?.commit()?;
+            let config = fastsam::config(args)?
+                .with_class_confs(&cli.confs)
+                .commit()?;
             let annotator = annotator
                 .with_hbb_style(
                     usls::HbbStyle::default()

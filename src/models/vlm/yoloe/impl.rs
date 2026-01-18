@@ -7,7 +7,7 @@ use crate::{
     elapsed_module, inputs,
     models::vision::{BoxType, YOLOPredsFormat, YOLO},
     Config, DynConf, Engine, Engines, FromConfig, Hbb, Image, ImageProcessor, Model, Module,
-    NmsOps, Runtime, TextProcessor, Xs, X, Y,
+    NmsOps, Runtime, TextProcessor, Version, Xs, X, Y,
 };
 
 /// YOLOE with prompt-based inference (textual or visual prompts).
@@ -30,6 +30,7 @@ pub struct YOLOEPrompt {
     pub text_processor: Option<TextProcessor>,
     pub has_visual_encoder: bool,
     pub has_textual_encoder: bool,
+    pub version: Option<Version>,
 }
 
 impl Model for YOLOEPrompt {
@@ -90,20 +91,27 @@ impl Model for YOLOEPrompt {
             }
         }
 
-        let layout = YOLOPredsFormat::n_cxcywh_clss_coefs_a();
+        let version = config.version;
+        let layout = match version {
+            Some(Version(8, _, _)) | Some(Version(11, _, _)) => {
+                YOLOPredsFormat::n_cxcywh_clss_coefs_a()
+            }
+            Some(Version(26, _, _)) => YOLOPredsFormat::n_a_xyxy_confcls_coefs().apply_nms(false),
+            Some(x) => anyhow::bail!("Unsupported YOLOE Version: {x:?}"),
+            None => anyhow::bail!("No clear YOLOE Version specified."),
+        };
+
         let names: Vec<String> = config.inference.class_names;
         let nc = config.inference.num_classes.unwrap_or(names.len()).max(1);
         let confs = DynConf::new_or_default(&config.inference.class_confs, nc);
         let iou = config.inference.iou.unwrap_or(0.45);
         let has_visual_encoder = visual_encoder.is_some();
         let has_textual_encoder = textual_encoder.is_some();
-
         let text_processor = if has_textual_encoder {
             Some(TextProcessor::from_config(config.text_processor)?)
         } else {
             None
         };
-
         let processor = ImageProcessor::from_config(config.image_processor)?
             .with_image_width(width as _)
             .with_image_height(height as _);
@@ -122,6 +130,7 @@ impl Model for YOLOEPrompt {
             text_processor,
             has_visual_encoder,
             has_textual_encoder,
+            version,
         };
 
         let mut engines = Engines::new();
@@ -310,109 +319,276 @@ impl YOLOEPrompt {
     fn postprocess(&self, outputs: &Xs) -> Result<Vec<Y>> {
         let preds = outputs
             .get::<f32>(0)
-            .ok_or_else(|| anyhow::anyhow!("Failed to get predictions"))?;
-        let protos = outputs.get::<f32>(1);
+            .ok_or(anyhow::anyhow!("Failed to get the first output"))?;
 
-        let ys: Vec<Y> = preds
-            .axis_iter(Axis(0))
-            .into_par_iter()
-            .enumerate()
-            .filter_map(|(idx, pred)| {
-                let mut y = Y::default();
+        let use_rayon_for_candidates = !matches!(self.version.map(|v| v.0), Some(10 | 26));
 
-                let (slice_bboxes, slice_id, slice_clss, slice_confs, _, slice_coefs, _) =
-                    self.layout.parse_preds(pred, self.nc);
+        let f = |(idx, pred): (usize, _)| -> Option<Y> {
+            let mut y = Y::default();
 
-                let info = &self.processor.images_transform_info[idx];
-                let (image_height, image_width, ratio) =
-                    (info.height_src, info.width_src, info.height_scale);
+            // parse preds
+            let (slice_bboxes, slice_id, slice_clss, slice_confs, _, slice_coefs, _) =
+                self.layout.parse_preds(pred, self.nc);
 
-                let y_hbbs: Vec<Hbb> = slice_bboxes?
+            let info = &self.processor.images_transform_info[idx];
+            let (image_height, image_width, ratio) =
+                (info.height_src, info.width_src, info.height_scale);
+
+            // ObjectDetection
+            let slice_bboxes = slice_bboxes?;
+            let f_bbox = |(i, bbox): (usize, ndarray::ArrayViewD<'_, f32>)| -> Option<Hbb> {
+                // confidence & class_id
+                let (class_id, confidence) = match &slice_id {
+                    Some(ids) => (ids[[i, 0]] as usize, slice_clss[[i, 0]]),
+                    None => {
+                        let (class_id, &confidence) =
+                            slice_clss.slice(s![i, ..]).into_iter().enumerate().max_by(
+                                |a, b| a.1.partial_cmp(b.1).unwrap_or(std::cmp::Ordering::Equal),
+                            )?;
+
+                        match &slice_confs {
+                            None => (class_id, confidence),
+                            Some(slice_confs) => (class_id, confidence * slice_confs[[i, 0]]),
+                        }
+                    }
+                };
+
+                // filter by conf
+                if confidence < self.confs[class_id] {
+                    return None;
+                }
+
+                // Bboxes
+                let mut bbox_it = bbox.iter();
+                let b0 = *bbox_it.next()? / ratio;
+                let b1 = *bbox_it.next()? / ratio;
+                let b2 = *bbox_it.next()? / ratio;
+                let b3 = *bbox_it.next()? / ratio;
+                let bbox = if self.layout.is_bbox_normalized {
+                    (
+                        b0 * self.width as f32,
+                        b1 * self.height as f32,
+                        b2 * self.width as f32,
+                        b3 * self.height as f32,
+                    )
+                } else {
+                    (b0, b1, b2, b3)
+                };
+
+                let (x, y, w, h) = match self.layout.box_type()? {
+                    BoxType::Cxcywh => {
+                        let (cx, cy, w, h) = bbox;
+                        let x = (cx - w / 2.).max(0.);
+                        let y = (cy - h / 2.).max(0.);
+                        (x, y, w, h)
+                    }
+                    BoxType::Xyxy => {
+                        let (x, y, x2, y2) = bbox;
+                        let (w, h) = (x2 - x, y2 - y);
+                        // let (cx, cy) = ((x + x2) / 2., (y + y2) / 2.);
+                        (x, y, w, h)
+                    }
+                    BoxType::Xywh => {
+                        let (x, y, w, h) = bbox;
+                        // let (cx, cy) = (x + w / 2., y + h / 2.);
+                        (x, y, w, h)
+                    }
+                    BoxType::Cxcyxy => {
+                        let (cx, cy, x2, y2) = bbox;
+                        let (w, h) = ((x2 - cx) * 2., (y2 - cy) * 2.);
+                        let x = (x2 - w).max(0.);
+                        let y = (y2 - h).max(0.);
+                        (x, y, w, h)
+                    }
+                    BoxType::XyCxcy => {
+                        let (x, y, cx, cy) = bbox;
+                        let (w, h) = ((cx - x) * 2., (cy - y) * 2.);
+                        (x, y, w, h)
+                    }
+                };
+
+                let mut hbb = Hbb::default()
+                    .with_xywh(x, y, w, h)
+                    .with_confidence(confidence)
+                    .with_id(class_id)
+                    .with_uid(i);
+                if !self.names.is_empty() {
+                    hbb = hbb.with_name(&self.names[class_id]);
+                }
+
+                Some(hbb)
+            };
+
+            let y_hbbs = if use_rayon_for_candidates {
+                slice_bboxes
                     .axis_iter(Axis(0))
                     .into_par_iter()
                     .enumerate()
-                    .filter_map(|(i, bbox)| {
-                        let (class_id, confidence) = match &slice_id {
-                            Some(ids) => (ids[[i, 0]] as usize, slice_clss[[i, 0]]),
-                            None => {
-                                let (class_id, &confidence) = slice_clss
-                                    .slice(s![i, ..])
-                                    .into_iter()
-                                    .enumerate()
-                                    .max_by(|a, b| a.1.total_cmp(b.1))?;
-                                match &slice_confs {
-                                    None => (class_id, confidence),
-                                    Some(slice_confs) => {
-                                        (class_id, confidence * slice_confs[[i, 0]])
-                                    }
-                                }
-                            }
-                        };
+                    .filter_map(f_bbox)
+                    .collect::<Vec<_>>()
+            } else {
+                slice_bboxes
+                    .axis_iter(Axis(0))
+                    .enumerate()
+                    .filter_map(f_bbox)
+                    .collect::<Vec<_>>()
+            };
 
-                        if confidence < self.confs[class_id] {
-                            return None;
-                        }
+            let mut y_hbbs = y_hbbs;
 
-                        let bbox = bbox.mapv(|x| x / ratio);
-                        let (cx, cy, w, h) = match self.layout.box_type()? {
-                            BoxType::Cxcywh => (bbox[0], bbox[1], bbox[2], bbox[3]),
-                            BoxType::Xyxy => {
-                                let (x, y, x2, y2) = (bbox[0], bbox[1], bbox[2], bbox[3]);
-                                ((x + x2) / 2., (y + y2) / 2., x2 - x, y2 - y)
-                            }
-                            _ => return None,
-                        };
-
-                        let x = (cx - w / 2.).max(0.);
-                        let y = (cy - h / 2.).max(0.);
-
-                        let mut hbb = Hbb::default()
-                            .with_xywh(x, y, w, h)
-                            .with_confidence(confidence)
-                            .with_id(class_id)
-                            .with_uid(i);
-                        if !self.names.is_empty() && class_id < self.names.len() {
-                            hbb = hbb.with_name(&self.names[class_id]);
-                        }
-                        Some(hbb)
-                    })
-                    .collect();
-
-                let mut y_hbbs = y_hbbs;
-                if !y_hbbs.is_empty() {
-                    if self.layout.apply_nms {
-                        y_hbbs.apply_nms_inplace(self.iou);
-                    }
-                    y = y.with_hbbs(&y_hbbs);
+            // Bboxes
+            if !y_hbbs.is_empty() {
+                if self.layout.apply_nms {
+                    y_hbbs.apply_nms_inplace(self.iou);
                 }
+                y = y.with_hbbs(&y_hbbs);
+            }
 
-                if let Some(coefs) = slice_coefs {
-                    if !y.hbbs().is_empty() {
-                        if let Some(proto) = protos.as_ref() {
-                            let proto_slice = proto.slice(s![idx, .., .., ..]);
-                            let coefs_2d = coefs.into_dimensionality::<ndarray::Ix2>().ok()?;
-                            let proto_3d =
-                                proto_slice.into_dimensionality::<ndarray::Ix3>().ok()?;
-                            let y_masks = YOLO::generate_masks(
-                                y.hbbs(),
-                                coefs_2d,
-                                proto_3d,
-                                image_width,
-                                image_height,
-                            );
-                            if !y_masks.is_empty() {
-                                y = y.with_masks(&y_masks);
-                            }
+            // InstanceSegmentation
+            if let Some(coefs) = slice_coefs {
+                if !y.hbbs().is_empty() {
+                    let protos = outputs.get::<f32>(1);
+                    if let Some(proto) = protos.as_ref() {
+                        let proto_slice = proto.slice(s![idx, .., .., ..]);
+                        let coefs_2d = coefs.into_dimensionality::<ndarray::Ix2>().ok()?;
+                        let proto_3d = proto_slice.into_dimensionality::<ndarray::Ix3>().ok()?;
+                        let y_masks = YOLO::generate_masks(
+                            y.hbbs(),
+                            coefs_2d,
+                            proto_3d,
+                            image_width,
+                            image_height,
+                        );
+                        if !y_masks.is_empty() {
+                            y = y.with_masks(&y_masks);
                         }
                     }
                 }
+            }
 
-                Some(y)
-            })
-            .collect();
+            Some(y)
+        };
+
+        let ys: Vec<Y> = if preds.len_of(Axis(0)) == 1 {
+            preds.axis_iter(Axis(0)).enumerate().filter_map(f).collect()
+        } else {
+            preds
+                .axis_iter(Axis(0))
+                .into_par_iter()
+                .enumerate()
+                .filter_map(f)
+                .collect()
+        };
 
         Ok(ys)
     }
+
+    // fn postprocess(&self, outputs: &Xs) -> Result<Vec<Y>> {
+    //     let preds = outputs
+    //         .get::<f32>(0)
+    //         .ok_or_else(|| anyhow::anyhow!("Failed to get predictions"))?;
+    //     let protos = outputs.get::<f32>(1);
+
+    //     let ys: Vec<Y> = preds
+    //         .axis_iter(Axis(0))
+    //         .into_par_iter()
+    //         .enumerate()
+    //         .filter_map(|(idx, pred)| {
+    //             let mut y = Y::default();
+
+    //             let (slice_bboxes, slice_id, slice_clss, slice_confs, _, slice_coefs, _) =
+    //                 self.layout.parse_preds(pred, self.nc);
+
+    //             let info = &self.processor.images_transform_info[idx];
+    //             let (image_height, image_width, ratio) =
+    //                 (info.height_src, info.width_src, info.height_scale);
+
+    //             let y_hbbs: Vec<Hbb> = slice_bboxes?
+    //                 .axis_iter(Axis(0))
+    //                 .into_par_iter()
+    //                 .enumerate()
+    //                 .filter_map(|(i, bbox)| {
+    //                     let (class_id, confidence) = match &slice_id {
+    //                         Some(ids) => (ids[[i, 0]] as usize, slice_clss[[i, 0]]),
+    //                         None => {
+    //                             let (class_id, &confidence) = slice_clss
+    //                                 .slice(s![i, ..])
+    //                                 .into_iter()
+    //                                 .enumerate()
+    //                                 .max_by(|a, b| a.1.total_cmp(b.1))?;
+    //                             match &slice_confs {
+    //                                 None => (class_id, confidence),
+    //                                 Some(slice_confs) => {
+    //                                     (class_id, confidence * slice_confs[[i, 0]])
+    //                                 }
+    //                             }
+    //                         }
+    //                     };
+
+    //                     if confidence < self.confs[class_id] {
+    //                         return None;
+    //                     }
+
+    //                     let bbox = bbox.mapv(|x| x / ratio);
+    //                     let (cx, cy, w, h) = match self.layout.box_type()? {
+    //                         BoxType::Cxcywh => (bbox[0], bbox[1], bbox[2], bbox[3]),
+    //                         BoxType::Xyxy => {
+    //                             let (x, y, x2, y2) = (bbox[0], bbox[1], bbox[2], bbox[3]);
+    //                             ((x + x2) / 2., (y + y2) / 2., x2 - x, y2 - y)
+    //                         }
+    //                         _ => return None,
+    //                     };
+
+    //                     let x = (cx - w / 2.).max(0.);
+    //                     let y = (cy - h / 2.).max(0.);
+
+    //                     let mut hbb = Hbb::default()
+    //                         .with_xywh(x, y, w, h)
+    //                         .with_confidence(confidence)
+    //                         .with_id(class_id)
+    //                         .with_uid(i);
+    //                     if !self.names.is_empty() && class_id < self.names.len() {
+    //                         hbb = hbb.with_name(&self.names[class_id]);
+    //                     }
+    //                     Some(hbb)
+    //                 })
+    //                 .collect();
+
+    //             let mut y_hbbs = y_hbbs;
+    //             if !y_hbbs.is_empty() {
+    //                 if self.layout.apply_nms {
+    //                     y_hbbs.apply_nms_inplace(self.iou);
+    //                 }
+    //                 y = y.with_hbbs(&y_hbbs);
+    //             }
+
+    //             if let Some(coefs) = slice_coefs {
+    //                 if !y.hbbs().is_empty() {
+    //                     if let Some(proto) = protos.as_ref() {
+    //                         let proto_slice = proto.slice(s![idx, .., .., ..]);
+    //                         let coefs_2d = coefs.into_dimensionality::<ndarray::Ix2>().ok()?;
+    //                         let proto_3d =
+    //                             proto_slice.into_dimensionality::<ndarray::Ix3>().ok()?;
+    //                         let y_masks = YOLO::generate_masks(
+    //                             y.hbbs(),
+    //                             coefs_2d,
+    //                             proto_3d,
+    //                             image_width,
+    //                             image_height,
+    //                         );
+    //                         if !y_masks.is_empty() {
+    //                             y = y.with_masks(&y_masks);
+    //                         }
+    //                     }
+    //                 }
+    //             }
+
+    //             Some(y)
+    //         })
+    //         .collect();
+
+    //     Ok(ys)
+    // }
 }
 
 impl Runtime<YOLOEPrompt> {

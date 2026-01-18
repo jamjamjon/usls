@@ -268,7 +268,8 @@ impl Engine {
 
             let outputs = match engine_inputs {
                 EngineInputs::ProcessedSlice(tensors) => {
-                    // XAny path: supports zero-copy CUDA
+                    // XAny path: supports zero-copy CUDA inputs
+                    // Note: CUDA outputs will be transferred to CPU in Xs::get_actual()
                     let inputs: Vec<SessionInputValue<'_>> =
                         elapsed_global!(&format!("[{}] ort_preprocessing", self.spec), {
                             let mut result = Vec::with_capacity(tensors.len());
@@ -289,7 +290,7 @@ impl Engine {
                                     }
                                     #[cfg(feature = "cuda-runtime")]
                                     XAny::Device(cuda_tensor) => {
-                                        // CUDA zero-copy path
+                                        // CUDA zero-copy input
                                         result.push(Self::cuda_tensor_to_ort(cuda_tensor, dtype)?);
                                     }
                                 }
@@ -360,18 +361,47 @@ impl Engine {
                             )
                         } else {
                             // Slow path: need dtype conversion
-                            let aligned =
-                                elapsed_global!(&format!("[{}] ort_preprocessing", self.spec), {
+                            let aligned: Vec<SessionInputValue<'v>> = elapsed_global!(
+                                &format!("[{}] ort_preprocessing", self.spec),
+                                {
                                     let mut xs_ = Vec::with_capacity(input_values.len());
-                                    for (input_value, dtype) in
+                                    for (input_value, dtype_expected) in
                                         input_values.into_iter().zip(self.inputs.dtypes.iter())
                                     {
-                                        // Extract view and convert dtype
+                                        let needs_convert = match input_value.dtype() {
+                                            ort::value::ValueType::Tensor { ty, .. } => {
+                                                *ty != *dtype_expected
+                                            }
+                                            _ => false,
+                                        };
+
+                                        if !needs_convert {
+                                            xs_.push(input_value);
+                                            continue;
+                                        }
+
+                                        // Only convert mismatched inputs. Note: extraction requires CPU-accessible memory.
+                                        if let Ok(tensor) = input_value
+                                            .downcast_ref::<ort::value::DynTensorValueType>(
+                                        ) {
+                                            let mem = tensor.memory_info();
+                                            if !mem.is_cpu_accessible() {
+                                                anyhow::bail!(
+                                                    "Cannot dtype-convert a non-CPU-accessible input (device={:?}, device_id={}). Consider providing this input on CPU or matching the model's expected dtype.",
+                                                    mem.allocation_device(),
+                                                    mem.device_id()
+                                                );
+                                            }
+                                        }
+
                                         let view = input_value.try_extract_array::<f32>()?;
-                                        xs_.push(Self::preprocess_view(&view, dtype)?.into());
+                                        xs_.push(
+                                            Self::preprocess_view(&view, dtype_expected)?.into(),
+                                        );
                                     }
                                     xs_
-                                });
+                                }
+                            );
 
                             elapsed_global!(
                                 &format!("[{}] ort_inference", self.spec),
@@ -397,17 +427,45 @@ impl Engine {
                             )
                         } else {
                             // Slow path: need dtype conversion
-                            let aligned =
-                                elapsed_global!(&format!("[{}] ort_preprocessing", self.spec), {
+                            let aligned: Vec<SessionInputValue<'i>> = elapsed_global!(
+                                &format!("[{}] ort_preprocessing", self.spec),
+                                {
                                     let mut xs_ = Vec::with_capacity(input_values.len());
-                                    for (input_value, dtype) in
+                                    for (input_value, dtype_expected) in
                                         input_values.iter().zip(self.inputs.dtypes.iter())
                                     {
+                                        let needs_convert = matches!(
+                                            input_value.dtype(),
+                                            ort::value::ValueType::Tensor { ty, .. } if *ty != *dtype_expected
+                                        );
+
+                                        if !needs_convert {
+                                            // Re-borrow without cloning underlying buffers.
+                                            xs_.push(SessionInputValue::from(&**input_value));
+                                            continue;
+                                        }
+
+                                        if let Ok(tensor) = input_value
+                                            .downcast_ref::<ort::value::DynTensorValueType>(
+                                        ) {
+                                            let mem = tensor.memory_info();
+                                            if !mem.is_cpu_accessible() {
+                                                anyhow::bail!(
+                                                    "Cannot dtype-convert a non-CPU-accessible input (device={:?}, device_id={}). Consider providing this input on CPU or matching the model's expected dtype.",
+                                                    mem.allocation_device(),
+                                                    mem.device_id()
+                                                );
+                                            }
+                                        }
+
                                         let view = input_value.try_extract_array::<f32>()?;
-                                        xs_.push(Self::preprocess_view(&view, dtype)?.into());
+                                        xs_.push(
+                                            Self::preprocess_view(&view, dtype_expected)?.into(),
+                                        );
                                     }
                                     xs_
-                                });
+                                }
+                            );
 
                             elapsed_global!(
                                 &format!("[{}] ort_inference", self.spec),

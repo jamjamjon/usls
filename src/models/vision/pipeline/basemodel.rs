@@ -36,7 +36,7 @@ impl BaseImageModel {
             "BaseImageModel",
             "inference",
             engines
-                .run(&Module::Model, inputs![xs]?)?
+                .run(&Module::Model, inputs![&xs]?)?
                 .get::<f32>(0)
                 .ok_or_else(|| anyhow::anyhow!("Failed to get output"))?
                 .to_owned()

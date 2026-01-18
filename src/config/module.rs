@@ -54,3 +54,17 @@ impl std::fmt::Display for Module {
         }
     }
 }
+
+impl Module {
+    /// Check if module directly processes image data and needs ImageProcessor device compatibility
+    pub fn is_vision(&self) -> bool {
+        matches!(
+            self,
+            Module::Model
+                | Module::Visual
+                | Module::VisualEncoder
+                | Module::VisualDecoder
+                | Module::VisualProjection
+        )
+    }
+}

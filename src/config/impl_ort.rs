@@ -17,9 +17,10 @@ macro_rules! impl_ort_for_modules {
             paste::paste! {
                 #[doc = "Set `" $field "` for the `" $module "` module."]
                 pub fn [<with_ $module:snake _ $field>](mut self, x: $ty) -> Self {
-                    if let Some(config) = self.modules.get_mut(&crate::Module::$module) {
-                        $setter(config, x);
-                    }
+                    let config = self.modules
+                        .entry(crate::Module::$module)
+                        .or_default();
+                    $setter(config, x);
                     self
                 }
             }
@@ -230,9 +231,10 @@ macro_rules! impl_file_for_modules {
             paste::paste! {
                 #[doc = "Set file path for the `" $module "` module."]
                 pub fn [<with_ $module:snake _file>](mut self, x: impl Into<String>) -> Self {
-                    if let Some(config) = self.modules.get_mut(&crate::Module::$module) {
-                        config.file = x.into();
-                    }
+                    self.modules
+                        .entry(crate::Module::$module)
+                        .or_default()
+                        .file = x.into();
                     self
                 }
             }

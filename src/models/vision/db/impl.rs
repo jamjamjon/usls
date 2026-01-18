@@ -70,7 +70,11 @@ impl Model for DB {
 
     fn run(&mut self, engines: &mut Engines, images: Self::Input<'_>) -> Result<Vec<Y>> {
         let x = elapsed_module!("DB", "preprocess", self.processor.process(images)?);
-        let ys = elapsed_module!("DB", "inference", engines.run(&Module::Model, inputs![x]?)?);
+        let ys = elapsed_module!(
+            "DB",
+            "inference",
+            engines.run(&Module::Model, inputs![&x]?)?
+        );
         elapsed_module!("DB", "postprocess", self.postprocess(&ys))
     }
 }

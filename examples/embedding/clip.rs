@@ -8,13 +8,21 @@ pub struct ClipArgs {
     #[arg(long, default_value = "mobileclip2-s0")]
     pub variant: String,
 
-    /// Dtype: fp32, fp16, q4f16, etc.
-    #[arg(long, default_value = "fp32")]
-    pub dtype: DType,
+    /// Visual Dtype: fp32, fp16, q4f16, etc.
+    #[arg(long, default_value = "fp16")]
+    pub visual_dtype: DType,
 
-    /// Device: cpu, cuda:0, mps, coreml, openvino:CPU, etc.
+    /// Visual Device: cpu, cuda:0, mps, coreml, openvino:CPU, etc.
     #[arg(long, global = true, default_value = "cpu")]
-    pub device: Device,
+    pub visual_device: Device,
+
+    /// Textual Dtype: fp32, fp16, q4f16, etc.
+    #[arg(long, default_value = "fp16")]
+    pub textual_dtype: DType,
+
+    /// Textual Device: cpu, cuda:0, mps, coreml, openvino:CPU, etc.
+    #[arg(long, global = true, default_value = "cpu")]
+    pub textual_device: Device,
 
     /// Processor device (for pre/post processing)
     #[arg(long, global = true, default_value = "cpu")]
@@ -56,8 +64,10 @@ pub fn config(args: &ClipArgs) -> Result<Config> {
         "mobileclip2-l14" => Config::mobileclip2_l14(),
         _ => anyhow::bail!("Unsupported CLIP variant: {}", args.variant),
     }
-    .with_dtype_all(args.dtype)
-    .with_device_all(args.device)
+    .with_visual_dtype(args.visual_dtype)
+    .with_visual_device(args.visual_device)
+    .with_textual_dtype(args.textual_dtype)
+    .with_textual_device(args.textual_device)
     .with_batch_size_min_opt_max_all(args.min_batch, args.batch, args.max_batch)
     .with_num_dry_run_all(args.num_dry_run)
     .with_image_processor_device(args.processor_device);

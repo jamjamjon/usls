@@ -18,8 +18,6 @@ use crate::{
 /// - `TextualEncoder`: Text encoder
 /// - `Encoder`: Geometry encoder
 /// - `Decoder`: Mask decoder
-///
-/// The engines are managed externally via `Engines` and passed to `run()`.
 #[derive(Builder, Debug)]
 pub struct Sam3Image {
     pub vision_batch: usize,
@@ -45,7 +43,7 @@ impl Sam3Image {
         let output = elapsed_module!(
             "Sam3Image",
             "vision-encoder",
-            engines.run(&Module::VisualEncoder, inputs![xs_]?)?
+            engines.run(&Module::VisualEncoder, inputs![&xs_]?)?
         );
 
         let xs_out = elapsed_module!(

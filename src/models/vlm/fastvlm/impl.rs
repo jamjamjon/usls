@@ -181,7 +181,7 @@ impl FastVLM {
 
     fn encode_image(&mut self, engines: &mut Engines, image: &Image) -> Result<X> {
         let xs = self.image_processor.process(&[image.clone()])?;
-        let output = engines.run(&Module::Visual, inputs![xs]?)?;
+        let output = engines.run(&Module::Visual, inputs![&xs]?)?;
         let x = output
             .get::<f32>(0)
             .ok_or_else(|| anyhow::anyhow!("Failed to get vision output"))?;
@@ -274,7 +274,7 @@ impl Model for FastVLM {
     fn encode_images(&mut self, engines: &mut Engines, images: &[Image]) -> Result<Y> {
         let xs = self.image_processor.process(images)?;
         self.batch = images.len();
-        let output = engines.run(&Module::Visual, inputs![xs]?)?;
+        let output = engines.run(&Module::Visual, inputs![&xs]?)?;
         let x = output
             .get::<f32>(0)
             .ok_or_else(|| anyhow::anyhow!("Failed to get vision output"))?;

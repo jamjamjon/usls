@@ -36,9 +36,30 @@ impl XCuda {
         }
     }
 
-    /// Get raw device pointer.
+    /// Get raw device pointer with stream synchronization.
+    ///
+    /// **Important**: This synchronizes the CUDA stream before returning the pointer,
+    /// ensuring all pending operations on the buffer are complete. This is necessary
+    /// when passing the pointer to external libraries (like ORT) that use different streams.
     #[inline]
     pub fn device_ptr(&self) -> *mut f32 {
+        // Synchronize to ensure all cudarc operations are complete
+        // before external code (ORT) accesses the buffer
+        self.stream
+            .synchronize()
+            .expect("CUDA stream synchronization failed in device_ptr");
+        // Get device pointer - the guard ensures sync but we already synced above
+        let (ptr, _guard) = self.buffer.device_ptr(&self.stream);
+        ptr as *mut f32
+    }
+
+    /// Get raw device pointer without synchronization.
+    ///
+    /// # Safety
+    /// Caller must ensure the CUDA stream is synchronized before using the pointer
+    /// with external libraries or different CUDA streams.
+    #[inline]
+    pub unsafe fn device_ptr_unsync(&self) -> *mut f32 {
         let (ptr, _guard) = self.buffer.device_ptr(&self.stream);
         ptr as *mut f32
     }

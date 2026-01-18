@@ -57,7 +57,7 @@ impl Model for Swin2SR {
                 let ys = elapsed_module!(
                     "Swin2SR",
                     "inference",
-                    engines.run(&Module::Model, inputs![x]?)?
+                    engines.run(&Module::Model, inputs![&x]?)?
                 );
                 elapsed_module!("Swin2SR", "postprocess", self.postprocess_one(&ys))
             })

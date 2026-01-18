@@ -71,7 +71,7 @@ impl Model for RFDETR {
         let ys = elapsed_module!(
             "RFDETR",
             "inference",
-            engines.run(&Module::Model, inputs![y]?)?
+            engines.run(&Module::Model, inputs![&y]?)?
         );
         elapsed_module!("RFDETR", "postprocess", self.postprocess(&ys))
     }
