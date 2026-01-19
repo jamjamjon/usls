@@ -189,8 +189,42 @@ cargo run -r --example yolo -- --help
 | [FastSAM](https://github.com/CASIA-IVA-Lab/FastSAM) | Instance Segmentation | [demo](./examples/image-segmentation) | ✅ | ✅ | ✅  | ✅  | ✅  | ✅  | ✅  |
 | [SAM2](https://github.com/facebookresearch/segment-anything-2) | Segment Anything | [demo](./examples/image-segmentation) | ✅ | ❓ | ✅ | ❌ | ❌  | ❌ | ❌ |  
 | [SAM3-Tracker](https://github.com/facebookresearch/segment-anything-3) | Segment Anything | [demo](./examples/image-segmentation) | ✅ | ✅ | ✅  | ✅  | ✅  | ✅  | ✅  |
+| [BiRefNet - COD](https://github.com/ZhengPeng7/BiRefNet) | Camouflaged Object Detection | [demo](./examples/birefnet) | ✅ | ❓ | ✅ | ✅ | ✅ | ✅ |  ✅ |
+| [BiRefNet - DIS](https://github.com/ZhengPeng7/BiRefNet) | Dichotomous Image Segmentation | [demo](./examples/birefnet) | ✅ | ❓ | ✅ | ✅ | ✅ | ✅ |  ✅ |
+| [BiRefNet - HRSOD](https://github.com/ZhengPeng7/BiRefNet) | High-Resolution Salient Object Detection | [demo](./examples/birefnet) | ✅ | ❓ | ✅ | ✅ | ✅ | ✅ |  ✅ |
+| [BiRefNet - Massive](https://github.com/ZhengPeng7/BiRefNet) | Multi-Dataset Robust Segmentation | [demo](./examples/birefnet) | ✅ | ❓ | ✅ | ✅ | ✅ | ✅ |  ✅ |
+
 
 </details>
+
+<details closed>
+<summary><b>✨ Background Removal</b></summary>
+
+| Model | Task / Description | Demo | Dynamic Batch | TensorRT | FP32 | FP16 | Q8 | Q4f16 | BNB4 |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| [RMBG](https://huggingface.co/briaai/RMBG-2.0) | Image Segmentation<br />Background Removal | [demo](./examples/background-removal) | ✅ | ❓ |✅  | ✅  | ✅  | ✅  | ✅  |
+| [BEN2](https://huggingface.co/PramaLLC/BEN2) | Image Segmentation<br />Background Removal | [demo](./examples/background-removal) | ✅ | ❓ |✅  | ✅  | ❌ | ❌ | ❌ |
+
+</details>
+
+<details closed>
+<summary><b>✂️ Image Matting & Portrait Segmentation</b></summary>
+
+| Model | Task / Description | Demo | Dynamic Batch | TensorRT | FP32 | FP16 | Q8 | Q4f16 | BNB4 |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| [MODNet](https://github.com/ZHKKKe/MODNet) | Image Matting | [demo](./examples/image-matting) | ✅ |  ❓ | ✅  | ✅  | ✅  | ❌  | ❌  |
+| [MediaPipe Selfie](https://ai.google.dev/edge/mediapipe/solutions/vision/image_segmenter) | Image Segmentation | [demo](./examples/image-matting) | ✅ |  ❓ | ✅  | ✅  | ✅  | ❌  | ❌  |
+| [BiRefNet - Portrait](https://github.com/ZhengPeng7/BiRefNet) | Portrait Background Removal | [demo](./examples/birefnet) | ✅ | ❓ | ✅ | ✅ | ✅ | ✅ |  ✅ |
+| [BiRefNet - Matting](https://github.com/ZhengPeng7/BiRefNet) | Portrait Matting & Background Removal | [demo](./examples/birefnet) | ✅ | ❓ | ✅ | ✅ | ✅ | ✅ |  ✅ |
+| [BiRefNet - HR Matting](https://github.com/ZhengPeng7/BiRefNet) | High-Resolution Portrait Matting | [demo](./examples/birefnet) | ✅ | ❓ | ✅ | ✅ | ✅ | ✅ |  ✅ |
+| [BiRefNet - General](https://github.com/ZhengPeng7/BiRefNet) | General Purpose Segmentation | [demo](./examples/birefnet) | ✅ | ❓ | ✅ | ✅ | ✅ | ✅ |  ✅ |
+| [BiRefNet - HR General](https://github.com/ZhengPeng7/BiRefNet) | High-Resolution General Segmentation | [demo](./examples/birefnet) | ✅ | ❓ | ✅ | ✅ | ✅ | ✅ |  ✅ |
+| [BiRefNet - Lite General](https://github.com/ZhengPeng7/BiRefNet) | Lightweight General Segmentation (2K) | [demo](./examples/birefnet) | ✅ | ❓ | ✅ | ✅ | ✅ | ✅ |  ✅ |
+| [BiRefNet - General Tiny](https://github.com/ZhengPeng7/BiRefNet) | Lightweight General Segmentation with Swin-V1-Tiny | [demo](./examples/birefnet) | ✅ | ❓ | ✅ | ✅ | ✅ | ✅ |  ✅ |
+
+</details>
+
+
 
 <details closed>
 <summary><b>🗺️ Open-Set Detection & Segmentation</b></summary>
@@ -208,15 +242,6 @@ cargo run -r --example yolo -- --help
 </details>
 
 
-<details closed>
-<summary><b>✨ Background Removal</b></summary>
-
-| Model | Task / Description | Demo | Dynamic Batch | TensorRT | FP32 | FP16 | Q8 | Q4f16 | BNB4 |
-| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| [RMBG](https://huggingface.co/briaai/RMBG-2.0) | Image Segmentation<br />Background Removal | [demo](./examples/background-removal) | ✅ | ❓ |✅  | ✅  | ✅  | ✅  | ✅  |
-| [BEN2](https://huggingface.co/PramaLLC/BEN2) | Image Segmentation<br />Background Removal | [demo](./examples/background-removal) | ✅ | ❓ |✅  | ✅  | ❌ | ❌ | ❌ |
-
-</details>
 
 <details closed>
 <summary><b>🏃 Multi-Object Tracking</b></summary>
@@ -226,7 +251,6 @@ cargo run -r --example yolo -- --help
 | [ByteTrack](https://github.com/FoundationVision/ByteTrack) | Multi-Object Tracking | [demo](./examples/mot) | ❌ | ❌  | ❌ | ❌ | ❌ | ❌ | ❌ |
 
 </details>
-
 
 
 <details closed>
@@ -239,15 +263,6 @@ cargo run -r --example yolo -- --help
 
 </details>
 
-<details closed>
-<summary><b>✂️ Image Matting</b></summary>
-
-| Model | Task / Description | Demo | Dynamic Batch | TensorRT | FP32 | FP16 | Q8 | Q4f16 | BNB4 |
-| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| [MODNet](https://github.com/ZHKKKe/MODNet) | Image Matting | [demo](./examples/image-matting) | ✅ |  ❓ | ✅  | ✅  | ✅  | ❌  | ❌  |
-| [MediaPipe Selfie](https://ai.google.dev/edge/mediapipe/solutions/vision/image_segmenter) | Image Segmentation | [demo](./examples/image-matting) | ✅ |  ❓ | ✅  | ✅  | ✅  | ❌  | ❌  |
-
-</details>
 
 <details closed>
 <summary><b>🤸 Pose Estimation</b></summary>

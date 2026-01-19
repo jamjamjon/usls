@@ -236,6 +236,11 @@ path = "examples/image-segmentation/main.rs"
 required-features = ["vision", "annotator"]
 
 [[example]]
+name = "birefnet"
+path = "examples/birefnet/main.rs"
+required-features = ["vision", "annotator"]
+
+[[example]]
 name = "pose-estimation"
 path = "examples/pose-estimation/main.rs"
 required-features = ["vision", "annotator"]

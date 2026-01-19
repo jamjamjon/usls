@@ -43,7 +43,11 @@ Standard arguments shared across all examples (see specific README.md for detail
 > **Help**: Run `cargo run --example <name> -- --help` for model-specific options.  
 
 > **Note**: Device support requires corresponding Cargo features. DType support depends on model. See [Model Zoo](../README.md#-model-zoo) for dtype support per model.
+>
 
+### TensorRT and TensorRT-RTX EP
+
+⚠️ When using TensorRT EP, setting `--dtype fp16` is unnecessary. Use `--dtype fp32` and TensorRT will automatically handle the FP32→FP16 conversion for optimal performance. 
 
 ### Flexible Device & Dtype Configuration
 
