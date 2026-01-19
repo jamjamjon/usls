@@ -318,7 +318,11 @@ impl Model for YOLO {
 
 impl YOLO {
     pub(crate) fn postprocess(&self, outputs: &Xs) -> Result<Vec<Y>> {
+        #[cfg(feature = "coreml")]
+        let use_rayon_for_candidates = true;
+        #[cfg(not(feature = "coreml"))]
         let use_rayon_for_candidates = !matches!(self.version.map(|v| v.0), Some(10 | 26));
+
         let preds = outputs
             .get::<f32>(0)
             .ok_or(anyhow::anyhow!("Failed to get the first output"))?;

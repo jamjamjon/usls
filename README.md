@@ -186,27 +186,18 @@ cargo run -r --example yolo -- --help
 | [SAM-HQ](https://github.com/SysCV/sam-hq) | Segment Anything | [demo](./examples/image-segmentation) | ✅ | ❓ | ✅ | ❌ | ❌ | ❌ | ❌ | 
 | [MobileSAM](https://github.com/ChaoningZhang/MobileSAM) | Segment Anything | [demo](./examples/image-segmentation) | ✅ |❓ | ✅ | ❌ | ❌ | ❌ | ❌ |  
 | [EdgeSAM](https://github.com/chongzhou96/EdgeSAM) | Segment Anything | [demo](./examples/image-segmentation) | ✅ | ❓ | ✅ | ❌ | ❌ | ❌ | ❌ | 
+| [YOLOE-v8/11-Prompt-Free](https://github.com/THU-MIG/yoloe) | Open-Set Detection And Segmentation | [demo](./examples/image-segmentation/yoloe_prompt_free) | ✅ | ✅ | ✅  | ✅  | ✅  | ✅  | ✅  |
+| [YOLOE-26-Prompt-Free](https://github.com/ultralytics/ultralytics) | Open-Set Detection And Segmentation | [demo](./examples/image-segmentation/yoloe_prompt_free) | ✅ | ✅ | ✅  | ✅  | ✅  | ✅  | ✅  |
 | [FastSAM](https://github.com/CASIA-IVA-Lab/FastSAM) | Instance Segmentation | [demo](./examples/image-segmentation) | ✅ | ✅ | ✅  | ✅  | ✅  | ✅  | ✅  |
 | [SAM2](https://github.com/facebookresearch/segment-anything-2) | Segment Anything | [demo](./examples/image-segmentation) | ✅ | ❓ | ✅ | ❌ | ❌  | ❌ | ❌ |  
 | [SAM3-Tracker](https://github.com/facebookresearch/segment-anything-3) | Segment Anything | [demo](./examples/image-segmentation) | ✅ | ✅ | ✅  | ✅  | ✅  | ✅  | ✅  |
+| [BiRefNet - COD](https://github.com/ZhengPeng7/BiRefNet) | Camouflaged Object Detection | [demo](./examples/birefnet) | ✅ | ❓ | ✅ | ✅ | ✅ | ✅ |  ✅ |
+| [BiRefNet - DIS](https://github.com/ZhengPeng7/BiRefNet) | Dichotomous Image Segmentation | [demo](./examples/birefnet) | ✅ | ❓ | ✅ | ✅ | ✅ | ✅ |  ✅ |
+| [BiRefNet - HRSOD](https://github.com/ZhengPeng7/BiRefNet) | High-Resolution Salient Object Detection | [demo](./examples/birefnet) | ✅ | ❓ | ✅ | ✅ | ✅ | ✅ |  ✅ |
+| [BiRefNet - Massive](https://github.com/ZhengPeng7/BiRefNet) | Multi-Dataset Robust Segmentation | [demo](./examples/birefnet) | ✅ | ❓ | ✅ | ✅ | ✅ | ✅ |  ✅ |
+
 
 </details>
-
-<details closed>
-<summary><b>🗺️ Open-Set Detection & Segmentation</b></summary>
-
-| Model | Task / Description | Demo | Dynamic Batch | TensorRT | FP32 | FP16 | Q8 | Q4f16 | BNB4 |
-| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| [GroundingDINO](https://github.com/IDEA-Research/GroundingDINO) | Open-Set Detection With Language | [demo](./examples/open-set-detection) | ✅ | ❓ | ✅  | ✅  | ✅  | ✅  | ✅  |
-| [MM-GDINO](https://github.com/open-mmlab/mmdetection/blob/main/configs/mm_grounding_dino/README.md) | Open-Set Detection With Language | [demo](./examples/open-set-detection) | ✅ | ❓ | ✅  | ✅  | ✅  | ✅  | ✅  |
-| [LLMDet](https://github.com/iSEE-Laboratory/LLMDet) | Open-Set Detection With Language | [demo](./examples/open-set-detection) | ✅ | ❓ | ✅  | ✅  | ✅  | ✅  | ✅  |
-| [OWLv2](https://huggingface.co/google/owlv2-base-patch16-ensemble) | Open-Set Object Detection | [demo](./examples/open-set-detection) | ✅ | ❓  | ✅ | ✅   | ❌ | ❌ | ❌ |
-| [YOLO-World](https://github.com/AILab-CVC/YOLO-World) | Open-Set Detection With Language | [demo](./examples/yolo) | ✅ | ✅ |✅  | ✅  | ✅  | ✅  | ✅  |
-| [YOLOE](https://github.com/THU-MIG/yoloe) | Open-Set Detection And Segmentation | [demo](./examples/open-set-segmentation) | ✅ | ✅ | ✅  | ✅  | ✅  | ✅  | ✅  |
-| [SAM3-Image](https://github.com/facebookresearch/segment-anything-3) | Open-Set Detection And Segmentation| [demo](./examples/open-set-segmentation) | ✅ | ✅ | ✅  | ✅  | ✅  | ✅  | ✅  |
-
-</details>
-
 
 <details closed>
 <summary><b>✨ Background Removal</b></summary>
@@ -219,6 +210,42 @@ cargo run -r --example yolo -- --help
 </details>
 
 <details closed>
+<summary><b>✂️ Image Matting & Portrait Segmentation</b></summary>
+
+| Model | Task / Description | Demo | Dynamic Batch | TensorRT | FP32 | FP16 | Q8 | Q4f16 | BNB4 |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| [MODNet](https://github.com/ZHKKKe/MODNet) | Image Matting | [demo](./examples/image-matting) | ✅ |  ❓ | ✅  | ✅  | ✅  | ❌  | ❌  |
+| [MediaPipe Selfie](https://ai.google.dev/edge/mediapipe/solutions/vision/image_segmenter) | Image Segmentation | [demo](./examples/image-matting) | ✅ |  ❓ | ✅  | ✅  | ✅  | ❌  | ❌  |
+| [BiRefNet - Portrait](https://github.com/ZhengPeng7/BiRefNet) | Portrait Background Removal | [demo](./examples/birefnet) | ✅ | ❓ | ✅ | ✅ | ✅ | ✅ |  ✅ |
+| [BiRefNet - Matting](https://github.com/ZhengPeng7/BiRefNet) | Portrait Matting & Background Removal | [demo](./examples/birefnet) | ✅ | ❓ | ✅ | ✅ | ✅ | ✅ |  ✅ |
+| [BiRefNet - HR Matting](https://github.com/ZhengPeng7/BiRefNet) | High-Resolution Portrait Matting | [demo](./examples/birefnet) | ✅ | ❓ | ✅ | ✅ | ✅ | ✅ |  ✅ |
+| [BiRefNet - General](https://github.com/ZhengPeng7/BiRefNet) | General Purpose Segmentation | [demo](./examples/birefnet) | ✅ | ❓ | ✅ | ✅ | ✅ | ✅ |  ✅ |
+| [BiRefNet - HR General](https://github.com/ZhengPeng7/BiRefNet) | High-Resolution General Segmentation | [demo](./examples/birefnet) | ✅ | ❓ | ✅ | ✅ | ✅ | ✅ |  ✅ |
+| [BiRefNet - Lite General](https://github.com/ZhengPeng7/BiRefNet) | Lightweight General Segmentation (2K) | [demo](./examples/birefnet) | ✅ | ❓ | ✅ | ✅ | ✅ | ✅ |  ✅ |
+| [BiRefNet - General Tiny](https://github.com/ZhengPeng7/BiRefNet) | Lightweight General Segmentation with Swin-V1-Tiny | [demo](./examples/birefnet) | ✅ | ❓ | ✅ | ✅ | ✅ | ✅ |  ✅ |
+
+</details>
+
+
+
+<details closed>
+<summary><b>🗺️ Open-Set Detection & Segmentation</b></summary>
+
+| Model | Task / Description | Demo | Dynamic Batch | TensorRT | FP32 | FP16 | Q8 | Q4f16 | BNB4 |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| [GroundingDINO](https://github.com/IDEA-Research/GroundingDINO) | Open-Set Detection With Language | [demo](./examples/open-set-detection) | ✅ | ❓ | ✅  | ✅  | ✅  | ✅  | ✅  |
+| [MM-GDINO](https://github.com/open-mmlab/mmdetection/blob/main/configs/mm_grounding_dino/README.md) | Open-Set Detection With Language | [demo](./examples/open-set-detection) | ✅ | ❓ | ✅  | ✅  | ✅  | ✅  | ✅  |
+| [LLMDet](https://github.com/iSEE-Laboratory/LLMDet) | Open-Set Detection With Language | [demo](./examples/open-set-detection) | ✅ | ❓ | ✅  | ✅  | ✅  | ✅  | ✅  |
+| [OWLv2](https://huggingface.co/google/owlv2-base-patch16-ensemble) | Open-Set Object Detection | [demo](./examples/open-set-detection) | ✅ | ❓  | ✅ | ✅   | ❌ | ❌ | ❌ |
+| [YOLO-World](https://github.com/AILab-CVC/YOLO-World) | Open-Set Detection With Language | [demo](./examples/yolo) | ✅ | ✅ |✅  | ✅  | ✅  | ✅  | ✅  |
+| [YOLOE-Prompt-Based](https://github.com/THU-MIG/yoloe) | Open-Set Detection And Segmentation | [demo](./examples/open-set-segmentation) | ✅ | ✅ | ✅  | ✅  | ✅  | ✅  | ✅  |
+| [SAM3-Image](https://github.com/facebookresearch/segment-anything-3) | Open-Set Detection And Segmentation| [demo](./examples/open-set-segmentation) | ✅ | ✅ | ✅  | ✅  | ✅  | ✅  | ✅  |
+
+</details>
+
+
+
+<details closed>
 <summary><b>🏃 Multi-Object Tracking</b></summary>
 
 | Model | Task / Description | Demo | Dynamic Batch | TensorRT | FP32 | FP16 | Q8 | Q4f16 | BNB4 |
@@ -226,7 +253,6 @@ cargo run -r --example yolo -- --help
 | [ByteTrack](https://github.com/FoundationVision/ByteTrack) | Multi-Object Tracking | [demo](./examples/mot) | ❌ | ❌  | ❌ | ❌ | ❌ | ❌ | ❌ |
 
 </details>
-
 
 
 <details closed>
@@ -239,15 +265,6 @@ cargo run -r --example yolo -- --help
 
 </details>
 
-<details closed>
-<summary><b>✂️ Image Matting</b></summary>
-
-| Model | Task / Description | Demo | Dynamic Batch | TensorRT | FP32 | FP16 | Q8 | Q4f16 | BNB4 |
-| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| [MODNet](https://github.com/ZHKKKe/MODNet) | Image Matting | [demo](./examples/image-matting) | ✅ |  ❓ | ✅  | ✅  | ✅  | ❌  | ❌  |
-| [MediaPipe Selfie](https://ai.google.dev/edge/mediapipe/solutions/vision/image_segmenter) | Image Segmentation | [demo](./examples/image-matting) | ✅ |  ❓ | ✅  | ✅  | ✅  | ❌  | ❌  |
-
-</details>
 
 <details closed>
 <summary><b>🤸 Pose Estimation</b></summary>

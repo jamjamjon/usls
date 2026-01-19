@@ -321,6 +321,9 @@ impl YOLOEPrompt {
             .get::<f32>(0)
             .ok_or(anyhow::anyhow!("Failed to get the first output"))?;
 
+        #[cfg(feature = "coreml")]
+        let use_rayon_for_candidates = true;
+        #[cfg(not(feature = "coreml"))]
         let use_rayon_for_candidates = !matches!(self.version.map(|v| v.0), Some(10 | 26));
 
         let f = |(idx, pred): (usize, _)| -> Option<Y> {
@@ -482,113 +485,6 @@ impl YOLOEPrompt {
 
         Ok(ys)
     }
-
-    // fn postprocess(&self, outputs: &Xs) -> Result<Vec<Y>> {
-    //     let preds = outputs
-    //         .get::<f32>(0)
-    //         .ok_or_else(|| anyhow::anyhow!("Failed to get predictions"))?;
-    //     let protos = outputs.get::<f32>(1);
-
-    //     let ys: Vec<Y> = preds
-    //         .axis_iter(Axis(0))
-    //         .into_par_iter()
-    //         .enumerate()
-    //         .filter_map(|(idx, pred)| {
-    //             let mut y = Y::default();
-
-    //             let (slice_bboxes, slice_id, slice_clss, slice_confs, _, slice_coefs, _) =
-    //                 self.layout.parse_preds(pred, self.nc);
-
-    //             let info = &self.processor.images_transform_info[idx];
-    //             let (image_height, image_width, ratio) =
-    //                 (info.height_src, info.width_src, info.height_scale);
-
-    //             let y_hbbs: Vec<Hbb> = slice_bboxes?
-    //                 .axis_iter(Axis(0))
-    //                 .into_par_iter()
-    //                 .enumerate()
-    //                 .filter_map(|(i, bbox)| {
-    //                     let (class_id, confidence) = match &slice_id {
-    //                         Some(ids) => (ids[[i, 0]] as usize, slice_clss[[i, 0]]),
-    //                         None => {
-    //                             let (class_id, &confidence) = slice_clss
-    //                                 .slice(s![i, ..])
-    //                                 .into_iter()
-    //                                 .enumerate()
-    //                                 .max_by(|a, b| a.1.total_cmp(b.1))?;
-    //                             match &slice_confs {
-    //                                 None => (class_id, confidence),
-    //                                 Some(slice_confs) => {
-    //                                     (class_id, confidence * slice_confs[[i, 0]])
-    //                                 }
-    //                             }
-    //                         }
-    //                     };
-
-    //                     if confidence < self.confs[class_id] {
-    //                         return None;
-    //                     }
-
-    //                     let bbox = bbox.mapv(|x| x / ratio);
-    //                     let (cx, cy, w, h) = match self.layout.box_type()? {
-    //                         BoxType::Cxcywh => (bbox[0], bbox[1], bbox[2], bbox[3]),
-    //                         BoxType::Xyxy => {
-    //                             let (x, y, x2, y2) = (bbox[0], bbox[1], bbox[2], bbox[3]);
-    //                             ((x + x2) / 2., (y + y2) / 2., x2 - x, y2 - y)
-    //                         }
-    //                         _ => return None,
-    //                     };
-
-    //                     let x = (cx - w / 2.).max(0.);
-    //                     let y = (cy - h / 2.).max(0.);
-
-    //                     let mut hbb = Hbb::default()
-    //                         .with_xywh(x, y, w, h)
-    //                         .with_confidence(confidence)
-    //                         .with_id(class_id)
-    //                         .with_uid(i);
-    //                     if !self.names.is_empty() && class_id < self.names.len() {
-    //                         hbb = hbb.with_name(&self.names[class_id]);
-    //                     }
-    //                     Some(hbb)
-    //                 })
-    //                 .collect();
-
-    //             let mut y_hbbs = y_hbbs;
-    //             if !y_hbbs.is_empty() {
-    //                 if self.layout.apply_nms {
-    //                     y_hbbs.apply_nms_inplace(self.iou);
-    //                 }
-    //                 y = y.with_hbbs(&y_hbbs);
-    //             }
-
-    //             if let Some(coefs) = slice_coefs {
-    //                 if !y.hbbs().is_empty() {
-    //                     if let Some(proto) = protos.as_ref() {
-    //                         let proto_slice = proto.slice(s![idx, .., .., ..]);
-    //                         let coefs_2d = coefs.into_dimensionality::<ndarray::Ix2>().ok()?;
-    //                         let proto_3d =
-    //                             proto_slice.into_dimensionality::<ndarray::Ix3>().ok()?;
-    //                         let y_masks = YOLO::generate_masks(
-    //                             y.hbbs(),
-    //                             coefs_2d,
-    //                             proto_3d,
-    //                             image_width,
-    //                             image_height,
-    //                         );
-    //                         if !y_masks.is_empty() {
-    //                             y = y.with_masks(&y_masks);
-    //                         }
-    //                     }
-    //                 }
-    //             }
-
-    //             Some(y)
-    //         })
-    //         .collect();
-
-    //     Ok(ys)
-    // }
 }
 
 impl Runtime<YOLOEPrompt> {

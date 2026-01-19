@@ -10,7 +10,7 @@ use crate::{
 
 /// MODNet: Trimap-Free Portrait Matting in Real Time
 #[derive(Builder, Debug)]
-pub struct MODNet {
+pub struct BiRefNet {
     pub height: usize,
     pub width: usize,
     pub batch: usize,
@@ -18,7 +18,7 @@ pub struct MODNet {
     pub processor: ImageProcessor,
 }
 
-impl Model for MODNet {
+impl Model for BiRefNet {
     type Input<'a> = &'a [Image];
 
     fn batch(&self) -> usize {
@@ -54,17 +54,17 @@ impl Model for MODNet {
     }
 
     fn run(&mut self, engines: &mut Engines, images: Self::Input<'_>) -> Result<Vec<Y>> {
-        let x = elapsed_module!("MODNet", "preprocess", self.processor.process(images)?);
+        let x = elapsed_module!("BiRefNet", "preprocess", self.processor.process(images)?);
         let ys = elapsed_module!(
-            "MODNet",
+            "BiRefNet",
             "inference",
             engines.run(&Module::Model, inputs![&x]?)?
         );
-        elapsed_module!("MODNet", "postprocess", self.postprocess(&ys))
+        elapsed_module!("BiRefNet", "postprocess", self.postprocess(&ys))
     }
 }
 
-impl MODNet {
+impl BiRefNet {
     fn postprocess(&self, outputs: &Xs) -> Result<Vec<Y>> {
         let xs = outputs
             .get::<f32>(0)
@@ -76,8 +76,7 @@ impl MODNet {
             .filter_map(|(idx, luma)| {
                 let info = &self.processor.images_transform_info[idx];
                 let (h1, w1) = (info.height_src, info.width_src);
-
-                let luma = luma.mapv(|x| (x * 255.0) as u8);
+                let luma = luma.mapv(|x| (1. / ((-x).exp() + 1.) * 255.0) as u8);
                 let luma = Ops::resize_luma8_u8(
                     &luma.into_raw_vec_and_offset().0,
                     self.width as _,

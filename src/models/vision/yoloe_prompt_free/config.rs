@@ -8,6 +8,7 @@ use crate::{Config, ResizeFilter, Scale, Task, Version, NAMES_YOLOE_4585};
 /// > # Paper & Code
 /// >
 /// > - **GitHub**: [THU-MIG/yoloe](https://github.com/THU-MIG/yoloe)
+/// > - **GitHub**: [ultralytics/YOLOE-26](https://github.com/ultralytics/ultralytics)
 /// >
 /// > # Model Variants
 /// >
@@ -17,6 +18,11 @@ use crate::{Config, ResizeFilter, Scale, Task, Version, NAMES_YOLOE_4585};
 /// > - **yoloe-11s-seg-pf**: YOLOE 11 small prompt-free segmentation
 /// > - **yoloe-11m-seg-pf**: YOLOE 11 medium prompt-free segmentation
 /// > - **yoloe-11l-seg-pf**: YOLOE 11 large prompt-free segmentation
+/// > - **yoloe-26n-seg-pf**: YOLOE 26 small prompt-free segmentation
+/// > - **yoloe-26s-seg-pf**: YOLOE 26 medium prompt-free segmentation
+/// > - **yoloe-26m-seg-pf**: YOLOE 26 large prompt-free segmentation
+/// > - **yoloe-26l-seg-pf**: YOLOE 26 extra large prompt-free segmentation
+/// > - **yoloe-26x-seg-pf**: YOLOE 26 extra extra large prompt-free segmentation
 /// >
 /// > # Implemented Features / Tasks
 /// >
@@ -94,5 +100,45 @@ impl Config {
             .with_version(Version::from(11))
             .with_scale(Scale::L)
             .with_model_file("yoloe-11l-seg-pf.onnx")
+    }
+
+    /// YOLOE 26 small prompt-free segmentation
+    pub fn yoloe_26n_seg_pf() -> Self {
+        Self::yoloe_seg_pf()
+            .with_version(Version::from(26))
+            .with_scale(Scale::N)
+            .with_model_file("yoloe-26n-seg-pf.onnx")
+    }
+
+    /// YOLOE 26 medium prompt-free segmentation
+    pub fn yoloe_26s_seg_pf() -> Self {
+        Self::yoloe_seg_pf()
+            .with_version(Version::from(26))
+            .with_scale(Scale::S)
+            .with_model_file("yoloe-26s-seg-pf.onnx")
+    }
+
+    /// YOLOE 26 medium prompt-free segmentation
+    pub fn yoloe_26m_seg_pf() -> Self {
+        Self::yoloe_seg_pf()
+            .with_version(Version::from(26))
+            .with_scale(Scale::M)
+            .with_model_file("yoloe-26m-seg-pf.onnx")
+    }
+
+    /// YOLOE 26 large prompt-free segmentation
+    pub fn yoloe_26l_seg_pf() -> Self {
+        Self::yoloe_seg_pf()
+            .with_version(Version::from(26))
+            .with_scale(Scale::L)
+            .with_model_file("yoloe-26l-seg-pf.onnx")
+    }
+
+    /// YOLOE 26 extra large prompt-free segmentation
+    pub fn yoloe_26x_seg_pf() -> Self {
+        Self::yoloe_seg_pf()
+            .with_version(Version::from(26))
+            .with_scale(Scale::X)
+            .with_model_file("yoloe-26x-seg-pf.onnx")
     }
 }

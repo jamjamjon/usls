@@ -88,6 +88,41 @@ impl Config {
             .with_model_file("yoloe-11l-seg-prompt.onnx")
     }
 
+    pub fn yoloe_26n_seg_tp() -> Self {
+        Self::yoloe_seg_tp()
+            .with_version(Version::from(26))
+            .with_scale(Scale::N)
+            .with_model_file("yoloe-26n-seg-prompt.onnx")
+    }
+
+    pub fn yoloe_26s_seg_tp() -> Self {
+        Self::yoloe_seg_tp()
+            .with_version(Version::from(26))
+            .with_scale(Scale::S)
+            .with_model_file("yoloe-26s-seg-prompt.onnx")
+    }
+
+    pub fn yoloe_26m_seg_tp() -> Self {
+        Self::yoloe_seg_tp()
+            .with_version(Version::from(26))
+            .with_scale(Scale::M)
+            .with_model_file("yoloe-26m-seg-prompt.onnx")
+    }
+
+    pub fn yoloe_26l_seg_tp() -> Self {
+        Self::yoloe_seg_tp()
+            .with_version(Version::from(26))
+            .with_scale(Scale::L)
+            .with_model_file("yoloe-26l-seg-prompt.onnx")
+    }
+
+    pub fn yoloe_26x_seg_tp() -> Self {
+        Self::yoloe_seg_tp()
+            .with_version(Version::from(26))
+            .with_scale(Scale::X)
+            .with_model_file("yoloe-26x-seg-prompt.onnx")
+    }
+
     /// Base configuration for YOLOE visual-prompt segmentation
     fn yoloe_seg_vp() -> Self {
         Self::yoloe()
@@ -160,5 +195,45 @@ impl Config {
             .with_scale(Scale::L)
             .with_visual_encoder_file("yoloe-11l-savpe.onnx")
             .with_model_file("yoloe-11l-seg-prompt.onnx")
+    }
+
+    pub fn yoloe_26n_seg_vp() -> Self {
+        Self::yoloe_seg_vp()
+            .with_version(Version::from(26))
+            .with_scale(Scale::N)
+            .with_visual_encoder_file("yoloe-26n-savpe.onnx")
+            .with_model_file("yoloe-26n-seg-prompt.onnx")
+    }
+
+    pub fn yoloe_26s_seg_vp() -> Self {
+        Self::yoloe_seg_vp()
+            .with_version(Version::from(26))
+            .with_scale(Scale::S)
+            .with_visual_encoder_file("yoloe-26s-savpe.onnx")
+            .with_model_file("yoloe-26s-seg-prompt.onnx")
+    }
+
+    pub fn yoloe_26m_seg_vp() -> Self {
+        Self::yoloe_seg_vp()
+            .with_version(Version::from(26))
+            .with_scale(Scale::M)
+            .with_visual_encoder_file("yoloe-26m-savpe.onnx")
+            .with_model_file("yoloe-26m-seg-prompt.onnx")
+    }
+
+    pub fn yoloe_26l_seg_vp() -> Self {
+        Self::yoloe_seg_vp()
+            .with_version(Version::from(26))
+            .with_scale(Scale::L)
+            .with_visual_encoder_file("yoloe-26l-savpe.onnx")
+            .with_model_file("yoloe-26l-seg-prompt.onnx")
+    }
+
+    pub fn yoloe_26x_seg_vp() -> Self {
+        Self::yoloe_seg_vp()
+            .with_version(Version::from(26))
+            .with_scale(Scale::X)
+            .with_visual_encoder_file("yoloe-26x-savpe.onnx")
+            .with_model_file("yoloe-26x-seg-prompt.onnx")
     }
 }

@@ -70,6 +70,7 @@ mod svtr;
 
 // Background Removal / Matting
 mod ben2;
+mod birefnet;
 mod modnet;
 mod rmbg;
 
@@ -84,6 +85,7 @@ mod slanet;
 pub use apisr::*;
 pub use beit::*;
 pub use ben2::*;
+pub use birefnet::*;
 pub use convnext::*;
 pub use d_fine::*;
 pub use db::*;
