@@ -186,6 +186,8 @@ cargo run -r --example yolo -- --help
 | [SAM-HQ](https://github.com/SysCV/sam-hq) | Segment Anything | [demo](./examples/image-segmentation) | ✅ | ❓ | ✅ | ❌ | ❌ | ❌ | ❌ | 
 | [MobileSAM](https://github.com/ChaoningZhang/MobileSAM) | Segment Anything | [demo](./examples/image-segmentation) | ✅ |❓ | ✅ | ❌ | ❌ | ❌ | ❌ |  
 | [EdgeSAM](https://github.com/chongzhou96/EdgeSAM) | Segment Anything | [demo](./examples/image-segmentation) | ✅ | ❓ | ✅ | ❌ | ❌ | ❌ | ❌ | 
+| [YOLOE-v8/11-Prompt-Free](https://github.com/THU-MIG/yoloe) | Open-Set Detection And Segmentation | [demo](./examples/image-segmentation/yoloe_prompt_free) | ✅ | ✅ | ✅  | ✅  | ✅  | ✅  | ✅  |
+| [YOLOE-26-Prompt-Free](https://github.com/ultralytics/ultralytics) | Open-Set Detection And Segmentation | [demo](./examples/image-segmentation/yoloe_prompt_free) | ✅ | ✅ | ✅  | ✅  | ✅  | ✅  | ✅  |
 | [FastSAM](https://github.com/CASIA-IVA-Lab/FastSAM) | Instance Segmentation | [demo](./examples/image-segmentation) | ✅ | ✅ | ✅  | ✅  | ✅  | ✅  | ✅  |
 | [SAM2](https://github.com/facebookresearch/segment-anything-2) | Segment Anything | [demo](./examples/image-segmentation) | ✅ | ❓ | ✅ | ❌ | ❌  | ❌ | ❌ |  
 | [SAM3-Tracker](https://github.com/facebookresearch/segment-anything-3) | Segment Anything | [demo](./examples/image-segmentation) | ✅ | ✅ | ✅  | ✅  | ✅  | ✅  | ✅  |
@@ -236,7 +238,7 @@ cargo run -r --example yolo -- --help
 | [LLMDet](https://github.com/iSEE-Laboratory/LLMDet) | Open-Set Detection With Language | [demo](./examples/open-set-detection) | ✅ | ❓ | ✅  | ✅  | ✅  | ✅  | ✅  |
 | [OWLv2](https://huggingface.co/google/owlv2-base-patch16-ensemble) | Open-Set Object Detection | [demo](./examples/open-set-detection) | ✅ | ❓  | ✅ | ✅   | ❌ | ❌ | ❌ |
 | [YOLO-World](https://github.com/AILab-CVC/YOLO-World) | Open-Set Detection With Language | [demo](./examples/yolo) | ✅ | ✅ |✅  | ✅  | ✅  | ✅  | ✅  |
-| [YOLOE](https://github.com/THU-MIG/yoloe) | Open-Set Detection And Segmentation | [demo](./examples/open-set-segmentation) | ✅ | ✅ | ✅  | ✅  | ✅  | ✅  | ✅  |
+| [YOLOE-Prompt-Based](https://github.com/THU-MIG/yoloe) | Open-Set Detection And Segmentation | [demo](./examples/open-set-segmentation) | ✅ | ✅ | ✅  | ✅  | ✅  | ✅  | ✅  |
 | [SAM3-Image](https://github.com/facebookresearch/segment-anything-3) | Open-Set Detection And Segmentation| [demo](./examples/open-set-segmentation) | ✅ | ✅ | ✅  | ✅  | ✅  | ✅  | ✅  |
 
 </details>

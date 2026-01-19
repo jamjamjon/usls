@@ -637,7 +637,7 @@ impl Engine {
                 #[cfg(feature = "tensorrt")]
                 {
                     let (spec_min, spec_opt, spec_max) =
-                        Self::generate_shape_specs(&inputs.names, &inputs_minoptmax)?;
+                        Self::generate_shape_specs(&inputs.names, inputs_minoptmax)?;
                     let cache_path =
                         crate::Dir::Cache.crate_dir_default_with_subs(&["caches", "tensorrt"])?;
 
@@ -664,7 +664,7 @@ impl Engine {
                                 "Initial model serialization with TensorRT may require a wait..."
                             );
                             ep.register(&mut builder).map_err(|err| {
-                                anyhow::anyhow!("Failed to register TensorRT: {}", err)
+                                anyhow::anyhow!("Failed to register TensorRT: {err}")
                             })?;
                         }
                         _ => {
@@ -692,9 +692,8 @@ impl Engine {
                         .with_cuda_graph(config.ep.cuda.cuda_graph);
                     match ep.is_available() {
                         Ok(true) => {
-                            ep.register(&mut builder).map_err(|err| {
-                                anyhow::anyhow!("Failed to register CUDA: {}", err)
-                            })?;
+                            ep.register(&mut builder)
+                                .map_err(|err| anyhow::anyhow!("Failed to register CUDA: {err}"))?;
                         }
                         _ => anyhow::bail!(compile_help.replace("#EP", "CUDA")),
                     }
@@ -710,7 +709,7 @@ impl Engine {
                 #[cfg(feature = "coreml")]
                 {
                     use ort::execution_providers::coreml::{
-                        CoreMLComputeUnits, CoreMLModelFormat, CoreMLSpecializationStrategy,
+                        ComputeUnits, ModelFormat, SpecializationStrategy,
                     };
 
                     let ep = ort::execution_providers::CoreMLExecutionProvider::default()
@@ -722,28 +721,28 @@ impl Engine {
                         .with_static_input_shapes(config.ep.coreml.static_input_shapes)
                         .with_subgraphs(config.ep.coreml.subgraph_running)
                         .with_compute_units(match config.ep.coreml.compute_units {
-                            0 => CoreMLComputeUnits::All,
-                            1 => CoreMLComputeUnits::CPUAndGPU,
-                            2 => CoreMLComputeUnits::CPUAndNeuralEngine,
-                            3 => CoreMLComputeUnits::CPUOnly,
-                            _ => CoreMLComputeUnits::All,
+                            0 => ComputeUnits::All,
+                            1 => ComputeUnits::CPUAndGPU,
+                            2 => ComputeUnits::CPUAndNeuralEngine,
+                            3 => ComputeUnits::CPUOnly,
+                            _ => ComputeUnits::All,
                         })
                         .with_model_format(match config.ep.coreml.model_format {
-                            0 => CoreMLModelFormat::MLProgram,
-                            1 => CoreMLModelFormat::NeuralNetwork,
-                            _ => CoreMLModelFormat::MLProgram,
+                            0 => ModelFormat::MLProgram,
+                            1 => ModelFormat::NeuralNetwork,
+                            _ => ModelFormat::MLProgram,
                         })
                         .with_specialization_strategy(
                             match config.ep.coreml.specialization_strategy {
-                                1 => CoreMLSpecializationStrategy::FastPrediction,
-                                _ => CoreMLSpecializationStrategy::Default,
+                                1 => SpecializationStrategy::FastPrediction,
+                                _ => SpecializationStrategy::Default,
                             },
                         );
 
                     match ep.is_available() {
                         Ok(true) => {
                             ep.register(&mut builder).map_err(|err| {
-                                anyhow::anyhow!("Failed to register CoreML: {}", err)
+                                anyhow::anyhow!("Failed to register CoreML: {err}")
                             })?;
                         }
                         _ => anyhow::bail!(compile_help.replace("#EP", "CoreML")),
@@ -764,7 +763,7 @@ impl Engine {
                     match ep.is_available() {
                         Ok(true) => {
                             ep.register(&mut builder).map_err(|err| {
-                                anyhow::anyhow!("Failed to register DirectML: {}", err)
+                                anyhow::anyhow!("Failed to register DirectML: {err}")
                             })?;
                         }
                         _ => anyhow::bail!(compile_help.replace("#EP", "DirectML")),
@@ -782,13 +781,7 @@ impl Engine {
                 {
                     let ep = ort::execution_providers::OpenVINOExecutionProvider::default()
                         .with_device_type(dt)
-                        .with_num_threads(
-                            config
-                                .ep
-                                .openvino
-                                .num_threads
-                                .unwrap_or(n_threads_available),
-                        )
+                        .with_num_threads(config.ep.openvino.num_threads)
                         .with_dynamic_shapes(config.ep.openvino.dynamic_shapes)
                         .with_opencl_throttling(config.ep.openvino.opencl_throttling)
                         .with_qdq_optimizer(config.ep.openvino.qdq_optimizer)
@@ -801,7 +794,7 @@ impl Engine {
                     match ep.is_available() {
                         Ok(true) => {
                             ep.register(&mut builder).map_err(|err| {
-                                anyhow::anyhow!("Failed to register OpenVINO: {}", err)
+                                anyhow::anyhow!("Failed to register OpenVINO: {err}")
                             })?;
                         }
                         _ => anyhow::bail!(compile_help.replace("#EP", "OpenVINO")),
@@ -822,7 +815,7 @@ impl Engine {
                     match ep.is_available() {
                         Ok(true) => {
                             ep.register(&mut builder).map_err(|err| {
-                                anyhow::anyhow!("Failed to register oneDNN: {}", err)
+                                anyhow::anyhow!("Failed to register oneDNN: {err}")
                             })?;
                         }
                         _ => anyhow::bail!(compile_help.replace("#EP", "oneDNN")),
@@ -846,9 +839,8 @@ impl Engine {
 
                     match ep.is_available() {
                         Ok(true) => {
-                            ep.register(&mut builder).map_err(|err| {
-                                anyhow::anyhow!("Failed to register CANN: {}", err)
-                            })?;
+                            ep.register(&mut builder)
+                                .map_err(|err| anyhow::anyhow!("Failed to register CANN: {err}"))?;
                         }
                         _ => anyhow::bail!(compile_help.replace("#EP", "CANN")),
                     }
@@ -867,9 +859,8 @@ impl Engine {
                         .with_device_id(id as i32);
                     match ep.is_available() {
                         Ok(true) => {
-                            ep.register(&mut builder).map_err(|err| {
-                                anyhow::anyhow!("Failed to register QNN: {}", err)
-                            })?;
+                            ep.register(&mut builder)
+                                .map_err(|err| anyhow::anyhow!("Failed to register QNN: {err}"))?;
                         }
                         _ => anyhow::bail!(compile_help.replace("#EP", "QNN")),
                     }
@@ -892,7 +883,7 @@ impl Engine {
                     match ep.is_available() {
                         Ok(true) => {
                             ep.register(&mut builder).map_err(|err| {
-                                anyhow::anyhow!("Failed to register MiGraphX: {}", err)
+                                anyhow::anyhow!("Failed to register MiGraphX: {err}")
                             })?;
                         }
                         _ => anyhow::bail!(compile_help.replace("#EP", "MiGraphX")),
@@ -912,7 +903,7 @@ impl Engine {
                     match ep.is_available() {
                         Ok(true) => {
                             ep.register(&mut builder).map_err(|err| {
-                                anyhow::anyhow!("Failed to register XNNPACK: {}", err)
+                                anyhow::anyhow!("Failed to register XNNPACK: {err}")
                             })?;
                         }
                         _ => anyhow::bail!(compile_help.replace("#EP", "XNNPACK")),
@@ -932,7 +923,7 @@ impl Engine {
                     match ep.is_available() {
                         Ok(true) => {
                             ep.register(&mut builder).map_err(|err| {
-                                anyhow::anyhow!("Failed to register RKNPU: {}", err)
+                                anyhow::anyhow!("Failed to register RKNPU: {err}")
                             })?;
                         }
                         _ => anyhow::bail!(compile_help.replace("#EP", "RKNPU")),
@@ -952,9 +943,8 @@ impl Engine {
                         .with_fast_math(true);
                     match ep.is_available() {
                         Ok(true) => {
-                            ep.register(&mut builder).map_err(|err| {
-                                anyhow::anyhow!("Failed to register ACL: {}", err)
-                            })?;
+                            ep.register(&mut builder)
+                                .map_err(|err| anyhow::anyhow!("Failed to register ACL: {err}"))?;
                         }
                         _ => anyhow::bail!(compile_help.replace("#EP", "ACL")),
                     }
@@ -978,7 +968,7 @@ impl Engine {
                     match ep.is_available() {
                         Ok(true) => {
                             ep.register(&mut builder).map_err(|err| {
-                                anyhow::anyhow!("Failed to register NNAPI: {}", err)
+                                anyhow::anyhow!("Failed to register NNAPI: {err}")
                             })?;
                         }
                         _ => anyhow::bail!(compile_help.replace("#EP", "NNAPI")),
@@ -999,7 +989,7 @@ impl Engine {
                     match ep.is_available() {
                         Ok(true) => {
                             ep.register(&mut builder).map_err(|err| {
-                                anyhow::anyhow!("Failed to register ArmNN: {}", err)
+                                anyhow::anyhow!("Failed to register ArmNN: {err}")
                             })?;
                         }
                         _ => anyhow::bail!(compile_help.replace("#EP", "ArmNN")),
@@ -1025,7 +1015,7 @@ impl Engine {
                     match ep.is_available() {
                         Ok(true) => {
                             ep.register(&mut builder).map_err(|err| {
-                                anyhow::anyhow!("Failed to register Vitis: {}", err)
+                                anyhow::anyhow!("Failed to register Vitis: {err}")
                             })?;
                         }
                         _ => anyhow::bail!(compile_help.replace("#EP", "VitisAI")),
@@ -1044,9 +1034,8 @@ impl Engine {
                     let ep = ort::execution_providers::TVMExecutionProvider::default();
                     match ep.is_available() {
                         Ok(true) => {
-                            ep.register(&mut builder).map_err(|err| {
-                                anyhow::anyhow!("Failed to register TVM: {}", err)
-                            })?;
+                            ep.register(&mut builder)
+                                .map_err(|err| anyhow::anyhow!("Failed to register TVM: {err}"))?;
                         }
                         _ => anyhow::bail!(compile_help.replace("#EP", "TVM")),
                     }
@@ -1065,7 +1054,7 @@ impl Engine {
                     match ep.is_available() {
                         Ok(true) => {
                             ep.register(&mut builder).map_err(|err| {
-                                anyhow::anyhow!("Failed to register Azure: {}", err)
+                                anyhow::anyhow!("Failed to register Azure: {err}")
                             })?;
                             builder = builder.with_extensions()?;
                         }
@@ -1086,7 +1075,7 @@ impl Engine {
                     match ep.is_available() {
                         Ok(true) => {
                             ep.register(&mut builder).map_err(|err| {
-                                anyhow::anyhow!("Failed to register WebGPU: {}", err)
+                                anyhow::anyhow!("Failed to register WebGPU: {err}")
                             })?;
                         }
                         _ => anyhow::bail!(compile_help.replace("#EP", "WebGPU")),
@@ -1106,9 +1095,8 @@ impl Engine {
                         .with_device_id(id as i32);
                     match ep.is_available() {
                         Ok(true) => {
-                            ep.register(&mut builder).map_err(|err| {
-                                anyhow::anyhow!("Failed to register ROCm: {}", err)
-                            })?;
+                            ep.register(&mut builder)
+                                .map_err(|err| anyhow::anyhow!("Failed to register ROCm: {err}"))?;
                         }
                         _ => anyhow::bail!(compile_help.replace("#EP", "ROCm")),
                     }

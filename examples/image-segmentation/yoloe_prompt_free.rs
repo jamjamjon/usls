@@ -49,8 +49,13 @@ pub fn config(args: &YoloePromptFreeArgs) -> Result<Config> {
         (11, Scale::S) => Config::yoloe_11s_seg_pf(),
         (11, Scale::M) => Config::yoloe_11m_seg_pf(),
         (11, Scale::L) => Config::yoloe_11l_seg_pf(),
+        (26, Scale::N) => Config::yoloe_26n_seg_pf(),
+        (26, Scale::S) => Config::yoloe_26s_seg_pf(),
+        (26, Scale::M) => Config::yoloe_26m_seg_pf(),
+        (26, Scale::L) => Config::yoloe_26l_seg_pf(),
+        (26, Scale::X) => Config::yoloe_26x_seg_pf(),
         _ => anyhow::bail!(
-            "Unsupported version {} with scale {}. Try v8/v11 with s, m, l.",
+            "Unsupported version {} with scale {}. Try v8/11/26 with n, s, m, l, x.",
             args.ver,
             args.scale
         ),
