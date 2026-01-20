@@ -126,6 +126,8 @@ cargo run -r --example yolo -- --help
 
 > **Status:** ✅ **Supported**  |  ❓ **Unknown**  |  ❌ **Not Supported For Now**
 
+🔍 All ONNX models are available from the [ONNX Models Repository](https://github.com/jamjamjon/assets)
+
 <details closed>
 <summary><b>🔥 YOLO-Series</b></summary>
 
@@ -239,6 +241,7 @@ cargo run -r --example yolo -- --help
 | [OWLv2](https://huggingface.co/google/owlv2-base-patch16-ensemble) | Open-Set Object Detection | [demo](./examples/open-set-detection) | ✅ | ❓  | ✅ | ✅   | ❌ | ❌ | ❌ |
 | [YOLO-World](https://github.com/AILab-CVC/YOLO-World) | Open-Set Detection With Language | [demo](./examples/yolo) | ✅ | ✅ |✅  | ✅  | ✅  | ✅  | ✅  |
 | [YOLOE-Prompt-Based](https://github.com/THU-MIG/yoloe) | Open-Set Detection And Segmentation | [demo](./examples/open-set-segmentation) | ✅ | ✅ | ✅  | ✅  | ✅  | ✅  | ✅  |
+| [YOLOE-26-Prompt-Based](https://github.com/ultralytics/ultralytics) | Open-Set Detection And Segmentation | [demo](./examples/open-set-segmentation) | ✅ | ✅ | ✅  | ✅  | ✅  | ✅  | ✅  |
 | [SAM3-Image](https://github.com/facebookresearch/segment-anything-3) | Open-Set Detection And Segmentation| [demo](./examples/open-set-segmentation) | ✅ | ✅ | ✅  | ✅  | ✅  | ✅  | ✅  |
 
 </details>
