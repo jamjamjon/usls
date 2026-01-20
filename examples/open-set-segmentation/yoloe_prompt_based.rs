@@ -92,7 +92,7 @@ pub fn config(args: &YoloePromptArgs) -> Result<Config> {
         (26, Scale::L, Kind::Textual) => Config::yoloe_26l_seg_tp(),
         (26, Scale::X, Kind::Textual) => Config::yoloe_26x_seg_tp(),
         _ => anyhow::bail!(
-            "Unsupported version {}, scale {}, kind {:?}. Try v8/v11 with s, m, l. and visual/textual.",
+            "Unsupported version {}, scale {}, kind {:?}. Try v8/v11 with s, m, l, 26 with n, s, m, l, x and visual/textual.",
             args.ver,
             args.scale,
             args.kind

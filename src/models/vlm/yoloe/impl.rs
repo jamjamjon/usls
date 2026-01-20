@@ -16,7 +16,7 @@ use crate::{
 /// - `encode_class_names()` for textual prompts
 /// - `encode_visual_prompt()` for visual prompts
 #[derive(Debug)]
-pub struct YOLOEPrompt {
+pub struct YOLOEPromptBased {
     pub height: usize,
     pub width: usize,
     pub batch: usize,
@@ -33,7 +33,7 @@ pub struct YOLOEPrompt {
     pub version: Option<Version>,
 }
 
-impl Model for YOLOEPrompt {
+impl Model for YOLOEPromptBased {
     type Input<'a> = (&'a [Image], &'a X);
 
     fn batch(&self) -> usize {
@@ -57,11 +57,11 @@ impl Model for YOLOEPrompt {
             .transpose()?;
 
         if textual_encoder.is_some() && visual_encoder.is_some() {
-            anyhow::bail!("YOLOEPrompt supports either visual or textual encoder, not both");
+            anyhow::bail!("YOLOEPromptBased supports either visual or textual encoder, not both");
         }
         if textual_encoder.is_none() && visual_encoder.is_none() {
             anyhow::bail!(
-                "YOLOEPrompt requires a textual or visual encoder. \
+                "YOLOEPromptBased requires a textual or visual encoder. \
                  For prompt-free models, use YOLOEPromptFree instead."
             );
         }
@@ -150,11 +150,14 @@ impl Model for YOLOEPrompt {
         engines: &mut Engines,
         (images, embedding): Self::Input<'_>,
     ) -> Result<Vec<Y>> {
-        let xs_images =
-            elapsed_module!("YOLOEPrompt", "preprocess", self.processor.process(images)?);
+        let xs_images = elapsed_module!(
+            "YOLOEPromptBased",
+            "preprocess",
+            self.processor.process(images)?
+        );
 
-        let ys = elapsed_module!("YOLOEPrompt", "inference", {
-            let xs_images_x = xs_images.as_host()?;
+        let ys = elapsed_module!("YOLOEPromptBased", "inference", {
+            // let xs_images_x = xs_images.as_host()?;
             let embedding_view = if self.has_textual_encoder {
                 let dim = embedding.dims()[1];
                 embedding
@@ -163,17 +166,14 @@ impl Model for YOLOEPrompt {
             } else {
                 embedding.clone()
             };
-            engines.run(
-                &Module::Model,
-                inputs![xs_images_x.view(), embedding_view.view()]?,
-            )?
+            engines.run(&Module::Model, inputs![&xs_images, embedding_view.view()]?)?
         });
 
-        elapsed_module!("YOLOEPrompt", "postprocess", self.postprocess(&ys))
+        elapsed_module!("YOLOEPromptBased", "postprocess", self.postprocess(&ys))
     }
 }
 
-impl YOLOEPrompt {
+impl YOLOEPromptBased {
     /// Encode class names using textual encoder.
     pub fn encode_class_names(&mut self, engines: &mut Engines, class_names: &[&str]) -> Result<X> {
         if class_names.len() > self.nc {
@@ -191,7 +191,7 @@ impl YOLOEPrompt {
             anyhow::anyhow!("Text processor is not initialized (textual encoder missing?)")
         })?;
 
-        let x = elapsed_module!("YOLOEPrompt", "textual-encoder-preprocess", {
+        let x = elapsed_module!("YOLOEPromptBased", "textual-encoder-preprocess", {
             let texts: Vec<&str> = self.names.iter().map(|x| x.as_str()).collect();
             let encodings: Vec<f32> = text_processor
                 .encode_texts_ids(&texts, true)?
@@ -203,23 +203,31 @@ impl YOLOEPrompt {
         });
 
         let xs = elapsed_module!(
-            "YOLOEPrompt",
+            "YOLOEPromptBased",
             "textual-encoder-inference",
             engines.run(&Module::TextualEncoder, inputs![x]?)?
         );
 
-        elapsed_module!("YOLOEPrompt", "textual-encoder-postprocess", {
+        elapsed_module!("YOLOEPromptBased", "textual-encoder-postprocess", {
             let x = xs
                 .get::<f32>(0)
                 .ok_or_else(|| anyhow::anyhow!("Failed to get textual encoder output"))?;
-            let (n, dim) = (x.dims()[0], x.dims()[1]);
+            let x_owned = x.to_owned();
+            let x_owned = match self.version {
+                Some(Version(26, _, _)) => {
+                    let denom = x_owned.norm_l2_keepdim(-1)? + 1e-12;
+                    x_owned / denom
+                }
+                _ => x_owned,
+            };
+
+            let (n, dim) = (x_owned.dims()[0], x_owned.dims()[1]);
             let n_pad = self.nc.saturating_sub(n);
             if n_pad > 0 {
-                let x_owned = x.to_owned();
                 let x_zeros = X::zeros(&[n_pad, dim]);
                 X::cat(&[x_owned, x_zeros], 0)
             } else {
-                Ok(x.to_owned())
+                Ok(x_owned)
             }
         })
     }
@@ -232,7 +240,7 @@ impl YOLOEPrompt {
         hbbs: &[Hbb],
     ) -> Result<X> {
         let (image_embedding, mask, nc) =
-            elapsed_module!("YOLOEPrompt", "visual-encoder-preprocess", {
+            elapsed_module!("YOLOEPromptBased", "visual-encoder-preprocess", {
                 let image_embedding = self.processor.process(&[prompt_image])?.as_host()?;
                 let ratio = self.processor.images_transform_info()[0].height_scale;
 
@@ -304,7 +312,7 @@ impl YOLOEPrompt {
 
         self.nc = nc;
 
-        elapsed_module!("YOLOEPrompt", "visual-encoder-inference", {
+        elapsed_module!("YOLOEPromptBased", "visual-encoder-inference", {
             let xs = engines.run(
                 &Module::VisualEncoder,
                 inputs![image_embedding.view(), mask.view()]?,
@@ -355,6 +363,12 @@ impl YOLOEPrompt {
                         }
                     }
                 };
+
+                // For prompt-based inference, we may have fewer prompt names than `nc` due to padding.
+                // Skip padded classes to avoid invalid indexing and spurious detections.
+                if !self.names.is_empty() && class_id >= self.names.len() {
+                    return None;
+                }
 
                 // filter by conf
                 if confidence < self.confs[class_id] {
@@ -415,7 +429,7 @@ impl YOLOEPrompt {
                     .with_confidence(confidence)
                     .with_id(class_id)
                     .with_uid(i);
-                if !self.names.is_empty() {
+                if class_id < self.names.len() {
                     hbb = hbb.with_name(&self.names[class_id]);
                 }
 
@@ -487,7 +501,7 @@ impl YOLOEPrompt {
     }
 }
 
-impl Runtime<YOLOEPrompt> {
+impl Runtime<YOLOEPromptBased> {
     /// Encode class names using textual encoder.
     pub fn encode_class_names(&mut self, class_names: &[&str]) -> Result<X> {
         let (model, engines) = self.parts_mut();

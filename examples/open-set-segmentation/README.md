@@ -9,7 +9,7 @@ The latest generation of Segment Anything Model (SAM3) optimized for image-based
 - Supports both text prompts and geometry (point/box) prompts.
 - Advanced hierarchical feature extraction.
 
-### YOLOEPrompt
+### YOLOEPromptBased
 YOLOE with prompt support for flexible object detection and segmentation.
 - `Visual`: Uses a visual prompt (image + bounding box) to find similar objects.
 - `Textual`: Uses text descriptions to segment objects.
@@ -18,28 +18,26 @@ YOLOE with prompt support for flexible object detection and segmentation.
 ## Examples
 
 
-### YOLOE-Prompt
+### yoloe-prompt-based
 
 #### # Visual prompt
 
 ```bash
-cargo run -F cuda-full -F vlm --example open-set-segmentation -- yoloe-prompt \
---model-dtype q4f16 --model-device cuda:0 \
+cargo run -F cuda-full -F vlm --example open-set-segmentation -- yoloe-prompt-based \
+--model-dtype fp32 --model-device cuda:0 \
 --visual-encoder-dtype q4f16 --visual-encoder-device cuda:0 \
---textual-encoder-dtype q4f16 --textual-encoder-device cuda:0 \
 --processor-device cuda:0 \
 --source ./assets/bus.jpg \
---kind visual
+--kind visual --ver 26 --scale s
 ```
 
 
 #### Textual prompt
 
 ```bash
-cargo run -F cuda-full -F vlm --example open-set-segmentation -- yoloe-prompt \
---model-dtype q4f16 --model-device cuda:0 \
---visual-encoder-dtype q4f16 --visual-encoder-device cuda:0 \
---textual-encoder-dtype q4f16 --textual-encoder-device cuda:0 \
+cargo run -F cuda-full -F vlm --example open-set-segmentation -- yoloe-prompt-based \
+--model-dtype fp32 --model-device cuda:0 \
+--textual-encoder-dtype f16 --textual-encoder-device cuda:0 \
 --processor-device cuda:0 \
 --kind textual -p person -p bus
 ```

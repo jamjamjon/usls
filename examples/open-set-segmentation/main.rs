@@ -1,16 +1,16 @@
 use anyhow::Result;
 use clap::{Parser, Subcommand};
 use usls::{
-    models::{Sam3Image, Sam3Prompt, YOLOEPrompt},
+    models::{Sam3Image, Sam3Prompt, YOLOEPromptBased},
     Annotator, Config, DataLoader, Hbb, Model, Source,
 };
 
 mod sam3_image;
 #[path = "../utils/mod.rs"]
 mod utils;
-mod yoloe_prompt;
+mod yoloe_prompt_based;
 
-use crate::yoloe_prompt::Kind;
+use crate::yoloe_prompt_based::Kind;
 
 #[derive(Parser)]
 #[command(author, version, about = "Open-Set Segmentation Examples")]
@@ -34,7 +34,7 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    YOLOEPrompt(yoloe_prompt::YoloePromptArgs),
+    YOLOEPromptBased(yoloe_prompt_based::YoloePromptArgs),
     Sam3Image(sam3_image::Sam3ImageArgs),
 }
 
@@ -57,12 +57,11 @@ fn main() -> Result<()> {
                 .commit()?;
             run_sam3_image(config, cli.source, &annotator, args, &cli.prompts)?
         }
-
-        Commands::YOLOEPrompt(args) => {
-            let config = yoloe_prompt::config(args)?
+        Commands::YOLOEPromptBased(args) => {
+            let config = yoloe_prompt_based::config(args)?
                 .with_class_confs(&cli.confs)
                 .commit()?;
-            run_yoloe_prompt(config, cli.source, &annotator, args, &cli.prompts)?
+            run_yoloe_prompt_based(config, cli.source, &annotator, args, &cli.prompts)?
         }
     }
     usls::perf(false);
@@ -70,14 +69,14 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-fn run_yoloe_prompt(
+fn run_yoloe_prompt_based(
     config: Config,
     source: Source,
     annotator: &Annotator,
-    args: &yoloe_prompt::YoloePromptArgs,
+    args: &yoloe_prompt_based::YoloePromptArgs,
     prompts: &[String],
 ) -> Result<()> {
-    let mut model = YOLOEPrompt::new(config)?;
+    let mut model = YOLOEPromptBased::new(config)?;
 
     // Encode embedding
     let embedding = match args.kind {
