@@ -88,7 +88,7 @@ pub struct CoreMlConfig {
 impl Default for CoreMlConfig {
     fn default() -> Self {
         Self {
-            static_input_shapes: false,
+            static_input_shapes: true,
             subgraph_running: true,
             model_format: 0,            // MLProgram
             compute_units: 0,           // All
