@@ -9,7 +9,7 @@ pub struct Moondream2Args {
     pub scale: Scale,
 
     /// Visual Encoder Dtype: int4 int8
-    #[arg(long, default_value = "fp16")]
+    #[arg(long, default_value = "int4")]
     pub visual_encoder_dtype: DType,
 
     /// Visual Encoder Device: cpu, cuda:0, mps, coreml, openvino:CPU, etc.
