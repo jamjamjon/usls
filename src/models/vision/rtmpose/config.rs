@@ -39,7 +39,6 @@ impl crate::Config {
     pub fn rtmpose() -> Self {
         Self::default()
             .with_name("rtmpose")
-            .with_model_ixx(0, 0, 1)
             .with_model_ixx(0, 1, 3)
             .with_model_ixx(0, 2, 256)
             .with_model_ixx(0, 3, 192)
