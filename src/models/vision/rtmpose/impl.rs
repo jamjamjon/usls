@@ -6,7 +6,7 @@ use std::f32::consts::PI;
 
 use crate::{
     elapsed_module, inputs, Config, DynConf, Engine, Engines, FromConfig, Hbb, Image,
-    ImageProcessor, Keypoint, Model, Module, Runtime, Xs, X, Y,
+    ImageProcessor, Keypoint, Model, Module, Runtime, XAny, Xs, X, Y,
 };
 
 struct CentersAndScales {
@@ -107,7 +107,7 @@ impl RTMPose {
         ))
     }
 
-    fn preprocess(&mut self, x: &Image, hbbs: Option<&[Hbb]>) -> Result<(X, CentersAndScales)> {
+    fn preprocess(&mut self, x: &Image, hbbs: Option<&[Hbb]>) -> Result<(XAny, CentersAndScales)> {
         let results: Result<Vec<_>> = match hbbs {
             None | Some(&[]) => vec![Self::preprocess_one(x, None, (self.width, self.height))]
                 .into_iter()
@@ -124,17 +124,11 @@ impl RTMPose {
             centerss.extend(cs.centers);
             scaless.extend(cs.scales);
         }
-        // TODO
         let x = self.processor.process(&processed_images)?;
-
-        // Update batch size
-        self.batch = match hbbs {
-            None | Some(&[]) => 1,
-            Some(hbbs) => hbbs.len(),
-        };
+        self.batch = processed_images.len();
 
         Ok((
-            x.as_host()?,
+            x,
             CentersAndScales {
                 centers: centerss,
                 scales: scaless,
@@ -153,7 +147,7 @@ impl RTMPose {
         let ys = elapsed_module!(
             "RTMPose",
             "inference",
-            engines.run(&Module::Model, inputs![xs]?)?
+            engines.run(&Module::Model, inputs![&xs]?)?
         );
         let y = elapsed_module!("RTMPose", "postprocess", {
             self.postprocess(&ys, centers_and_scales)?
@@ -175,7 +169,16 @@ impl RTMPose {
 
         let simcc_x_array = &xs.0;
         let simcc_y_array = &xs.1;
-        let y_kpts: Vec<Vec<Keypoint>> = (0..self.batch)
+        let batch = simcc_x_array.shape()[0];
+        if batch != centers_and_scales.centers.len() {
+            anyhow::bail!(
+                "RTMPose batch mismatch: outputs={batch}, centers={}",
+                centers_and_scales.centers.len()
+            );
+        }
+        self.batch = batch;
+
+        let y_kpts: Vec<Vec<Keypoint>> = (0..batch)
             .into_par_iter()
             .map(|batch_idx| {
                 let mut keypoints = Vec::new();
