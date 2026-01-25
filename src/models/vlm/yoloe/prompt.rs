@@ -304,6 +304,7 @@ impl YOLOEPrompt {
     /// let annotated = prompt.draw(&annotator)?;
     /// annotated.save("prompt_visualization.jpg")?;
     /// ```
+    #[cfg(feature = "annotator")]
     pub fn draw(&self, annotator: &crate::Annotator) -> anyhow::Result<Image> {
         match self {
             Self::Textual(_) => anyhow::bail!("Textual prompt cannot be drawn"),
