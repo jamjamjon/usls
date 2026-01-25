@@ -481,7 +481,7 @@ impl DataLoader {
                     }
                     #[cfg(feature = "video")]
                     SourceType::Webcam(index) => {
-                        Self::decode_webcam(index, batch_size, &sender, &mut images);
+                        Self::decode_webcam(index, nfv_skip, batch_size, &sender, &mut images);
                     }
                     _ => {
                         tracing::error!("Unexpected task type in producer thread: {:?}", task);
@@ -511,6 +511,7 @@ impl DataLoader {
     #[cfg(feature = "video")]
     fn decode_webcam(
         index: u32,
+        nfv_skip: u64,
         batch_size: usize,
         sender: &mpsc::SyncSender<Vec<Image>>,
         images: &mut Vec<Image>,
@@ -587,11 +588,17 @@ impl DataLoader {
                     .unwrap();
 
                     let mut decoded = ffmpeg::util::frame::video::Video::empty();
+                    let mut cnt = 0;
                     for (stream, packet) in ictx.packets() {
                         if stream.index() == stream_index
                             && decoder.send_packet(&packet).is_ok()
                             && decoder.receive_frame(&mut decoded).is_ok()
                         {
+                            cnt += 1;
+                            if (cnt - 1) % (nfv_skip + 1) != 0 {
+                                continue;
+                            }
+
                             let mut rgb_frame = ffmpeg::util::frame::video::Video::empty();
                             scaler.run(&decoded, &mut rgb_frame).ok();
 

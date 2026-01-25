@@ -9,6 +9,8 @@ The latest generation of Segment Anything Model (SAM3) optimized for image-based
 - Supports both text prompts and geometry (point/box) prompts.
 - Advanced hierarchical feature extraction.
 
+**Note**: For SAM3 with box/point prompts, see the [sam3-tracker example](../image-segmentation/README.md#sam3-tracker).
+
 ### YOLOEPromptBased
 YOLOE with prompt support for flexible object detection and segmentation.
 - `Visual`: Uses a visual prompt (image + bounding box) to find similar objects.
@@ -22,41 +24,53 @@ YOLOE with prompt support for flexible object detection and segmentation.
 
 #### # Visual prompt
 
+**One image, two boxes prompt**
 ```bash
-cargo run -F cuda-full -F vlm --example open-set-segmentation -- yoloe-prompt-based \
---model-dtype fp32 --model-device cuda:0 \
---visual-encoder-dtype q4f16 --visual-encoder-device cuda:0 \
---processor-device cuda:0 \
---source ./assets/bus.jpg \
---kind visual --ver 26 --scale s
+cargo run -r -F cuda-full -F vlm --example open-set-segmentation -- yoloe-prompt-based --model-dtype fp32 --model-device cuda --visual-encoder-dtype fp32 --visual-encoder-device cuda --processor-device cuda --ver 26 --scale s --prompt-image ./assets/bus.jpg -p "xyxy:221.52, 405.8, 344.98, 857.54, person" -p "xyxy:25.519104, 234.08078, 789.1692, 737.5875, bus" --source ../coco2017val/coco/images/val2017 --batch 1
 ```
-
 
 #### Textual prompt
 
 ```bash
-cargo run -F cuda-full -F vlm --example open-set-segmentation -- yoloe-prompt-based \
+cargo run -r -F cuda-full -F vlm --example open-set-segmentation -- yoloe-prompt-based \
 --model-dtype fp32 --model-device cuda:0 \
 --textual-encoder-dtype f16 --textual-encoder-device cuda:0 \
 --processor-device cuda:0 \
---kind textual -p person -p bus
+--ver 26 --scale s \
+--source ../coco2017val/coco/images/val2017 --batch 1 \
+-p person -p bus 
 ```
 
 
 ### SAM3-Image
 
-#### Single text prompt
+> **Note**: Now sam3image only uses 3 ONNX models (Vision, Text, Decoder with integrated Geometry). No separate geometry encoder needed.
+
+#### Single text prompt (Use Cuda)
 
 ```bash
 cargo run -F cuda-full -F vlm --example open-set-segmentation -- sam3-image \
 --visual-encoder-dtype q4f16 --visual-encoder-device cuda:0 \
 --textual-encoder-dtype q4f16 --textual-encoder-device cuda:0 \
---geo-encoder-dtype q4f16 --geo-encoder-device cuda:0 \
 --decoder-dtype q4f16 --decoder-device cuda:0 \
 --processor-device cuda:0 \
---source assets/kids.jpg -p shoe
+--source ./assets/kids.jpg \
+-p shoe
 ``` 
 
+#### Single text prompt (Use TensorRT)
+
+**Note**: Use `--visual-encoder-dtype f32` for better performance, or `--visual-encoder-dtype f16` if VRAM is insufficient. If you encounter conversion failures or memory issues, use `--trt_max_workspace_size` to increase the TensorRT workspace size (e.g., `8589934592` for 8GB).
+
+```bash
+cargo run -r -F tensorrt-full -F vlm --example open-set-segmentation -- sam3-image \
+--visual-encoder-dtype f16 --visual-encoder-device tensorrt:0 \
+--textual-encoder-dtype f16 --textual-encoder-device tensorrt:0 \
+--decoder-dtype f16 --decoder-device tensorrt:0 \
+--processor-device cuda:0 \
+--source ./assets
+-p person
+``` 
 
 #### Multiple text prompts
 
@@ -64,9 +78,9 @@ cargo run -F cuda-full -F vlm --example open-set-segmentation -- sam3-image \
 cargo run -F cuda-full -F vlm --example open-set-segmentation -- sam3-image \
 --visual-encoder-dtype q4f16 --visual-encoder-device cuda:0 \
 --textual-encoder-dtype q4f16 --textual-encoder-device cuda:0 \
---geo-encoder-dtype q4f16 --geo-encoder-device cuda:0 \
 --decoder-dtype q4f16 --decoder-device cuda:0 \
 --processor-device cuda:0 \
+--source "assets/kids.jpg" \
 -p shoe \
 -p "person in blue vest"
 ```
@@ -76,7 +90,6 @@ cargo run -F cuda-full -F vlm --example open-set-segmentation -- sam3-image \
 cargo run -F cuda-full -F vlm --example open-set-segmentation -- sam3-image \
 --visual-encoder-dtype q4f16 --visual-encoder-device cuda:0 \
 --textual-encoder-dtype q4f16 --textual-encoder-device cuda:0 \
---geo-encoder-dtype q4f16 --geo-encoder-device cuda:0 \
 --decoder-dtype q4f16 --decoder-device cuda:0 \
 --processor-device cuda:0 \
 --source "assets/kids.jpg | assets/bus.jpg" -p bus -p cat -p shoe -p cellphone -p person -p "short hair"
@@ -88,7 +101,6 @@ cargo run -F cuda-full -F vlm --example open-set-segmentation -- sam3-image \
 cargo run -F cuda-full -F vlm --example open-set-segmentation -- sam3-image \
 --visual-encoder-dtype q4f16 --visual-encoder-device cuda:0 \
 --textual-encoder-dtype q4f16 --textual-encoder-device cuda:0 \
---geo-encoder-dtype q4f16 --geo-encoder-device cuda:0 \
 --decoder-dtype q4f16 --decoder-device cuda:0 \
 --processor-device cuda:0 \
 --source assets/kids.jpg -p "pos:480,290,110,360"
@@ -100,7 +112,6 @@ cargo run -F cuda-full -F vlm --example open-set-segmentation -- sam3-image \
 cargo run -F cuda-full -F vlm --example open-set-segmentation -- sam3-image \
 --visual-encoder-dtype q4f16 --visual-encoder-device cuda:0 \
 --textual-encoder-dtype q4f16 --textual-encoder-device cuda:0 \
---geo-encoder-dtype q4f16 --geo-encoder-device cuda:0 \
 --decoder-dtype q4f16 --decoder-device cuda:0 \
 --processor-device cuda:0 \
 --source assets/kids.jpg -p "pos:480,290,110,360;neg:370,280,115,375"
@@ -112,7 +123,6 @@ cargo run -F cuda-full -F vlm --example open-set-segmentation -- sam3-image \
 cargo run -F cuda-full -F vlm --example open-set-segmentation -- sam3-image \
 --visual-encoder-dtype q4f16 --visual-encoder-device cuda:0 \
 --textual-encoder-dtype q4f16 --textual-encoder-device cuda:0 \
---geo-encoder-dtype q4f16 --geo-encoder-device cuda:0 \
 --decoder-dtype q4f16 --decoder-device cuda:0 \
 --processor-device cuda:0 \
 --source assets/oven.jpg \

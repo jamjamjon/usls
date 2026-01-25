@@ -1,13 +1,14 @@
 use aksr::Builder;
 use anyhow::Result;
-use ndarray::{s, Array, Axis};
+use ndarray::{s, Axis};
+
 use rayon::prelude::*;
 use regex::Regex;
 use tracing::info;
 
 use crate::{
     elapsed_module, Config, DynConf, Engine, Engines, FromConfig, Hbb, Image, ImageProcessor,
-    Keypoint, Mask, Model, Module, NmsOps, Obb, Ops, Prob, Task, Version, Xs, Y,
+    Keypoint, Mask, Model, Module, NmsOps, Obb, Ops, Prob, ResizeModeType, Task, Version, Xs, Y,
 };
 
 use super::{BoxType, YOLOPredsFormat};
@@ -311,7 +312,7 @@ impl Model for YOLO {
 
     fn run(&mut self, engines: &mut Engines, xs: Self::Input<'_>) -> Result<Vec<crate::Y>> {
         let ys = elapsed_module!("YOLO", "preprocess", self.processor.process(xs)?);
-        let ys = elapsed_module!("YOLO", "inference", engines.run_xany(&Module::Model, ys)?);
+        let ys = elapsed_module!("YOLO", "inference", engines.run(&Module::Model, &ys)?);
         elapsed_module!("YOLO", "postprocess", self.postprocess(&ys))
     }
 }
@@ -322,6 +323,20 @@ impl YOLO {
         let use_rayon_for_candidates = true;
         #[cfg(not(feature = "coreml"))]
         let use_rayon_for_candidates = !matches!(self.version.map(|v| v.0), Some(10 | 26));
+
+        let resize_mode = self
+            .processor
+            .resize_mode_type()
+            .unwrap_or(ResizeModeType::FitAdaptive);
+
+        if !matches!(
+            resize_mode,
+            ResizeModeType::Letterbox | ResizeModeType::FitAdaptive | ResizeModeType::FitExact
+        ) {
+            anyhow::bail!(
+                "Unsupported resize mode for YOLO postprocess: {resize_mode:?}. Only FitExact/FitAdaptive/Letterbox are supported."
+            );
+        }
 
         let preds = outputs
             .get::<f32>(0)
@@ -359,8 +374,7 @@ impl YOLO {
             }
 
             let info = &self.processor.images_transform_info[idx];
-            let (image_height, image_width, ratio) =
-                (info.height_src, info.width_src, info.height_scale);
+            let (image_height, image_width) = (info.height_src, info.width_src);
 
             // ObjectDetection
             let slice_bboxes = slice_bboxes?;
@@ -400,12 +414,14 @@ impl YOLO {
                     return None;
                 }
 
-                // Bboxes
+                // Bboxes: Apply inverse transformation based on resize mode
                 let mut bbox_it = bbox.iter();
-                let b0 = *bbox_it.next()? / ratio;
-                let b1 = *bbox_it.next()? / ratio;
-                let b2 = *bbox_it.next()? / ratio;
-                let b3 = *bbox_it.next()? / ratio;
+                let (b0, b1, b2, b3) = (
+                    *bbox_it.next()?,
+                    *bbox_it.next()?,
+                    *bbox_it.next()?,
+                    *bbox_it.next()?,
+                );
                 let bbox = if self.layout.is_bbox_normalized {
                     (
                         b0 * self.width as f32,
@@ -415,6 +431,39 @@ impl YOLO {
                     )
                 } else {
                     (b0, b1, b2, b3)
+                };
+                let bbox = match resize_mode {
+                    ResizeModeType::FitExact => {
+                        let scale_x = image_width as f32 / self.width as f32;
+                        let scale_y = image_height as f32 / self.height as f32;
+                        (bbox.0 * scale_x, bbox.1 * scale_y, bbox.2 * scale_x, bbox.3 * scale_y)
+                    }
+                    ResizeModeType::Letterbox => {
+                        let ratio = info.height_scale;
+                        let pad_w = info.width_pad;
+                        let pad_h = info.height_pad;
+                        match self.layout.box_type()? {
+                            BoxType::Xyxy | BoxType::Cxcyxy | BoxType::XyCxcy => (
+                                (bbox.0 - pad_w) / ratio,
+                                (bbox.1 - pad_h) / ratio,
+                                (bbox.2 - pad_w) / ratio,
+                                (bbox.3 - pad_h) / ratio,
+                            ),
+                            BoxType::Cxcywh | BoxType::Xywh => (
+                                (bbox.0 - pad_w) / ratio,
+                                (bbox.1 - pad_h) / ratio,
+                                bbox.2 / ratio,
+                                bbox.3 / ratio,
+                            ),
+                        }
+                    }
+                    ResizeModeType::FitAdaptive => {
+                        let ratio = info.height_scale;
+                        (bbox.0 / ratio, bbox.1 / ratio, bbox.2 / ratio, bbox.3 / ratio)
+                    }
+                    _ => {
+                        unreachable!()
+                    }
                 };
 
                 let (cx, cy, x, y, w, h) = match self.layout.box_type()? {
@@ -530,12 +579,36 @@ impl YOLO {
                             let pred = pred_kpts.slice(s![hbb.uid(), ..]);
                             (0..self.nk)
                                 .map(|i| {
-                                    let kx = pred[kpt_step * i] / ratio;
-                                    let ky = pred[kpt_step * i + 1] / ratio;
+                                    let kx_raw = pred[kpt_step * i];
+                                    let ky_raw = pred[kpt_step * i + 1];
                                     let kconf = pred[kpt_step * i + 2];
+
                                     if kconf < self.kconfs[i] {
                                         Keypoint::default()
                                     } else {
+                                        let (kx, ky) = match resize_mode {
+                                            ResizeModeType::FitExact => {
+                                                let scale_x =
+                                                    image_width as f32 / self.width as f32;
+                                                let scale_y =
+                                                    image_height as f32 / self.height as f32;
+                                                (kx_raw * scale_x, ky_raw * scale_y)
+                                            }
+                                            ResizeModeType::Letterbox => {
+                                                let ratio = info.height_scale;
+                                                let pad_w = info.width_pad;
+                                                let pad_h = info.height_pad;
+                                                ((kx_raw - pad_w) / ratio, (ky_raw - pad_h) / ratio)
+                                            }
+                                            ResizeModeType::FitAdaptive => {
+                                                let ratio = info.height_scale;
+                                                (kx_raw / ratio, ky_raw / ratio)
+                                            }
+                                            _ => {
+                                                unreachable!()
+                                            }
+                                        };
+
                                         let mut kpt = Keypoint::default()
                                             .with_id(i)
                                             .with_confidence(kconf)
@@ -570,6 +643,10 @@ impl YOLO {
                             proto_3d,
                             image_width,
                             image_height,
+                            self.width,
+                            self.height,
+                            resize_mode,
+                            info,
                         );
                         if !y_masks.is_empty() {
                             y = y.with_masks(&y_masks);
@@ -605,47 +682,74 @@ impl YOLO {
     ///
     /// This is a shared utility that can be used by other models (e.g., YOLOE).
     /// Parameters are passed by reference for zero-copy efficiency.
+    #[allow(clippy::too_many_arguments)]
     pub fn generate_masks(
         hbbs: &[Hbb],
         coefs: ndarray::ArrayView2<'_, f32>,
         protos: ndarray::ArrayView3<'_, f32>,
         image_width: u32,
         image_height: u32,
+        model_width: usize,
+        model_height: usize,
+        resize_mode: ResizeModeType,
+        info: &crate::ImageTransformInfo,
     ) -> Vec<Mask> {
+        let (nm, mh, mw) = protos.dim();
+        let proto_flat = match protos.to_shape((nm, mh * mw)) {
+            Ok(v) => v,
+            Err(_) => return vec![],
+        };
+
         hbbs.into_par_iter()
             .filter_map(|hbb| {
-                let coef_slice = coefs.slice(s![hbb.uid(), ..]).to_vec();
-                let (nm, mh, mw) = protos.dim();
-                let coef_arr = Array::from_shape_vec((1, nm), coef_slice).ok()?;
-                let proto_flat = protos.to_shape((nm, mh * mw)).ok()?;
-                let mask_flat = coef_arr.dot(&proto_flat);
-                let mask_resized = Ops::resize_lumaf32_u8(
-                    &mask_flat.into_raw_vec_and_offset().0,
-                    mw as _,
-                    mh as _,
-                    image_width as _,
-                    image_height as _,
-                    true,
-                    "Bilinear",
+                let coef = coefs.slice(s![hbb.uid(), ..]);
+                let mask_flat = coef.dot(&proto_flat);
+
+                // Use unified helper function for mask resizing.
+                // Contract: always returns an image-sized mask: image_width * image_height.
+                let mask_proto = mask_flat.into_raw_vec_and_offset().0;
+                let mut mask_resized = Ops::resize_mask_with_mode(
+                    mask_proto,
+                    mw,
+                    mh,
+                    image_width,
+                    image_height,
+                    model_width,
+                    model_height,
+                    resize_mode,
+                    info,
+                    crate::ResizeFilter::Bilinear,
                 )
                 .ok()?;
 
-                let mut mask_image: image::ImageBuffer<image::Luma<_>, Vec<_>> =
-                    image::ImageBuffer::from_raw(
-                        image_width as _,
-                        image_height as _,
-                        mask_resized,
-                    )?;
+                // Crop mask using bounding box, keep pixel if x >= xmin && x <= xmax && y >= ymin && y <= ymax
+                let (w, h) = (image_width as usize, image_height as usize);
+                if mask_resized.len() != w * h {
+                    return None;
+                }
 
-                // Crop mask using bounding box
-                let (xmin, ymin, xmax, ymax) = (hbb.xmin(), hbb.ymin(), hbb.xmax(), hbb.ymax());
-                for (y, row) in mask_image.enumerate_rows_mut() {
-                    for (x, _, pixel) in row {
-                        if x < xmin as _ || x > xmax as _ || y < ymin as _ || y > ymax as _ {
-                            *pixel = image::Luma([0u8]);
+                let xmin = (hbb.xmin().floor().max(0.0) as usize).min(w);
+                let ymin = (hbb.ymin().floor().max(0.0) as usize).min(h);
+                let xmax = ((hbb.xmax().floor().max(0.0) as usize) + 1).min(w);
+                let ymax = ((hbb.ymax().floor().max(0.0) as usize) + 1).min(h);
+
+                for row in 0..h {
+                    let row_start = row * w;
+                    let row_end = row_start + w;
+                    if row < ymin || row >= ymax {
+                        mask_resized[row_start..row_end].fill(0);
+                    } else {
+                        if xmin > 0 {
+                            mask_resized[row_start..row_start + xmin].fill(0);
+                        }
+                        if xmax < w {
+                            mask_resized[row_start + xmax..row_end].fill(0);
                         }
                     }
                 }
+
+                let mask_image: image::ImageBuffer<image::Luma<_>, Vec<_>> =
+                    image::ImageBuffer::from_raw(image_width, image_height, mask_resized)?;
 
                 let mut mask = Mask::default().with_mask(mask_image);
                 if let Some(id) = hbb.id() {

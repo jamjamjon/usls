@@ -1,6 +1,6 @@
 //! Runtime processing context for CUDA backend.
 
-use crate::{ImagePlan, ImageTensorLayout, ResizeFilter, ResizeMode};
+use crate::{ImagePlan, ImageTensorLayout, ResizeAlg, ResizeFilter, ResizeMode};
 
 /// Runtime processing context for a single image.
 ///
@@ -78,6 +78,21 @@ impl<'a> CudaImageProcessContext<'a> {
             .find_map(|t| {
                 if let crate::ImageTransform::Resize(mode) = t {
                     mode.alg().filter()
+                } else {
+                    None
+                }
+            })
+            .unwrap_or_default()
+    }
+
+    #[inline]
+    pub fn resize_alg(&self) -> ResizeAlg {
+        self.plan
+            .transforms
+            .iter()
+            .find_map(|t| {
+                if let crate::ImageTransform::Resize(mode) = t {
+                    Some(mode.alg())
                 } else {
                     None
                 }

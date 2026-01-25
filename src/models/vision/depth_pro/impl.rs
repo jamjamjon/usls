@@ -82,19 +82,18 @@ impl DepthPro {
                 let v = luma.into_owned().into_raw_vec_and_offset().0;
                 let max_ = v.iter().max_by(|x, y| x.total_cmp(y)).unwrap();
                 let min_ = v.iter().min_by(|x, y| x.total_cmp(y)).unwrap();
-                let v = v
+                let v: Vec<f32> = v
                     .par_iter()
-                    .map(|x| (((*x - min_) / (max_ - min_)) * 255.).clamp(0., 255.) as u8)
-                    .collect::<Vec<_>>();
+                    .map(|x| ((*x - min_) / (max_ - min_)).clamp(0., 1.))
+                    .collect();
 
-                Ops::resize_luma8_u8(
+                Ops::interpolate_1d_u8(
                     &v,
                     self.width as _,
                     self.height as _,
                     w1 as _,
                     h1 as _,
                     false,
-                    "Bilinear",
                 )
                 .ok()
                 .and_then(|luma| Mask::new(&luma, w1, h1).ok())

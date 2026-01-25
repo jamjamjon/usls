@@ -18,7 +18,7 @@ mod yoloe_prompt_free;
 mod yolop;
 
 #[derive(Parser)]
-#[command(author, version, about = "Object Detection Examples")]
+#[command(author, version, about = "Image Segmentation Examples")]
 #[command(propagate_version = true)]
 struct Cli {
     /// Source: image path, folder, or video
@@ -26,7 +26,7 @@ struct Cli {
     pub source: Source,
 
     /// Confidence thresholds (comma-separated for per-class, or single value for all)
-    #[arg(long, global = true, value_delimiter = ',', default_values_t = vec![0.5])]
+    #[arg(long, global = true, value_delimiter = ',', default_values_t = vec![0.3])]
     pub confs: Vec<f32>,
 
     #[command(subcommand)]
@@ -227,6 +227,7 @@ fn run_sam3_tracker(
 
     for batch in dataloader {
         let ys = model.forward((&batch, &prompts))?;
+        println!("{ys:?}");
         for (img, y) in batch.iter().zip(ys.iter()) {
             let mut annotated = annotator.annotate(img, y)?;
             for prompt in &prompts {

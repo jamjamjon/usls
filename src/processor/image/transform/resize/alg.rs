@@ -25,6 +25,7 @@ pub enum ResizeAlg {
 impl Default for ResizeAlg {
     fn default() -> Self {
         Self::Convolution(ResizeFilter::default())
+        // Self::Interpolation(ResizeFilter::default())
     }
 }
 

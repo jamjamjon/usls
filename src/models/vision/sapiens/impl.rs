@@ -89,7 +89,19 @@ impl Sapiens {
             // rescale
             let info = &self.processor.images_transform_info[idx];
             let (h1, w1) = (info.height_src, info.width_src);
-            let masks = Ops::interpolate_3d(b.to_owned(), w1 as _, h1 as _, "Bilinear")?;
+            // Interpolate all channels at once using the unified interpolate function
+            let (n, h, w) = (b.shape()[0], b.shape()[1], b.shape()[2]);
+            let masks_flat = Ops::interpolate_nd(
+                &b.to_owned().into_raw_vec_and_offset().0,
+                n,
+                w as _,
+                h as _,
+                w1 as _,
+                h1 as _,
+                false,
+            )?;
+            let masks = ndarray::Array::from_shape_vec((n, h1 as usize, w1 as usize), masks_flat)?
+                .into_dyn();
 
             // generate mask
             let mut mask = Array2::<usize>::zeros((h1 as _, w1 as _));

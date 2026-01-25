@@ -227,6 +227,8 @@ impl Engine {
                 for i_ in i.iter() {
                     shape.push(i_.opt());
                 }
+
+                // TODO: directly use ort value
                 let x: Array<f32, IxDyn> = Array::ones(shape).into_dyn();
                 xs.push(X::from(x));
             }
@@ -500,8 +502,7 @@ impl Engine {
         // Only f32 is supported for now (can extend later)
         if *dtype != TensorElementType::Float32 {
             anyhow::bail!(
-                "CUDA zero-copy only supports Float32, got {:?}. Consider using CPU preprocessing.",
-                dtype
+                "CUDA zero-copy only supports Float32, got {dtype:?}. Consider using CPU preprocessing."
             );
         }
 
@@ -633,7 +634,6 @@ impl Engine {
                         .replace("#EP", "TensorRT")
                         .replace("#FEATURE", "tensorrt"));
                 }
-
                 #[cfg(feature = "tensorrt")]
                 {
                     let (spec_min, spec_opt, spec_max) =
@@ -651,6 +651,8 @@ impl Engine {
                         .with_engine_cache(config.ep.tensorrt.engine_cache)
                         .with_timing_cache(config.ep.tensorrt.timing_cache)
                         .with_dump_ep_context_model(config.ep.tensorrt.dump_ep_context_model)
+                        .with_dump_subgraphs(config.ep.tensorrt.dump_subgraphs)
+                        .with_min_subgraph_size(config.ep.tensorrt.min_subgraph_size)
                         .with_engine_cache_path(cache_path.display())
                         .with_timing_cache_path(cache_path.display())
                         .with_ep_context_file_path(cache_path.display())

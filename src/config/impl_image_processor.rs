@@ -26,6 +26,12 @@ impl crate::Config {
         self
     }
 
+    /// Set resize algorithm.
+    pub fn with_resize_alg(mut self, alg: crate::ResizeAlg) -> Self {
+        self.image_processor = self.image_processor.with_resize_alg(alg);
+        self
+    }
+
     ///  Set resize filter.
     pub fn with_resize_filter(mut self, filter: crate::ResizeFilter) -> Self {
         self.image_processor = self.image_processor.with_resize_filter(filter);

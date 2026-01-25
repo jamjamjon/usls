@@ -127,43 +127,42 @@ impl DepthAnything {
         }
 
         // Process depth data with or without sky mask
-        let normalized = if let Some(sky_view) = sky {
+        let normalized: Vec<f32> = if let Some(sky_view) = sky {
             let sky_slice = sky_view.as_slice().unwrap_or(&[]);
             depth_data
                 .par_iter()
                 .zip(sky_slice.par_iter())
                 .map(|(&depth, &sky_val)| {
                     if sky_val >= 0.5 {
-                        0u8
+                        0.0
                     } else if depth.is_finite() {
-                        (((depth - min_) / range) * 255.0).clamp(0.0, 255.0) as u8
+                        ((depth - min_) / range).clamp(0.0, 1.0)
                     } else {
-                        0u8
+                        0.0
                     }
                 })
-                .collect::<Vec<_>>()
+                .collect()
         } else {
             depth_data
                 .par_iter()
                 .map(|&x| {
                     if x.is_finite() {
-                        (((x - min_) / range) * 255.0).clamp(0.0, 255.0) as u8
+                        ((x - min_) / range).clamp(0.0, 1.0)
                     } else {
-                        0u8
+                        0.0
                     }
                 })
-                .collect::<Vec<_>>()
+                .collect()
         };
 
         // Resize and create mask
-        let resized = Ops::resize_luma8_u8(
+        let resized: Vec<u8> = Ops::interpolate_1d_u8(
             &normalized,
             self.width as _,
             self.height as _,
             w1 as _,
             h1 as _,
             false,
-            "Bilinear",
         )?;
 
         Mask::new(&resized, w1, h1)

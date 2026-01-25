@@ -1,10 +1,6 @@
 // CUDA kernels for image preprocessing
 // Supports: resize (bilinear), normalize, standardize, hwc2chw, letterbox
 
-// =============================================================================
-// Utility functions
-// =============================================================================
-
 __device__ __forceinline__ float clamp(float x, float lo, float hi) {
     return fminf(fmaxf(x, lo), hi);
 }
@@ -62,6 +58,37 @@ extern "C" __global__ void conv_vert_u8x3(
     output[out_idx + 0] = clip_u8(ss0 >> precision);
     output[out_idx + 1] = clip_u8(ss1 >> precision);
     output[out_idx + 2] = clip_u8(ss2 >> precision);
+}
+
+extern "C" __global__ void resize_nearest_u8x3(
+    const unsigned char* __restrict__ input,
+    unsigned char* __restrict__ output,
+    int in_height,
+    int in_width,
+    int out_height,
+    int out_width
+) {
+    int x = blockIdx.x * blockDim.x + threadIdx.x;
+    int y = blockIdx.y * blockDim.y + threadIdx.y;
+
+    if (x >= out_width || y >= out_height) return;
+
+    float scale_x = (float)in_width / (float)out_width;
+    float scale_y = (float)in_height / (float)out_height;
+
+    int src_x = (int)((x + 0.5f) * scale_x);
+    int src_y = (int)((y + 0.5f) * scale_y);
+
+    if (src_x < 0) src_x = 0;
+    if (src_x > in_width - 1) src_x = in_width - 1;
+    if (src_y < 0) src_y = 0;
+    if (src_y > in_height - 1) src_y = in_height - 1;
+
+    int in_idx = (src_y * in_width + src_x) * 3;
+    int out_idx = (y * out_width + x) * 3;
+    output[out_idx + 0] = input[in_idx + 0];
+    output[out_idx + 1] = input[in_idx + 1];
+    output[out_idx + 2] = input[in_idx + 2];
 }
 
 extern "C" __global__ void conv_horiz_u8x3(
@@ -928,6 +955,32 @@ extern "C" __global__ void pad_to_multiple_replicate(
     int in_idx = (src_y * in_width + src_x) * channels;
     int out_idx = (y * out_width + x) * channels;
     
+    for (int c = 0; c < channels; ++c) {
+        output[out_idx + c] = input[in_idx + c];
+    }
+}
+
+/// Pad image to multiple of window_size with wrap fill
+extern "C" __global__ void pad_to_multiple_wrap(
+    const unsigned char* __restrict__ input,
+    unsigned char* __restrict__ output,
+    int in_height,
+    int in_width,
+    int out_height,
+    int out_width,
+    int channels
+) {
+    int x = blockIdx.x * blockDim.x + threadIdx.x;
+    int y = blockIdx.y * blockDim.y + threadIdx.y;
+    
+    if (x >= out_width || y >= out_height) return;
+
+    int src_x = x % in_width;
+    int src_y = y % in_height;
+
+    int in_idx = (src_y * in_width + src_x) * channels;
+    int out_idx = (y * out_width + x) * channels;
+
     for (int c = 0; c < channels; ++c) {
         output[out_idx + c] = input[in_idx + c];
     }

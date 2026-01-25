@@ -65,10 +65,10 @@ pub fn config(args: &RtmposeArgs) -> Result<Config> {
         },
         _ => anyhow::bail!("Unsupported RTMPose scale: {}", args.scale),
     }
-    .with_dtype_all(args.dtype)
-    .with_device_all(args.device)
-    .with_batch_size_min_opt_max_all(args.min_batch, args.batch, args.max_batch)
-    .with_num_dry_run_all(args.num_dry_run)
+    .with_model_dtype(args.dtype)
+    .with_model_device(args.device)
+    .with_model_batch_size_min_opt_max(args.min_batch, args.batch, args.max_batch)
+    .with_model_num_dry_run(args.num_dry_run)
     .with_image_processor_device(args.processor_device);
 
     Ok(config)

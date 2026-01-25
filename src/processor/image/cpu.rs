@@ -55,9 +55,20 @@ impl CpuTransformExecutor {
             PadMode::ToSize { .. } => {
                 todo!("PadMode::ToSize not yet implemented")
             }
-            PadMode::Fixed { .. } => {
-                todo!("PadMode::Fixed not yet implemented")
-            }
+            PadMode::Fixed {
+                top,
+                bottom,
+                left,
+                right,
+                fill_mode,
+            } => images
+                .par_iter()
+                .map(|img| img.pad_fixed(*top, *bottom, *left, *right, *fill_mode))
+                .collect::<Result<Vec<_>>>()
+                .map(|results| {
+                    let (imgs, infos): (Vec<_>, Vec<_>) = results.into_iter().unzip();
+                    (imgs, infos)
+                }),
         }
     }
 

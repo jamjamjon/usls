@@ -13,7 +13,7 @@ mod modnet;
 mod utils;
 
 #[derive(Parser)]
-#[command(author, version, about = "Matting Examples")]
+#[command(author, version, about = "Image Matting Examples")]
 #[command(propagate_version = true)]
 struct Cli {
     /// Source: image path, folder, or video

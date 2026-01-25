@@ -1,4 +1,4 @@
-use crate::{Config, ResizeFilter, Scale, Task, Version, NAMES_YOLOE_4585};
+use crate::{Config, Scale, Task, Version, NAMES_YOLOE_4585};
 
 ///
 /// > # YOLOE: Real-Time Seeing Anything
@@ -36,14 +36,8 @@ use crate::{Config, ResizeFilter, Scale, Task, Version, NAMES_YOLOE_4585};
 impl Config {
     /// Base configuration for YOLOE models
     pub fn yoloe() -> Self {
-        Self::default()
+        Self::yolo()
             .with_name("yoloe")
-            .with_model_ixx(0, 0, 1)
-            .with_model_ixx(0, 1, 3)
-            .with_model_ixx(0, 2, 640)
-            .with_model_ixx(0, 3, 640)
-            .with_resize_mode_type(crate::ResizeModeType::FitAdaptive)
-            .with_resize_filter(ResizeFilter::CatmullRom)
             .with_task(Task::InstanceSegmentation)
     }
 
@@ -102,20 +96,20 @@ impl Config {
             .with_model_file("yoloe-11l-seg-pf.onnx")
     }
 
-    /// YOLOE 26 small prompt-free segmentation
+    /// YOLOE 26 nano prompt-free segmentation
     pub fn yoloe_26n_seg_pf() -> Self {
         Self::yoloe_seg_pf()
             .with_version(Version::from(26))
             .with_scale(Scale::N)
-            .with_model_file("yoloe-26n-seg-pf.onnx")
+            .with_model_file("yoloe-26n-seg-pf-one2one.onnx")
     }
 
-    /// YOLOE 26 medium prompt-free segmentation
+    /// YOLOE 26 small prompt-free segmentation
     pub fn yoloe_26s_seg_pf() -> Self {
         Self::yoloe_seg_pf()
             .with_version(Version::from(26))
             .with_scale(Scale::S)
-            .with_model_file("yoloe-26s-seg-pf.onnx")
+            .with_model_file("yoloe-26s-seg-pf-one2one.onnx")
     }
 
     /// YOLOE 26 medium prompt-free segmentation
@@ -123,7 +117,7 @@ impl Config {
         Self::yoloe_seg_pf()
             .with_version(Version::from(26))
             .with_scale(Scale::M)
-            .with_model_file("yoloe-26m-seg-pf.onnx")
+            .with_model_file("yoloe-26m-seg-pf-one2one.onnx")
     }
 
     /// YOLOE 26 large prompt-free segmentation
@@ -131,7 +125,7 @@ impl Config {
         Self::yoloe_seg_pf()
             .with_version(Version::from(26))
             .with_scale(Scale::L)
-            .with_model_file("yoloe-26l-seg-pf.onnx")
+            .with_model_file("yoloe-26l-seg-pf-one2one.onnx")
     }
 
     /// YOLOE 26 extra large prompt-free segmentation
@@ -139,6 +133,6 @@ impl Config {
         Self::yoloe_seg_pf()
             .with_version(Version::from(26))
             .with_scale(Scale::X)
-            .with_model_file("yoloe-26x-seg-pf.onnx")
+            .with_model_file("yoloe-26x-seg-pf-one2one.onnx")
     }
 }

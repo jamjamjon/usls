@@ -36,7 +36,7 @@ enum Commands {
     Dfine(dfine::DfineArgs),
 }
 
-fn run<M>(config: Config, source: Source, annotator: &Annotator) -> Result<()>
+fn run<M>(config: Config, source: &Source, annotator: &Annotator) -> Result<()>
 where
     for<'a> M: Model<Input<'a> = &'a [usls::Image]>,
 {
@@ -48,7 +48,7 @@ where
 
     for xs in &dl {
         let ys = model.forward(&xs)?;
-        // println!("{:?}", ys);
+        tracing::info!("{:?}", ys);
         for (x, y) in xs.iter().zip(ys.iter()) {
             if !y.is_empty() {
                 annotator.annotate(x, y)?.save(format!(
@@ -74,21 +74,21 @@ fn main() -> Result<()> {
             let config = rfdetr::config(args)?
                 .with_class_confs(&cli.confs)
                 .commit()?;
-            run::<RFDETR>(config, cli.source.clone(), &annotator)
+            run::<RFDETR>(config, &cli.source, &annotator)
         }
         Commands::Rtdetr(args) => {
             let config = rtdetr::config(args)?
                 .with_class_confs(&cli.confs)
                 .commit()?;
-            run::<RTDETR>(config, cli.source.clone(), &annotator)
+            run::<RTDETR>(config, &cli.source, &annotator)
         }
         Commands::Deim(args) => {
             let config = deim::config(args)?.with_class_confs(&cli.confs).commit()?;
-            run::<DEIM>(config, cli.source.clone(), &annotator)
+            run::<DEIM>(config, &cli.source, &annotator)
         }
         Commands::Dfine(args) => {
             let config = dfine::config(args)?.with_class_confs(&cli.confs).commit()?;
-            run::<DFINE>(config, cli.source.clone(), &annotator)
+            run::<DFINE>(config, &cli.source, &annotator)
         }
     }?;
     usls::perf(false);

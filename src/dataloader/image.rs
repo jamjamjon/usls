@@ -48,6 +48,22 @@ impl std::ops::DerefMut for Image {
     }
 }
 
+impl TryFrom<std::path::PathBuf> for Image {
+    type Error = anyhow::Error;
+
+    fn try_from(path: std::path::PathBuf) -> Result<Self, Self::Error> {
+        Self::try_read(path)
+    }
+}
+
+impl std::str::FromStr for Image {
+    type Err = anyhow::Error;
+
+    fn from_str(url: &str) -> Result<Self, Self::Err> {
+        Self::from_url(url)
+    }
+}
+
 impl From<DynamicImage> for Image {
     fn from(image: DynamicImage) -> Self {
         Self {

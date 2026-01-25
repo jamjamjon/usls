@@ -209,6 +209,16 @@ vlm = ["vision", "dep:tokenizers", "dep:ndarray-npy"]
 mot = []
 all-models = ["vision", "vlm", "mot"]
 
+[[test]]
+name = "cuda_pad_consistency"
+path = "tests/cuda_pad_consistency.rs"
+required-features = ["cuda-runtime", "ort-load-dynamic"]
+
+[[test]]
+name = "cuda_resize_consistency"
+path = "tests/cuda_resize_consistency.rs"
+required-features = ["cuda-runtime", "ort-load-dynamic"]
+
 
 
 [[example]]

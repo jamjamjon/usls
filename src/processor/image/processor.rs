@@ -342,6 +342,12 @@ impl ImageProcessor {
         self.plan.layout
     }
 
+    /// Get resize mode type for post-processing.
+    #[inline]
+    pub fn resize_mode_type(&self) -> Option<crate::ResizeModeType> {
+        self.plan.resize_mode_type
+    }
+
     /// Clear transform information cache.
     #[inline]
     pub fn reset_transform_info(&mut self) {

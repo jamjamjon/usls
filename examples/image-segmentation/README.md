@@ -12,7 +12,7 @@ cargo run -F cuda-full --example image-segmentation -- rfdetr  --device cuda --p
 
 ### yoloe-prompt-free
 ```bash
-cargo run  -F cuda-full --example image-segmentation -- yoloe-prompt-free  --device cuda --processor-device cuda
+cargo run  -F cuda-full --example image-segmentation -- yoloe-prompt-free  --device cuda --processor-device cuda --ver 26 --scale m
 ```
 
 ### FastSAM
