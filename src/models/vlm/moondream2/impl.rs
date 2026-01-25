@@ -444,15 +444,17 @@ impl Moondream2 {
         Ok(logits)
     }
 
-    fn process_one(&mut self, x: &Image) -> Result<(X, (usize, usize))> {
+    fn process_one(&mut self, x: &Image) -> Result<(crate::XAny, (usize, usize))> {
         // ImageProcessor handles AnyRes transform internally
         // It splits the image into patches based on Moondream2 templates and resizes each
         let (patches, _infos) = self.image_processor.process_with_info(&[x.clone()])?;
-        let patches = patches.as_host()?;
+        let num_patches =
+            patches.shape().first().copied().ok_or_else(|| {
+                anyhow::anyhow!("Moondream2: patches tensor has no batch dimension")
+            })?;
 
         // Calculate grid size from number of patches
         // AnyRes for Moondream2 produces: 1 global_patch + (h * w) local patches
-        let num_patches = patches.dims()[0];
         let hw = if num_patches <= 2 {
             // 1 or 2 patches means template (1, 1) with global
             (1, 1)
@@ -489,7 +491,7 @@ impl Moondream2 {
     fn encode(&mut self, engines: &mut Engines, x: &Image) -> Result<X> {
         let (patches, selected_template) = self.process_one(x)?;
         let patch_emb = {
-            let ys = engines.run(&Module::VisualEncoder, inputs![patches]?)?;
+            let ys = engines.run(&Module::VisualEncoder, &patches)?;
             X::from(
                 ys.get::<f32>(0)
                     .ok_or_else(|| anyhow::anyhow!("Failed to get patch embeddings"))?,

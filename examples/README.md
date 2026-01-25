@@ -1,11 +1,11 @@
 # USLS Examples
 
-
 This directory contains practical examples for all models supported by `usls`. Each demo shows how to configure, run, and integrate state-of-the-art vision and vision-language models.
 
 ## 🗂️ Contents
 - [📺 How to Run Example](#how-to-run-example)
 - [🚚 How to Use](#how-to-use)
+- [🔍 Advanced Configuration](#advanced-configuration)
 - [🌱 Contributing](#contributing)
 
 ## 🚀 How to Run Example
@@ -44,23 +44,6 @@ Standard arguments shared across all examples (see specific README.md for detail
 
 > **Note**: Device support requires corresponding Cargo features. DType support depends on model. See [Model Zoo](../README.md#-model-zoo) for dtype support per model.
 >
-
-### TensorRT and TensorRT-RTX EP
-
-⚠️ When using TensorRT EP, setting `--dtype fp16` is unnecessary. Use `--dtype fp32` and TensorRT will automatically handle the FP32→FP16 conversion for optimal performance. 
-
-### Flexible Device & Dtype Configuration
-
-You can set different device and dtype for each module to optimize memory usage and performance.
-This is especially useful when you have limited GPU memory - you can run memory-intensive modules on CPU while keeping performance-critical modules on GPU.
-
-```bash
---vision-dtype q4f16 --vision-device cuda:0    # Vision encoder (GPU, quantized)
---text-dtype fp32 --text-device cpu           # Text encoder (CPU, full precision)
---geo-dtype bnb4 --geo-device cpu            # Geometry encoder (CPU, quantized)
---decoder-dtype fp16 --decoder-device cuda:0  # Decoder (GPU, half precision)
---processor-device cuda:0                     # Image processor (GPU)
-```
 
 
 
@@ -213,6 +196,160 @@ let embedding = y.embedding;      // X
 ```
 
 📘 **Source**: [`src/results/y.rs`](../src/results/y.rs)
+
+
+## 🔍 Advanced Configuration
+
+### 🧩 Module System
+
+USLS supports complex models composed of multiple ONNX modules, enabling flexible architectures for vision and vision-language tasks.
+
+```rust
+pub enum Module {
+    // Vision models (single module)
+    Model,
+
+    // Vision-Language models
+    Visual,
+    Textual,
+
+    // Encoder-Decoder architectures
+    Encoder,
+    Decoder,
+    VisualEncoder,
+    TextualEncoder,
+    VisualDecoder,
+    TextualDecoder,
+    TextualDecoderMerged,
+
+    // Specialized components
+    SizeEncoder,
+    SizeDecoder,
+    CoordEncoder,
+    CoordDecoder,
+    VisualProjection,
+    TextualProjection,
+
+    // Custom module (for extensibility)
+    Custom(String),
+}
+```
+
+### 🔗 API Naming Convention
+
+USLS follows a consistent naming pattern for configuration APIs:
+
+```
+with_<module_name>_<field_name>(<value>)
+```
+
+**Examples**:
+- `with_model_device()` - Set device for Model module
+- `with_visual_encoder_dtype()` - Set dtype for VisualEncoder module  
+- `with_textual_processor_batch()` - Set batch for TextualProcessor module
+
+This pattern applies to **most configuration APIs** in the project, making it easy to:
+- Predict API names for different modules
+- Understand the purpose of each configuration option
+- Maintain consistency across the codebase
+
+
+### ⚙️ Execution Provider Configuration
+
+Configure execution providers (EPs) for optimal performance across different hardware:
+
+```rust
+// Three configuration patterns:
+Config::default().with_<module_name>_<ep_name>_<ep_field>(<value>)  // Per-module EP
+Config::default().with_module_<ep_name>_<ep_field>(<module_name>, <value>)  // Explicit module
+Config::default().with_<ep_name>_<ep_field>_all(<value>)  // Apply to all modules
+```
+
+**Examples**:
+```rust
+Config::dwpose_133_t()
+    .with_model_coreml_static_input_shapes(true)           // Single module
+    .with_module_coreml_static_input_shapes(Module::Model, true)  // Explicit module
+    .with_coreml_static_input_shapes_all(true);            // All modules
+```
+
+### 🚀 TensorRT Optimization
+
+#### TensorRT vs TensorRT-RTX
+
+- **TensorRT EP**: Automatically handles FP32→FP16 conversion. Use `--dtype fp32` for optimal performance.
+- **TensorRT-RTX EP**: Preserves input precision. No automatic conversion.
+
+#### TensorRT Dynamic Shapes
+
+Dynamic shapes in `usls` are configured in a way that closely mirrors `trtexec`.
+
+**`trtexec` example:**
+
+```bash
+trtexec --fp16 --onnx=your_model.onnx \
+    --minShapes=images:1x3x416x416 \
+    --optShapes=images:1x3x640x640 \
+    --maxShapes=images:8x3x800x800 \
+    --saveEngine=your_model.engine
+```
+
+**Equivalent `usls` configuration:**
+
+```rust
+Config::yolo()
+    .with_model_ixx(0, 0, (1, 1, 8))        // batch: min=1, opt=1, max=8
+    .with_model_ixx(0, 1, 3)                // channels: fixed at 3
+    .with_model_ixx(0, 2, (416, 640, 800))  // height: min/opt/max
+    .with_model_ixx(0, 3, (416, 640, 800))  // width: min/opt/max
+    .commit()?;
+```
+
+**API explanation:**
+
+* `with_<module>_ixx(input_idx, axis, (min, opt, max))` – configure dynamic shapes
+* `input_idx`: input tensor index (0-based)
+* `axis`: tensor dimension
+
+  * `0` = batch
+  * `1` = channel
+  * `2` = height
+  * `3` = width
+* `(min, opt, max)`: minimum / optimal / maximum values
+
+
+📘 **Source**: [`src/ort/iiix.rs`](../src/ort/iiix.rs)
+
+### 🔧 Flexible Device & Dtype Configuration
+
+You can configure **device** and **dtype** per module to better balance performance and memory usage.
+
+This is particularly useful when GPU memory is limited — for example, you can place memory-intensive modules on CPU while keeping performance-critical modules on GPU.
+
+
+```rust
+Config::default()
+    // Per-module configuration
+    .with_model_device(Device::Cuda(0))
+    .with_model_dtype(DType::Fp16)
+    .with_visual_encoder_device(Device::Cpu)
+    .with_visual_encoder_dtype(DType::Q4F16)
+    .with_textual_encoder_device(Device::Cpu)
+    .with_textual_encoder_dtype(DType::Fp32)
+    
+    // Or apply to all modules
+    .with_device_all(Device::Cuda(0))
+    .with_dtype_all(DType::Fp16)
+    .commit()?;
+```
+
+
+### 📚 Additional Resources
+
+- [Model Zoo](../README.md#-model-zoo) - Complete list of supported models
+- [Configuration API](../src/config/mod.rs) - Full configuration options
+- [Performance Guide](../docs/performance.md) - Optimization tips and benchmarks
+- [Hardware Support](../README.md#-hardware-support) - Compatible devices and EPs
 
 
 ---

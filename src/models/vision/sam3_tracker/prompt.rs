@@ -35,6 +35,7 @@ use crate::{
 pub struct Sam3Prompt {
     /// Text prompt (use "visual" for geometry-only mode)
     pub text: String,
+    pub is_auto_text: bool,
     /// Bounding boxes (xywh format, with name "positive"/"negative")
     pub boxes: Vec<Hbb>,
     /// Points (with name "positive"/"negative")
@@ -52,6 +53,7 @@ impl Sam3Prompt {
     pub fn new(text: &str) -> Self {
         Self {
             text: text.to_string(),
+            is_auto_text: false,
             boxes: Vec::new(),
             points: Vec::new(),
         }
@@ -59,11 +61,17 @@ impl Sam3Prompt {
 
     /// Create a geometry-only prompt (text defaults to "visual")
     pub fn visual() -> Self {
-        Self::new(Self::VISUAL)
+        Self {
+            text: Self::VISUAL.to_string(),
+            is_auto_text: true,
+            boxes: Vec::new(),
+            points: Vec::new(),
+        }
     }
 
     pub fn with_text(mut self, text: &str) -> Self {
         self.text = text.to_string();
+        self.is_auto_text = false;
         self
     }
 
@@ -211,16 +219,23 @@ impl Sam3Prompt {
 
     // ==================== Conversion Methods ====================
 
-    /// Normalize boxes for SAM3-Image (xywh -> cxcywh normalized)
-    pub fn normalized_boxes(&self, image_width: f32, image_height: f32) -> Vec<[f32; 4]> {
+    /// Normalize boxes for SAM3-Image v2 (scale to model input space, then normalize to cxcywh)
+    /// This is needed when model input resolution differs from original image resolution
+    pub fn normalized_boxes_scaled(
+        &self,
+        scale_x: f32,
+        scale_y: f32,
+        model_width: f32,
+        model_height: f32,
+    ) -> Vec<[f32; 4]> {
         self.boxes
             .iter()
             .map(|hbb| {
                 let (x, y, w, h) = hbb.xywh();
-                let cx = (x + w / 2.0) / image_width;
-                let cy = (y + h / 2.0) / image_height;
-                let nw = w / image_width;
-                let nh = h / image_height;
+                let cx = ((x + w / 2.0) * scale_x) / model_width;
+                let cy = ((y + h / 2.0) * scale_y) / model_height;
+                let nw = (w * scale_x) / model_width;
+                let nh = (h * scale_y) / model_height;
                 [cx, cy, nw, nh]
             })
             .collect()
@@ -279,15 +294,17 @@ impl std::str::FromStr for Sam3Prompt {
         let first = parts[0].trim();
 
         // Check if first part is geometry (pos:/neg:) or text
-        let (text, geo_parts) = if first.starts_with("pos:") || first.starts_with("neg:") {
-            // No text provided, use "visual"
-            (Self::VISUAL, parts.as_slice())
-        } else {
-            // First part is text
-            (first, &parts[1..])
-        };
+        let (text, is_auto_text, geo_parts) =
+            if first.starts_with("pos:") || first.starts_with("neg:") {
+                // No text provided, use "visual"
+                (Self::VISUAL, true, parts.as_slice())
+            } else {
+                // First part is text
+                (first, false, &parts[1..])
+            };
 
         let mut prompt = Self::new(text);
+        prompt.is_auto_text = is_auto_text;
 
         for part in geo_parts {
             let part = part.trim();

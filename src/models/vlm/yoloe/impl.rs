@@ -1,20 +1,21 @@
 use anyhow::Result;
+use lru::LruCache;
 use ndarray::{s, Axis};
 use rayon::prelude::*;
+use std::collections::hash_map::DefaultHasher;
 use std::collections::HashMap;
+use std::hash::{Hash, Hasher};
+use std::num::NonZeroUsize;
+use std::sync::Arc;
 
 use crate::{
     elapsed_module, inputs,
     models::vision::{BoxType, YOLOPredsFormat, YOLO},
     Config, DynConf, Engine, Engines, FromConfig, Hbb, Image, ImageProcessor, Model, Module,
-    NmsOps, Runtime, TextProcessor, Version, Xs, X, Y,
+    NmsOps, TextProcessor, Version, XView, Xs, YOLOEPrompt, X, Y,
 };
 
 /// YOLOE with prompt-based inference (textual or visual prompts).
-///
-/// This model requires an embedding from either:
-/// - `encode_class_names()` for textual prompts
-/// - `encode_visual_prompt()` for visual prompts
 #[derive(Debug)]
 pub struct YOLOEPromptBased {
     pub height: usize,
@@ -31,10 +32,12 @@ pub struct YOLOEPromptBased {
     pub has_visual_encoder: bool,
     pub has_textual_encoder: bool,
     pub version: Option<Version>,
+    textual_cache: LruCache<u64, Arc<X>>,
+    visual_cache: LruCache<u64, (Arc<X>, Vec<String>)>,
 }
 
 impl Model for YOLOEPromptBased {
-    type Input<'a> = (&'a [Image], &'a X);
+    type Input<'a> = (&'a [Image], &'a YOLOEPrompt);
 
     fn batch(&self) -> usize {
         self.batch
@@ -56,9 +59,6 @@ impl Model for YOLOEPromptBased {
             .map(Engine::from_config)
             .transpose()?;
 
-        if textual_encoder.is_some() && visual_encoder.is_some() {
-            anyhow::bail!("YOLOEPromptBased supports either visual or textual encoder, not both");
-        }
         if textual_encoder.is_none() && visual_encoder.is_none() {
             anyhow::bail!(
                 "YOLOEPromptBased requires a textual or visual encoder. \
@@ -131,6 +131,8 @@ impl Model for YOLOEPromptBased {
             has_visual_encoder,
             has_textual_encoder,
             version,
+            textual_cache: LruCache::new(NonZeroUsize::new(32).unwrap()),
+            visual_cache: LruCache::new(NonZeroUsize::new(16).unwrap()),
         };
 
         let mut engines = Engines::new();
@@ -145,37 +147,218 @@ impl Model for YOLOEPromptBased {
         Ok((model, engines))
     }
 
-    fn run(
-        &mut self,
-        engines: &mut Engines,
-        (images, embedding): Self::Input<'_>,
-    ) -> Result<Vec<Y>> {
+    fn run(&mut self, engines: &mut Engines, (images, prompt): Self::Input<'_>) -> Result<Vec<Y>> {
+        // Determine prompt type and get/compute embedding
+        let (embedding, nc) = if prompt.is_textual() {
+            elapsed_module!("YOLOE-Prompt-Based", "encode-textual-prompt", {
+                self.get_or_compute_textual_embedding(engines, prompt)?
+            })
+        } else if prompt.is_visual() {
+            elapsed_module!("YOLOE-Prompt-Based", "encode-visual-prompt", {
+                self.get_or_compute_visual_embedding(engines, prompt)?
+            })
+        } else {
+            anyhow::bail!("YOLOEPrompt must be either textual or visual");
+        };
+
+        // Update nc for visual prompts (can vary per prompt)
+        self.nc = nc;
+
         let xs_images = elapsed_module!(
-            "YOLOEPromptBased",
+            "YOLOE-Prompt-Based",
             "preprocess",
             self.processor.process(images)?
         );
 
-        let ys = elapsed_module!("YOLOEPromptBased", "inference", {
-            // let xs_images_x = xs_images.as_host()?;
-            let embedding_view = if self.has_textual_encoder {
-                let dim = embedding.dims()[1];
-                embedding
-                    .unsqueeze(0)?
-                    .broadcast_to((images.len(), self.nc, dim))?
+        let ys = elapsed_module!("YOLOE-Prompt-Based", "inference", {
+            let dims = embedding.dims();
+
+            if prompt.is_textual() {
+                // Textual embedding is typically [nc, dim] (2D)
+                if dims.len() != 2 {
+                    anyhow::bail!(
+                        "Invalid textual embedding shape for YOLOE prompt inference: {dims:?}."
+                    );
+                }
+
+                let dim = dims[1];
+                if images.len() == 1 {
+                    // Fast path: zero-copy reshape to [1, nc, dim]
+                    let view_3d = embedding.0.view().insert_axis(Axis(0));
+                    engines.run(&Module::Model, inputs![&xs_images, XView::from(view_3d)]?)?
+                } else {
+                    // Need a real contiguous [B, nc, dim] tensor
+                    let embedding_broadcast =
+                        embedding
+                            .unsqueeze(0)?
+                            .broadcast_to((images.len(), self.nc, dim))?;
+                    engines.run(
+                        &Module::Model,
+                        inputs![&xs_images, embedding_broadcast.view()]?,
+                    )?
+                }
             } else {
-                embedding.clone()
-            };
-            engines.run(&Module::Model, inputs![&xs_images, embedding_view.view()]?)?
+                // Visual embedding is typically [1, nc, dim] (3D)
+                if dims.len() != 3 {
+                    anyhow::bail!(
+                        "Invalid visual embedding shape for YOLOE prompt inference: {dims:?}."
+                    );
+                }
+
+                if dims[0] == images.len() {
+                    engines.run(&Module::Model, inputs![&xs_images, embedding.view()]?)?
+                } else if dims[0] == 1 && images.len() > 1 {
+                    let embedding_broadcast =
+                        embedding.broadcast_to((images.len(), dims[1], dims[2]))?;
+                    engines.run(
+                        &Module::Model,
+                        inputs![&xs_images, embedding_broadcast.view()]?,
+                    )?
+                } else if dims[0] == 1 {
+                    engines.run(&Module::Model, inputs![&xs_images, embedding.view()]?)?
+                } else {
+                    anyhow::bail!(
+                        "Invalid visual embedding batch dimension for YOLOE prompt inference: {dims:?}."
+                    );
+                }
+            }
         });
 
-        elapsed_module!("YOLOEPromptBased", "postprocess", self.postprocess(&ys))
+        elapsed_module!("YOLOE-Prompt-Based", "postprocess", self.postprocess(&ys))
     }
 }
 
 impl YOLOEPromptBased {
-    /// Encode class names using textual encoder.
-    pub fn encode_class_names(&mut self, engines: &mut Engines, class_names: &[&str]) -> Result<X> {
+    /// Generate cache key for textual prompts
+    fn textual_cache_key(texts: &[String]) -> u64 {
+        let mut hasher = DefaultHasher::new();
+        texts.hash(&mut hasher);
+        hasher.finish()
+    }
+
+    /// Generate cache key for visual prompts (based on box coordinates)
+    fn visual_cache_key(image: &Image, boxes: &[Hbb]) -> u64 {
+        let mut hasher = DefaultHasher::new();
+
+        // Image identity (best-effort): prefer source path if present, otherwise hash raw bytes.
+        image.source.hash(&mut hasher);
+        image.timestamp.map(|t| t.to_bits()).hash(&mut hasher);
+        image.width().hash(&mut hasher);
+        image.height().hash(&mut hasher);
+        if image.source.is_none() {
+            image.as_raw().hash(&mut hasher);
+        }
+
+        // Canonicalize boxes: order-independent hashing.
+        let mut items: Vec<(&str, u32, u32, u32, u32)> = boxes
+            .iter()
+            .map(|hbb| {
+                let name = hbb.name().unwrap_or("unnamed");
+                let (x1, y1, x2, y2) = hbb.xyxy();
+                (name, x1.to_bits(), y1.to_bits(), x2.to_bits(), y2.to_bits())
+            })
+            .collect();
+        items.sort_unstable_by(|a, b| {
+            a.0.cmp(b.0)
+                .then_with(|| a.1.cmp(&b.1))
+                .then_with(|| a.2.cmp(&b.2))
+                .then_with(|| a.3.cmp(&b.3))
+                .then_with(|| a.4.cmp(&b.4))
+        });
+        items.hash(&mut hasher);
+
+        hasher.finish()
+    }
+
+    /// Get or compute textual embedding with caching.
+    fn get_or_compute_textual_embedding(
+        &mut self,
+        engines: &mut Engines,
+        prompt: &YOLOEPrompt,
+    ) -> Result<(Arc<X>, usize)> {
+        if !self.has_textual_encoder {
+            anyhow::bail!(
+                "Textual prompt provided but no textual encoder loaded. \
+                 Use a config with textual encoder (e.g., yoloe_v8s_seg_tp)."
+            );
+        }
+
+        let texts = match prompt {
+            YOLOEPrompt::Textual(texts) => texts.as_slice(),
+            _ => anyhow::bail!("Invalid textual prompt"),
+        };
+        if texts.is_empty() {
+            anyhow::bail!("Invalid textual prompt: no class names");
+        }
+
+        let cache_key = Self::textual_cache_key(texts);
+
+        // Check cache
+        if let Some(cached) = self.textual_cache.get(&cache_key) {
+            // Restore names from prompt
+            self.names.clear();
+            self.names.extend(texts.iter().cloned());
+            return Ok((Arc::clone(cached), self.nc));
+        }
+
+        // Compute embedding
+        let class_names: Vec<&str> = texts.iter().map(|s| s.as_str()).collect();
+        let embedding = self.encode_class_names_internal(engines, &class_names)?;
+
+        let embedding = Arc::new(embedding);
+
+        // Cache result
+        self.textual_cache.put(cache_key, Arc::clone(&embedding));
+
+        Ok((embedding, self.nc))
+    }
+
+    /// Get or compute visual embedding with caching.
+    fn get_or_compute_visual_embedding(
+        &mut self,
+        engines: &mut Engines,
+        prompt: &YOLOEPrompt,
+    ) -> Result<(Arc<X>, usize)> {
+        if !self.has_visual_encoder {
+            anyhow::bail!(
+                "Visual prompt provided but no visual encoder loaded. \
+                 Use a config with visual encoder (e.g., yoloe_v8s_seg_vp)."
+            );
+        }
+
+        let boxes = prompt
+            .boxes()
+            .ok_or_else(|| anyhow::anyhow!("Invalid visual prompt"))?;
+
+        // Get image from prompt
+        let image = prompt
+            .image()
+            .ok_or_else(|| anyhow::anyhow!("Visual prompt has no image"))?;
+
+        let cache_key = Self::visual_cache_key(image, boxes);
+
+        // Check cache
+        if let Some((cached, names)) = self.visual_cache.get(&cache_key) {
+            self.names.clear();
+            self.names.extend(names.iter().cloned());
+            return Ok((Arc::clone(cached), self.names.len()));
+        }
+
+        let (embedding, nc) = self.encode_visual_prompt_internal(engines, boxes, image)?;
+
+        // Cache result (including names for stable class-id mapping)
+        self.visual_cache
+            .put(cache_key, (Arc::clone(&embedding), self.names.clone()));
+
+        Ok((embedding, nc))
+    }
+
+    /// Internal: Encode class names using textual encoder.
+    fn encode_class_names_internal(
+        &mut self,
+        engines: &mut Engines,
+        class_names: &[&str],
+    ) -> Result<X> {
         if class_names.len() > self.nc {
             anyhow::bail!(
                 "The length of provided class names: {} exceeds the configured number of classes: {}.",
@@ -191,7 +374,7 @@ impl YOLOEPromptBased {
             anyhow::anyhow!("Text processor is not initialized (textual encoder missing?)")
         })?;
 
-        let x = elapsed_module!("YOLOEPromptBased", "textual-encoder-preprocess", {
+        let x = {
             let texts: Vec<&str> = self.names.iter().map(|x| x.as_str()).collect();
             let encodings: Vec<f32> = text_processor
                 .encode_texts_ids(&texts, true)?
@@ -200,128 +383,178 @@ impl YOLOEPromptBased {
                 .collect();
             let shape = &[texts.len(), encodings.len() / texts.len()];
             X::from_shape_vec(shape, encodings)?
-        });
+        };
 
-        let xs = elapsed_module!(
-            "YOLOEPromptBased",
-            "textual-encoder-inference",
-            engines.run(&Module::TextualEncoder, inputs![x]?)?
-        );
+        let xs = engines.run(&Module::TextualEncoder, inputs![x]?)?;
 
-        elapsed_module!("YOLOEPromptBased", "textual-encoder-postprocess", {
-            let x = xs
-                .get::<f32>(0)
-                .ok_or_else(|| anyhow::anyhow!("Failed to get textual encoder output"))?;
-            let x_owned = x.to_owned();
-            let x_owned = match self.version {
-                Some(Version(26, _, _)) => {
-                    let denom = x_owned.norm_l2_keepdim(-1)? + 1e-12;
-                    x_owned / denom
-                }
-                _ => x_owned,
-            };
-
-            let (n, dim) = (x_owned.dims()[0], x_owned.dims()[1]);
-            let n_pad = self.nc.saturating_sub(n);
-            if n_pad > 0 {
-                let x_zeros = X::zeros(&[n_pad, dim]);
-                X::cat(&[x_owned, x_zeros], 0)
-            } else {
-                Ok(x_owned)
+        let x = xs
+            .get::<f32>(0)
+            .ok_or_else(|| anyhow::anyhow!("Failed to get textual encoder output"))?;
+        let x_owned = x.to_owned();
+        let x_owned = match self.version {
+            Some(Version(26, _, _)) => {
+                let denom = x_owned.norm_l2_keepdim(-1)? + 1e-12;
+                x_owned / denom
             }
-        })
+            _ => x_owned,
+        };
+
+        let (n, dim) = (x_owned.dims()[0], x_owned.dims()[1]);
+        let n_pad = self.nc.saturating_sub(n);
+        if n_pad > 0 {
+            let x_zeros = X::zeros(&[n_pad, dim]);
+            X::cat(&[x_owned, x_zeros], 0)
+        } else {
+            Ok(x_owned)
+        }
     }
 
-    /// Encode visual prompt using visual encoder.
-    pub fn encode_visual_prompt(
+    /// Internal: Encode visual prompt using visual encoder.
+    /// Single image with multiple boxes - boxes can have duplicate class names
+    fn encode_visual_prompt_internal(
         &mut self,
         engines: &mut Engines,
-        prompt_image: Image,
         hbbs: &[Hbb],
-    ) -> Result<X> {
-        let (image_embedding, mask, nc) =
-            elapsed_module!("YOLOEPromptBased", "visual-encoder-preprocess", {
-                let image_embedding = self.processor.process(&[prompt_image])?.as_host()?;
-                let ratio = self.processor.images_transform_info()[0].height_scale;
+        image: &Image,
+    ) -> Result<(Arc<X>, usize)> {
+        if hbbs.is_empty() {
+            anyhow::bail!("Visual prompt requires at least one bounding box");
+        }
 
-                let downsample_scale = 8.0;
-                let scale_factor = ratio / downsample_scale;
-                let (prompt_height, prompt_width) = (
-                    self.height as f32 / downsample_scale,
-                    self.width as f32 / downsample_scale,
-                );
+        let (image_embedding, mask, nc) = {
+            let image_embedding = self.processor.process(std::slice::from_ref(image))?;
+            let info = &self.processor.images_transform_info()[0];
+            let resize_mode = self
+                .processor
+                .resize_mode_type()
+                .unwrap_or(crate::ResizeModeType::FitAdaptive);
 
-                let mask_h = prompt_height as usize;
-                let mask_w = prompt_width as usize;
-                let mask_w_f32 = mask_w as f32;
-                let mask_h_f32 = mask_h as f32;
-                let min_size = 1.0;
+            let downsample_scale = 8.0;
+            let (prompt_height, prompt_width) = (
+                self.height as f32 / downsample_scale,
+                self.width as f32 / downsample_scale,
+            );
 
-                #[allow(clippy::type_complexity)]
-                let mut class_groups: HashMap<
-                    &str,
-                    Vec<(usize, usize, usize, usize)>,
-                > = HashMap::with_capacity(hbbs.len());
+            let mask_h = prompt_height as usize;
+            let mask_w = prompt_width as usize;
+            let mask_w_f32 = mask_w as f32;
+            let mask_h_f32 = mask_h as f32;
+            let min_size = 1.0;
 
-                self.names.clear();
-                self.names.reserve(hbbs.len());
+            #[allow(clippy::type_complexity)]
+            let mut class_groups: HashMap<&str, Vec<(usize, usize, usize, usize)>> =
+                HashMap::with_capacity(hbbs.len());
 
-                for hbb in hbbs {
-                    let class_name = hbb.name().unwrap_or("untitled");
-                    let (x, y, w, h) = hbb.xywh();
-                    let x1_f = (x * scale_factor).max(0.0).min(mask_w_f32 - 1.0);
-                    let y1_f = (y * scale_factor).max(0.0).min(mask_h_f32 - 1.0);
-                    let x2_f = ((x + w) * scale_factor).max(0.0).min(mask_w_f32);
-                    let y2_f = ((y + h) * scale_factor).max(0.0).min(mask_h_f32);
-                    let x2_f = x2_f.max(x1_f + min_size);
-                    let y2_f = y2_f.max(y1_f + min_size);
+            self.names.clear();
+            self.names.reserve(hbbs.len());
 
-                    let coords = (x1_f as usize, y1_f as usize, x2_f as usize, y2_f as usize);
-                    class_groups.entry(class_name).or_default().push(coords);
-                }
+            for hbb in hbbs {
+                let class_name = hbb.name().unwrap_or("untitled");
+                let (x, y, w, h) = hbb.xywh();
 
-                let nc = class_groups.len();
-                let mask_size = mask_h * mask_w;
-                let mut mask_data = vec![0.0f32; nc * mask_size];
-
-                let class_groups_vec: Vec<_> = class_groups.into_iter().collect();
-
-                for (class_name, _) in &class_groups_vec {
-                    self.names.push(class_name.to_string());
-                }
-
-                mask_data
-                    .par_chunks_mut(mask_size)
-                    .zip(class_groups_vec.par_iter())
-                    .for_each(|(mask_slice, (_class_name, boxes))| {
-                        for &(x1, y1, x2, y2) in boxes {
-                            for row in y1..y2 {
-                                let row_start = row * mask_w + x1;
-                                let row_end = row * mask_w + x2;
-                                mask_slice[row_start..row_end].fill(1.0);
-                            }
+                // Transform box coordinates based on resize mode
+                let (x1_transformed, y1_transformed, x2_transformed, y2_transformed) =
+                    match resize_mode {
+                        crate::ResizeModeType::Letterbox => {
+                            let ratio = info.height_scale;
+                            let pad_w = info.width_pad;
+                            let pad_h = info.height_pad;
+                            (
+                                (x * ratio + pad_w) / downsample_scale,
+                                (y * ratio + pad_h) / downsample_scale,
+                                ((x + w) * ratio + pad_w) / downsample_scale,
+                                ((y + h) * ratio + pad_h) / downsample_scale,
+                            )
                         }
-                    });
+                        crate::ResizeModeType::FitAdaptive => {
+                            let ratio = info.height_scale;
+                            let scale_factor = ratio / downsample_scale;
+                            (
+                                x * scale_factor,
+                                y * scale_factor,
+                                (x + w) * scale_factor,
+                                (y + h) * scale_factor,
+                            )
+                        }
+                        crate::ResizeModeType::FitExact => {
+                            let scale_x =
+                                self.width as f32 / info.width_src as f32 / downsample_scale;
+                            let scale_y =
+                                self.height as f32 / info.height_src as f32 / downsample_scale;
+                            (
+                                x * scale_x,
+                                y * scale_y,
+                                (x + w) * scale_x,
+                                (y + h) * scale_y,
+                            )
+                        }
+                        _ => {
+                            let ratio = info.height_scale;
+                            let scale_factor = ratio / downsample_scale;
+                            (
+                                x * scale_factor,
+                                y * scale_factor,
+                                (x + w) * scale_factor,
+                                (y + h) * scale_factor,
+                            )
+                        }
+                    };
 
-                (
-                    image_embedding,
-                    X::from_shape_vec(&[1, nc, mask_h, mask_w], mask_data)?,
-                    nc,
-                )
-            });
+                let x1_f = x1_transformed.max(0.0).min(mask_w_f32 - 1.0);
+                let y1_f = y1_transformed.max(0.0).min(mask_h_f32 - 1.0);
+                let x2_f = x2_transformed.max(0.0).min(mask_w_f32);
+                let y2_f = y2_transformed.max(0.0).min(mask_h_f32);
+                let x2_f = x2_f.max(x1_f + min_size);
+                let y2_f = y2_f.max(y1_f + min_size);
+
+                let coords = (x1_f as usize, y1_f as usize, x2_f as usize, y2_f as usize);
+                class_groups.entry(class_name).or_default().push(coords);
+            }
+
+            let nc = class_groups.len();
+            let mask_size = mask_h * mask_w;
+            let mut mask_data = vec![0.0f32; nc * mask_size];
+
+            let mut class_groups_vec: Vec<_> = class_groups.into_iter().collect();
+            class_groups_vec.sort_unstable_by(|a, b| a.0.cmp(b.0));
+
+            for (class_name, _) in &class_groups_vec {
+                self.names.push(class_name.to_string());
+            }
+
+            mask_data
+                .par_chunks_mut(mask_size)
+                .zip(class_groups_vec.par_iter())
+                .for_each(|(mask_slice, (_class_name, boxes))| {
+                    for &(x1, y1, x2, y2) in boxes {
+                        for row in y1..y2 {
+                            let row_start = row * mask_w + x1;
+                            let row_end = row * mask_w + x2;
+                            mask_slice[row_start..row_end].fill(1.0);
+                        }
+                    }
+                });
+
+            (
+                image_embedding,
+                X::from_shape_vec(&[1, nc, mask_h, mask_w], mask_data)?,
+                nc,
+            )
+        };
 
         self.nc = nc;
 
-        elapsed_module!("YOLOEPromptBased", "visual-encoder-inference", {
+        let embedding = {
             let xs = engines.run(
                 &Module::VisualEncoder,
-                inputs![image_embedding.view(), mask.view()]?,
+                inputs![&image_embedding, mask.view()]?,
             )?;
-            Ok(xs
-                .get::<f32>(0)
+            xs.get::<f32>(0)
                 .ok_or_else(|| anyhow::anyhow!("Failed to get visual encoder output"))?
-                .to_owned())
-        })
+                .to_owned()
+        };
+
+        Ok((Arc::new(embedding), nc))
     }
 
     fn postprocess(&self, outputs: &Xs) -> Result<Vec<Y>> {
@@ -342,8 +575,11 @@ impl YOLOEPromptBased {
                 self.layout.parse_preds(pred, self.nc);
 
             let info = &self.processor.images_transform_info[idx];
-            let (image_height, image_width, ratio) =
-                (info.height_src, info.width_src, info.height_scale);
+            let (image_height, image_width) = (info.height_src, info.width_src);
+            let resize_mode = self
+                .processor
+                .resize_mode_type()
+                .unwrap_or(crate::ResizeModeType::FitAdaptive);
 
             // ObjectDetection
             let slice_bboxes = slice_bboxes?;
@@ -377,10 +613,13 @@ impl YOLOEPromptBased {
 
                 // Bboxes
                 let mut bbox_it = bbox.iter();
-                let b0 = *bbox_it.next()? / ratio;
-                let b1 = *bbox_it.next()? / ratio;
-                let b2 = *bbox_it.next()? / ratio;
-                let b3 = *bbox_it.next()? / ratio;
+                let (b0, b1, b2, b3) = (
+                    *bbox_it.next()?,
+                    *bbox_it.next()?,
+                    *bbox_it.next()?,
+                    *bbox_it.next()?,
+                );
+
                 let bbox = if self.layout.is_bbox_normalized {
                     (
                         b0 * self.width as f32,
@@ -390,6 +629,59 @@ impl YOLOEPromptBased {
                     )
                 } else {
                     (b0, b1, b2, b3)
+                };
+
+                let bbox = match resize_mode {
+                    crate::ResizeModeType::FitExact => {
+                        let scale_x = image_width as f32 / self.width as f32;
+                        let scale_y = image_height as f32 / self.height as f32;
+                        (
+                            bbox.0 * scale_x,
+                            bbox.1 * scale_y,
+                            bbox.2 * scale_x,
+                            bbox.3 * scale_y,
+                        )
+                    }
+                    crate::ResizeModeType::Letterbox => {
+                        let ratio = info.height_scale;
+                        let pad_w = info.width_pad;
+                        let pad_h = info.height_pad;
+
+                        match self.layout.box_type()? {
+                            // All 4 values are positions
+                            BoxType::Xyxy | BoxType::Cxcyxy | BoxType::XyCxcy => (
+                                (bbox.0 - pad_w) / ratio,
+                                (bbox.1 - pad_h) / ratio,
+                                (bbox.2 - pad_w) / ratio,
+                                (bbox.3 - pad_h) / ratio,
+                            ),
+                            // First two are positions, last two are sizes
+                            BoxType::Cxcywh | BoxType::Xywh => (
+                                (bbox.0 - pad_w) / ratio,
+                                (bbox.1 - pad_h) / ratio,
+                                bbox.2 / ratio,
+                                bbox.3 / ratio,
+                            ),
+                        }
+                    }
+                    crate::ResizeModeType::FitAdaptive => {
+                        let ratio = info.height_scale;
+                        (
+                            bbox.0 / ratio,
+                            bbox.1 / ratio,
+                            bbox.2 / ratio,
+                            bbox.3 / ratio,
+                        )
+                    }
+                    _ => {
+                        let ratio = info.height_scale;
+                        (
+                            bbox.0 / ratio,
+                            bbox.1 / ratio,
+                            bbox.2 / ratio,
+                            bbox.3 / ratio,
+                        )
+                    }
                 };
 
                 let (x, y, w, h) = match self.layout.box_type()? {
@@ -402,12 +694,10 @@ impl YOLOEPromptBased {
                     BoxType::Xyxy => {
                         let (x, y, x2, y2) = bbox;
                         let (w, h) = (x2 - x, y2 - y);
-                        // let (cx, cy) = ((x + x2) / 2., (y + y2) / 2.);
                         (x, y, w, h)
                     }
                     BoxType::Xywh => {
                         let (x, y, w, h) = bbox;
-                        // let (cx, cy) = (x + w / 2., y + h / 2.);
                         (x, y, w, h)
                     }
                     BoxType::Cxcyxy => {
@@ -475,6 +765,10 @@ impl YOLOEPromptBased {
                             proto_3d,
                             image_width,
                             image_height,
+                            self.width,
+                            self.height,
+                            resize_mode,
+                            info,
                         );
                         if !y_masks.is_empty() {
                             y = y.with_masks(&y_masks);
@@ -498,19 +792,5 @@ impl YOLOEPromptBased {
         };
 
         Ok(ys)
-    }
-}
-
-impl Runtime<YOLOEPromptBased> {
-    /// Encode class names using textual encoder.
-    pub fn encode_class_names(&mut self, class_names: &[&str]) -> Result<X> {
-        let (model, engines) = self.parts_mut();
-        model.encode_class_names(engines, class_names)
-    }
-
-    /// Encode visual prompt using visual encoder.
-    pub fn encode_visual_prompt(&mut self, prompt_image: Image, hbbs: &[Hbb]) -> Result<X> {
-        let (model, engines) = self.parts_mut();
-        model.encode_visual_prompt(engines, prompt_image, hbbs)
     }
 }

@@ -6,7 +6,7 @@
 ### grounding-dino
 ```bash
 # Single prompt
-cargo run -F cuda-full -F vlm --example open-set-detection grounding-dino --dtype fp16 --device cuda:0 --processor-device cuda:0 --kind llmdet-tiny
+cargo run -F cuda-full -F vlm --example open-set-detection grounding-dino --dtype fp16 --device cuda:0 --processor-device cuda:0 --kind llmdet-tiny --source ./assets
 
 # Multiple prompts
 cargo run -F cuda-full -F vlm --example open-set-detection grounding-dino --dtype fp16 --device cuda:0 --processor-device cuda:0 --kind llmdet-tiny -p person -p bus -p dog

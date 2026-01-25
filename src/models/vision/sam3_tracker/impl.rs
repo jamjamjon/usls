@@ -3,8 +3,8 @@ use anyhow::Result;
 use ndarray::{s, Array4};
 
 use crate::{
-    elapsed_module, inputs, Config, Engine, Engines, FromConfig, Image, ImageProcessor, Mask,
-    Model, Module, Ops, Sam3Prompt, X, Y,
+    elapsed_module, Config, Engine, Engines, FromConfig, Image, ImageProcessor, Mask, Model,
+    Module, Ops, Sam3Prompt, X, Y,
 };
 
 /// Sam3Tracker - Segment Anything Model 3 with point and box prompts.
@@ -40,7 +40,7 @@ pub struct Sam3Tracker {
 impl Sam3Tracker {
     fn encode_images(&mut self, engines: &mut Engines, xs: &[Image]) -> Result<Vec<X>> {
         let xs_ = self.image_processor.process(xs)?;
-        let output = engines.run(&Module::VisualEncoder, inputs![&xs_]?)?;
+        let output = engines.run(&Module::VisualEncoder, &xs_)?;
         let xs_out: Vec<X> = (0..output.len())
             .map(|i| X::from(output.get::<f32>(i).unwrap()))
             .collect();
@@ -287,14 +287,13 @@ impl Sam3Tracker {
         object_idx: usize,
         name: &str,
     ) -> Result<Option<Mask>> {
-        let luma = Ops::resize_lumaf32_u8(
+        let luma: Vec<u8> = Ops::interpolate_1d_u8(
             mask_probs,
             mask_w as _,
             mask_h as _,
             orig_w as _,
             orig_h as _,
             false,
-            "Bilinear",
         )?;
 
         let luma_binary: Vec<u8> = luma

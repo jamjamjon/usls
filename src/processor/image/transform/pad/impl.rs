@@ -209,4 +209,97 @@ impl Image {
 
         Ok((Self::from(padded), images_transform_info))
     }
+
+    pub fn pad_fixed(
+        &self,
+        top: u32,
+        bottom: u32,
+        left: u32,
+        right: u32,
+        fill_mode: PadFillMode,
+    ) -> Result<(Self, ImageTransformInfo)> {
+        let (w0, h0) = self.image.dimensions();
+        let out_w = w0 + left + right;
+        let out_h = h0 + top + bottom;
+
+        let src = self.image.as_raw();
+        let mut padded = RgbImage::new(out_w, out_h);
+        let dst = padded.as_mut();
+
+        let mod_pos = |a: i64, b: i64| {
+            let m = a % b;
+            if m < 0 {
+                m + b
+            } else {
+                m
+            }
+        };
+        let reflect_index = |i: i64, n: i64| {
+            if n <= 1 {
+                return 0i64;
+            }
+            if i < 0 {
+                return (-i - 1) % n;
+            }
+            if i >= n {
+                let dx = i - n;
+                return n - 1 - (dx % n);
+            }
+            i
+        };
+
+        let in_w_i64 = w0 as i64;
+        let in_h_i64 = h0 as i64;
+        let left_i64 = left as i64;
+        let top_i64 = top as i64;
+
+        for y in 0..out_h {
+            let sy = y as i64 - top_i64;
+            for x in 0..out_w {
+                let sx = x as i64 - left_i64;
+                let out_idx = ((y * out_w + x) * 3) as usize;
+
+                match fill_mode {
+                    PadFillMode::Constant(v) => {
+                        if sx >= 0 && sx < in_w_i64 && sy >= 0 && sy < in_h_i64 {
+                            let in_idx = (((sy as u32) * w0 + (sx as u32)) * 3) as usize;
+                            dst[out_idx..out_idx + 3].copy_from_slice(&src[in_idx..in_idx + 3]);
+                        } else {
+                            dst[out_idx] = v;
+                            dst[out_idx + 1] = v;
+                            dst[out_idx + 2] = v;
+                        }
+                    }
+                    PadFillMode::Reflect => {
+                        let rx = reflect_index(sx, in_w_i64) as u32;
+                        let ry = reflect_index(sy, in_h_i64) as u32;
+                        let in_idx = ((ry * w0 + rx) * 3) as usize;
+                        dst[out_idx..out_idx + 3].copy_from_slice(&src[in_idx..in_idx + 3]);
+                    }
+                    PadFillMode::Replicate => {
+                        let rx = sx.clamp(0, in_w_i64 - 1) as u32;
+                        let ry = sy.clamp(0, in_h_i64 - 1) as u32;
+                        let in_idx = ((ry * w0 + rx) * 3) as usize;
+                        dst[out_idx..out_idx + 3].copy_from_slice(&src[in_idx..in_idx + 3]);
+                    }
+                    PadFillMode::Wrap => {
+                        let rx = mod_pos(sx, in_w_i64) as u32;
+                        let ry = mod_pos(sy, in_h_i64) as u32;
+                        let in_idx = ((ry * w0 + rx) * 3) as usize;
+                        dst[out_idx..out_idx + 3].copy_from_slice(&src[in_idx..in_idx + 3]);
+                    }
+                }
+            }
+        }
+
+        let info = ImageTransformInfo::default()
+            .with_width_src(w0)
+            .with_height_src(h0)
+            .with_width_dst(out_w)
+            .with_height_dst(out_h)
+            .with_width_pad((left + right) as f32)
+            .with_height_pad((top + bottom) as f32);
+
+        Ok((Self::from(padded), info))
+    }
 }

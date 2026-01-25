@@ -154,14 +154,13 @@ impl SAM2 {
                 let mask = mask.slice(s![i, .., ..]);
 
                 let (h, w) = mask.dim();
-                let luma = Ops::resize_lumaf32_u8(
+                let luma: Vec<u8> = Ops::interpolate_1d_u8(
                     &mask.into_owned().into_raw_vec_and_offset().0,
                     w as _,
                     h as _,
-                    image_width as _,
-                    image_height as _,
+                    image_width,
+                    image_height,
                     true,
-                    "Bilinear",
                 )?;
 
                 // contours

@@ -7,12 +7,12 @@ use std::sync::Arc;
 use crate::ResizeFilter;
 
 pub(crate) fn sys_err(e: cudarc::driver::sys::CUresult) -> anyhow::Error {
-    anyhow::anyhow!("CUDA sys error: {:?}", e)
+    anyhow::anyhow!("CUDA sys error: {e:?}")
 }
 
 /// Convert cudarc DriverError to anyhow::Error
 pub(crate) fn driver_err(e: cudarc::driver::result::DriverError) -> anyhow::Error {
-    anyhow::anyhow!("CUDA driver error: {:?}", e)
+    anyhow::anyhow!("CUDA driver error: {e:?}")
 }
 
 pub(crate) struct PinnedHostBuffer {

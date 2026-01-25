@@ -2,15 +2,13 @@ use anyhow::Result;
 use clap::{Parser, Subcommand};
 use usls::{
     models::{Sam3Image, Sam3Prompt, YOLOEPromptBased},
-    Annotator, Config, DataLoader, Hbb, Model, Source,
+    Annotator, Config, DataLoader, Model, Source, YOLOEPrompt,
 };
 
 mod sam3_image;
 #[path = "../utils/mod.rs"]
 mod utils;
 mod yoloe_prompt_based;
-
-use crate::yoloe_prompt_based::Kind;
 
 #[derive(Parser)]
 #[command(author, version, about = "Open-Set Segmentation Examples")]
@@ -21,7 +19,7 @@ struct Cli {
     pub source: Source,
 
     /// Confidence thresholds (comma-separated for per-class, or single value for all)
-    #[arg(long, global = true, value_delimiter = ',')]
+    #[arg(long, global = true, default_value = "0.5")]
     pub confs: Vec<f32>,
 
     /// Prompts: "text", "text;pos:x,y", etc.
@@ -30,6 +28,10 @@ struct Cli {
 
     #[command(subcommand)]
     pub command: Commands,
+
+    /// Whether to cutout the annotated region
+    #[arg(long, global = true, default_value = "true")]
+    pub cutout: bool,
 }
 
 #[derive(Subcommand)]
@@ -45,7 +47,7 @@ fn main() -> Result<()> {
         .with_mask_style(
             usls::MaskStyle::default()
                 .with_visible(true)
-                .with_cutout(true)
+                .with_cutout(cli.cutout)
                 .with_draw_polygon_largest(true),
         )
         .with_polygon_style(usls::PolygonStyle::default().with_thickness(2));
@@ -61,9 +63,11 @@ fn main() -> Result<()> {
             let config = yoloe_prompt_based::config(args)?
                 .with_class_confs(&cli.confs)
                 .commit()?;
+
             run_yoloe_prompt_based(config, cli.source, &annotator, args, &cli.prompts)?
         }
     }
+
     usls::perf(false);
 
     Ok(())
@@ -76,38 +80,40 @@ fn run_yoloe_prompt_based(
     args: &yoloe_prompt_based::YoloePromptArgs,
     prompts: &[String],
 ) -> Result<()> {
+    if prompts.is_empty() {
+        anyhow::bail!("No prompt. Use -p \"class_name\" or -p \"xyxy:x1,y1,x2,y2,class_name\"");
+    }
+
+    let prompt = YOLOEPrompt::parse(prompts, args.prompt_image.as_deref())?;
     let mut model = YOLOEPromptBased::new(config)?;
 
-    // Encode embedding
-    let embedding = match args.kind {
-        Kind::Visual => {
-            let prompt_image = DataLoader::new("./assets/bus.jpg")?.try_read_one()?;
-            model.encode_visual_prompt(
-                prompt_image,
-                &[Hbb::from_xyxy(221.52, 405.8, 344.98, 857.54).with_name("person")],
-            )?
-        }
-        Kind::Textual => {
-            model.encode_class_names(&prompts.iter().map(|x| x.as_str()).collect::<Vec<_>>())?
-        }
-    };
-
-    // Build dataloader
     let dl = DataLoader::new(source)?
         .with_batch(model.batch() as _)
         .with_progress_bar(true)
         .stream()?;
 
-    // Run & Annotate
+    // Draw visual prompt boxes on the prompt image if visual prompt is used
+    if prompt.is_visual() {
+        prompt.draw(annotator)?.save(format!(
+            "{}.jpg",
+            usls::Dir::Current
+                .base_dir_with_subs(&["runs/open-set-segmentation", "YOLOE-prompt", &model.spec])?
+                .join(usls::timestamp(None))
+                .display(),
+        ))?;
+    }
+
     for xs in &dl {
-        let ys = model.run((&xs, &embedding))?;
-        // println!("ys: {:?}", ys);
+        let ys = model.forward((&xs, &prompt))?;
+        tracing::info!("ys: {ys:?}");
 
         for (x, y) in xs.iter().zip(ys.iter()) {
             if y.is_empty() {
                 continue;
             }
-            annotator.annotate(x, y)?.save(format!(
+
+            let annotated = annotator.annotate(x, y)?;
+            annotated.save(format!(
                 "{}.jpg",
                 usls::Dir::Current
                     .base_dir_with_subs(&[
@@ -147,12 +153,11 @@ fn run_sam3_image(
 
     for batch in dl {
         let ys = model.forward((&batch, &prompts))?;
-        // println!("ys: {:?}", ys);
+        tracing::info!("ys: {:?}", ys);
         for (img, y) in batch.iter().zip(ys.iter()) {
             let mut annotated = annotator.annotate(img, y)?;
             for prompt in &prompts {
                 annotated = annotator.annotate(&annotated, &prompt.boxes)?;
-                annotated = annotator.annotate(&annotated, &prompt.points)?;
             }
             annotated.save(
                 usls::Dir::Current

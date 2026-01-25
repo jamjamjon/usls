@@ -2,7 +2,7 @@ use anyhow::Result;
 use clap::{Parser, Subcommand};
 use usls::{
     models::{GroundingDINO, OWLv2},
-    Annotator, DataLoader, Model, Source,
+    Annotator, Config, DataLoader, Model, Source,
 };
 
 mod grounding_dino;
@@ -28,7 +28,7 @@ struct Cli {
         long,
         global = true,
         value_delimiter = ',',
-        default_value = "person,bus,a dog,cat,stop sign,tie,eye glasses,tree,camera,hand,a shoe,balcony,window"
+        default_value = "person,bus,a dog,cat,stop sign,tie,eye glasses,tree,camera,hand,a shoe,car,balcony,window"
     )]
     pub prompts: Vec<String>,
 
@@ -45,57 +45,52 @@ enum Commands {
 fn main() -> Result<()> {
     utils::init_logging();
     let cli = Cli::parse();
-
-    // Build dataloader
-    let xs = DataLoader::new(&cli.source)?.try_read()?;
-
-    // Build annotator
     let annotator = Annotator::default();
 
     match &cli.command {
         Commands::GroundingDINO(args) => {
-            // Build model
             let config = grounding_dino::config(args)?
                 .with_class_confs(&cli.confs)
                 .with_text_names_owned(cli.prompts)
                 .commit()?;
-            let mut model = GroundingDINO::new(config)?;
-
-            // Run & Annotate
-            let ys = model.run(&xs)?;
-            println!("{ys:?}");
-            for (x, y) in xs.iter().zip(ys.iter()) {
-                annotator.annotate(x, y)?.save(format!(
-                    "{}.jpg",
-                    usls::Dir::Current
-                        .base_dir_with_subs(&["runs/open-set-detection", model.spec()])?
-                        .join(usls::timestamp(None))
-                        .display(),
-                ))?;
-            }
+            run::<GroundingDINO>(config, &cli.source, &annotator)
         }
         Commands::Owlv2(args) => {
-            // Build model
             let config = owlv2::config(args)?
                 .with_text_names_owned(cli.prompts)
                 .commit()?;
-            let mut model = OWLv2::new(config)?;
+            run::<OWLv2>(config, &cli.source, &annotator)
+        }
+    }?;
+    usls::perf(false);
 
-            // Run & Annotate
-            let ys = model.run(&xs)?;
-            println!("{ys:?}");
-            for (x, y) in xs.iter().zip(ys.iter()) {
+    Ok(())
+}
+
+fn run<M>(config: Config, source: &Source, annotator: &Annotator) -> Result<()>
+where
+    for<'a> M: Model<Input<'a> = &'a [usls::Image]>,
+{
+    let mut model = M::new(config)?;
+    let dl = DataLoader::new(source)?
+        .with_batch(model.batch() as _)
+        .with_progress_bar(true)
+        .stream()?;
+
+    for xs in &dl {
+        let ys = model.forward(&xs)?;
+        tracing::info!("{:?}", ys);
+        for (x, y) in xs.iter().zip(ys.iter()) {
+            if !y.is_empty() {
                 annotator.annotate(x, y)?.save(format!(
                     "{}.jpg",
                     usls::Dir::Current
                         .base_dir_with_subs(&["runs/open-set-detection", model.spec()])?
                         .join(usls::timestamp(None))
-                        .display(),
+                        .display()
                 ))?;
             }
         }
     }
-    usls::perf(false);
-
     Ok(())
 }

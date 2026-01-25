@@ -74,7 +74,7 @@ impl XCuda {
     pub fn synchronize(&self) -> Result<()> {
         self.stream
             .synchronize()
-            .map_err(|e| anyhow::anyhow!("CUDA stream sync failed: {:?}", e))
+            .map_err(|e| anyhow::anyhow!("CUDA stream sync failed: {e:?}"))
     }
 
     /// Copy to host as X (fallback for non-CUDA models).
@@ -82,7 +82,7 @@ impl XCuda {
         let mut output = vec![0.0f32; self.buffer.len()];
         self.stream
             .memcpy_dtoh(&self.buffer, &mut output)
-            .map_err(|e| anyhow::anyhow!("CUDA D2H copy failed: {:?}", e))?;
+            .map_err(|e| anyhow::anyhow!("CUDA D2H copy failed: {e:?}"))?;
 
         let shape: Vec<usize> = self.shape.iter().map(|&x| x as usize).collect();
         let arr = ndarray::Array::from_shape_vec(ndarray::IxDyn(&shape), output)?;
@@ -101,11 +101,8 @@ impl XCuda {
     /// For example, shape [N, C, H, W] with insert_axis(0) becomes [1, N, C, H, W].
     pub fn insert_axis(mut self, axis: usize) -> Result<Self> {
         if axis > self.shape.len() {
-            anyhow::bail!(
-                "insert_axis: axis {} out of bounds for shape {:?}",
-                axis,
-                self.shape
-            );
+            let shape = &self.shape;
+            anyhow::bail!("insert_axis: axis {axis} out of bounds for shape {shape:?}");
         }
         self.shape.insert(axis, 1);
         Ok(self)
@@ -160,16 +157,14 @@ impl XCuda {
         for (i, t) in tensors.iter().enumerate().skip(1) {
             if &t.shape != base_shape {
                 anyhow::bail!(
-                    "stack: tensor {} has shape {:?}, expected {:?}",
-                    i,
+                    "stack: tensor {i} has shape {:?}, expected {:?}",
                     t.shape,
                     base_shape
                 );
             }
             if t.device_id != device_id {
                 anyhow::bail!(
-                    "stack: tensor {} is on device {}, expected device {}",
-                    i,
+                    "stack: tensor {i} is on device {}, expected device {}",
                     t.device_id,
                     device_id
                 );
@@ -177,11 +172,8 @@ impl XCuda {
         }
 
         if axis > base_shape.len() {
-            anyhow::bail!(
-                "stack: axis {} out of bounds for shape {:?}",
-                axis,
-                base_shape
-            );
+            let shape = base_shape;
+            anyhow::bail!("stack: axis {axis} out of bounds for shape {shape:?}");
         }
 
         // For axis=0, we can use efficient D2D sequential copy
@@ -198,7 +190,7 @@ impl XCuda {
             let mut output_buffer = unsafe {
                 stream
                     .alloc::<f32>(total_elements)
-                    .map_err(|e| anyhow::anyhow!("stack: alloc failed: {:?}", e))?
+                    .map_err(|e| anyhow::anyhow!("stack: alloc failed: {e:?}"))?
             };
 
             // D2D copy each tensor sequentially
@@ -210,12 +202,12 @@ impl XCuda {
 
                 stream
                     .memcpy_dtod(&tensor.buffer, &mut dst_slice)
-                    .map_err(|e| anyhow::anyhow!("stack: D2D copy failed: {:?}", e))?;
+                    .map_err(|e| anyhow::anyhow!("stack: D2D copy failed: {e:?}"))?;
             }
 
             stream
                 .synchronize()
-                .map_err(|e| anyhow::anyhow!("stack: sync failed: {:?}", e))?;
+                .map_err(|e| anyhow::anyhow!("stack: sync failed: {e:?}"))?;
 
             Ok(Self {
                 buffer: output_buffer,
@@ -239,7 +231,7 @@ impl XCuda {
             let mut output_buffer = unsafe {
                 stream
                     .alloc::<f32>(total_elements)
-                    .map_err(|e| anyhow::anyhow!("stack: alloc failed: {:?}", e))?
+                    .map_err(|e| anyhow::anyhow!("stack: alloc failed: {e:?}"))?
             };
 
             stream
@@ -249,7 +241,7 @@ impl XCuda {
                         .ok_or_else(|| anyhow::anyhow!("stack: failed to get contiguous slice"))?,
                     &mut output_buffer,
                 )
-                .map_err(|e| anyhow::anyhow!("stack: H2D copy failed: {:?}", e))?;
+                .map_err(|e| anyhow::anyhow!("stack: H2D copy failed: {e:?}"))?;
 
             Ok(Self {
                 buffer: output_buffer,
@@ -282,28 +274,26 @@ impl XCuda {
         let device_id = first.device_id;
 
         if axis >= ndim {
-            anyhow::bail!("concat: axis {} out of bounds for {}D tensor", axis, ndim);
+            anyhow::bail!("concat: axis {axis} out of bounds for {ndim}D tensor");
         }
 
         // Validate shapes match except on concat axis
         for (i, t) in tensors.iter().enumerate().skip(1) {
             if t.shape.len() != ndim {
                 anyhow::bail!(
-                    "concat: tensor {} has {} dims, expected {}",
-                    i,
+                    "concat: tensor {i} has {} dims, expected {}",
                     t.shape.len(),
                     ndim
                 );
             }
             for (d, (s1, s2)) in first.shape.iter().zip(t.shape.iter()).enumerate() {
                 if d != axis && s1 != s2 {
-                    anyhow::bail!("concat: shape mismatch at dim {}: {} vs {}", d, s1, s2);
+                    anyhow::bail!("concat: shape mismatch at dim {d}: {s1} vs {s2}");
                 }
             }
             if t.device_id != device_id {
                 anyhow::bail!(
-                    "concat: tensor {} is on device {}, expected {}",
-                    i,
+                    "concat: tensor {i} is on device {}, expected {}",
                     t.device_id,
                     device_id
                 );
@@ -319,7 +309,7 @@ impl XCuda {
         let mut output_buffer = unsafe {
             stream
                 .alloc::<f32>(total_elements)
-                .map_err(|e| anyhow::anyhow!("concat: failed to allocate: {:?}", e))?
+                .map_err(|e| anyhow::anyhow!("concat: failed to allocate: {e:?}"))?
         };
 
         // For axis=0 concat, simple sequential copy works
@@ -333,7 +323,7 @@ impl XCuda {
                     .ok_or_else(|| anyhow::anyhow!("concat: slice failed"))?;
                 stream
                     .memcpy_dtod(&tensor.buffer, &mut dst_slice)
-                    .map_err(|e| anyhow::anyhow!("concat: D2D copy failed: {:?}", e))?;
+                    .map_err(|e| anyhow::anyhow!("concat: D2D copy failed: {e:?}"))?;
                 offset += len;
             }
         } else {
@@ -349,12 +339,12 @@ impl XCuda {
 
             stream
                 .memcpy_htod(concatenated.as_slice().unwrap(), &mut output_buffer)
-                .map_err(|e| anyhow::anyhow!("concat: H2D copy failed: {:?}", e))?;
+                .map_err(|e| anyhow::anyhow!("concat: H2D copy failed: {e:?}"))?;
         }
 
         stream
             .synchronize()
-            .map_err(|e| anyhow::anyhow!("concat: sync failed: {:?}", e))?;
+            .map_err(|e| anyhow::anyhow!("concat: sync failed: {e:?}"))?;
 
         Ok(Self {
             buffer: output_buffer,

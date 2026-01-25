@@ -93,26 +93,19 @@ impl DB {
                 let info = &self.processor.images_transform_info[idx];
                 let (image_height, image_width) = (info.height_src, info.width_src);
                 let ratio = self.processor.images_transform_info()[idx].height_scale;
-                let v = luma
+                let v: Vec<f32> = luma
                     .as_slice()?
                     .par_iter()
-                    .map(|x| {
-                        if x <= &self.binary_thresh {
-                            0u8
-                        } else {
-                            (*x * 255.0) as u8
-                        }
-                    })
-                    .collect::<Vec<_>>();
+                    .map(|x| if x <= &self.binary_thresh { 0.0f32 } else { *x })
+                    .collect();
 
-                let luma = Ops::resize_luma8_u8(
+                let luma: Vec<u8> = Ops::interpolate_1d_u8(
                     &v,
                     self.width as _,
                     self.height as _,
                     image_width as _,
                     image_height as _,
                     true,
-                    "Bilinear",
                 )
                 .ok()?;
                 let mask = Mask::new(&luma, image_width, image_height).ok()?;

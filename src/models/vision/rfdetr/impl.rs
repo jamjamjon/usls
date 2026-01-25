@@ -148,14 +148,13 @@ impl RFDETR {
                             let (mh, mw) = (mask.shape()[0], mask.shape()[1]);
                             let mask = mask.into_owned().into_raw_vec_and_offset().0;
 
-                            let mask = Ops::resize_lumaf32_u8(
+                            let mask: Vec<u8> = Ops::interpolate_1d_u8(
                                 &mask,
                                 mw as _,
                                 mh as _,
                                 image_width as _,
                                 image_height as _,
                                 true,
-                                "Bilinear",
                             )
                             .ok()?;
 

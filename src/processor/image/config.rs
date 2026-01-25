@@ -69,6 +69,18 @@ impl ImageProcessorConfig {
             _ => (None, None),
         };
 
+        let resize_mode_type = if self.do_resize || self.anyres_strategy.is_some() {
+            Some(match &self.resize_mode {
+                ResizeMode::FitExact { .. } => ResizeModeType::FitExact,
+                ResizeMode::FitWidth { .. } => ResizeModeType::FitWidth,
+                ResizeMode::FitHeight { .. } => ResizeModeType::FitHeight,
+                ResizeMode::FitAdaptive { .. } => ResizeModeType::FitAdaptive,
+                ResizeMode::Letterbox { .. } => ResizeModeType::Letterbox,
+            })
+        } else {
+            None
+        };
+
         let mut plan = ImagePlan {
             transforms: vec![],
             layout: self.image_tensor_layout,
@@ -79,6 +91,7 @@ impl ImageProcessorConfig {
             pad_image: self.pad_image,
             pad_size: self.pad_size,
             do_resize: self.do_resize,
+            resize_mode_type,
         };
 
         // AnyRes transform takes precedence (for VLM models)

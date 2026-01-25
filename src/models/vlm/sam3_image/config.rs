@@ -24,34 +24,37 @@ use crate::{Config, Task};
 /// Model configuration for `SAM3-Image` and `SAM3-Tracker`
 ///
 impl Config {
-    /// SAM3 Image Predictor configuration (text + geometry prompts)
+    /// SAM3 Image Predictor configuration (text + box prompts)
     pub fn sam3_image() -> Self {
         Self::sam3()
             .with_task(Task::Sam3Image)
-            // Batch sizes: vision=1, text=4, geometry=8, decoder=1
-            .with_visual_encoder_batch_min_opt_max(1, 1, 8)
-            .with_textual_encoder_batch_min_opt_max(1, 4, 16)
-            .with_encoder_batch_min_opt_max(1, 8, 16) // geometry encoder
-            .with_decoder_batch_min_opt_max(1, 1, 8) // decoder (memory intensive)
-            // Shape configurations
-            .with_visual_encoder_ixx(0, 1, 3) // vision-encoder: channels
-            .with_visual_encoder_ixx(0, 2, 1008) // vision-encoder: height
-            .with_visual_encoder_ixx(0, 3, 1008) // vision-encoder: width
-            .with_textual_encoder_ixx(0, 1, 32) // text-encoder: sequence length
-            .with_encoder_ixx(0, 1, (1, 2, 8)) // geometry-encoder: num_boxes
-            .with_encoder_ixx(1, 1, (1, 2, 8)) // geometry-encoder: num_boxes
-            .with_decoder_ixx(4, 1, (1, 34, 60)) // decoder: prompt_len
-            .with_decoder_ixx(5, 1, (1, 34, 60)) // decoder: prompt_len
-            // Tokenizer configs
-            .with_model_max_length(32) // CLIP max length, enables auto padding/truncation
+            .with_resize_mode_type(crate::ResizeModeType::FitExact)
+            // ---- Tokenizer configs ----
             .with_tokenizer_file("sam3/tokenizer.json")
             .with_tokenizer_config_file("sam3/tokenizer_config.json")
             .with_special_tokens_map_file("sam3/special_tokens_map.json")
             .with_config_file("sam3/config.json")
-            // Model files
+            .with_model_max_length(32)
+            // ---- Model files ----
             .with_visual_encoder_file("vision-encoder.onnx")
             .with_textual_encoder_file("text-encoder.onnx")
-            .with_encoder_file("geometry-encoder.onnx")
-            .with_decoder_file("decoder.onnx")
+            .with_decoder_file("geo-encoder-mask-decoder.onnx")
+            // ---- vision encoder: [batch, 3, 1008, 1008] ----
+            .with_visual_encoder_batch_min_opt_max(1, 1, 4)
+            // ---- text encoder: input_ids: [batch, 32], attention_mask: [batch, 32] ----
+            .with_textual_encoder_batch_min_opt_max(1, 1, 8)
+            // ---- decoder (with integrated geometry encoder) ----
+            // inputs:
+            // - fpn_feat_0:[batch, 256, 288, 288],
+            // - fpn_feat_1:[batch, 256, 144, 144],
+            // - fpn_feat_2:[batch, 256, 72, 72],
+            // - fpn_pos_2:[batch, 256, 72, 72],
+            // - text_features:[batch, 32, 256],
+            // - text_mask:[batch, 32],
+            // - input_boxes:[batch, num_boxes, 4],
+            // - input_boxes_labels:[batch, num_boxes]
+            .with_decoder_batch_min_opt_max(1, 1, 4)
+            .with_decoder_ixx(6, 1, (1, 1, 8)) // input_boxes
+            .with_decoder_ixx(7, 1, (1, 1, 8)) // input_boxes_labels
     }
 }

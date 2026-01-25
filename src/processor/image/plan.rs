@@ -4,7 +4,7 @@
 //! "what to do" without specifying "how to do it". Backends (CPU/CUDA/Metal)
 //! consume these plans to execute the actual processing.
 
-use crate::{ImageTensorLayout, ImageTransform};
+use crate::{ImageTensorLayout, ImageTransform, ResizeModeType};
 
 /// Unified image processing plan.
 ///
@@ -31,6 +31,8 @@ pub struct ImagePlan {
     pub pad_size: usize,
     /// Whether to perform resize (can skip for SR workflows).
     pub do_resize: bool,
+    /// Resize mode type for easy access in post-processing.
+    pub resize_mode_type: Option<ResizeModeType>,
 }
 
 impl ImagePlan {

@@ -1,269 +1,333 @@
 use aksr::Builder;
-use anyhow::Result;
+use anyhow::{anyhow, bail, Result};
+use half::f16;
 use lru::LruCache;
-use ndarray::{s, Array1};
+use ndarray::{s, Array1, ArrayD, Axis};
+use ort::value::{DynValue, Value};
 use rayon::prelude::*;
+use std::collections::HashSet;
 use std::num::NonZeroUsize;
+use std::sync::Arc;
 
 use crate::{
     elapsed_module, inputs, Config, DynConf, Engine, Engines, FromConfig, Hbb, Image,
-    ImageProcessor, Mask, Model, Module, Ops, Sam3Prompt, TextProcessor, X, Y,
+    ImageProcessor, Mask, Model, Module, Ops, Sam3Prompt, TextProcessor, Xs, X, Y,
 };
 
-/// Sam3Image - Segment Anything Model 3 with text and geometry prompts.
-///
-/// This model implements the unified `Model` trait with multi-engine support.
-/// It uses 4 engines:
-/// - `VisualEncoder`: Image encoder
-/// - `TextualEncoder`: Text encoder
-/// - `Encoder`: Geometry encoder
-/// - `Decoder`: Mask decoder
 #[derive(Builder, Debug)]
 pub struct Sam3Image {
     pub vision_batch: usize,
     pub text_batch: usize,
-    pub geo_batch: usize,
     pub decoder_batch: usize,
     pub image_processor: ImageProcessor,
     pub text_processor: TextProcessor,
     pub conf: DynConf,
-    pub text_cache: LruCache<String, (X, X)>,
+    pub text_cache: LruCache<String, (Arc<DynValue>, Arc<DynValue>)>,
     pub names: Vec<String>,
     pub spec: String,
 }
 
 impl Sam3Image {
-    fn encode_images(&mut self, engines: &mut Engines, xs: &[Image]) -> Result<Vec<X>> {
-        let xs_ = elapsed_module!(
-            "Sam3Image",
-            "image-processor",
-            self.image_processor.process(xs)?
-        );
-
-        let output = elapsed_module!(
-            "Sam3Image",
-            "vision-encoder",
-            engines.run(&Module::VisualEncoder, inputs![&xs_]?)?
-        );
-
-        let xs_out = elapsed_module!(
-            "Sam3Image",
-            "vision-fpn-feats",
-            (0..output.len())
-                .map(|i| X::from(output.get::<f32>(i).unwrap()))
-                .collect()
-        );
-
-        Ok(xs_out)
+    fn extract_f32(val: &DynValue) -> Result<ArrayD<f32>> {
+        use ort::tensor::TensorElementType as TE;
+        use ort::value::ValueType;
+        match val.dtype() {
+            ValueType::Tensor { ty, .. } => match ty {
+                TE::Float32 => Ok(val.try_extract_array::<f32>()?.into_owned()),
+                TE::Float16 => Ok(val
+                    .try_extract_array::<f16>()?
+                    .mapv(|x| x.to_f32())
+                    .into_owned()),
+                TE::Bool => Ok(val
+                    .try_extract_array::<bool>()?
+                    .mapv(|x| if x { 1. } else { 0. })
+                    .into_owned()),
+                _ => bail!("Unsupported tensor type: {ty:?}"),
+            },
+            _ => bail!("Unsupported value type"),
+        }
     }
 
-    fn encode_texts(&mut self, engines: &mut Engines, texts: &[&str]) -> Result<Vec<(X, X)>> {
-        if texts.is_empty() {
-            return Ok(vec![]);
+    fn repeat_text_feat_to_batch(text_feat: &DynValue, batch: usize) -> Result<DynValue> {
+        if batch <= 1 {
+            anyhow::bail!("repeat_text_feat_to_batch requires batch > 1");
         }
 
-        let mut all_results = Vec::with_capacity(texts.len());
+        use ort::memory::AllocationDevice;
+        use ort::tensor::TensorElementType as TE;
+        use ort::value::ValueType;
 
+        let owned = text_feat
+            .view()
+            .try_upgrade()
+            .map_err(|_| anyhow!("Upgrade failed"))?;
+        let tensor = owned
+            .downcast::<ort::value::DynTensorValueType>()
+            .map_err(|_| anyhow!("Failed to downcast to tensor"))?;
+        let tensor = if tensor.memory_info().is_cpu_accessible() {
+            tensor
+        } else {
+            tensor
+                .to(AllocationDevice::CPU, 0)
+                .or_else(|_| tensor.to(AllocationDevice::CUDA_PINNED, 0))?
+        };
+        let cpu_val = tensor.into_dyn();
+
+        match cpu_val.dtype() {
+            ValueType::Tensor { ty, .. } => match ty {
+                TE::Float16 => {
+                    let arr = cpu_val.try_extract_array::<f16>()?.into_owned().into_dyn();
+                    let shape = arr.shape().to_vec();
+                    if shape.is_empty() || shape[0] != 1 {
+                        bail!("Expected text_features shape [1, ...], got {shape:?}");
+                    }
+                    let per = arr.len();
+                    let src = arr.into_raw_vec_and_offset().0;
+                    let mut out = Vec::with_capacity(batch * per);
+                    for _ in 0..batch {
+                        out.extend_from_slice(&src);
+                    }
+                    let mut new_shape = shape;
+                    new_shape[0] = batch;
+                    Ok(Value::from_array(ndarray::Array::from_shape_vec(
+                        ndarray::IxDyn(&new_shape),
+                        out,
+                    )?)?
+                    .into_dyn())
+                }
+                TE::Float32 => {
+                    let arr = cpu_val.try_extract_array::<f32>()?.into_owned().into_dyn();
+                    let shape = arr.shape().to_vec();
+                    if shape.is_empty() || shape[0] != 1 {
+                        bail!("Expected text_features shape [1, ...], got {shape:?}");
+                    }
+                    let per = arr.len();
+                    let src = arr.into_raw_vec_and_offset().0;
+                    let mut out = Vec::with_capacity(batch * per);
+                    for _ in 0..batch {
+                        out.extend_from_slice(&src);
+                    }
+                    let mut new_shape = shape;
+                    new_shape[0] = batch;
+                    Ok(Value::from_array(ndarray::Array::from_shape_vec(
+                        ndarray::IxDyn(&new_shape),
+                        out,
+                    )?)?
+                    .into_dyn())
+                }
+                _ => bail!("Unsupported text_features tensor type: {ty:?}"),
+            },
+            _ => bail!("Unsupported text_features value type"),
+        }
+    }
+
+    fn repeat_text_mask_to_batch(text_mask: &DynValue, batch: usize) -> Result<DynValue> {
+        if batch <= 1 {
+            anyhow::bail!("repeat_text_mask_to_batch requires batch > 1");
+        }
+
+        use ort::memory::AllocationDevice;
+
+        let owned = text_mask
+            .view()
+            .try_upgrade()
+            .map_err(|_| anyhow!("Upgrade failed"))?;
+        let tensor = owned
+            .downcast::<ort::value::DynTensorValueType>()
+            .map_err(|_| anyhow!("Failed to downcast to tensor"))?;
+        let tensor = if tensor.memory_info().is_cpu_accessible() {
+            tensor
+        } else {
+            tensor
+                .to(AllocationDevice::CPU, 0)
+                .or_else(|_| tensor.to(AllocationDevice::CUDA_PINNED, 0))?
+        };
+        let cpu_val = tensor.into_dyn();
+
+        let arr = Self::extract_f32(&cpu_val)?.mapv(|x| x != 0.0);
+        let shape = arr.shape().to_vec();
+        if shape.is_empty() || shape[0] != 1 {
+            bail!("Expected text_mask shape [1, ...], got {shape:?}");
+        }
+        let per = arr.len();
+        let src = arr.into_raw_vec_and_offset().0;
+        let mut out = Vec::with_capacity(batch * per);
+        for _ in 0..batch {
+            out.extend_from_slice(&src);
+        }
+        let mut new_shape = shape;
+        new_shape[0] = batch;
+        Ok(Value::from_array(ndarray::Array::from_shape_vec(
+            ndarray::IxDyn(&new_shape),
+            out,
+        )?)?
+        .into_dyn())
+    }
+
+    fn encode_images(&mut self, engines: &mut Engines, xs: &[Image]) -> Result<[DynValue; 4]> {
+        let xs_ = elapsed_module!(
+            "Sam3Image",
+            "encode-images/preprocess",
+            self.image_processor.process(xs)?
+        );
+        let ys = elapsed_module!(
+            "Sam3Image",
+            "encode-images/vision-encoder",
+            engines.run(&Module::VisualEncoder, &xs_)?
+        );
+
+        // Keep the batched tensors as-is (batch dimension == xs.len()).
+        // This is critical for efficiently decoding few-images + many-prompts.
+        elapsed_module!("Sam3Image", "encode-images/fpn", {
+            let out = ys.into_inner();
+            let fpn: Vec<DynValue> = (0..4)
+                .map(|i| {
+                    out[i]
+                        .view()
+                        .try_upgrade()
+                        .map_err(|_| anyhow!("Upgrade failed"))
+                })
+                .collect::<Result<_>>()?;
+            fpn.try_into().map_err(|_| anyhow!("Expected 4 features"))
+        })
+    }
+
+    fn encode_texts(
+        &mut self,
+        engines: &mut Engines,
+        texts: &[&str],
+    ) -> Result<Vec<(Arc<DynValue>, Arc<DynValue>)>> {
+        let mut res = Vec::with_capacity(texts.len());
         for chunk in texts.chunks(self.text_batch) {
-            let n = chunk.len();
-            let encodings = self.text_processor.encode_texts(chunk, true)?;
-            let seq_len = encodings[0].get_ids().len();
-            let input_ids = X::from_shape_vec(
-                &[n, seq_len],
-                encodings
-                    .iter()
-                    .flat_map(|e| e.get_ids().iter().map(|&id| id as f32))
+            use ort::memory::AllocationDevice;
+            use ort::tensor::TensorElementType as TE;
+            use ort::value::ValueType;
+
+            let encs = self.text_processor.encode_texts(chunk, true)?;
+            let (n, l) = (chunk.len(), encs[0].get_ids().len());
+            let ids = X::from_shape_vec(
+                &[n, l],
+                encs.iter()
+                    .flat_map(|e| e.get_ids().iter().map(|&i| i as f32))
                     .collect(),
             )?;
-            let attention_mask = X::from_shape_vec(
-                &[n, seq_len],
-                encodings
-                    .iter()
+            let mask = X::from_shape_vec(
+                &[n, l],
+                encs.iter()
                     .flat_map(|e| e.get_attention_mask().iter().map(|&m| m as f32))
                     .collect(),
             )?;
-
-            let ys = engines.run(&Module::TextualEncoder, inputs![input_ids, attention_mask]?)?;
-            let ys0 = X::from(
-                ys.get::<f32>(0)
-                    .ok_or_else(|| anyhow::anyhow!("Failed to get text features 0"))?,
-            );
-            let ys1 = X::from(
-                ys.get::<f32>(1)
-                    .ok_or_else(|| anyhow::anyhow!("Failed to get text features 1"))?,
+            let ys = elapsed_module!(
+                "Sam3Image",
+                "textual-encoder",
+                engines.run(&Module::TextualEncoder, inputs![ids, mask]?)?
             );
 
-            for i in 0..n {
-                all_results.push((
-                    ys0.slice(s![i..i + 1, .., ..]).to_owned().into_dyn().into(),
-                    ys1.slice(s![i..i + 1, ..]).to_owned().into_dyn().into(),
-                ));
-            }
-        }
+            let out = ys.into_inner();
+            // batch=1: 直接复用engine输出
+            if n == 1 {
+                let f = out[0]
+                    .view()
+                    .try_upgrade()
+                    .map_err(|_| anyhow!("Upgrade failed"))?;
+                let m = out[1]
+                    .view()
+                    .try_upgrade()
+                    .map_err(|_| anyhow!("Upgrade failed"))?;
+                res.push((Arc::new(f), Arc::new(m)));
+            } else {
+                // batch>1: 需要slice
+                let (f_full, m_full) = {
+                    let f = out[0]
+                        .view()
+                        .try_upgrade()
+                        .map_err(|_| anyhow!("Upgrade failed"))?;
+                    let f = {
+                        let tensor = f
+                            .downcast::<ort::value::DynTensorValueType>()
+                            .map_err(|_| anyhow!("Failed to downcast to tensor"))?;
+                        let tensor = if tensor.memory_info().is_cpu_accessible() {
+                            tensor
+                        } else {
+                            tensor
+                                .to(AllocationDevice::CPU, 0)
+                                .or_else(|_| tensor.to(AllocationDevice::CUDA_PINNED, 0))?
+                        };
+                        tensor.into_dyn()
+                    };
+                    let m = out[1]
+                        .view()
+                        .try_upgrade()
+                        .map_err(|_| anyhow!("Upgrade failed"))?;
+                    let m = {
+                        let tensor = m
+                            .downcast::<ort::value::DynTensorValueType>()
+                            .map_err(|_| anyhow!("Failed to downcast to tensor"))?;
+                        let tensor = if tensor.memory_info().is_cpu_accessible() {
+                            tensor
+                        } else {
+                            tensor
+                                .to(AllocationDevice::CPU, 0)
+                                .or_else(|_| tensor.to(AllocationDevice::CUDA_PINNED, 0))?
+                        };
+                        tensor.into_dyn()
+                    };
+                    (f, m)
+                };
+                let m_arr = Self::extract_f32(&m_full)?;
+                let m_bool = m_arr.mapv(|x| x != 0.0);
 
-        Ok(all_results)
-    }
-
-    fn encode_geometry_batch(
-        &mut self,
-        engines: &mut Engines,
-        prompts_boxes: &[Vec<[f32; 4]>],
-        prompts_labels: &[Vec<i64>],
-        fpn_feat: &X,
-        fpn_pos: &X,
-    ) -> Result<Vec<(X, X)>> {
-        let total = prompts_boxes.len();
-        if total == 0 {
-            return Ok(vec![]);
-        }
-
-        let max_boxes_all = prompts_boxes.iter().map(|b| b.len()).max().unwrap_or(0);
-        if max_boxes_all == 0 {
-            return Ok(vec![(X::zeros(&[1, 1, 256]), X::zeros(&[1, 1])); total]);
-        }
-
-        let mut all_results = Vec::with_capacity(total);
-
-        for (chunk_start, chunk) in prompts_boxes
-            .chunks(self.geo_batch)
-            .enumerate()
-            .map(|(i, c)| (i * self.geo_batch, c))
-        {
-            let chunk_size = chunk.len();
-            let chunk_labels = &prompts_labels[chunk_start..chunk_start + chunk_size];
-
-            let max_boxes = chunk.iter().map(|b| b.len()).max().unwrap_or(0);
-            if max_boxes == 0 {
-                all_results.extend(vec![
-                    (X::zeros(&[1, 1, 256]), X::zeros(&[1, 1]));
-                    chunk_size
-                ]);
-                continue;
-            }
-
-            let mut boxes_flat = Vec::with_capacity(chunk_size * max_boxes * 4);
-            let mut labels_flat = Vec::with_capacity(chunk_size * max_boxes);
-
-            for (boxes, labels) in chunk.iter().zip(chunk_labels.iter()) {
-                for box_ in boxes {
-                    boxes_flat.extend_from_slice(box_);
+                match f_full.dtype() {
+                    ValueType::Tensor { ty, .. } => match ty {
+                        TE::Float16 => {
+                            let f_arr = f_full.try_extract_array::<f16>()?.into_dyn();
+                            for i in 0..n {
+                                res.push((
+                                    Arc::new(
+                                        Value::from_array(
+                                            f_arr.slice_axis(Axis(0), (i..i + 1).into()).to_owned(),
+                                        )?
+                                        .into_dyn(),
+                                    ),
+                                    Arc::new(
+                                        Value::from_array(
+                                            m_bool
+                                                .slice_axis(Axis(0), (i..i + 1).into())
+                                                .to_owned(),
+                                        )?
+                                        .into_dyn(),
+                                    ),
+                                ));
+                            }
+                        }
+                        TE::Float32 => {
+                            let f_arr = f_full.try_extract_array::<f32>()?.into_dyn();
+                            for i in 0..n {
+                                res.push((
+                                    Arc::new(
+                                        Value::from_array(
+                                            f_arr.slice_axis(Axis(0), (i..i + 1).into()).to_owned(),
+                                        )?
+                                        .into_dyn(),
+                                    ),
+                                    Arc::new(
+                                        Value::from_array(
+                                            m_bool
+                                                .slice_axis(Axis(0), (i..i + 1).into())
+                                                .to_owned(),
+                                        )?
+                                        .into_dyn(),
+                                    ),
+                                ));
+                            }
+                        }
+                        _ => bail!("Unsupported text_features tensor type: {ty:?}"),
+                    },
+                    _ => bail!("Unsupported text_features value type"),
                 }
-                for _ in boxes.len()..max_boxes {
-                    boxes_flat.extend_from_slice(&[0.0, 0.0, 0.0, 0.0]);
-                }
-
-                labels_flat.extend(labels.iter().map(|&l| l as f32));
-                labels_flat.resize(labels_flat.len() + max_boxes - labels.len(), 0.0);
-            }
-
-            let input_boxes = X::from_shape_vec(&[chunk_size, max_boxes, 4], boxes_flat)?;
-            let input_labels = X::from_shape_vec(&[chunk_size, max_boxes], labels_flat)?;
-
-            let fpn_feat_batch = fpn_feat.clone().broadcast([chunk_size, 256, 72, 72])?;
-            let fpn_pos_batch = fpn_pos.clone().broadcast([chunk_size, 256, 72, 72])?;
-
-            let ys = engines.run(
-                &Module::Encoder,
-                inputs![input_boxes, input_labels, fpn_feat_batch, fpn_pos_batch]?,
-            )?;
-
-            let geo_features = X::from(
-                ys.get::<f32>(0)
-                    .ok_or_else(|| anyhow::anyhow!("Failed to get geo features"))?,
-            );
-            let geo_masks = X::from(
-                ys.get::<f32>(1)
-                    .ok_or_else(|| anyhow::anyhow!("Failed to get geo masks"))?,
-            );
-
-            for (i, boxes) in chunk.iter().enumerate() {
-                let num_boxes = boxes.len();
-                let feat = geo_features
-                    .slice(ndarray::s![i..i + 1, ..num_boxes + 1, ..])
-                    .to_owned()
-                    .into_dyn()
-                    .into();
-                let mask = geo_masks
-                    .slice(ndarray::s![i..i + 1, ..num_boxes + 1])
-                    .to_owned()
-                    .into_dyn()
-                    .into();
-                all_results.push((feat, mask));
             }
         }
-
-        Ok(all_results)
-    }
-
-    fn decode(
-        &mut self,
-        engines: &mut Engines,
-        fpn_features: &[X],
-        prompt_features: &[X],
-        prompt_masks: &[X],
-    ) -> Result<Vec<Vec<X>>> {
-        let n = prompt_features.len();
-        if n == 0 {
-            return Ok(vec![]);
-        }
-
-        let prompt_feat = X::concat(prompt_features, 0)?;
-        let prompt_mask = X::concat(prompt_masks, 0)?;
-
-        let (s0, s1, s2, s4) = (
-            fpn_features[0].shape(),
-            fpn_features[1].shape(),
-            fpn_features[2].shape(),
-            fpn_features[3].shape(),
-        );
-
-        let args = vec![
-            fpn_features[0]
-                .clone()
-                .broadcast([n, s0[1], s0[2], s0[3]])?,
-            fpn_features[1]
-                .clone()
-                .broadcast([n, s1[1], s1[2], s1[3]])?,
-            fpn_features[2]
-                .clone()
-                .broadcast([n, s2[1], s2[2], s2[3]])?,
-            fpn_features[3]
-                .clone()
-                .broadcast([n, s4[1], s4[2], s4[3]])?,
-            prompt_feat,
-            prompt_mask,
-        ];
-        let ys = engines.run(&Module::Decoder, &args)?;
-        let ys0 = X::from(
-            ys.get::<f32>(0)
-                .ok_or_else(|| anyhow::anyhow!("Failed to get decoder output 0"))?,
-        );
-        let ys1 = X::from(
-            ys.get::<f32>(1)
-                .ok_or_else(|| anyhow::anyhow!("Failed to get decoder output 1"))?,
-        );
-        let ys2 = X::from(
-            ys.get::<f32>(2)
-                .ok_or_else(|| anyhow::anyhow!("Failed to get decoder output 2"))?,
-        );
-        let ys3 = X::from(
-            ys.get::<f32>(3)
-                .ok_or_else(|| anyhow::anyhow!("Failed to get decoder output 3"))?,
-        );
-
-        Ok((0..n)
-            .map(|i| {
-                vec![
-                    ys0.slice(s![i..i + 1, .., .., ..])
-                        .to_owned()
-                        .into_dyn()
-                        .into(),
-                    ys1.slice(s![i..i + 1, .., ..]).to_owned().into_dyn().into(),
-                    ys2.slice(s![i..i + 1, ..]).to_owned().into_dyn().into(),
-                    ys3.slice(s![i..i + 1, ..]).to_owned().into_dyn().into(),
-                ]
-            })
-            .collect())
+        Ok(res)
     }
 
     fn forward_image(
@@ -276,204 +340,243 @@ impl Sam3Image {
             return Ok(vec![]);
         }
 
-        self.names = prompts.iter().map(|p| p.text.clone()).collect();
-
-        let all_fpn_features = elapsed_module!(
+        // encode images
+        let fpn = elapsed_module!(
             "Sam3Image",
-            "vision-encoder",
+            "encode-images",
             self.encode_images(engines, xs)?
         );
 
-        let image_dims: Vec<(usize, usize)> = self
-            .image_processor
-            .images_transform_info()
-            .iter()
-            .map(|info| (info.height_src as usize, info.width_src as usize))
-            .collect();
+        // encode all text prompts
+        let texts: Vec<_> = elapsed_module!("Sam3Image", "encode-text-prompts", {
+            // update class names
+            self.names = prompts.iter().map(|p| p.text.clone()).collect();
 
-        let uncached: Vec<&str> = prompts
-            .iter()
-            .map(|p| p.text.as_str())
-            .collect::<std::collections::HashSet<_>>()
-            .into_iter()
-            .filter(|t| !self.text_cache.contains(&t.to_string()))
-            .collect();
-
-        if !uncached.is_empty() {
-            for (text, feat) in uncached.iter().zip(elapsed_module!(
-                "Sam3Image",
-                "text-encoder",
-                self.encode_texts(engines, &uncached)?
-            )) {
-                self.text_cache.put(text.to_string(), feat);
+            let mut uncached = Vec::new();
+            let mut seen = HashSet::new();
+            for p in prompts {
+                if seen.insert(&p.text) && !self.text_cache.contains(&p.text) {
+                    uncached.push(p.text.as_str());
+                }
             }
-        }
-
-        let text_features_batch: Vec<(X, X)> = prompts
-            .iter()
-            .map(|p| self.text_cache.get(&p.text).unwrap().clone())
-            .collect();
-
-        let mut results = Vec::with_capacity(xs.len());
-
-        for (img_idx, (image_height, image_width)) in image_dims.iter().enumerate() {
-            let fpn_features: Vec<X> = (0..4)
-                .map(|i| {
-                    let feat = &all_fpn_features[i];
-                    feat.slice(ndarray::s![img_idx..img_idx + 1, .., .., ..])
-                        .to_owned()
-                        .into_dyn()
-                        .into()
+            if !uncached.is_empty() {
+                for (text, feat) in uncached.iter().zip(self.encode_texts(engines, &uncached)?) {
+                    self.text_cache.put(text.to_string(), feat);
+                }
+            }
+            prompts
+                .iter()
+                .map(|p| {
+                    let (f, m) = self.text_cache.get(&p.text).unwrap();
+                    (Arc::clone(f), Arc::clone(m))
                 })
-                .collect();
+                .collect()
+        });
 
-            let (prompts_boxes, prompts_labels, has_geometry_flags): (Vec<_>, Vec<_>, Vec<_>) =
-                prompts
-                    .iter()
-                    .map(|p| {
-                        if p.should_use_geometry() {
+        elapsed_module!("Sam3Image", "decode-all-images", {
+            let infos = self.image_processor.images_transform_info().to_vec();
+
+            let (mh, mw) = (
+                self.image_processor.image_height() as f32,
+                self.image_processor.image_width() as f32,
+            );
+
+            let batch = xs.len();
+            let mut results = vec![Y::default(); batch];
+
+            // Fast path: batch==1, no need to replicate text or handle batched postprocess.
+            if batch == 1 {
+                let info = &infos[0];
+                let (sx, sy) = (mw / info.width_src as f32, mh / info.height_src as f32);
+                elapsed_module!("Sam3Image", "decode-all-prompts", {
+                    for (pi, prompt) in prompts.iter().enumerate() {
+                        let (text_feat, text_mask) = &texts[pi];
+                        let (boxes, labels) = if prompt.should_use_geometry() {
+                            let b = prompt.normalized_boxes_scaled(sx, sy, mw, mh);
                             (
-                                p.normalized_boxes(*image_width as f32, *image_height as f32),
-                                p.box_labels(),
-                                true,
+                                X::from_shape_vec(
+                                    &[1, b.len(), 4],
+                                    b.iter().flat_map(|b| b.iter().copied()).collect(),
+                                )?,
+                                X::<i64>::from_shape_vec_generic(
+                                    [1, b.len()],
+                                    prompt.box_labels(),
+                                )?,
                             )
                         } else {
-                            (vec![], vec![], false)
-                        }
-                    })
-                    .fold(
-                        (vec![], vec![], vec![]),
-                        |(mut bs, mut ls, mut fs), (b, l, f)| {
-                            bs.push(b);
-                            ls.push(l);
-                            fs.push(f);
-                            (bs, ls, fs)
-                        },
-                    );
+                            (
+                                X::from_shape_vec(&[1, 1, 4], vec![0.; 4])?,
+                                X::<i64>::from_shape_vec_generic([1, 1], vec![-10_i64])?,
+                            )
+                        };
 
-            let geo_features_batch = elapsed_module!("Sam3Image", "geometry-encoder", {
-                self.encode_geometry_batch(
-                    engines,
-                    &prompts_boxes,
-                    &prompts_labels,
-                    &fpn_features[2],
-                    &fpn_features[3],
-                )?
-            });
+                        let ys = elapsed_module!(
+                            "Sam3Image",
+                            "decoder",
+                            engines.run(
+                                &Module::Decoder,
+                                inputs![
+                                    &fpn[0],
+                                    &fpn[1],
+                                    &fpn[2],
+                                    &fpn[3],
+                                    text_feat.as_ref(),
+                                    text_mask.as_ref(),
+                                    boxes.view(),
+                                    labels.view()
+                                ]?
+                            )?
+                        );
 
-            let prompt_features_all: Vec<_> = has_geometry_flags
-                .iter()
-                .zip(text_features_batch.iter())
-                .enumerate()
-                .map(|(idx, (has_geo, (text_features, text_mask)))| {
-                    if *has_geo {
-                        let (geo_features, geo_mask) = geo_features_batch[idx].clone();
-                        (
-                            X::concat(&[text_features.clone(), geo_features], 1).unwrap(),
-                            X::concat(&[text_mask.clone(), geo_mask], 1).unwrap(),
-                        )
-                    } else {
-                        (text_features.clone(), text_mask.clone())
+                        let r = elapsed_module!(
+                            "Sam3Image",
+                            "postprocess",
+                            self.postprocess(
+                                &ys,
+                                info.height_src as _,
+                                info.width_src as _,
+                                0,
+                                pi,
+                                prompt.class_name(),
+                            )?
+                        );
+                        results[0].masks.extend(r.masks);
+                        results[0].hbbs.extend(r.hbbs);
                     }
-                })
-                .collect();
-
-            let all_outputs: Vec<Vec<X>> = elapsed_module!("Sam3Image", "decoder", {
-                let mut outputs = Vec::with_capacity(prompts.len());
-                for chunk in prompt_features_all.chunks(self.decoder_batch) {
-                    let (features, masks): (Vec<_>, Vec<_>) = chunk.iter().cloned().unzip();
-                    outputs.extend(self.decode(engines, &fpn_features, &features, &masks)?);
-                }
-                outputs
-            });
-
-            let post_results: Vec<_> = all_outputs
-                .iter()
-                .zip(prompts.iter())
-                .enumerate()
-                .collect::<Vec<_>>()
-                .into_par_iter()
-                .map(|(prompt_idx, (outputs, prompt))| {
-                    self.postprocess(
-                        outputs,
-                        *image_height,
-                        *image_width,
-                        prompt_idx,
-                        prompt.class_name(),
-                    )
-                })
-                .collect();
-
-            let mut combined_masks: Vec<Mask> = Vec::new();
-            let mut combined_hbbs: Vec<Hbb> = Vec::new();
-
-            for y in post_results.into_iter().flatten() {
-                combined_masks.extend(y.masks().iter().cloned());
-                combined_hbbs.extend(y.hbbs().iter().cloned());
+                });
+                return Ok(results);
             }
 
-            results.push(
-                Y::default()
-                    .with_masks(&combined_masks)
-                    .with_hbbs(&combined_hbbs),
-            );
-        }
+            // Few-images + many-prompts path:
+            // Run decoder once per prompt with batch==#images.
+            elapsed_module!("Sam3Image", "decode-all-prompts", {
+                for (pi, prompt) in prompts.iter().enumerate() {
+                    let (text_feat, text_mask) = &texts[pi];
 
-        Ok(results)
+                    let feat_batched = Self::repeat_text_feat_to_batch(text_feat.as_ref(), batch)?;
+                    let mask_batched = Self::repeat_text_mask_to_batch(text_mask.as_ref(), batch)?;
+
+                    let (boxes, labels) = if prompt.should_use_geometry() {
+                        let labels0 = prompt.box_labels();
+                        let nb = labels0.len();
+                        let mut boxes_flat = Vec::with_capacity(batch * nb * 4);
+                        let mut labels_flat = Vec::with_capacity(batch * nb);
+                        for info in infos.iter() {
+                            let (sx, sy) =
+                                (mw / info.width_src as f32, mh / info.height_src as f32);
+                            let b = prompt.normalized_boxes_scaled(sx, sy, mw, mh);
+                            boxes_flat.extend(b.iter().flat_map(|bb| bb.iter().copied()));
+                            labels_flat.extend(labels0.iter().copied());
+                        }
+                        (
+                            X::from_shape_vec(&[batch, nb, 4], boxes_flat)?,
+                            X::<i64>::from_shape_vec_generic([batch, nb], labels_flat)?,
+                        )
+                    } else {
+                        (
+                            X::from_shape_vec(&[batch, 1, 4], vec![0.0; batch * 4])?,
+                            X::<i64>::from_shape_vec_generic([batch, 1], vec![-10_i64; batch])?,
+                        )
+                    };
+
+                    let ys = elapsed_module!(
+                        "Sam3Image",
+                        "decoder",
+                        engines.run(
+                            &Module::Decoder,
+                            inputs![
+                                &fpn[0],
+                                &fpn[1],
+                                &fpn[2],
+                                &fpn[3],
+                                &feat_batched,
+                                &mask_batched,
+                                boxes.view(),
+                                labels.view()
+                            ]?
+                        )?
+                    );
+
+                    for (img_idx, info) in infos.iter().enumerate() {
+                        let r = elapsed_module!(
+                            "Sam3Image",
+                            "postprocess",
+                            self.postprocess(
+                                &ys,
+                                info.height_src as _,
+                                info.width_src as _,
+                                img_idx,
+                                pi,
+                                prompt.class_name(),
+                            )?
+                        );
+                        results[img_idx].masks.extend(r.masks);
+                        results[img_idx].hbbs.extend(r.hbbs);
+                    }
+                }
+            });
+
+            Ok(results)
+        })
     }
 
     fn postprocess(
         &self,
-        outputs: &[X],
+        outputs: &Xs,
         image_height: usize,
         image_width: usize,
+        batch_index: usize,
         class_id: usize,
         class_name: &str,
     ) -> Result<Y> {
-        let pred_masks = &outputs[0];
-        let pred_boxes = &outputs[1];
-        let pred_logits = &outputs[2];
-        let presence_logits = &outputs[3];
+        let masks = outputs
+            .get::<f32>(0)
+            .ok_or_else(|| anyhow!("Failed to get masks"))?;
+        let boxes = outputs
+            .get::<f32>(1)
+            .ok_or_else(|| anyhow!("Failed to get boxes"))?;
+        let logits = outputs
+            .get::<f32>(2)
+            .ok_or_else(|| anyhow!("Failed to get logits"))?;
+        let presence = outputs
+            .get::<f32>(3)
+            .ok_or_else(|| anyhow!("Failed to get presence"))?;
 
-        let presence_score = 1.0 / (1.0 + (-presence_logits[[0, 0]]).exp());
-        let scores: Array1<f32> = pred_logits
-            .slice(s![0, ..])
+        let presence_score = 1.0 / (1.0 + (-presence.0[[batch_index, 0]]).exp());
+        let scores: Array1<f32> = logits
+            .0
+            .slice(s![batch_index, ..])
             .mapv(|x| 1.0 / (1.0 + (-x).exp()) * presence_score);
-
-        let threshold = self.conf[0];
-
-        let valid_indices: Vec<usize> = scores
+        let valid: Vec<usize> = scores
             .iter()
             .enumerate()
-            .filter(|(_, &score)| score >= threshold)
-            .map(|(idx, _)| idx)
+            .filter(|(_, &s)| s >= self.conf[0])
+            .map(|(i, _)| i)
             .collect();
-
-        if valid_indices.is_empty() {
+        if valid.is_empty() {
             return Ok(Y::default());
         }
 
-        let mask_data: Vec<_> = valid_indices
-            .iter()
-            .map(|&idx| {
-                let mask = pred_masks.slice(s![0, idx, .., ..]);
-                let (mask_h, mask_w) = mask.dim();
-                let mask_vec = mask.to_owned().into_raw_vec_and_offset().0;
-                (idx, scores[idx], mask_vec, mask_h, mask_w)
-            })
-            .collect();
-
-        let masks_and_boxes: Vec<_> = mask_data
+        let res: Vec<_> = valid
             .into_par_iter()
-            .filter_map(|(idx, score, mask_vec, mask_h, mask_w)| {
-                let luma = Ops::resize_lumaf32_u8(
-                    &mask_vec,
-                    mask_w as _,
-                    mask_h as _,
+            .filter_map(|idx| {
+                let mask_view = masks.0.slice(s![batch_index, idx, .., ..]);
+                let (mh, mw) = mask_view.dim();
+
+                let src = match mask_view.as_slice_memory_order() {
+                    Some(s) => std::borrow::Cow::Borrowed(s),
+                    None => {
+                        std::borrow::Cow::Owned(mask_view.to_owned().into_raw_vec_and_offset().0)
+                    }
+                };
+
+                let luma = Ops::interpolate_1d_u8(
+                    src.as_ref(),
+                    mw as _,
+                    mh as _,
                     image_width as _,
                     image_height as _,
                     false,
-                    "Bilinear",
                 )
                 .ok()?;
 
@@ -481,15 +584,16 @@ impl Sam3Image {
                     .ok()?
                     .with_id(class_id)
                     .with_name(class_name)
-                    .with_confidence(score);
+                    .with_confidence(scores[idx]);
 
-                let x1 = pred_boxes[[0, idx, 0]] * image_width as f32;
-                let y1 = pred_boxes[[0, idx, 1]] * image_height as f32;
-                let x2 = pred_boxes[[0, idx, 2]] * image_width as f32;
-                let y2 = pred_boxes[[0, idx, 3]] * image_height as f32;
                 let hbb = Hbb::default()
-                    .with_xyxy(x1, y1, x2, y2)
-                    .with_confidence(score)
+                    .with_xyxy(
+                        boxes.0[[batch_index, idx, 0]] * image_width as f32,
+                        boxes.0[[batch_index, idx, 1]] * image_height as f32,
+                        boxes.0[[batch_index, idx, 2]] * image_width as f32,
+                        boxes.0[[batch_index, idx, 3]] * image_height as f32,
+                    )
+                    .with_confidence(scores[idx])
                     .with_id(class_id)
                     .with_name(class_name);
 
@@ -497,12 +601,11 @@ impl Sam3Image {
             })
             .collect();
 
-        let (y_masks, y_hbbs): (Vec<_>, Vec<_>) = masks_and_boxes.into_iter().unzip();
-
+        let (y_masks, y_hbbs): (Vec<_>, Vec<_>) = res.into_iter().unzip();
         Ok(Y::default().with_masks(&y_masks).with_hbbs(&y_hbbs))
     }
 
-    pub fn with_cache_size(mut self, max_size: usize) -> Self {
+    pub fn with_text_cache_size(mut self, max_size: usize) -> Self {
         self.text_cache
             .resize(NonZeroUsize::new(max_size.max(1)).unwrap());
         self
@@ -513,46 +616,41 @@ impl Sam3Image {
     }
 }
 
-/// Implement the Model trait for Sam3Image.
 impl Model for Sam3Image {
     type Input<'a> = (&'a [Image], &'a [Sam3Prompt]);
-
     fn batch(&self) -> usize {
         self.vision_batch
     }
-
     fn spec(&self) -> &str {
         &self.spec
     }
 
     fn build(mut config: Config) -> Result<(Self, Engines)> {
+        let decoder = Engine::from_config(config.take_module(&Module::Decoder)?)?;
         let visual_encoder = Engine::from_config(config.take_module(&Module::VisualEncoder)?)?;
         let textual_encoder = Engine::from_config(config.take_module(&Module::TextualEncoder)?)?;
-        let geometry_encoder = Engine::from_config(config.take_module(&Module::Encoder)?)?;
-        let decoder = Engine::from_config(config.take_module(&Module::Decoder)?)?;
 
-        let vision_batch = visual_encoder.batch().opt();
-        let text_batch = textual_encoder.batch().opt();
-        let geo_batch = geometry_encoder.batch().opt();
-        let decoder_batch = decoder.batch().opt();
-        let height = visual_encoder.try_height().unwrap_or(&1008.into()).opt();
-        let width = visual_encoder.try_width().unwrap_or(&1008.into()).opt();
+        let (vision_batch, text_batch, decoder_batch) = (
+            visual_encoder.batch().opt(),
+            textual_encoder.batch().opt(),
+            decoder.batch().opt(),
+        );
+        let (height, width) = (
+            visual_encoder.try_height().unwrap_or(&1008.into()).opt(),
+            visual_encoder.try_width().unwrap_or(&1008.into()).opt(),
+        );
         let conf = DynConf::new_or_default(config.class_confs(), 1);
-
-        let image_processor = ImageProcessor::from_config(config.image_processor)?
-            .with_image_width(width as _)
-            .with_image_height(height as _);
-        let text_processor = TextProcessor::from_config(config.text_processor)?;
 
         let model = Self {
             vision_batch,
             text_batch,
-            geo_batch,
             decoder_batch,
-            image_processor,
-            text_processor,
+            image_processor: ImageProcessor::from_config(config.image_processor)?
+                .with_image_width(width as _)
+                .with_image_height(height as _),
+            text_processor: TextProcessor::from_config(config.text_processor)?,
             conf,
-            text_cache: LruCache::new(NonZeroUsize::new(128).unwrap()),
+            text_cache: LruCache::new(NonZeroUsize::new(16).unwrap()),
             names: config.inference.class_names,
             spec: "sam3-image".to_string(),
         };
@@ -560,7 +658,6 @@ impl Model for Sam3Image {
         let mut engines = Engines::new();
         engines.insert(Module::VisualEncoder, visual_encoder);
         engines.insert(Module::TextualEncoder, textual_encoder);
-        engines.insert(Module::Encoder, geometry_encoder);
         engines.insert(Module::Decoder, decoder);
 
         Ok((model, engines))

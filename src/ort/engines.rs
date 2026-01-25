@@ -66,24 +66,22 @@ impl Engines {
     ///
     /// # Returns
     /// * `Result<Xs<'_>>` - The output tensors wrapped in `Xs`
-    pub fn run<'a, 'i, 'v: 'i, const N: usize>(
-        &'a mut self,
+    pub fn run<'e, 'a, 'i, 'v: 'i, const N: usize>(
+        &'e mut self,
         module: &Module,
         inputs: impl Into<EngineInputs<'a, 'i, 'v, N>>,
-    ) -> Result<Xs<'a>> {
+    ) -> Result<Xs<'e>> {
         self.engines
             .get_mut(module)
             .ok_or_else(|| anyhow::anyhow!("Engine not found for module: {module:?}"))?
             .run(inputs)
     }
 
-    // TODO: more efficient way to run with XAny
+    #[deprecated(
+        note = "Use engines.run(module, &xany) instead. This preserves zero-copy CUDA semantics."
+    )]
     pub fn run_xany(&mut self, module: &Module, input: crate::XAny) -> Result<Xs<'_>> {
-        match input {
-            crate::XAny::Host(_) => self.run(module, crate::inputs![input]?),
-            #[cfg(feature = "cuda-runtime")]
-            x @ crate::XAny::Device(_) => self.run(module, crate::inputs![&x]?),
-        }
+        self.run(module, crate::inputs![&input]?)
     }
 
     /// Iterates over all module-engine pairs.

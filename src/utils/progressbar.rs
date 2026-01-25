@@ -57,6 +57,8 @@ pub enum PBComponent {
     DecimalCounter,
     /// Decimal progress (e.g., 125/313).
     Counter,
+    /// Progress bar with infinity support (e.g., 12/∞).
+    CounterWithInfinity,
 }
 
 impl std::fmt::Display for PBComponent {
@@ -69,6 +71,7 @@ impl std::fmt::Display for PBComponent {
             Self::HumanPos => write!(f, "{{human_pos}}"),
             Self::HumanLen => write!(f, "{{human_len}}"),
             Self::Counter => write!(f, "{{human_pos}}/{{human_len}}"),
+            Self::CounterWithInfinity => write!(f, "{{human_pos}}/∞"),
             Self::PercentPrecise => write!(f, "[{{percent_precise}}%]"),
             Self::DecimalBytes => write!(f, "{{decimal_bytes}}"),
             Self::DecimalTotalBytes => write!(f, "{{decimal_total_bytes}}"),
@@ -164,12 +167,18 @@ impl PB {
     }
 
     pub fn iterating(total: u64) -> Self {
+        let counter = if total == u64::MAX {
+            PBComponent::CounterWithInfinity
+        } else {
+            PBComponent::Counter
+        };
+
         Self::new(total, "Iterating", "Iterated")
             .with_layout(vec![
                 PBComponent::Prefix,
                 PBComponent::Message,
                 PBComponent::Bar,
-                PBComponent::Counter,
+                counter,
                 PBComponent::Speed,
             ])
             .with_completion_layout(vec![

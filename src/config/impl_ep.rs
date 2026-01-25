@@ -117,8 +117,10 @@ impl Config {
 
     // ---------------- TensorRT -----------------------
     impl_ep_field!(tensorrt, dump_ep_context_model, bool);
+    impl_ep_field!(tensorrt, dump_subgraphs, bool);
     impl_ep_field!(tensorrt, builder_optimization_level, u8);
     impl_ep_field!(tensorrt, max_workspace_size, usize);
+    impl_ep_field!(tensorrt, min_subgraph_size, usize);
     impl_ep_field!(tensorrt, fp16, bool);
     impl_ep_field!(tensorrt, engine_cache, bool);
     impl_ep_field!(tensorrt, timing_cache, bool);

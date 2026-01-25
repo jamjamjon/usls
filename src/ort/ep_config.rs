@@ -49,8 +49,10 @@ pub struct TensorRtConfig {
     pub engine_cache: bool,
     pub timing_cache: bool,
     pub dump_ep_context_model: bool,
+    pub dump_subgraphs: bool,
     pub builder_optimization_level: u8,
     pub max_workspace_size: usize,
+    pub min_subgraph_size: usize,
 }
 
 impl Default for TensorRtConfig {
@@ -59,9 +61,11 @@ impl Default for TensorRtConfig {
             fp16: true,
             engine_cache: true,
             timing_cache: false,
-            dump_ep_context_model: false,   // TODO
+            dump_ep_context_model: false, // TODO
+            dump_subgraphs: false,
             builder_optimization_level: 3,  // 3, 0-5
             max_workspace_size: 1073741824, // 1G
+            min_subgraph_size: 1,
         }
     }
 }

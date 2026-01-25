@@ -1,7 +1,7 @@
 [package]
 name = "usls"
 edition = "2021"
-version = "0.2.0-alpha.2"
+version = "0.2.0-alpha.3"
 rust-version = "1.88"
 description = "A Rust library integrated with ONNXRuntime, providing a collection of ML models."
 repository = "https://github.com/jamjamjon/usls"
@@ -208,6 +208,16 @@ vision = []
 vlm = ["vision", "dep:tokenizers", "dep:ndarray-npy"]
 mot = []
 all-models = ["vision", "vlm", "mot"]
+
+[[test]]
+name = "cuda_pad_consistency"
+path = "tests/cuda_pad_consistency.rs"
+required-features = ["cuda-runtime", "ort-load-dynamic"]
+
+[[test]]
+name = "cuda_resize_consistency"
+path = "tests/cuda_resize_consistency.rs"
+required-features = ["cuda-runtime", "ort-load-dynamic"]
 
 
 

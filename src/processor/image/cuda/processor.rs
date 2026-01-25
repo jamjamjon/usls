@@ -8,10 +8,17 @@ use cudarc::nvrtc::compile_ptx;
 use std::sync::{Arc, Mutex};
 
 use super::*;
-use crate::{compute_convolution_1d, ImagePlan, ImageTensorLayout, ImageTransformInfo, ResizeMode};
+use crate::{
+    compute_convolution_1d, ImagePlan, ImageTensorLayout, ImageTransformInfo, ResizeAlg, ResizeMode,
+};
 
 /// CUDA source code for processing kernels (embedded at compile time).
-const PREPROCESS_CUDA_SRC: &str = include_str!("process.cu");
+const PREPROCESS_CUDA_SRC: &str = concat!(
+    include_str!("kernels/utils.cu"),
+    include_str!("kernels/conv_resize.cu"),
+    include_str!("kernels/postprocess.cu"),
+    include_str!("kernels/transforms.cu"),
+);
 
 /// CUDA preprocessor context managing device, streams, and kernels.
 /// This implements TransformExecutor for CUDA backend.
@@ -19,11 +26,17 @@ pub struct CudaPreprocessor {
     ctx: Arc<CudaContext>,
     kernel_conv_vert_u8x3: CudaFunction,
     kernel_conv_horiz_u8x3: CudaFunction,
+    kernel_resize_nearest_u8x3: CudaFunction,
     kernel_post_u8_to_nchw_f32: CudaFunction,
     kernel_post_u8_to_nhwc_f32: CudaFunction,
     kernel_pad_constant: CudaFunction,
     kernel_pad_reflect: CudaFunction,
     kernel_pad_replicate: CudaFunction,
+    kernel_pad_wrap: CudaFunction,
+    kernel_pad_fixed_constant: CudaFunction,
+    kernel_pad_fixed_reflect: CudaFunction,
+    kernel_pad_fixed_replicate: CudaFunction,
+    kernel_pad_fixed_wrap: CudaFunction,
     kernel_crop_center: CudaFunction,
     conv_cache: Mutex<ConvCoeffCache>,
     buffer_pool: Mutex<DeviceBufferPool>,
@@ -108,7 +121,7 @@ impl CudaPreprocessor {
 
         // Compile CUDA source to PTX at runtime
         let ptx = compile_ptx(PREPROCESS_CUDA_SRC)
-            .map_err(|e| anyhow::anyhow!("Failed to compile CUDA kernels: {:?}", e))?;
+            .map_err(|e| anyhow::anyhow!("Failed to compile CUDA kernels: {e:?}"))?;
 
         // Load PTX module and get kernel functions
         let module = ctx.load_module(ptx).map_err(driver_err)?;
@@ -116,6 +129,9 @@ impl CudaPreprocessor {
         let kernel_conv_vert_u8x3 = module.load_function("conv_vert_u8x3").map_err(driver_err)?;
         let kernel_conv_horiz_u8x3 = module
             .load_function("conv_horiz_u8x3")
+            .map_err(driver_err)?;
+        let kernel_resize_nearest_u8x3 = module
+            .load_function("resize_nearest_u8x3")
             .map_err(driver_err)?;
         let kernel_post_u8_to_nchw_f32 = module
             .load_function("postprocess_pad_u8_to_nchw_f32")
@@ -132,17 +148,36 @@ impl CudaPreprocessor {
         let kernel_pad_replicate = module
             .load_function("pad_to_multiple_replicate")
             .map_err(driver_err)?;
+        let kernel_pad_wrap = module
+            .load_function("pad_to_multiple_wrap")
+            .map_err(driver_err)?;
+        let kernel_pad_fixed_constant = module
+            .load_function("pad_fixed_constant")
+            .map_err(driver_err)?;
+        let kernel_pad_fixed_reflect = module
+            .load_function("pad_fixed_reflect")
+            .map_err(driver_err)?;
+        let kernel_pad_fixed_replicate = module
+            .load_function("pad_fixed_replicate")
+            .map_err(driver_err)?;
+        let kernel_pad_fixed_wrap = module.load_function("pad_fixed_wrap").map_err(driver_err)?;
         let kernel_crop_center = module.load_function("crop_center").map_err(driver_err)?;
 
         Ok(Self {
             ctx,
             kernel_conv_vert_u8x3,
             kernel_conv_horiz_u8x3,
+            kernel_resize_nearest_u8x3,
             kernel_post_u8_to_nchw_f32,
             kernel_post_u8_to_nhwc_f32,
             kernel_pad_constant,
             kernel_pad_reflect,
             kernel_pad_replicate,
+            kernel_pad_wrap,
+            kernel_pad_fixed_constant,
+            kernel_pad_fixed_reflect,
+            kernel_pad_fixed_replicate,
+            kernel_pad_fixed_wrap,
             kernel_crop_center,
             conv_cache: Mutex::new(ConvCoeffCache::new(32)),
             buffer_pool: Mutex::new(DeviceBufferPool::new()),
@@ -378,104 +413,138 @@ impl CudaPreprocessor {
             anyhow::bail!("Invalid resized size: {resized_w}x{resized_h}");
         }
 
-        let resize_filter = ctx.resize_filter();
-        let adaptive_kernel_size = true;
-        let vert = self.get_or_create_vert_coeffs(
-            stream,
-            ConvKey {
-                in_size: ctx.in_height,
-                out_size: resized_h_u32,
-                filter: resize_filter,
-                adaptive_kernel_size,
-            },
-        )?;
-        let horiz = self.get_or_create_horiz_coeffs(
-            stream,
-            ConvKey {
-                in_size: ctx.in_width,
-                out_size: resized_w_u32,
-                filter: resize_filter,
-                adaptive_kernel_size,
-            },
-        )?;
-
-        let temp_width = horiz.temp_width;
-        let offset_x_i32 = horiz.x_first;
-        let v_precision: i32 = vert.precision;
-        let h_precision: i32 = horiz.coeffs.precision;
-
-        // Allocate temp and resized buffers
-        let temp_size = (temp_width * resized_h_u32 * 3) as usize;
-        let resized_size = (resized_w_u32 * resized_h_u32 * 3) as usize;
-        let mut d_temp = buffer_pool.take_or_alloc_temp(stream, temp_size)?;
-        let mut d_resized = buffer_pool.take_or_alloc_resized(stream, resized_size)?;
-
-        // Vertical pass
         let block_x = 16u32;
         let block_y = 16u32;
-        let cfg_v = LaunchConfig {
-            grid_dim: (
-                temp_width.div_ceil(block_x),
-                resized_h_u32.div_ceil(block_y),
-                1,
-            ),
-            block_dim: (block_x, block_y, 1),
-            shared_mem_bytes: 0,
-        };
         let in_h_i32 = ctx.in_height as i32;
         let in_w_i32 = ctx.in_width as i32;
-        let out_h_i32 = resized_h_u32 as i32;
-        let out_w_i32 = temp_width as i32;
+        let resized_h_i32 = resized_h_u32 as i32;
+        let resized_w_i32 = resized_w_u32 as i32;
 
-        unsafe {
-            stream
-                .launch_builder(&self.kernel_conv_vert_u8x3)
-                .arg(&d_input)
-                .arg(&mut d_temp)
-                .arg(&in_h_i32)
-                .arg(&in_w_i32)
-                .arg(&out_h_i32)
-                .arg(&out_w_i32)
-                .arg(&offset_x_i32)
-                .arg(&*vert.d_starts)
-                .arg(&*vert.d_sizes)
-                .arg(&*vert.d_offsets)
-                .arg(&*vert.d_coeffs)
-                .arg(&v_precision)
-                .launch(cfg_v)
+        let resized_size = (resized_w_u32 * resized_h_u32 * 3) as usize;
+        let mut d_resized = buffer_pool.take_or_alloc_resized(stream, resized_size)?;
+
+        match ctx.resize_alg() {
+            ResizeAlg::Nearest => {
+                let cfg = LaunchConfig {
+                    grid_dim: (
+                        resized_w_u32.div_ceil(block_x),
+                        resized_h_u32.div_ceil(block_y),
+                        1,
+                    ),
+                    block_dim: (block_x, block_y, 1),
+                    shared_mem_bytes: 0,
+                };
+
+                unsafe {
+                    stream
+                        .launch_builder(&self.kernel_resize_nearest_u8x3)
+                        .arg(&d_input)
+                        .arg(&mut d_resized)
+                        .arg(&in_h_i32)
+                        .arg(&in_w_i32)
+                        .arg(&resized_h_i32)
+                        .arg(&resized_w_i32)
+                        .launch(cfg)
+                }
+                .map_err(driver_err)?;
+            }
+            ResizeAlg::Convolution(filter) | ResizeAlg::Interpolation(filter) => {
+                let adaptive_kernel_size = matches!(ctx.resize_alg(), ResizeAlg::Convolution(_));
+
+                let vert = self.get_or_create_vert_coeffs(
+                    stream,
+                    ConvKey {
+                        in_size: ctx.in_height,
+                        out_size: resized_h_u32,
+                        filter,
+                        adaptive_kernel_size,
+                    },
+                )?;
+                let horiz = self.get_or_create_horiz_coeffs(
+                    stream,
+                    ConvKey {
+                        in_size: ctx.in_width,
+                        out_size: resized_w_u32,
+                        filter,
+                        adaptive_kernel_size,
+                    },
+                )?;
+
+                let temp_width = horiz.temp_width;
+                let offset_x_i32 = horiz.x_first;
+                let v_precision: i32 = vert.precision;
+                let h_precision: i32 = horiz.coeffs.precision;
+
+                let temp_size = (temp_width * resized_h_u32 * 3) as usize;
+                let mut d_temp = buffer_pool.take_or_alloc_temp(stream, temp_size)?;
+
+                let cfg_v = LaunchConfig {
+                    grid_dim: (
+                        temp_width.div_ceil(block_x),
+                        resized_h_u32.div_ceil(block_y),
+                        1,
+                    ),
+                    block_dim: (block_x, block_y, 1),
+                    shared_mem_bytes: 0,
+                };
+                let out_h_i32 = resized_h_u32 as i32;
+                let out_w_i32 = temp_width as i32;
+
+                unsafe {
+                    stream
+                        .launch_builder(&self.kernel_conv_vert_u8x3)
+                        .arg(&d_input)
+                        .arg(&mut d_temp)
+                        .arg(&in_h_i32)
+                        .arg(&in_w_i32)
+                        .arg(&out_h_i32)
+                        .arg(&out_w_i32)
+                        .arg(&offset_x_i32)
+                        .arg(&*vert.d_starts)
+                        .arg(&*vert.d_sizes)
+                        .arg(&*vert.d_offsets)
+                        .arg(&*vert.d_coeffs)
+                        .arg(&v_precision)
+                        .launch(cfg_v)
+                }
+                .map_err(driver_err)?;
+
+                let cfg_h = LaunchConfig {
+                    grid_dim: (
+                        resized_w_u32.div_ceil(block_x),
+                        resized_h_u32.div_ceil(block_y),
+                        1,
+                    ),
+                    block_dim: (block_x, block_y, 1),
+                    shared_mem_bytes: 0,
+                };
+                let height_i32 = resized_h_u32 as i32;
+                let in_w_h_i32 = temp_width as i32;
+                let out_w_h_i32 = resized_w_u32 as i32;
+
+                unsafe {
+                    stream
+                        .launch_builder(&self.kernel_conv_horiz_u8x3)
+                        .arg(&d_temp)
+                        .arg(&mut d_resized)
+                        .arg(&height_i32)
+                        .arg(&in_w_h_i32)
+                        .arg(&out_w_h_i32)
+                        .arg(&*horiz.coeffs.d_starts)
+                        .arg(&*horiz.coeffs.d_sizes)
+                        .arg(&*horiz.coeffs.d_offsets)
+                        .arg(&*horiz.coeffs.d_coeffs)
+                        .arg(&h_precision)
+                        .launch(cfg_h)
+                }
+                .map_err(driver_err)?;
+
+                buffer_pool.temp = Some(d_temp);
+            }
+            ResizeAlg::SuperSampling(_, _) => {
+                anyhow::bail!("CUDA backend does not support SuperSampling")
+            }
         }
-        .map_err(driver_err)?;
-
-        // Horizontal pass
-        let cfg_h = LaunchConfig {
-            grid_dim: (
-                resized_w_u32.div_ceil(block_x),
-                resized_h_u32.div_ceil(block_y),
-                1,
-            ),
-            block_dim: (block_x, block_y, 1),
-            shared_mem_bytes: 0,
-        };
-        let height_i32 = resized_h_u32 as i32;
-        let in_w_h_i32 = temp_width as i32;
-        let out_w_h_i32 = resized_w_u32 as i32;
-
-        unsafe {
-            stream
-                .launch_builder(&self.kernel_conv_horiz_u8x3)
-                .arg(&d_temp)
-                .arg(&mut d_resized)
-                .arg(&height_i32)
-                .arg(&in_w_h_i32)
-                .arg(&out_w_h_i32)
-                .arg(&*horiz.coeffs.d_starts)
-                .arg(&*horiz.coeffs.d_sizes)
-                .arg(&*horiz.coeffs.d_offsets)
-                .arg(&*horiz.coeffs.d_coeffs)
-                .arg(&h_precision)
-                .launch(cfg_h)
-        }
-        .map_err(driver_err)?;
 
         // Postprocess
         let normalize_scale = if ctx.normalize() {
@@ -558,7 +627,6 @@ impl CudaPreprocessor {
         }
 
         buffer_pool.input = Some(d_input);
-        buffer_pool.temp = Some(d_temp);
         buffer_pool.resized = Some(d_resized);
 
         Ok(trans_info)
@@ -918,7 +986,21 @@ impl CudaPreprocessor {
                             }
                             .map_err(driver_err)?;
                         }
-                        _ => anyhow::bail!("PadFillMode::Wrap not supported in CUDA"),
+                        crate::PadFillMode::Wrap => {
+                            let mut builder = stream.launch_builder(&self.kernel_pad_wrap);
+                            unsafe {
+                                builder
+                                    .arg(&d_current)
+                                    .arg(&mut d_output)
+                                    .arg(&in_h)
+                                    .arg(&in_w)
+                                    .arg(&out_h)
+                                    .arg(&out_w)
+                                    .arg(&channels)
+                                    .launch(cfg)
+                            }
+                            .map_err(driver_err)?;
+                        }
                     }
 
                     d_current = d_output;
@@ -933,6 +1015,121 @@ impl CudaPreprocessor {
                         .with_height_dst(out_height)
                         .with_width_pad(w_pad_total as f32)
                         .with_height_pad(h_pad_total as f32);
+                    merged_info = merged_info.merge(&info);
+                }
+                crate::ImageTransform::Pad(crate::PadMode::Fixed {
+                    top,
+                    bottom,
+                    left,
+                    right,
+                    fill_mode,
+                }) => {
+                    let (w_old, h_old) = (current_width, current_height);
+                    let out_width = w_old + *left + *right;
+                    let out_height = h_old + *top + *bottom;
+
+                    let output_size = (out_height * out_width * 3) as usize;
+                    let mut d_output =
+                        unsafe { stream.alloc::<u8>(output_size).map_err(driver_err)? };
+
+                    let cfg = LaunchConfig {
+                        grid_dim: (out_width.div_ceil(16), out_height.div_ceil(16), 1),
+                        block_dim: (16, 16, 1),
+                        shared_mem_bytes: 0,
+                    };
+
+                    let in_h = current_height as i32;
+                    let in_w = current_width as i32;
+                    let out_h = out_height as i32;
+                    let out_w = out_width as i32;
+                    let pad_top = *top as i32;
+                    let pad_left = *left as i32;
+
+                    match fill_mode {
+                        crate::PadFillMode::Constant(value) => {
+                            let mut builder =
+                                stream.launch_builder(&self.kernel_pad_fixed_constant);
+                            unsafe {
+                                builder
+                                    .arg(&d_current)
+                                    .arg(&mut d_output)
+                                    .arg(&in_h)
+                                    .arg(&in_w)
+                                    .arg(&out_h)
+                                    .arg(&out_w)
+                                    .arg(&channels)
+                                    .arg(&pad_top)
+                                    .arg(&pad_left)
+                                    .arg(value)
+                                    .launch(cfg)
+                            }
+                            .map_err(driver_err)?;
+                        }
+                        crate::PadFillMode::Reflect => {
+                            let mut builder = stream.launch_builder(&self.kernel_pad_fixed_reflect);
+                            unsafe {
+                                builder
+                                    .arg(&d_current)
+                                    .arg(&mut d_output)
+                                    .arg(&in_h)
+                                    .arg(&in_w)
+                                    .arg(&out_h)
+                                    .arg(&out_w)
+                                    .arg(&channels)
+                                    .arg(&pad_top)
+                                    .arg(&pad_left)
+                                    .launch(cfg)
+                            }
+                            .map_err(driver_err)?;
+                        }
+                        crate::PadFillMode::Replicate => {
+                            let mut builder =
+                                stream.launch_builder(&self.kernel_pad_fixed_replicate);
+                            unsafe {
+                                builder
+                                    .arg(&d_current)
+                                    .arg(&mut d_output)
+                                    .arg(&in_h)
+                                    .arg(&in_w)
+                                    .arg(&out_h)
+                                    .arg(&out_w)
+                                    .arg(&channels)
+                                    .arg(&pad_top)
+                                    .arg(&pad_left)
+                                    .launch(cfg)
+                            }
+                            .map_err(driver_err)?;
+                        }
+                        crate::PadFillMode::Wrap => {
+                            let mut builder = stream.launch_builder(&self.kernel_pad_fixed_wrap);
+                            unsafe {
+                                builder
+                                    .arg(&d_current)
+                                    .arg(&mut d_output)
+                                    .arg(&in_h)
+                                    .arg(&in_w)
+                                    .arg(&out_h)
+                                    .arg(&out_w)
+                                    .arg(&channels)
+                                    .arg(&pad_top)
+                                    .arg(&pad_left)
+                                    .launch(cfg)
+                            }
+                            .map_err(driver_err)?;
+                        }
+                    }
+
+                    d_current = d_output;
+                    current_width = out_width;
+                    current_height = out_height;
+
+                    let info = crate::ImageTransformInfo::default()
+                        .with_width_src(w_old)
+                        .with_height_src(h_old)
+                        .with_width_dst(out_width)
+                        .with_height_dst(out_height)
+                        .with_width_pad((*left + *right) as f32)
+                        .with_height_pad((*top + *bottom) as f32);
                     merged_info = merged_info.merge(&info);
                 }
                 crate::ImageTransform::Crop(crate::CropMode::Center { width, height }) => {
@@ -1188,101 +1385,138 @@ impl CudaPreprocessor {
             anyhow::bail!("Invalid resized size: {resized_w}x{resized_h}");
         }
 
-        let resize_filter = ctx.resize_filter();
-        let adaptive_kernel_size = true;
-        let vert = self.get_or_create_vert_coeffs(
-            stream,
-            ConvKey {
-                in_size: ctx.in_height,
-                out_size: resized_h_u32,
-                filter: resize_filter,
-                adaptive_kernel_size,
-            },
-        )?;
-        let horiz = self.get_or_create_horiz_coeffs(
-            stream,
-            ConvKey {
-                in_size: ctx.in_width,
-                out_size: resized_w_u32,
-                filter: resize_filter,
-                adaptive_kernel_size,
-            },
-        )?;
-
-        let temp_width = horiz.temp_width;
-        let offset_x_i32 = horiz.x_first;
-        let v_precision: i32 = vert.precision;
-        let h_precision: i32 = horiz.coeffs.precision;
-
-        let temp_size = (temp_width * resized_h_u32 * 3) as usize;
-        let resized_size = (resized_w_u32 * resized_h_u32 * 3) as usize;
-        let mut d_temp = buffer_pool.take_or_alloc_temp(stream, temp_size)?;
-        let mut d_resized = buffer_pool.take_or_alloc_resized(stream, resized_size)?;
-
         let block_x = 16u32;
         let block_y = 16u32;
-        let cfg_v = LaunchConfig {
-            grid_dim: (
-                temp_width.div_ceil(block_x),
-                resized_h_u32.div_ceil(block_y),
-                1,
-            ),
-            block_dim: (block_x, block_y, 1),
-            shared_mem_bytes: 0,
-        };
         let in_h_i32 = ctx.in_height as i32;
         let in_w_i32 = ctx.in_width as i32;
-        let out_h_i32 = resized_h_u32 as i32;
-        let out_w_i32 = temp_width as i32;
+        let resized_h_i32 = resized_h_u32 as i32;
+        let resized_w_i32 = resized_w_u32 as i32;
 
-        unsafe {
-            stream
-                .launch_builder(&self.kernel_conv_vert_u8x3)
-                .arg(d_input)
-                .arg(&mut d_temp)
-                .arg(&in_h_i32)
-                .arg(&in_w_i32)
-                .arg(&out_h_i32)
-                .arg(&out_w_i32)
-                .arg(&offset_x_i32)
-                .arg(&*vert.d_starts)
-                .arg(&*vert.d_sizes)
-                .arg(&*vert.d_offsets)
-                .arg(&*vert.d_coeffs)
-                .arg(&v_precision)
-                .launch(cfg_v)
+        let resized_size = (resized_w_u32 * resized_h_u32 * 3) as usize;
+        let mut d_resized = buffer_pool.take_or_alloc_resized(stream, resized_size)?;
+
+        match ctx.resize_alg() {
+            ResizeAlg::Nearest => {
+                let cfg = LaunchConfig {
+                    grid_dim: (
+                        resized_w_u32.div_ceil(block_x),
+                        resized_h_u32.div_ceil(block_y),
+                        1,
+                    ),
+                    block_dim: (block_x, block_y, 1),
+                    shared_mem_bytes: 0,
+                };
+
+                unsafe {
+                    stream
+                        .launch_builder(&self.kernel_resize_nearest_u8x3)
+                        .arg(d_input)
+                        .arg(&mut d_resized)
+                        .arg(&in_h_i32)
+                        .arg(&in_w_i32)
+                        .arg(&resized_h_i32)
+                        .arg(&resized_w_i32)
+                        .launch(cfg)
+                }
+                .map_err(driver_err)?;
+            }
+            ResizeAlg::Convolution(filter) | ResizeAlg::Interpolation(filter) => {
+                let adaptive_kernel_size = matches!(ctx.resize_alg(), ResizeAlg::Convolution(_));
+
+                let vert = self.get_or_create_vert_coeffs(
+                    stream,
+                    ConvKey {
+                        in_size: ctx.in_height,
+                        out_size: resized_h_u32,
+                        filter,
+                        adaptive_kernel_size,
+                    },
+                )?;
+                let horiz = self.get_or_create_horiz_coeffs(
+                    stream,
+                    ConvKey {
+                        in_size: ctx.in_width,
+                        out_size: resized_w_u32,
+                        filter,
+                        adaptive_kernel_size,
+                    },
+                )?;
+
+                let temp_width = horiz.temp_width;
+                let offset_x_i32 = horiz.x_first;
+                let v_precision: i32 = vert.precision;
+                let h_precision: i32 = horiz.coeffs.precision;
+
+                let temp_size = (temp_width * resized_h_u32 * 3) as usize;
+                let mut d_temp = buffer_pool.take_or_alloc_temp(stream, temp_size)?;
+
+                let cfg_v = LaunchConfig {
+                    grid_dim: (
+                        temp_width.div_ceil(block_x),
+                        resized_h_u32.div_ceil(block_y),
+                        1,
+                    ),
+                    block_dim: (block_x, block_y, 1),
+                    shared_mem_bytes: 0,
+                };
+                let out_h_i32 = resized_h_u32 as i32;
+                let out_w_i32 = temp_width as i32;
+
+                unsafe {
+                    stream
+                        .launch_builder(&self.kernel_conv_vert_u8x3)
+                        .arg(d_input)
+                        .arg(&mut d_temp)
+                        .arg(&in_h_i32)
+                        .arg(&in_w_i32)
+                        .arg(&out_h_i32)
+                        .arg(&out_w_i32)
+                        .arg(&offset_x_i32)
+                        .arg(&*vert.d_starts)
+                        .arg(&*vert.d_sizes)
+                        .arg(&*vert.d_offsets)
+                        .arg(&*vert.d_coeffs)
+                        .arg(&v_precision)
+                        .launch(cfg_v)
+                }
+                .map_err(driver_err)?;
+
+                let cfg_h = LaunchConfig {
+                    grid_dim: (
+                        resized_w_u32.div_ceil(block_x),
+                        resized_h_u32.div_ceil(block_y),
+                        1,
+                    ),
+                    block_dim: (block_x, block_y, 1),
+                    shared_mem_bytes: 0,
+                };
+                let height_i32 = resized_h_u32 as i32;
+                let in_w_h_i32 = temp_width as i32;
+                let out_w_h_i32 = resized_w_u32 as i32;
+
+                unsafe {
+                    stream
+                        .launch_builder(&self.kernel_conv_horiz_u8x3)
+                        .arg(&d_temp)
+                        .arg(&mut d_resized)
+                        .arg(&height_i32)
+                        .arg(&in_w_h_i32)
+                        .arg(&out_w_h_i32)
+                        .arg(&*horiz.coeffs.d_starts)
+                        .arg(&*horiz.coeffs.d_sizes)
+                        .arg(&*horiz.coeffs.d_offsets)
+                        .arg(&*horiz.coeffs.d_coeffs)
+                        .arg(&h_precision)
+                        .launch(cfg_h)
+                }
+                .map_err(driver_err)?;
+
+                buffer_pool.temp = Some(d_temp);
+            }
+            ResizeAlg::SuperSampling(_, _) => {
+                anyhow::bail!("CUDA backend does not support SuperSampling")
+            }
         }
-        .map_err(driver_err)?;
-
-        let cfg_h = LaunchConfig {
-            grid_dim: (
-                resized_w_u32.div_ceil(block_x),
-                resized_h_u32.div_ceil(block_y),
-                1,
-            ),
-            block_dim: (block_x, block_y, 1),
-            shared_mem_bytes: 0,
-        };
-        let height_i32 = resized_h_u32 as i32;
-        let in_w_h_i32 = temp_width as i32;
-        let out_w_h_i32 = resized_w_u32 as i32;
-
-        unsafe {
-            stream
-                .launch_builder(&self.kernel_conv_horiz_u8x3)
-                .arg(&d_temp)
-                .arg(&mut d_resized)
-                .arg(&height_i32)
-                .arg(&in_w_h_i32)
-                .arg(&out_w_h_i32)
-                .arg(&*horiz.coeffs.d_starts)
-                .arg(&*horiz.coeffs.d_sizes)
-                .arg(&*horiz.coeffs.d_offsets)
-                .arg(&*horiz.coeffs.d_coeffs)
-                .arg(&h_precision)
-                .launch(cfg_h)
-        }
-        .map_err(driver_err)?;
 
         let normalize_scale = if ctx.normalize() {
             1.0f32 / 255.0f32
@@ -1363,7 +1597,6 @@ impl CudaPreprocessor {
             }
         }
 
-        buffer_pool.temp = Some(d_temp);
         buffer_pool.resized = Some(d_resized);
 
         Ok(trans_info)

@@ -82,15 +82,13 @@ impl MediaPipeSegmenter {
                 let info = &self.processor.images_transform_info[idx];
                 let (h1, w1) = (info.height_src, info.width_src);
 
-                let luma = luma.mapv(|x| (x * 255.0) as u8);
-                let luma = Ops::resize_luma8_u8(
-                    &luma.into_raw_vec_and_offset().0,
+                let luma: Vec<u8> = Ops::interpolate_1d_u8(
+                    &luma.to_owned().into_raw_vec_and_offset().0,
                     self.width as _,
                     self.height as _,
                     w1 as _,
                     h1 as _,
                     false,
-                    "Bilinear",
                 )
                 .ok()?;
 

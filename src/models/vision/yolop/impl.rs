@@ -207,15 +207,14 @@ impl YOLOPv2 {
         w1: f32,
         h1: f32,
     ) -> Result<Vec<Contour>> {
-        let mask = mask.mapv(|x| if x < thresh { 0u8 } else { 255u8 });
-        let mask = Ops::resize_luma8_u8(
+        let mask = mask.mapv(|x| if x < thresh { 0.0f32 } else { 1.0f32 });
+        let mask: Vec<u8> = Ops::interpolate_1d_u8(
             &mask.into_raw_vec_and_offset().0,
-            w0,
-            h0,
-            w1,
-            h1,
+            w0 as _,
+            h0 as _,
+            w1 as _,
+            h1 as _,
             false,
-            "Bilinear",
         )?;
         let mask: image::ImageBuffer<image::Luma<_>, Vec<_>> =
             image::ImageBuffer::from_raw(w1 as _, h1 as _, mask)

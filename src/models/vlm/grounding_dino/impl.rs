@@ -119,10 +119,11 @@ impl Model for GroundingDINO {
 
     fn run(&mut self, engines: &mut Engines, images: Self::Input<'_>) -> Result<Vec<Y>> {
         // Preprocess
-        let image_embeddings = elapsed_module!("GroundingDINO", "preprocess", {
-            self.batch = images.len();
+        let image_embeddings = elapsed_module!(
+            "GroundingDINO",
+            "preprocess",
             self.image_processor.process(images)?
-        });
+        );
 
         let input_ids = X::from(self.token_ids.clone())
             .insert_axis(0)?
