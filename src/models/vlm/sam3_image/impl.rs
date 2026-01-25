@@ -42,7 +42,7 @@ impl Sam3Image {
                     .try_extract_array::<bool>()?
                     .mapv(|x| if x { 1. } else { 0. })
                     .into_owned()),
-                _ => bail!("Unsupported tensor type: {:?}", ty),
+                _ => bail!("Unsupported tensor type: {ty:?}"),
             },
             _ => bail!("Unsupported value type"),
         }
@@ -79,7 +79,7 @@ impl Sam3Image {
                     let arr = cpu_val.try_extract_array::<f16>()?.into_owned().into_dyn();
                     let shape = arr.shape().to_vec();
                     if shape.is_empty() || shape[0] != 1 {
-                        bail!("Expected text_features shape [1, ...], got {:?}", shape);
+                        bail!("Expected text_features shape [1, ...], got {shape:?}");
                     }
                     let per = arr.len();
                     let src = arr.into_raw_vec_and_offset().0;
@@ -99,7 +99,7 @@ impl Sam3Image {
                     let arr = cpu_val.try_extract_array::<f32>()?.into_owned().into_dyn();
                     let shape = arr.shape().to_vec();
                     if shape.is_empty() || shape[0] != 1 {
-                        bail!("Expected text_features shape [1, ...], got {:?}", shape);
+                        bail!("Expected text_features shape [1, ...], got {shape:?}");
                     }
                     let per = arr.len();
                     let src = arr.into_raw_vec_and_offset().0;
@@ -115,7 +115,7 @@ impl Sam3Image {
                     )?)?
                     .into_dyn())
                 }
-                _ => bail!("Unsupported text_features tensor type: {:?}", ty),
+                _ => bail!("Unsupported text_features tensor type: {ty:?}"),
             },
             _ => bail!("Unsupported text_features value type"),
         }
@@ -147,7 +147,7 @@ impl Sam3Image {
         let arr = Self::extract_f32(&cpu_val)?.mapv(|x| x != 0.0);
         let shape = arr.shape().to_vec();
         if shape.is_empty() || shape[0] != 1 {
-            bail!("Expected text_mask shape [1, ...], got {:?}", shape);
+            bail!("Expected text_mask shape [1, ...], got {shape:?}");
         }
         let per = arr.len();
         let src = arr.into_raw_vec_and_offset().0;
@@ -321,7 +321,7 @@ impl Sam3Image {
                                 ));
                             }
                         }
-                        _ => bail!("Unsupported text_features tensor type: {:?}", ty),
+                        _ => bail!("Unsupported text_features tensor type: {ty:?}"),
                     },
                     _ => bail!("Unsupported text_features value type"),
                 }
@@ -399,14 +399,14 @@ impl Sam3Image {
                                     b.iter().flat_map(|b| b.iter().copied()).collect(),
                                 )?,
                                 X::<i64>::from_shape_vec_generic(
-                                    &[1, b.len()],
+                                    [1, b.len()],
                                     prompt.box_labels(),
                                 )?,
                             )
                         } else {
                             (
                                 X::from_shape_vec(&[1, 1, 4], vec![0.; 4])?,
-                                X::<i64>::from_shape_vec_generic(&[1, 1], vec![-10_i64])?,
+                                X::<i64>::from_shape_vec_generic([1, 1], vec![-10_i64])?,
                             )
                         };
 
@@ -470,12 +470,12 @@ impl Sam3Image {
                         }
                         (
                             X::from_shape_vec(&[batch, nb, 4], boxes_flat)?,
-                            X::<i64>::from_shape_vec_generic(&[batch, nb], labels_flat)?,
+                            X::<i64>::from_shape_vec_generic([batch, nb], labels_flat)?,
                         )
                     } else {
                         (
                             X::from_shape_vec(&[batch, 1, 4], vec![0.0; batch * 4])?,
-                            X::<i64>::from_shape_vec_generic(&[batch, 1], vec![-10_i64; batch])?,
+                            X::<i64>::from_shape_vec_generic([batch, 1], vec![-10_i64; batch])?,
                         )
                     };
 
