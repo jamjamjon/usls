@@ -3,8 +3,8 @@ use anyhow::Result;
 use rayon::prelude::*;
 
 use crate::{
-    elapsed_module, inputs, Config, Engine, Engines, FromConfig, Image, ImageProcessor, Mask,
-    Model, Module, Ops, Task, Version, XView, Xs, Y,
+    elapsed_module, Config, Engine, Engines, FromConfig, Image, ImageProcessor, Mask, Model,
+    Module, Ops, Task, Version, XView, Xs, Y,
 };
 
 /// Depth Anything: Unleashing the Power of Large-Scale Unlabeled Data
@@ -81,7 +81,7 @@ impl Model for DepthAnything {
         let ys = elapsed_module!(
             "DepthAnything",
             "inference",
-            engines.run(&Module::Model, inputs![&x]?)?
+            engines.run(&Module::Model, &x)?
         );
         elapsed_module!("DepthAnything", "postprocess", self.postprocess(&ys))
     }
@@ -324,7 +324,7 @@ impl DepthAnything {
                                         .into_dyn();
                                     extras.insert("extrinsics".to_string(), crate::X::from(e_view));
 
-                                    Y::default().with_masks(&[mask]).with_extras(extras)
+                                    Y::default().with_masks(&[mask]).with_extra(extras)
                                 })
                             })
                             .collect()

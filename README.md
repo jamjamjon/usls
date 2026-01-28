@@ -212,6 +212,15 @@ cargo run -r --example yolo -- --help
 </details>
 
 <details closed>
+<summary><b>👀 Gaze Estimation</b></summary>
+
+| Model | Task / Description | Demo | Dynamic Batch | TensorRT | FP32 | FP16 | Q8 | Q4f16 | BNB4 |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| [MobileGaze](https://github.com/yakhyo/gaze-estimation) | Eye Gaze Estimation | [demo](./examples/pose-estimation) | ✅ | ❓ |✅  | ✅  | ✅  | ✅  | ✅  |
+
+</details>
+
+<details closed>
 <summary><b>✂️ Image Matting & Portrait Segmentation</b></summary>
 
 | Model | Task / Description | Demo | Dynamic Batch | TensorRT | FP32 | FP16 | Q8 | Q4f16 | BNB4 |

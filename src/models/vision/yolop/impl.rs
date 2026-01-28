@@ -4,8 +4,8 @@ use ndarray::{s, Array, Axis, IxDyn};
 use rayon::prelude::*;
 
 use crate::{
-    contour, elapsed_module, inputs, Config, Contour, DynConf, Engine, Engines, FromConfig, Hbb,
-    Image, ImageProcessor, Model, Module, NmsOps, Ops, Polygon, Xs, X, Y,
+    contour, elapsed_module, Config, Contour, DynConf, Engine, Engines, FromConfig, Hbb, Image,
+    ImageProcessor, Model, Module, NmsOps, Ops, Polygon, Xs, X, Y,
 };
 
 /// YOLOP: Panoramic Driving Perception
@@ -61,11 +61,7 @@ impl Model for YOLOPv2 {
 
     fn run(&mut self, engines: &mut Engines, images: Self::Input<'_>) -> Result<Vec<Y>> {
         let x = elapsed_module!("YOLOPv2", "preprocess", self.processor.process(images)?);
-        let ys = elapsed_module!(
-            "YOLOPv2",
-            "inference",
-            engines.run(&Module::Model, inputs![&x]?)?
-        );
+        let ys = elapsed_module!("YOLOPv2", "inference", engines.run(&Module::Model, &x)?);
         elapsed_module!("YOLOPv2", "postprocess", self.postprocess(&ys))
     }
 }

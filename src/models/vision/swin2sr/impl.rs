@@ -3,8 +3,8 @@ use anyhow::Result;
 use ndarray::s;
 
 use crate::{
-    elapsed_module, inputs, Config, Engine, Engines, FromConfig, Image, ImageProcessor, Model,
-    Module, Xs, X, Y,
+    elapsed_module, Config, Engine, Engines, FromConfig, Image, ImageProcessor, Model, Module, Xs,
+    X, Y,
 };
 
 /// Swin2SR: SwinV2 Transformer for Super-Resolution
@@ -54,11 +54,7 @@ impl Model for Swin2SR {
                     "preprocess",
                     self.processor.process(std::slice::from_ref(image))?
                 );
-                let ys = elapsed_module!(
-                    "Swin2SR",
-                    "inference",
-                    engines.run(&Module::Model, inputs![&x]?)?
-                );
+                let ys = elapsed_module!("Swin2SR", "inference", engines.run(&Module::Model, &x)?);
                 elapsed_module!("Swin2SR", "postprocess", self.postprocess_one(&ys))
             })
             .collect()

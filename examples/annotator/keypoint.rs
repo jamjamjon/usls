@@ -42,7 +42,7 @@ fn demo_keypoint_styles(
         ("Diamond", KeypointStyleMode::Diamond, Color::cyan()),
         (
             "Triangle",
-            KeypointStyleMode::Triangle,
+            KeypointStyleMode::Triangle { angle: 0.0 },
             Color::from([255u8, 165, 0, 255]),
         ), // orange
         (

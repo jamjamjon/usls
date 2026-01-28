@@ -3,13 +3,13 @@ use anyhow::Result;
 use image::{DynamicImage, GrayImage, RgbImage, RgbaImage, SubImage};
 use std::path::{Path, PathBuf};
 
-use crate::{Hub, X};
+use crate::{Hbb, Hub, X};
 
 /// Image wrapper with metadata and transformation capabilities.
 #[derive(Builder, Clone)]
 pub struct Image {
     /// `ImageBuffer<Rgb<u8>, Vec<u8>>`
-    pub image: RgbImage, // TODO
+    pub image: RgbImage,
     pub source: Option<PathBuf>,
     pub timestamp: Option<f64>,
 }
@@ -283,6 +283,39 @@ impl Image {
             &[self.height() as usize, self.width() as usize, 3],
             self.to_f32s(),
         )
+    }
+
+    fn crop_one(&self, x: u32, y: u32, w: u32, h: u32) -> Result<Self> {
+        let w = if x + w > self.width() {
+            self.width() - x
+        } else {
+            w
+        };
+        let h = if y + h > self.height() {
+            self.height() - y
+        } else {
+            h
+        };
+        let cropped = self.to_dyn().crop_imm(x, y, w, h);
+
+        Ok(Self {
+            image: cropped.into(),
+            source: self.source.clone(),
+            timestamp: self.timestamp,
+        })
+    }
+
+    pub fn crop(&self, hbbs: &[Hbb]) -> Result<Vec<Self>> {
+        hbbs.iter()
+            .map(|hbb| {
+                self.crop_one(
+                    hbb.xmin() as _,
+                    hbb.ymin() as _,
+                    hbb.width() as _,
+                    hbb.height() as _,
+                )
+            })
+            .collect()
     }
 }
 

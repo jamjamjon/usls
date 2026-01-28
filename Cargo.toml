@@ -314,3 +314,8 @@ required-features = ["vision", "annotator"]
 name = "sapiens"
 path = "examples/sapiens/main.rs"
 required-features = ["vision", "annotator"]
+
+[[example]]
+name = "gaze-estimation"
+path = "examples/gaze-estimation/main.rs"
+required-features = ["vision", "annotator", "video"]

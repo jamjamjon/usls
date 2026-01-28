@@ -4,8 +4,8 @@ use ndarray::Axis;
 use rayon::prelude::*;
 
 use crate::{
-    elapsed_module, inputs, Config, Engine, Engines, FromConfig, Image, ImageProcessor, Mask,
-    Model, Module, Ops, Xs, Y,
+    elapsed_module, Config, Engine, Engines, FromConfig, Image, ImageProcessor, Mask, Model,
+    Module, Ops, Xs, Y,
 };
 
 /// MediaPipe: Selfie Segmentation Model
@@ -62,7 +62,7 @@ impl Model for MediaPipeSegmenter {
         let ys = elapsed_module!(
             "MediaPipeSegmenter",
             "inference",
-            engines.run(&Module::Model, inputs![&x]?)?
+            engines.run(&Module::Model, &x)?
         );
         elapsed_module!("MediaPipeSegmenter", "postprocess", self.postprocess(&ys))
     }

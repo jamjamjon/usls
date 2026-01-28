@@ -1,0 +1,75 @@
+site_name: usls docs
+site_description: A cross-platform Rust library for efficient inference of SOTA vision and vision-language models.
+site_author: Jamjamjon
+repo_url: https://github.com/jamjamjon/usls
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  language: en
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: black
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: black
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - navigation.tracking
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.code.annotate
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.emoji:
+      emoji_index: !!python/name:pymdownx.emoji.twemoji
+      emoji_generator: !!python/name:pymdownx.emoji.to_svg
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - toc:
+      permalink: true
+
+nav:
+  - Home: index.md
+  - Getting Started: 
+    - Overview: getting-started/overview.md
+    - Run one Demo: getting-started/run_demo.md
+    - Installation: getting-started/installation.md
+    - Integration: getting-started/integration.md
+  - Cargo Features: 
+    - overview: cargo-features/overview.md
+  - Guides:
+    - Module System: guides/modules.md
+    - Config System: guides/config.md
+    - Data Loading: guides/dataloader.md
+    - Execution Providers: guides/ep.md
+    - DType & Precision: guides/dtype.md
+    - Device Management: guides/device.md
+    - Result Types (Y): guides/results.md
+    - Annotator: guides/annotator.md
+    - Visualization (Viewer): guides/visualization.md
+  - Model Zoo: 
+    - Overview: model-zoo/overview.md
+    - YOLO Series: model-zoo/yolo.md
+    - Vision Models: model-zoo/vision.md
+    - VLM Models: model-zoo/vlm.md
+  - FAQ: faq.md
+  - Contributing: contributing.md
+  - API Reference: https://docs.rs/usls/latest/usls/

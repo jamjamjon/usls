@@ -68,7 +68,7 @@ impl Model for Clip {
         let ys = elapsed_module!(
             "CLIP",
             "visual-inference",
-            engines.run(&Module::Visual, inputs![&ys]?)?
+            engines.run(&Module::Visual, &ys)?
         );
         let y = elapsed_module!(
             "CLIP",

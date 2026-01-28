@@ -123,4 +123,20 @@ impl Config {
             .with_scale(Scale::X)
             .with_model_file("rtdetr-x.onnx")
     }
+
+    pub fn yolo11n_widerface() -> Self {
+        Self::yolo()
+            .with_task(Task::KeypointsDetection)
+            .with_keypoint_names(&crate::NAMES_WIDERFACE_KEYPOINTS_5)
+            .with_version(11.into())
+            .with_model_file("yolo11n-pose-widerface.onnx")
+    }
+
+    pub fn yolo11s_widerface() -> Self {
+        Self::yolo()
+            .with_task(Task::KeypointsDetection)
+            .with_keypoint_names(&crate::NAMES_WIDERFACE_KEYPOINTS_5)
+            .with_version(11.into())
+            .with_model_file("yolo11s-pose-widerface.onnx")
+    }
 }
