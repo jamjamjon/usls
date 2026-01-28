@@ -4,8 +4,8 @@ use ndarray::{s, Axis};
 use rayon::prelude::*;
 
 use crate::{
-    elapsed_module, inputs, Config, Engine, Engines, FromConfig, Image, ImageProcessor, Keypoint,
-    Model, Module, Text, Xs, Y,
+    elapsed_module, Config, Engine, Engines, FromConfig, Image, ImageProcessor, Keypoint, Model,
+    Module, Text, Xs, Y,
 };
 
 /// SLANet: Structure Layout Analysis Network
@@ -73,11 +73,7 @@ impl Model for SLANet {
 
     fn run(&mut self, engines: &mut Engines, images: Self::Input<'_>) -> Result<Vec<Y>> {
         let xs = elapsed_module!("SLANet", "preprocess", self.processor.process(images)?);
-        let ys = elapsed_module!(
-            "SLANet",
-            "inference",
-            engines.run(&Module::Model, inputs![&xs]?)?
-        );
+        let ys = elapsed_module!("SLANet", "inference", engines.run(&Module::Model, &xs)?);
         elapsed_module!("SLANet", "postprocess", self.postprocess(&ys))
     }
 }

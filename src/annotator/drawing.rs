@@ -90,6 +90,48 @@ pub fn draw_line_solid_thick(
     imageproc::drawing::draw_polygon_mut(canvas, &corners, color);
 }
 
+/// Draw an arrow line from start to end point.
+/// The start point is not marked, and the end point has an arrow tip.
+pub fn draw_arrow_line_options(
+    canvas: &mut RgbaImage,
+    start: (f32, f32),
+    end: (f32, f32),
+    color: impl Into<Rgba<u8>>,
+    thickness: usize,
+    arrow_length: f32,
+    arrow_angle: f32,
+) {
+    let color = color.into();
+
+    // Draw main line
+    draw_line_solid_thick(canvas, start, end, color, thickness);
+
+    // Calculate arrow tip direction
+    let dx = end.0 - start.0;
+    let dy = end.1 - start.1;
+    let line_angle = dy.atan2(dx);
+
+    // Calculate arrow tip points
+    let tip1_x = end.0 - arrow_length * (line_angle - arrow_angle).cos();
+    let tip1_y = end.1 - arrow_length * (line_angle - arrow_angle).sin();
+    let tip2_x = end.0 - arrow_length * (line_angle + arrow_angle).cos();
+    let tip2_y = end.1 - arrow_length * (line_angle + arrow_angle).sin();
+
+    // Draw arrow tip lines
+    draw_line_solid_thick(canvas, end, (tip1_x, tip1_y), color, thickness);
+    draw_line_solid_thick(canvas, end, (tip2_x, tip2_y), color, thickness);
+}
+
+/// Draw an arrow line with default styling (thickness=2, arrow_length=10.0, arrow_angle=0.5).
+pub fn draw_arrow_line(
+    canvas: &mut RgbaImage,
+    start: (f32, f32),
+    end: (f32, f32),
+    color: impl Into<Rgba<u8>>,
+) {
+    draw_arrow_line_options(canvas, start, end, color, 3, 10.0, 0.5);
+}
+
 /// Draw a dashed line segment with thickness support.
 pub fn draw_line_dashed(
     canvas: &mut RgbaImage,
@@ -495,8 +537,8 @@ pub fn draw_keypoint_shape(
         KeypointStyleMode::Diamond => {
             draw_diamond(canvas, cx, cy, radius as f32, color, fill);
         }
-        KeypointStyleMode::Triangle => {
-            draw_triangle(canvas, cx, cy, radius as f32, color, fill);
+        KeypointStyleMode::Triangle { angle } => {
+            draw_triangle(canvas, cx, cy, radius as f32, color, fill, angle);
         }
         KeypointStyleMode::X { thickness } => {
             draw_x(canvas, cx, cy, radius as f32, thickness, color);
@@ -575,8 +617,8 @@ pub fn draw_keypoint_outline_thick(
         KeypointStyleMode::Diamond => {
             draw_diamond_thick(canvas, cx, cy, radius as f32, color, thickness);
         }
-        KeypointStyleMode::Triangle => {
-            draw_triangle_thick(canvas, cx, cy, radius as f32, color, thickness);
+        KeypointStyleMode::Triangle { angle } => {
+            draw_triangle_thick(canvas, cx, cy, radius as f32, color, thickness, angle);
         }
         KeypointStyleMode::X { thickness: x_t } => {
             // X already has internal thickness, just use it
@@ -772,7 +814,8 @@ fn draw_diamond(
     }
 }
 
-/// Draw a triangle (pointing up).
+/// Draw a triangle with rotation support.
+/// angle is in radians, 0 = pointing up, positive = clockwise rotation
 fn draw_triangle(
     canvas: &mut RgbaImage,
     cx: f32,
@@ -780,15 +823,16 @@ fn draw_triangle(
     radius: f32,
     color: Rgba<u8>,
     fill: bool,
+    angle: f32,
 ) {
-    // Equilateral triangle pointing up
-    let angle_offset = -PI / 2.0; // Start from top
+    // Equilateral triangle, default pointing up (-PI/2), then apply rotation
+    let base_angle = -PI / 2.0 + angle;
     let vertices: Vec<_> = (0..3)
         .map(|i| {
-            let angle = angle_offset + (i as f32) * 2.0 * PI / 3.0;
+            let vertex_angle = base_angle + (i as f32) * 2.0 * PI / 3.0;
             imageproc::point::Point::new(
-                (cx + radius * angle.cos()) as i32,
-                (cy + radius * angle.sin()) as i32,
+                (cx + radius * vertex_angle.cos()) as i32,
+                (cy + radius * vertex_angle.sin()) as i32,
             )
         })
         .collect();
@@ -963,7 +1007,7 @@ fn draw_diamond_thick(
     draw_polygon_outline_smooth(canvas, &vertices, thickness as f32, color);
 }
 
-/// Draw a thick triangle outline.
+/// Draw a thick triangle outline with rotation support.
 fn draw_triangle_thick(
     canvas: &mut RgbaImage,
     cx: f32,
@@ -971,12 +1015,16 @@ fn draw_triangle_thick(
     radius: f32,
     color: Rgba<u8>,
     thickness: usize,
+    angle: f32,
 ) {
-    let angle_offset = -PI / 2.0;
+    let base_angle = -PI / 2.0 + angle;
     let vertices: Vec<_> = (0..3)
         .map(|i| {
-            let angle = angle_offset + (i as f32) * 2.0 * PI / 3.0;
-            (cx + radius * angle.cos(), cy + radius * angle.sin())
+            let vertex_angle = base_angle + (i as f32) * 2.0 * PI / 3.0;
+            (
+                cx + radius * vertex_angle.cos(),
+                cy + radius * vertex_angle.sin(),
+            )
         })
         .collect();
 

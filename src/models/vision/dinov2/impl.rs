@@ -2,8 +2,7 @@ use aksr::Builder;
 use anyhow::Result;
 
 use crate::{
-    elapsed_module, inputs, Config, Engine, Engines, FromConfig, Image, ImageProcessor, Model,
-    Module, Y,
+    elapsed_module, Config, Engine, Engines, FromConfig, Image, ImageProcessor, Model, Module, Y,
 };
 
 /// DINOv2: Learning Robust Visual Features without Supervision
@@ -53,11 +52,7 @@ impl Model for DINO {
 
     fn encode(&mut self, engines: &mut Engines, images: Self::Input<'_>) -> Result<crate::Y> {
         let x = elapsed_module!("DINO", "preprocess", self.processor.process(images)?);
-        let ys = elapsed_module!(
-            "DINO",
-            "inference",
-            engines.run(&Module::Model, inputs![&x]?)?
-        );
+        let ys = elapsed_module!("DINO", "inference", engines.run(&Module::Model, &x)?);
         elapsed_module!("DINO", "postprocess", {
             let x = ys
                 .get::<f32>(0)

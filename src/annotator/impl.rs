@@ -1,8 +1,5 @@
 //! Annotator module for visualizing inference results with customizable styles
 
-use aksr::Builder;
-use anyhow::Result;
-
 use crate::{
     DrawContext, Drawable, HbbStyle, Image, KeypointStyle, MaskStyle, ObbStyle, PolygonStyle,
     ProbStyle, TextRenderer,
@@ -123,7 +120,7 @@ use crate::{
 /// - **Fonts**: Custom font loading and size configuration
 ///
 /// 📘 **Guide**: [`docs/annotator.md`](../../docs/annotator.md)
-#[derive(Clone, Builder)]
+#[derive(Clone, aksr::Builder)]
 pub struct Annotator {
     prob_style: Option<ProbStyle>,
     hbb_style: Option<HbbStyle>,
@@ -176,31 +173,34 @@ impl Annotator {
     /// # Ok(())
     /// # }
     /// ```
-    ///
-    /// # Performance
-    ///
-    /// The method is optimized for performance with built-in metrics:
-    /// - `annotate_total`: Total annotation time
-    /// - `context_creation`: Draw context setup time
-    /// - `image_conversion`: RGBA conversion time
-    /// - `drawable_render`: Actual drawing time
-    pub fn annotate<T: Drawable>(&self, image: &Image, drawable: &T) -> Result<Image> {
+    pub fn annotate<T: Drawable>(&self, image: &Image, drawable: &T) -> anyhow::Result<Image> {
         crate::elapsed_annotator!("annotate_total", {
-            let ctx = crate::elapsed_annotator!("context_creation", {
-                DrawContext {
-                    text_renderer: &self.text_renderer,
-                    prob_style: self.prob_style.as_ref(),
-                    hbb_style: self.hbb_style.as_ref(),
-                    obb_style: self.obb_style.as_ref(),
-                    keypoint_style: self.keypoint_style.as_ref(),
-                    polygon_style: self.polygon_style.as_ref(),
-                    mask_style: self.mask_style.as_ref(),
-                }
-            });
-            let mut rgba8 = crate::elapsed_annotator!("image_conversion", image.to_rgba8());
-            crate::elapsed_annotator!("drawable_render", drawable.draw(&ctx, &mut rgba8)?);
+            let mut rgba8 = crate::elapsed_annotator!("RgbImage->RgbaImage", image.to_rgba8());
+            self.draw_inplace(&mut rgba8, drawable)?;
             Ok(rgba8.into())
         })
+    }
+
+    pub fn draw_inplace<T: Drawable>(
+        &self,
+        rgba8: &mut image::RgbaImage,
+        drawable: &T,
+    ) -> anyhow::Result<()> {
+        let ctx = crate::elapsed_annotator!("context_creation", self.create_context());
+        crate::elapsed_annotator!("drawable_render", drawable.draw(&ctx, rgba8)?);
+        Ok(())
+    }
+
+    fn create_context(&self) -> DrawContext {
+        DrawContext {
+            text_renderer: &self.text_renderer,
+            prob_style: self.prob_style.as_ref(),
+            hbb_style: self.hbb_style.as_ref(),
+            obb_style: self.obb_style.as_ref(),
+            keypoint_style: self.keypoint_style.as_ref(),
+            polygon_style: self.polygon_style.as_ref(),
+            mask_style: self.mask_style.as_ref(),
+        }
     }
 
     /// Sets a custom font for text rendering.
@@ -233,7 +233,7 @@ impl Annotator {
     /// - Font loading is performed synchronously
     /// - The font file must be accessible at the specified path
     /// - Prints the loaded font path on success
-    pub fn with_font(mut self, path: &str) -> Result<Self> {
+    pub fn with_font(mut self, path: &str) -> anyhow::Result<Self> {
         self.text_renderer = self.text_renderer.with_font(path)?;
         println!("font: {path:?}");
         Ok(self)

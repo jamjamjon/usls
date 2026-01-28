@@ -3,8 +3,8 @@ use anyhow::Result;
 use ndarray::{s, Array2, Axis};
 
 use crate::{
-    elapsed_module, inputs, Config, Engine, Engines, FromConfig, Image, ImageProcessor, Mask,
-    Model, Module, Ops, Polygon, Task, Xs, X, Y,
+    elapsed_module, Config, Engine, Engines, FromConfig, Image, ImageProcessor, Mask, Model,
+    Module, Ops, Polygon, Task, Xs, X, Y,
 };
 
 /// Sapiens: Foundation for Human Vision Models
@@ -60,11 +60,7 @@ impl Model for Sapiens {
 
     fn run(&mut self, engines: &mut Engines, images: Self::Input<'_>) -> Result<Vec<Y>> {
         let x = elapsed_module!("Sapiens", "preprocess", self.processor.process(images)?);
-        let ys = elapsed_module!(
-            "Sapiens",
-            "inference",
-            engines.run(&Module::Model, inputs![&x]?)?
-        );
+        let ys = elapsed_module!("Sapiens", "inference", engines.run(&Module::Model, &x)?);
         elapsed_module!("Sapiens", "postprocess", self.postprocess(&ys))
     }
 }

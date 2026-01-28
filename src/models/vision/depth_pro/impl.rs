@@ -4,8 +4,8 @@ use ndarray::Axis;
 use rayon::prelude::*;
 
 use crate::{
-    elapsed_module, inputs, Config, Engine, Engines, FromConfig, Image, ImageProcessor, Mask,
-    Model, Module, Ops, Xs, Y,
+    elapsed_module, Config, Engine, Engines, FromConfig, Image, ImageProcessor, Mask, Model,
+    Module, Ops, Xs, Y,
 };
 
 /// Depth Pro: Sharp Monocular Metric Depth
@@ -55,11 +55,7 @@ impl Model for DepthPro {
 
     fn run(&mut self, engines: &mut Engines, images: Self::Input<'_>) -> Result<Vec<Y>> {
         let x = elapsed_module!("DepthPro", "preprocess", self.processor.process(images)?);
-        let ys = elapsed_module!(
-            "DepthPro",
-            "inference",
-            engines.run(&Module::Model, inputs![&x]?)?
-        );
+        let ys = elapsed_module!("DepthPro", "inference", engines.run(&Module::Model, &x)?);
         elapsed_module!("DepthPro", "postprocess", self.postprocess(&ys))
     }
 }

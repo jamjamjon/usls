@@ -61,6 +61,20 @@ impl From<Color> for [u8; 3] {
     }
 }
 
+impl From<Color> for image::Rgba<u8> {
+    fn from(color: Color) -> Self {
+        let [r, g, b, a] = <[u8; 4]>::from(color);
+        image::Rgba([r, g, b, a])
+    }
+}
+
+impl From<Color> for image::Rgb<u8> {
+    fn from(color: Color) -> Self {
+        let [r, g, b] = <[u8; 3]>::from(color);
+        image::Rgb([r, g, b])
+    }
+}
+
 impl std::str::FromStr for Color {
     type Err = anyhow::Error;
 

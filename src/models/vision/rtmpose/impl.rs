@@ -5,8 +5,8 @@ use rayon::prelude::*;
 use std::f32::consts::PI;
 
 use crate::{
-    elapsed_module, inputs, Config, DynConf, Engine, Engines, FromConfig, Hbb, Image,
-    ImageProcessor, Keypoint, Model, Module, Runtime, XAny, Xs, X, Y,
+    elapsed_module, Config, DynConf, Engine, Engines, FromConfig, Hbb, Image, ImageProcessor,
+    Keypoint, Model, Module, XAny, Xs, X, Y,
 };
 
 struct CentersAndScales {
@@ -71,153 +71,108 @@ impl Model for RTMPose {
         Ok((model, engines))
     }
 
-    fn run(&mut self, engines: &mut Engines, images: Self::Input<'_>) -> Result<Vec<Y>> {
-        images
-            .iter()
-            .map(|image| self.forward_internal(engines, image, None))
-            .collect()
-    }
-}
-
-impl RTMPose {
-    fn preprocess_one(
-        img: &Image,
-        hbb: Option<&Hbb>,
-        model_input_size: (usize, usize),
-    ) -> Result<(Image, CentersAndScales)> {
-        let hbb = if let Some(hbb) = hbb {
-            hbb
-        } else {
-            &Hbb::from_xyxy(0.0, 0.0, img.width() as f32, img.height() as f32)
-        };
-        let (center, scale) = Self::hbb2cs(hbb, 1.25);
-        let (resized_img, scale) = Self::top_down_affine(
-            (model_input_size.0 as i32, model_input_size.1 as i32),
-            &scale,
-            &center,
-            img,
-        )?;
-
-        Ok((
-            resized_img,
-            CentersAndScales {
-                centers: vec![center],
-                scales: vec![scale],
-            },
-        ))
-    }
-
-    fn preprocess(&mut self, x: &Image, hbbs: Option<&[Hbb]>) -> Result<(XAny, CentersAndScales)> {
-        let results: Result<Vec<_>> = match hbbs {
-            None | Some(&[]) => vec![Self::preprocess_one(x, None, (self.width, self.height))]
-                .into_iter()
-                .collect(),
-            Some(hbbs) => hbbs
-                .par_iter()
-                .map(|hbb| Self::preprocess_one(x, Some(hbb), (self.width, self.height)))
-                .collect(),
-        };
-        let (processed_images, centers_and_scales): (Vec<_>, Vec<_>) = results?.into_iter().unzip();
-        let mut centerss = Vec::new();
-        let mut scaless = Vec::new();
-        for cs in centers_and_scales {
-            centerss.extend(cs.centers);
-            scaless.extend(cs.scales);
-        }
-        let x = self.processor.process(&processed_images)?;
-        self.batch = processed_images.len();
-
-        Ok((
-            x,
-            CentersAndScales {
-                centers: centerss,
-                scales: scaless,
-            },
-        ))
-    }
-
-    fn forward_internal(
-        &mut self,
-        engines: &mut Engines,
-        x: &Image,
-        hbbs: Option<&[Hbb]>,
-    ) -> Result<Y> {
+    fn run(&mut self, engines: &mut Engines, input: Self::Input<'_>) -> Result<Vec<Y>> {
+        let images = input;
         let (xs, centers_and_scales) =
-            elapsed_module!("RTMPose", "preprocess", self.preprocess(x, hbbs)?);
-        let ys = elapsed_module!(
-            "RTMPose",
-            "inference",
-            engines.run(&Module::Model, inputs![&xs]?)?
-        );
+            elapsed_module!("RTMPose", "preprocess", self.preprocess(images)?);
+        let ys = elapsed_module!("RTMPose", "inference", engines.run(&Module::Model, &xs)?);
         let y = elapsed_module!("RTMPose", "postprocess", {
             self.postprocess(&ys, centers_and_scales)?
         });
 
         Ok(y)
     }
+}
 
-    fn postprocess(&mut self, outputs: &Xs, centers_and_scales: CentersAndScales) -> Result<Y> {
+impl RTMPose {
+    fn preprocess(&mut self, images: &[Image]) -> Result<(XAny, CentersAndScales)> {
+        let model_input_size = (self.width as i32, self.height as i32);
+        let results: Vec<(Image, Keypoint, Keypoint)> = images
+            .par_iter()
+            .map(|img| {
+                let hbb = Hbb::from_xyxy(0.0, 0.0, img.width() as f32, img.height() as f32);
+                let (center, scale) = Self::hbb2cs(&hbb, 1.25);
+                let (resized_img, scale) =
+                    Self::top_down_affine(model_input_size, &scale, &center, img)?;
+                Ok((resized_img, center, scale))
+            })
+            .collect::<Result<Vec<_>>>()?;
+        let (processed_images, centers, scales): (Vec<_>, Vec<_>, Vec<_>) =
+            results.into_iter().fold(
+                (Vec::new(), Vec::new(), Vec::new()),
+                |(mut imgs, mut ctrs, mut scls), (img, ctr, scl)| {
+                    imgs.push(img);
+                    ctrs.push(ctr);
+                    scls.push(scl);
+                    (imgs, ctrs, scls)
+                },
+            );
+        let x = self.processor.process(&processed_images)?;
+        self.batch = processed_images.len();
+
+        Ok((x, CentersAndScales { centers, scales }))
+    }
+
+    fn postprocess(
+        &mut self,
+        outputs: &Xs,
+        centers_and_scales: CentersAndScales,
+    ) -> Result<Vec<Y>> {
         let x0 = outputs
             .get::<f32>(0)
             .ok_or_else(|| anyhow::anyhow!("Failed to get output 0"))?;
         let x1 = outputs
             .get::<f32>(1)
             .ok_or_else(|| anyhow::anyhow!("Failed to get output 1"))?;
-        let xs = (X::from(x0), X::from(x1));
-        // Update nk
-        self.nk = xs.0.shape()[1];
+        let simcc_x_array = X::from(x0);
+        let simcc_y_array = X::from(x1);
 
-        let simcc_x_array = &xs.0;
-        let simcc_y_array = &xs.1;
-        let batch = simcc_x_array.shape()[0];
-        if batch != centers_and_scales.centers.len() {
-            anyhow::bail!(
-                "RTMPose batch mismatch: outputs={batch}, centers={}",
-                centers_and_scales.centers.len()
-            );
-        }
-        self.batch = batch;
+        self.nk = simcc_x_array.shape()[1];
+        let total_crops = simcc_x_array.shape()[0];
+        let has_names = !self.names.is_empty();
 
-        let y_kpts: Vec<Vec<Keypoint>> = (0..batch)
+        let results: Vec<Y> = (0..total_crops)
             .into_par_iter()
             .map(|batch_idx| {
-                let mut keypoints = Vec::new();
                 let center = &centers_and_scales.centers[batch_idx];
                 let scale = &centers_and_scales.scales[batch_idx];
-                for kpt_idx in 0..self.nk {
-                    let simcc_x_slice = simcc_x_array.slice(s![batch_idx, kpt_idx, ..]);
-                    let simcc_y_slice = simcc_y_array.slice(s![batch_idx, kpt_idx, ..]);
-                    let (x_loc, max_val_x) = Self::argmax_and_max(&simcc_x_slice);
-                    let (y_loc, max_val_y) = Self::argmax_and_max(&simcc_y_slice);
-                    let confidence = 0.5 * (max_val_x + max_val_y);
-                    let mut x = x_loc as f32 / self.simcc_split_ratio;
-                    let mut y = y_loc as f32 / self.simcc_split_ratio;
 
-                    // keypoints = keypoints / model_input_size * scale + center - scale / 2
-                    let keypoint = if confidence > self.kconfs[kpt_idx] {
-                        x = x / self.width as f32 * scale.x() + center.x() - scale.x() / 2.0;
-                        y = y / self.height as f32 * scale.y() + center.y() - scale.y() / 2.0;
+                let x_factor = scale.x() / (self.simcc_split_ratio * self.width as f32);
+                let y_factor = scale.y() / (self.simcc_split_ratio * self.height as f32);
+                let x_offset = center.x() - scale.x() * 0.5;
+                let y_offset = center.y() - scale.y() * 0.5;
 
-                        let mut kpt = Keypoint::from((x, y))
-                            .with_confidence(confidence)
-                            .with_id(kpt_idx);
+                let keypoints: Vec<Keypoint> = (0..self.nk)
+                    .map(|kpt_idx| {
+                        let simcc_x_slice = simcc_x_array.slice(s![batch_idx, kpt_idx, ..]);
+                        let simcc_y_slice = simcc_y_array.slice(s![batch_idx, kpt_idx, ..]);
+                        let (x_loc, max_val_x) = Self::argmax_and_max(&simcc_x_slice);
+                        let (y_loc, max_val_y) = Self::argmax_and_max(&simcc_y_slice);
+                        let confidence = 0.5 * (max_val_x + max_val_y);
 
-                        if !self.names.is_empty() {
-                            kpt = kpt.with_name(&self.names[kpt_idx]);
+                        if confidence > self.kconfs[kpt_idx] {
+                            let x = x_loc as f32 * x_factor + x_offset;
+                            let y = y_loc as f32 * y_factor + y_offset;
+
+                            let mut kpt = Keypoint::from((x, y))
+                                .with_confidence(confidence)
+                                .with_id(kpt_idx);
+
+                            if has_names {
+                                kpt = kpt.with_name(&self.names[kpt_idx]);
+                            }
+                            kpt
+                        } else {
+                            Keypoint::default()
                         }
-                        kpt
-                    } else {
-                        Keypoint::default()
-                    };
+                    })
+                    .collect();
 
-                    keypoints.push(keypoint);
-                }
-
-                keypoints
+                Y::default().with_keypointss(&[keypoints])
             })
             .collect();
 
-        Ok(Y::default().with_keypointss(&y_kpts))
+        Ok(results)
     }
 
     fn argmax_and_max(arr: &ndarray::ArrayView1<f32>) -> (usize, f32) {
@@ -314,9 +269,8 @@ impl RTMPose {
 
     fn warp_affine(img: &Image, warp_mat: &[f32], output_size: (i32, i32)) -> Result<Image> {
         let (width, height) = output_size;
-        let mut result_data = vec![0u8; (height * width * 3) as usize];
-        let img_rgb = img.to_rgb8();
-        let (img_w, img_h) = img_rgb.dimensions();
+        let img_w = img.width();
+        let img_h = img.height();
 
         let m00 = warp_mat[0];
         let m01 = warp_mat[1];
@@ -327,7 +281,11 @@ impl RTMPose {
 
         let det = m00 * m11 - m01 * m10;
         if det.abs() < 1e-6 {
-            return Image::from_u8s(&result_data, width as u32, height as u32);
+            return Image::from_u8s(
+                &vec![0u8; (height * width * 3) as usize],
+                width as u32,
+                height as u32,
+            );
         }
 
         let inv_det = 1.0 / det;
@@ -337,42 +295,53 @@ impl RTMPose {
         let inv_m11 = m00 * inv_det;
         let inv_m02 = (m01 * m12 - m11 * m02) * inv_det;
         let inv_m12 = (m10 * m02 - m00 * m12) * inv_det;
-        let img_data = img_rgb.as_raw();
+        let img_data = img.as_raw();
 
-        for y in 0..height {
-            for x in 0..width {
-                let dst_x = x as f32;
+        let mut result_data = vec![0u8; (height * width * 3) as usize];
+        result_data
+            .par_chunks_exact_mut((width * 3) as usize)
+            .enumerate()
+            .for_each(|(y, row)| {
                 let dst_y = y as f32;
-                let src_x = inv_m00 * dst_x + inv_m01 * dst_y + inv_m02;
-                let src_y = inv_m10 * dst_x + inv_m11 * dst_y + inv_m12;
-                let x0 = src_x.floor() as i32;
-                let y0 = src_y.floor() as i32;
-                let x1 = x0 + 1;
-                let y1 = y0 + 1;
-                if x0 >= 0 && x1 < img_w as i32 && y0 >= 0 && y1 < img_h as i32 {
-                    let dx = src_x - x0 as f32;
-                    let dy = src_y - y0 as f32;
-                    let dst_idx = ((y * width + x) * 3) as usize;
+                for x in 0..width {
+                    let dst_x = x as f32;
+                    let src_x = inv_m00 * dst_x + inv_m01 * dst_y + inv_m02;
+                    let src_y = inv_m10 * dst_x + inv_m11 * dst_y + inv_m12;
 
-                    for c in 0..3 {
-                        let src_idx_00 = ((y0 as u32 * img_w + x0 as u32) * 3 + c as u32) as usize;
-                        let src_idx_01 = ((y0 as u32 * img_w + x1 as u32) * 3 + c as u32) as usize;
-                        let src_idx_10 = ((y1 as u32 * img_w + x0 as u32) * 3 + c as u32) as usize;
-                        let src_idx_11 = ((y1 as u32 * img_w + x1 as u32) * 3 + c as u32) as usize;
-                        let p00 = img_data[src_idx_00] as f32;
-                        let p01 = img_data[src_idx_01] as f32;
-                        let p10 = img_data[src_idx_10] as f32;
-                        let p11 = img_data[src_idx_11] as f32;
-                        let interpolated = p00 * (1.0 - dx) * (1.0 - dy)
-                            + p01 * dx * (1.0 - dy)
-                            + p10 * (1.0 - dx) * dy
-                            + p11 * dx * dy;
+                    let x0 = src_x.floor() as i32;
+                    let y0 = src_y.floor() as i32;
+                    let x1 = x0 + 1;
+                    let y1 = y0 + 1;
 
-                        result_data[dst_idx + c] = interpolated.round() as u8;
+                    if x0 >= 0 && x1 < img_w as i32 && y0 >= 0 && y1 < img_h as i32 {
+                        let dx = src_x - x0 as f32;
+                        let dy = src_y - y0 as f32;
+                        let w00 = (1.0 - dx) * (1.0 - dy);
+                        let w01 = dx * (1.0 - dy);
+                        let w10 = (1.0 - dx) * dy;
+                        let w11 = dx * dy;
+
+                        let dst_idx = (x * 3) as usize;
+                        let y0_offset = (y0 as u32 * img_w) as usize * 3;
+                        let y1_offset = (y1 as u32 * img_w) as usize * 3;
+                        let x0_offset = x0 as usize * 3;
+                        let x1_offset = x1 as usize * 3;
+
+                        let src_idx0 = y0_offset + x0_offset;
+                        let src_idx1 = y0_offset + x1_offset;
+                        let src_idx2 = y1_offset + x0_offset;
+                        let src_idx3 = y1_offset + x1_offset;
+
+                        for c in 0..3 {
+                            row[dst_idx + c] = (img_data[src_idx0 + c] as f32 * w00
+                                + img_data[src_idx1 + c] as f32 * w01
+                                + img_data[src_idx2 + c] as f32 * w10
+                                + img_data[src_idx3 + c] as f32 * w11)
+                                .round() as u8;
+                        }
                     }
                 }
-            }
-        }
+            });
 
         Image::from_u8s(&result_data, width as u32, height as u32)
     }
@@ -397,13 +366,5 @@ impl RTMPose {
         let img = Self::warp_affine(img, &warp_mat, (w, h))?;
 
         Ok((img, scale))
-    }
-}
-
-impl Runtime<RTMPose> {
-    /// Run inference with optional bounding boxes for region-specific keypoint detection
-    pub fn run_with_bboxes(&mut self, image: &Image, hbbs: Option<&[Hbb]>) -> Result<Y> {
-        let (model, engines) = self.parts_mut();
-        model.forward_internal(engines, image, hbbs)
     }
 }

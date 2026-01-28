@@ -71,6 +71,7 @@ mod svtr;
 // Background Removal / Matting
 mod ben2;
 mod birefnet;
+mod mobile_gaze;
 mod modnet;
 mod rmbg;
 
@@ -80,6 +81,8 @@ mod swin2sr;
 
 // Table Structure Recognition
 mod slanet;
+
+mod utils;
 
 // Re-exports
 pub use apisr::*;
@@ -102,6 +105,7 @@ pub use fastsam::*;
 pub use fastvit::*;
 pub use linknet::*;
 pub use mediapipe_segmenter::*;
+pub use mobile_gaze::*;
 pub use mobileone::*;
 pub use modnet::*;
 pub use picodet::*;
@@ -120,6 +124,7 @@ pub use sapiens::*;
 pub use slanet::*;
 pub use svtr::*;
 pub use swin2sr::*;
+pub use utils::*;
 pub use yolo::*;
 pub use yoloe_prompt_free::*;
 pub use yolop::*;

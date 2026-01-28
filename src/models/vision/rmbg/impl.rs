@@ -3,8 +3,8 @@ use anyhow::Result;
 use rayon::prelude::*;
 
 use crate::{
-    elapsed_module, inputs, Config, Engine, Engines, FromConfig, Image, ImageProcessor, Mask,
-    Model, Module, Ops, Xs, Y,
+    elapsed_module, Config, Engine, Engines, FromConfig, Image, ImageProcessor, Mask, Model,
+    Module, Ops, Xs, Y,
 };
 
 /// RMBG: BRIA Background Removal
@@ -54,11 +54,7 @@ impl Model for RMBG {
 
     fn run(&mut self, engines: &mut Engines, images: Self::Input<'_>) -> Result<Vec<Y>> {
         let x = elapsed_module!("RMBG", "preprocess", self.processor.process(images)?);
-        let ys = elapsed_module!(
-            "RMBG",
-            "inference",
-            engines.run(&Module::Model, inputs![&x]?)?
-        );
+        let ys = elapsed_module!("RMBG", "inference", engines.run(&Module::Model, &x)?);
         elapsed_module!("RMBG", "postprocess", self.postprocess(&ys))
     }
 }

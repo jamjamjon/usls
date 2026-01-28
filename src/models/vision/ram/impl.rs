@@ -4,8 +4,8 @@ use ndarray::Axis;
 use rayon::prelude::*;
 
 use crate::{
-    elapsed_module, inputs, Config, DynConf, Engine, Engines, FromConfig, Image, ImageProcessor,
-    Model, Module, Text, Xs, X, Y,
+    elapsed_module, Config, DynConf, Engine, Engines, FromConfig, Image, ImageProcessor, Model,
+    Module, Text, Xs, X, Y,
 };
 
 /// RAM: Recognize Anything Model
@@ -64,11 +64,7 @@ impl Model for Ram {
 
     fn run(&mut self, engines: &mut Engines, images: Self::Input<'_>) -> Result<Vec<Y>> {
         let x = elapsed_module!("RAM", "preprocess", self.processor.process(images)?);
-        let ys = elapsed_module!(
-            "RAM",
-            "inference",
-            engines.run(&Module::Model, inputs![&x]?)?
-        );
+        let ys = elapsed_module!("RAM", "inference", engines.run(&Module::Model, &x)?);
         elapsed_module!("RAM", "postprocess", self.postprocess(&ys))
     }
 }

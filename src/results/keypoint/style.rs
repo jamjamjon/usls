@@ -23,8 +23,12 @@ pub enum KeypointStyleMode {
     },
     /// Diamond shape
     Diamond,
-    /// Triangle (pointing up)
-    Triangle,
+    /// Triangle with optional rotation angle (in radians)
+    /// Default points up (angle = 0), positive angle rotates clockwise
+    Triangle {
+        /// Rotation angle in radians (0 = pointing up)
+        angle: f32,
+    },
     /// X shape (diagonal cross)
     X {
         /// Thickness of X arms in pixels
@@ -66,6 +70,16 @@ impl KeypointStyleMode {
     /// Create an X shape with default thickness
     pub fn x() -> Self {
         Self::X { thickness: 2 }
+    }
+
+    /// Create a triangle pointing up (default)
+    pub fn triangle() -> Self {
+        Self::Triangle { angle: 0.0 }
+    }
+
+    /// Create a triangle with custom rotation angle (in radians)
+    pub fn triangle_with_angle(angle: f32) -> Self {
+        Self::Triangle { angle }
     }
 
     /// Create a rounded square with default corner ratio

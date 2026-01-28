@@ -71,7 +71,7 @@ impl Model for PicoDet {
         let ys = elapsed_module!(
             "PicoDet",
             "inference",
-            engines.run(&Module::Model, inputs![&x1, &x2]?)?
+            engines.run(&Module::Model, inputs![&x1, x2]?)?
         );
         elapsed_module!("PicoDet", "postprocess", self.postprocess(&ys))
     }

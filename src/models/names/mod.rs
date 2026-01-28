@@ -12,6 +12,7 @@ mod object365;
 mod picodet_layout;
 mod ram_tags_en;
 mod ram_tags_zh;
+mod widerface_kpt_face_5;
 mod yolo_doclayout_10;
 mod yoloe_4585;
 
@@ -29,5 +30,6 @@ pub use object365::*;
 pub use picodet_layout::*;
 pub use ram_tags_en::*;
 pub use ram_tags_zh::*;
+pub use widerface_kpt_face_5::*;
 pub use yolo_doclayout_10::*;
 pub use yoloe_4585::*;

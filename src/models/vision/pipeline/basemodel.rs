@@ -2,8 +2,8 @@ use anyhow::Result;
 use ort::tensor::TensorElementType;
 
 use crate::{
-    elapsed_module, inputs, Config, Device, Engine, Engines, FromConfig, Image, ImageProcessor,
-    Model, Module, Scale, Task, Version, X,
+    elapsed_module, Config, Device, Engine, Engines, FromConfig, Image, ImageProcessor, Model,
+    Module, Scale, Task, Version, X,
 };
 
 pub type BaseModelVisual = BaseImageModel;
@@ -36,7 +36,7 @@ impl BaseImageModel {
             "BaseImageModel",
             "inference",
             engines
-                .run(&Module::Model, inputs![&xs]?)?
+                .run(&Module::Model, &xs)?
                 .get::<f32>(0)
                 .ok_or_else(|| anyhow::anyhow!("Failed to get output"))?
                 .to_owned()

@@ -3,11 +3,11 @@ use crate::NAMES_COCO_KEYPOINTS_133;
 ///
 /// > # RTMW: Real-Time Multi-Person Whole-body Pose Estimation
 /// >
-/// > Real-time multi-person 2D and 3D whole-body pose estimation with 133 keypoints.
+/// > Real-time multi-person 2D whole-body pose estimation with 133 keypoints.
 /// >
 /// > # Paper & Code
 /// >
-/// > - **Paper**: [RTMW: Real-Time Multi-Person 2D and 3D Whole-body Pose Estimation](https://arxiv.org/abs/2407.08634)
+/// > - **Paper**: [RTMW: Real-Time Multi-Person 2D Whole-body Pose Estimation](https://arxiv.org/abs/2407.08634)
 /// >
 /// > # Model Variants
 /// >
@@ -20,7 +20,6 @@ use crate::NAMES_COCO_KEYPOINTS_133;
 /// >
 /// > - [X] **Whole-body Pose Estimation**: 133-keypoint comprehensive pose detection
 /// > - [X] **Multi-person Detection**: Real-time pose estimation for multiple people
-/// > - [X] **2D and 3D Support**: Both 2D and 3D pose estimation capabilities
 /// > - [X] **High Resolution**: Support for 384x384 input resolution
 /// >
 /// Model configuration for `RTMW`
