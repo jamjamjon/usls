@@ -301,7 +301,9 @@ cargo run -r --example yolo -- --help
 | [SVTR](https://arxiv.org/abs/2205.00159) | Text Recognition | [demo](./examples/ocr) | ✅ | ❓ | ✅ | ✅ | ❌ | ❌ | ❌ |
 | [TrOCR](https://huggingface.co/microsoft/trocr-base-printed) | Text Recognition | [demo](./examples/ocr) | ✅ | ❓ | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
 | [SLANet](https://paddlepaddle.github.io/PaddleOCR/latest/algorithm/table_recognition/algorithm_table_slanet.html) | Table Recognition | [demo](./examples/ocr) | ✅ | ❓ | ✅ | ✅ | ❌ | ❌ | ❌ |
-| [DocLayout-YOLO](https://github.com/opendatalab/DocLayout-YOLO) | Object Detection | [demo](./examples/ocr) | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ |
+| [DocLayout-YOLO](https://github.com/opendatalab/DocLayout-YOLO) | Object Detection | [demo](./examples/ocr) | ✅ | ❓ | ✅ | ✅ | ✅ | ❌ | ❌ |
+| [PP-DocLayout-v1-Plus-L](https://huggingface.co/PaddlePaddle/PP-DocLayout_plus-L) | Object Detection | [demo](./examples/ocr) | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ |
+| [PP-DocLayout-v2](https://huggingface.co/PaddlePaddle/PP-DocLayoutV2) | Object Detection | [demo](./examples/ocr) | ✅ | ❓ | ✅ | ✅ | ✅ | ✅  | ✅  |
 
 </details>
 
