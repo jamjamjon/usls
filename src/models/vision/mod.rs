@@ -82,6 +82,9 @@ mod swin2sr;
 // Table Structure Recognition
 mod slanet;
 
+// Document Layout Detection
+mod pp_doclayout;
+
 mod utils;
 
 // Re-exports
@@ -110,6 +113,7 @@ pub use mobileone::*;
 pub use modnet::*;
 pub use picodet::*;
 pub use pipeline::*;
+pub use pp_doclayout::*;
 pub use ram::*;
 pub use rfdetr::*;
 pub use rmbg::*;

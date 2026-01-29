@@ -8,7 +8,7 @@ repository = "https://github.com/jamjamjon/usls"
 authors = ["Jamjamjon <xxyydzml@outlook.com>"]
 license = "MIT"
 readme = "README.md"
-exclude = ["assets/*", "docs/*", "examples/*", "runs/*", "benches/*", "tests/*"]
+exclude = ["assets/*", "docs/*", "examples/*", "runs/*", "benches/*", "tests/*", "site/*"]
 
 
 [dependencies]

@@ -1,7 +1,7 @@
 use aksr::Builder;
 use anyhow::Result;
 
-use crate::{try_fetch_file_stem, DType, Device, EpConfig, Hub, Iiix, MinOptMax};
+use crate::{try_fetch_file_stem, DType, Device, EpConfig, Hub, Iiix};
 
 /// ONNX Runtime configuration with device and optimization settings.
 #[derive(Builder, Debug, Clone)]
@@ -113,17 +113,5 @@ impl ORTConfig {
         }
 
         Ok(self)
-    }
-}
-
-impl ORTConfig {
-    pub fn with_ixx(mut self, i: usize, ii: usize, x: MinOptMax) -> Self {
-        self.iiixs.push(Iiix::from((i, ii, x)));
-        self
-    }
-
-    pub fn with_batch_size(mut self, x: MinOptMax) -> Self {
-        self.iiixs.push(Iiix::from((0, 0, x)));
-        self
     }
 }
