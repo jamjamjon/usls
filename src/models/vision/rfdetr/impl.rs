@@ -83,6 +83,10 @@ impl RFDETR {
             .ok_or(anyhow::anyhow!("Failed to get logits"))?;
         let preds_masks = outputs.get::<f32>(2);
 
+        // println!("preds_logits: {:?}", preds_logits);
+        // println!("preds_bboxes: {:?}", preds_bboxes);
+        // println!("preds_masks: {:?}", preds_masks);
+
         let ys: Vec<Y> = preds_logits
             .axis_iter(Axis(0))
             .into_par_iter()

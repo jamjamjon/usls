@@ -43,8 +43,13 @@ pub fn config(args: &RfdetrArgs) -> Result<Config> {
         Scale::S => Config::rfdetr_small(),
         Scale::M => Config::rfdetr_medium(),
         Scale::B => Config::rfdetr_base(),
-        Scale::L => Config::rfdetr_large(),
-        _ => anyhow::bail!("Unsupported scale: {}. Try n, s, m, b, l.", args.scale),
+        Scale::L => Config::rfdetr_large_2026(),
+        Scale::XL => Config::rfdetr_xlarge(),
+        Scale::XXL => Config::rfdetr_2xlarge(),
+        _ => anyhow::bail!(
+            "Unsupported scale: {}. Try n, s, m, b, l, xl, xxl.",
+            args.scale
+        ),
     }
     .with_model_dtype(args.dtype)
     .with_model_device(args.device)
