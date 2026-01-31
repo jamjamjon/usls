@@ -1,6 +1,7 @@
-site_name: usls docs
+site_name: usls
 site_description: A cross-platform Rust library for efficient inference of SOTA vision and vision-language models.
-site_author: Jamjamjon
+site_author: jamjamjon
+repo_name: jamjamjon/usls
 repo_url: https://github.com/jamjamjon/usls
 edit_uri: edit/main/docs/
 
@@ -10,7 +11,7 @@ theme:
   palette:
     - media: "(prefers-color-scheme: light)"
       scheme: default
-      primary: black
+      primary: white
       accent: indigo
       toggle:
         icon: material/brightness-7
@@ -25,51 +26,81 @@ theme:
   features:
     - navigation.tabs
     - navigation.sections
+    - navigation.expand
     - navigation.top
     - navigation.tracking
+    - navigation.indexes
     - search.suggest
     - search.highlight
     - content.code.copy
     - content.code.annotate
+    - content.action.edit
+    - content.action.view
+
+  icon:
+    repo: fontawesome/brands/github
 
 markdown_extensions:
   - admonition
+  - attr_list
+  - md_in_html
   - pymdownx.details
   - pymdownx.superfences
   - pymdownx.tabbed:
       alternate_style: true
   - pymdownx.emoji:
-      emoji_index: !!python/name:pymdownx.emoji.twemoji
-      emoji_generator: !!python/name:pymdownx.emoji.to_svg
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
   - pymdownx.tasklist:
       custom_checkbox: true
   - toc:
       permalink: true
 
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/jamjamjon/usls
+
 nav:
   - Home: index.md
   - Getting Started: 
     - Overview: getting-started/overview.md
-    - Run one Demo: getting-started/run_demo.md
     - Installation: getting-started/installation.md
     - Integration: getting-started/integration.md
   - Cargo Features: 
-    - overview: cargo-features/overview.md
+    - Overview: cargo-features/overview.md
+    - ONNX Runtime & EP: cargo-features/ort.md
+    - Image Formats: cargo-features/image-formats.md
+    - Model Categories: cargo-features/models.md
+    - Utilities: cargo-features/utils.md
   - Guides:
-    - Module System: guides/modules.md
+    - Overview: guides/overview.md
     - Config System: guides/config.md
     - Data Loading: guides/dataloader.md
     - Execution Providers: guides/ep.md
     - DType & Precision: guides/dtype.md
     - Device Management: guides/device.md
-    - Result Types (Y): guides/results.md
+    - Results: guides/results.md
     - Annotator: guides/annotator.md
-    - Visualization (Viewer): guides/visualization.md
+    - Visualization: guides/visualization.md
   - Model Zoo: 
     - Overview: model-zoo/overview.md
     - YOLO Series: model-zoo/yolo.md
-    - Vision Models: model-zoo/vision.md
-    - VLM Models: model-zoo/vlm.md
+    - Classification & Tagging: model-zoo/classification.md
+    - Object Detection: model-zoo/detection.md
+    - Image Segmentation: model-zoo/segmentation.md
+    - Background Removal: model-zoo/background-removal.md
+    - Gaze Estimation: model-zoo/gaze.md
+    - Image Matting: model-zoo/matting.md
+    - Open-Set Detection: model-zoo/open-set.md
+    - Multi-Object Tracking: model-zoo/tracking.md
+    - Super Resolution: model-zoo/super-resolution.md
+    - Pose Estimation: model-zoo/pose.md
+    - OCR & Documents: model-zoo/ocr.md
+    - Vision-Language Models: model-zoo/vlm.md
+    - Embedding Models: model-zoo/embedding.md
+    - Depth Estimation: model-zoo/depth.md
+    - Others: model-zoo/others.md
   - FAQ: faq.md
   - Contributing: contributing.md
   - API Reference: https://docs.rs/usls/latest/usls/

@@ -1,24 +1,80 @@
-# 🚀 usls
+---
+hide:
+  - toc
+  - navigation
+---
+
+<div align="center" markdown>
+
+# usls { style="font-size: 3rem; text-align: center; font-weight: 400; color: #000000; margin-bottom: 0.5rem;" }
+
+**A cross-platform Rust library powered by ONNX Runtime for efficient inference of SOTA vision and vision-language models.**
+
+<img src="https://github.com/jamjamjon/assets/releases/download/images/pipeline.png" width="1000">
 
 
+</div>
 
-**usls** is a cross-platform Rust library powered by **ONNX Runtime** for efficient inference of SOTA vision and vision-language models (typically under 1B parameters).
+<div align="center" markdown>
 
-## ⚡ Highlights
+[:material-rocket-launch: Get Started](getting-started/overview.md){ .md-button .md-button--primary }
+[:material-package-variant: Model Zoo](model-zoo/overview.md){ .md-button }
+[:material-book-open-page-variant: API Reference](https://docs.rs/usls/latest/usls/){ .md-button }
 
-- **⚡ High Performance**: Multi-threading, SIMD, and CUDA-accelerated processing
-- **🌐 Cross-Platform**: Linux, macOS, Windows with ONNX Runtime execution providers (CUDA, TensorRT, CoreML, OpenVINO, DirectML, etc.)
-- **🏗️ Unified API**: Single `Model` trait inference with `run()`/`forward()`/`encode_images()`/`encode_texts()` and unified `Y` output
-- **📥 Auto-Management**: Automatic model download (HuggingFace/GitHub), caching and path resolution
-- **📦 Multiple Inputs**: Image, directory, video, webcam, stream and combinations
-- **🎯 Precision Support**: FP32, FP16, INT8, UINT8, Q4, Q4F16, BNB4, and more
-- **🛠️ Full-Stack Suite**: `DataLoader`, `Annotator`, and `Viewer` for complete workflows
-- **🌱 Model Ecosystem**: 50+ SOTA vision and VLM models
-
+</div>
 
 ---
 
+## ✨ Features
 
-## 🤝 Acknowledgments
+<div class="grid cards" markdown>
 
-Built on top of [ort (ONNX Runtime for Rust)](https://github.com/pykeio/ort). Special thanks to all open-source contributors and maintainers of the underlying models.
+-   :material-lightning-bolt:{ .lg .middle } **High Performance**
+
+    ---
+
+    Multi-threading, SIMD, and CUDA-accelerated processing with ONNX Runtime execution providers
+
+-   :material-laptop:{ .lg .middle } **Cross-Platform**
+
+    ---
+
+    Linux, macOS, Windows with support for CUDA, TensorRT, CoreML, OpenVINO, DirectML
+
+-   :material-cube-outline:{ .lg .middle } **Unified API**
+
+    ---
+
+    Single `Model` trait with `run()`/`forward()` and unified `Y` output for all models
+
+-   :material-download:{ .lg .middle } **Auto-Management**
+
+    ---
+
+    Automatic model download from HuggingFace/GitHub, caching and path resolution
+
+-   :material-folder-multiple:{ .lg .middle } **Multiple Inputs**
+
+    ---
+
+    Support for images, directories, videos, webcam, streams and combinations
+
+-   :material-gauge:{ .lg .middle } **Precision Support**
+
+    ---
+
+    FP32, FP16, INT8, UINT8, Q4, Q4F16, BNB4, and more quantization options
+
+-   :material-toolbox:{ .lg .middle } **Full-Stack Suite**
+
+    ---
+
+    Complete workflows with `DataLoader`, `Annotator`, and `Viewer`
+
+-   :material-sprout:{ .lg .middle } **Model Ecosystem**
+
+    ---
+
+    50+ SOTA vision and VLM models ready to use
+
+</div>
