@@ -1,24 +1,21 @@
-# YOLO Series
+---
+hide:
+  - toc
+---
+# 🔥 YOLO Series
 
-**usls** provides comprehensive support for the YOLO (You Only Look Once) family of models, spanning from YOLOv5 to the latest YOLO26.
+!!! info ""
+    **Status:** ✅ **Supported** | ❓ **Unknown** | ❌ **Not Supported For Now**
 
-## Supported Versions
-
-| Model | Task / Description | Dynamic Batch | TensorRT | FP16 | Q8 | Q4f16 |
-| :--- | :--- | :---: | :---: | :---: | :---: | :---: |
-| [YOLOv5](https://github.com/ultralytics/yolov5) | Classification, Detection, Segmentation | ✅ | ✅ | ✅ | ✅ | ❌ | 
-| [YOLOv8](https://github.com/ultralytics/ultralytics) | Detection, Segmentation, Pose, OBB | ✅ | ✅ | ✅ | ✅ | ❌ | 
-| [YOLO11](https://github.com/ultralytics/ultralytics) | Detection, Segmentation, Pose, OBB | ✅ | ✅ | ✅ | ✅ | ❌ | 
-| [YOLOv12](https://github.com/sunsmarterjie/yolov12) | Detection, Segmentation, Classification | ✅ | ✅ | ✅ | ✅ | ✅ | 
-| [YOLO26](https://github.com/ultralytics/ultralytics) | Detection, Segmentation, Pose, OBB | ✅ | ✅ | ✅ | ✅ | ✅ | 
-
-## Quick Usage
-
-```bash
-# Run YOLOv11 object detection on CPU
-cargo run -r --example yolo -- --task detect --ver 11 --scale n
-```
-
-## Performance Benchmarks
-
-For detailed performance metrics across different hardware (CUDA, TensorRT, CPU), please refer to the [Home Page](../index.md#highlights).
+| Model | Task / Description | Demo | Dynamic Batch | TensorRT | FP32 | FP16 | Q8 | Q4f16 | BNB4 |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| [YOLOv5](https://github.com/ultralytics/yolov5) | Image Classification<br>Object Detection<br>Instance Segmentation | [demo](https://github.com/jamjamjon/usls/tree/main/examples/yolo) | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ |
+| [YOLOv6](https://github.com/meituan/YOLOv6) | Object Detection | [demo](https://github.com/jamjamjon/usls/tree/main/examples/yolo) | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ |
+| [YOLOv7](https://github.com/WongKinYiu/yolov7) | Object Detection | [demo](https://github.com/jamjamjon/usls/tree/main/examples/yolo) | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ |
+| [YOLOv8](https://github.com/ultralytics/ultralytics) | Object Detection<br>Instance Segmentation<br>Image Classification<br>Oriented Object Detection<br>Keypoint Detection | [demo](https://github.com/jamjamjon/usls/tree/main/examples/yolo) | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ |
+| [YOLO11](https://github.com/ultralytics/ultralytics) | Object Detection<br>Instance Segmentation<br>Image Classification<br>Oriented Object Detection<br>Keypoint Detection | [demo](https://github.com/jamjamjon/usls/tree/main/examples/yolo) | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ |
+| [YOLOv9](https://github.com/WongKinYiu/yolov9) | Object Detection | [demo](https://github.com/jamjamjon/usls/tree/main/examples/yolo) | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ |
+| [YOLOv10](https://github.com/THU-MIG/yolov10) | Object Detection | [demo](https://github.com/jamjamjon/usls/tree/main/examples/yolo) | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ |
+| [YOLOv12](https://github.com/sunsmarterjie/yolov12) | Image Classification<br>Object Detection<br>Instance Segmentation | [demo](https://github.com/jamjamjon/usls/tree/main/examples/yolo) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| [YOLOv13](https://github.com/iMoonLab/yolov13) | Object Detection | [demo](https://github.com/jamjamjon/usls/tree/main/examples/yolo) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| [YOLO26](https://github.com/ultralytics/ultralytics) | Object Detection<br>Instance Segmentation<br>Image Classification<br>Oriented Object Detection<br>Keypoint Detection | [demo](https://github.com/jamjamjon/usls/tree/main/examples/yolo) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |

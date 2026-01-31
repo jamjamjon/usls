@@ -1,50 +1,122 @@
 # Model Zoo
-***TODO***
 
-<!-- **usls** supports a vast collection of state-of-the-art (SOTA) models for vision and vision-language tasks. All models are optimized for inference using ONNX Runtime.
 
-## 📂 Categories
+!!! info "ONNX Models"
+
+    🔍 All ONNX models are available from the [ONNX Models Repository](https://github.com/jamjamjon/assets)
+
+
+## Categories
 
 <div class="grid cards" markdown>
 
--   :material-target:{ .lg .middle } __YOLO Series__
+- **[:fire: YOLO Series](./yolo.md)**
 
     ---
 
-    Industry-standard models for detection, segmentation, and pose.
+    YOLOv5/6/7/8/9/10/11/12/13, YOLO26
 
-    [:octicons-arrow-right-24: View YOLO Models](yolo.md)
-
--   :material-eye-outline:{ .lg .middle } __Vision Models__
+- **[:label: Classification & Tagging](./classification.md)**
 
     ---
 
-    Specialized models for SAM, RT-DETR, BiRefNet, and more.
+    Image classification and tagging models
 
-    [:octicons-arrow-right-24: View Vision Models](vision.md)
-
--   :material-chat-processing-outline:{ .lg .middle } __VLM Models__
+- **[:dart: Object Detection](./detection.md)**
 
     ---
 
-    Vision-Language models like Florence2, Moondream, and CLIP.
+    DETR series, PicoDet, D-FINE, DEIM
 
-    [:octicons-arrow-right-24: View VLM Models](vlm.md)
+- **[:art: Image Segmentation](./segmentation.md)**
+
+    ---
+
+    SAM series, FastSAM, YOLOE, BiRefNet
+
+- **[:sparkles: Background Removal](./background-removal.md)**
+
+    ---
+
+    RMBG, BEN2
+
+- **[:eyes: Gaze Estimation](./gaze.md)**
+
+    ---
+
+    MobileGaze
+
+- **[:scissors: Image Matting](./matting.md)**
+
+    ---
+
+    MODNet, MediaPipe Selfie, BiRefNet variants
+
+- **[:world_map: Open-Set Detection](./open-set.md)**
+
+    ---
+
+    GroundingDINO, MM-GDINO, LLMDet, OWLv2, YOLO-World
+
+- **[:person_running: Multi-Object Tracking](./tracking.md)**
+
+    ---
+
+    ByteTrack
+
+- **[:gem: Super Resolution](./super-resolution.md)**
+
+    ---
+
+    Swin2SR, APISR
+
+- **[:person_fencing: Pose Estimation](./pose.md)**
+
+    ---
+
+    RTMPose, DWPose, RTMW, RTMO
+
+- **[:mag: OCR & Documents](./ocr.md)**
+
+    ---
+
+    Text detection/recognition, table recognition, document layout
+
+- **[:jigsaw: Vision-Language Models](./vlm.md)**
+
+    ---
+
+    BLIP, Florence2, Moondream2, SmolVLM, FastVLM
+
+- **[:dna: Embedding Models](./embedding.md)**
+
+    ---
+
+    CLIP, jina-clip, MobileCLIP, DINOv2/v3
+
+- **[:triangular_ruler: Depth Estimation](./depth.md)**
+
+    ---
+
+    DepthAnything, DepthPro
+
+- **[:milky_way: Others](./others.md)**
+
+    ---
+
+    Sapiens, YOLOPv2
 
 </div>
 
-## 🔍 Model Sources
 
-All supported ONNX models are hosted in our [ONNX Models Repository](https://github.com/jamjamjon/assets). **usls** handles the downloading and caching of these models automatically.
-
-## 📊 Status Legend
+## Status Legend
 
 | Symbol | Meaning |
 | :---: | :--- |
-| ✅ | **Fully Supported**: Tested and verified. |
-| ❓ | **Unknown**: Likely works but not strictly verified. |
-| ❌ | **Planned**: Support is on the roadmap. |
+| ✅ | Tested & verified |
+| ❓ | Likely works, not verified |
+| ❌ | Not supported |
 
----
 
-*Don't see a model you need? Open a [feature request](https://github.com/jamjamjon/usls/issues).* -->
+!!! tip "Missing a model?"
+    Open a [feature request](https://github.com/jamjamjon/usls/issues).

@@ -1,46 +1,26 @@
 # Contributing
-***TODO***
 
-<!-- 
-We welcome contributions to **usls**! Whether you're fixing bugs, adding new models, or improving documentation, your help is appreciated.
-## 🛠️ Development Setup
+!!! note "Project Status"
+    This is a personal project maintained in spare time. Progress on performance optimization and new model support may vary.
 
-1.  **Fork & Clone**:
-    ```bash
-    git clone https://github.com/your-username/usls.git
-    cd usls
-    ```
+## Areas for Contribution
 
-2.  **Install Dependencies**: Ensure you have Rust (MSRV 1.87) and ONNX Runtime installed.
+| Area | Description |
+|------|-------------|
+| **Model Optimization** | Optimize model interfaces and post-processing |
+| **New Models** | Add support for new vision/VLM models |
+| **Bug Fixes** | Fix issues and edge cases |
+| **Documentation** | Improve docs and examples |
+| **Other** | Any other improvements or suggestions |
 
-3.  **Run Tests**:
-    ```bash
-    cargo test
-    ```
+## Pull Requests
 
-## 🚀 Adding New Models
+1. Fork the repository
+2. Create a feature branch
+3. Run `cargo fmt` and `cargo clippy`
+4. Submit PR with clear description
 
-If you'd like to contribute a new model to the Model Zoo:
-
-1.  **Logic**: Implement the model logic in `src/models/`.
-2.  **Config**: Add necessary configuration options in `src/config/`.
-3.  **Example**: Provide a working example in `examples/`.
-4.  **Documentation**: Update the corresponding page in `docs/model-zoo/`.
-
-## 📜 Coding Guidelines
-
--   **Consistency**: Follow the existing naming conventions (e.g., `with_<module>_<field>` for configs).
--   **Formatting**: Use `cargo fmt` before submitting a PR.
--   **Linting**: Ensure `cargo clippy` passes without warnings.
-
-## 🤝 Pull Request Process
-
-1.  Create a new branch for your feature or bugfix.
-2.  Ensure all tests pass and documentation is updated.
-3.  Submit a PR with a clear description of the changes. -->
-
----
 
 !!! info "Questions?"
-    If you're unsure where to start, feel free to open a [discussion](https://github.com/jamjamjon/usls/discussions) or join our community.
+    Open a [discussion](https://github.com/jamjamjon/usls/discussions) or [issue](https://github.com/jamjamjon/usls/issues).
 
