@@ -27,3 +27,6 @@ runs/
 # Test outputs
 scripts/**/output*.png
 scripts/**/onnx-models/
+
+# Docs
+site/
