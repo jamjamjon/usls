@@ -17,7 +17,7 @@ aksr = { version = "0.0.7" }
 image = { version = "0.25", default-features = false, features = [
   "jpeg", "png", "webp", "rayon"
 ] }
-imageproc = { version = "0.25", default-features = false, features = ["rayon"], optional = true }
+imageproc = { version = "0.26", default-features = false, features = ["rayon"], optional = true }
 ab_glyph = { version = "0.2.32", optional = true }
 ndarray = { version = "0.17", features = ["rayon"] }
 half = { version = "2.7.1", features = ["bytemuck", "num-traits"] }
