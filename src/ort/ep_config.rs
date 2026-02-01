@@ -45,7 +45,21 @@ impl Default for CudaConfig {
 /// NVIDIA TensorRT execution provider configuration.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TensorRtConfig {
+    pub detailed_build_log: bool,
     pub fp16: bool,
+    pub int8: bool,
+    /// Description: specify INT8 calibration table file for non-QDQ models in INT8 mode.
+    /// Note: calibration table should not be provided for QDQ model
+    /// because TensorRT doesn’t allow calibration table to be loded if there is any Q/DQ node in the model.
+    /// By default the name is empty.
+    pub int8_calibration_table_name: String,
+    /// Description: select what calibration table is used for non-QDQ models in INT8 mode.
+    /// If True, native TensorRT generated calibration table is used;
+    /// If False, ONNXRUNTIME tool generated calibration table is used.
+    /// Note: Please copy up-to-date calibration table file to trt_engine_cache_path before inference.
+    /// Calibration table is specific to models and calibration data sets.
+    /// Whenever new calibration table is generated, old file in the path should be cleaned up or be replaced.
+    pub int8_use_native_calibration_table: bool,
     pub engine_cache: bool,
     pub timing_cache: bool,
     pub dump_ep_context_model: bool,
@@ -53,12 +67,18 @@ pub struct TensorRtConfig {
     pub builder_optimization_level: u8,
     pub max_workspace_size: usize,
     pub min_subgraph_size: usize,
+    pub dla_core: u32,
+    pub dla: bool,
 }
 
 impl Default for TensorRtConfig {
     fn default() -> Self {
         Self {
+            detailed_build_log: true,
             fp16: true,
+            int8: false,
+            int8_calibration_table_name: "".to_string(),
+            int8_use_native_calibration_table: true,
             engine_cache: true,
             timing_cache: false,
             dump_ep_context_model: false, // TODO
@@ -66,6 +86,8 @@ impl Default for TensorRtConfig {
             builder_optimization_level: 3,  // 3, 0-5
             max_workspace_size: 1073741824, // 1G
             min_subgraph_size: 1,
+            dla_core: 0,
+            dla: false,
         }
     }
 }
