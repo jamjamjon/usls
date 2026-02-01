@@ -641,13 +641,20 @@ impl Engine {
                     let cache_path =
                         crate::Dir::Cache.crate_dir_default_with_subs(&["caches", "tensorrt"])?;
 
-                    let ep = ort::execution_providers::TensorRTExecutionProvider::default()
+                    let mut ep = ort::execution_providers::TensorRTExecutionProvider::default()
                         .with_device_id(id as i32)
                         .with_max_workspace_size(config.ep.tensorrt.max_workspace_size)
                         .with_builder_optimization_level(
                             config.ep.tensorrt.builder_optimization_level,
                         )
+                        .with_dla_core(config.ep.tensorrt.dla_core)
+                        .with_dla(config.ep.tensorrt.dla)
+                        .with_detailed_build_log(config.ep.tensorrt.detailed_build_log)
                         .with_fp16(config.ep.tensorrt.fp16)
+                        .with_int8(config.ep.tensorrt.int8)
+                        .with_int8_use_native_calibration_table(
+                            config.ep.tensorrt.int8_use_native_calibration_table,
+                        )
                         .with_engine_cache(config.ep.tensorrt.engine_cache)
                         .with_timing_cache(config.ep.tensorrt.timing_cache)
                         .with_dump_ep_context_model(config.ep.tensorrt.dump_ep_context_model)
@@ -659,6 +666,13 @@ impl Engine {
                         .with_profile_min_shapes(spec_min)
                         .with_profile_opt_shapes(spec_opt)
                         .with_profile_max_shapes(spec_max);
+                    if config.ep.tensorrt.int8
+                        && !config.ep.tensorrt.int8_calibration_table_name.is_empty()
+                    {
+                        ep = ep.with_int8_calibration_table_name(
+                            config.ep.tensorrt.int8_calibration_table_name.clone(),
+                        );
+                    }
 
                     match ep.is_available() {
                         Ok(true) => {

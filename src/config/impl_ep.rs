@@ -122,8 +122,13 @@ impl Config {
     impl_ep_field!(tensorrt, max_workspace_size, usize);
     impl_ep_field!(tensorrt, min_subgraph_size, usize);
     impl_ep_field!(tensorrt, fp16, bool);
+    impl_ep_field!(tensorrt, int8, bool);
     impl_ep_field!(tensorrt, engine_cache, bool);
     impl_ep_field!(tensorrt, timing_cache, bool);
+    impl_ep_field!(tensorrt, dla, bool);
+    impl_ep_field!(tensorrt, dla_core, u32);
+    impl_ep_field!(tensorrt, int8_use_native_calibration_table, bool);
+    impl_ep_field!(tensorrt, detailed_build_log, bool);
 
     // ---------------- coreml -----------------------
     impl_ep_field!(coreml, static_input_shapes, bool);
