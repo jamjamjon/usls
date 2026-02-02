@@ -214,7 +214,18 @@ fn main() -> Result<()> {
         }
         Commands::PpDoclayout(args) => {
             let config = pp_doclayout::config(args)?.commit()?;
-            let annotator = Annotator::default();
+            let annotator = Annotator::default()
+                .with_hbb_style(
+                    usls::HbbStyle::default()
+                        .with_visible(false)
+                        .with_text_visible(false),
+                )
+                .with_mask_style(
+                    usls::MaskStyle::default()
+                        .with_visible(false)
+                        .with_cutout(true)
+                        .with_draw_obbs(true), // .with_draw_polygon_largest(true),
+                );
             run::<PPDocLayout>(config, &cli.source, &annotator, RUN_DOC_LAYOUT)
         }
     }?;

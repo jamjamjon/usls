@@ -18,3 +18,4 @@ hide:
 | [DocLayout-YOLO](https://github.com/opendatalab/DocLayout-YOLO) | Object Detection | [demo](https://github.com/jamjamjon/usls/tree/main/examples/ocr) | ✅ | ❓ | ✅ | ✅ | ✅ | ❌ | ❌ |
 | [PP-DocLayout-v1-Plus-L](https://huggingface.co/PaddlePaddle/PP-DocLayout_plus-L) | Object Detection | [demo](https://github.com/jamjamjon/usls/tree/main/examples/ocr) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | [PP-DocLayout-v2](https://huggingface.co/PaddlePaddle/PP-DocLayoutV2) | Object Detection | [demo](https://github.com/jamjamjon/usls/tree/main/examples/ocr) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| [PP-DocLayout-v3](https://huggingface.co/PaddlePaddle/PP-DocLayoutV3) | Object Detection | [demo](https://github.com/jamjamjon/usls/tree/main/examples/ocr) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |

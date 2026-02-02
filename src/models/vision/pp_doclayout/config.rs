@@ -6,6 +6,7 @@
 /// >
 /// > # Paper & Code
 /// >
+/// > - **v3 Model**: https://huggingface.co/PaddlePaddle/PP-DocLayoutV3
 /// > - **v2 Model**: https://huggingface.co/PaddlePaddle/PP-DocLayoutV2
 /// > - **v1 Model**: https://huggingface.co/PaddlePaddle/PP-DocLayout_plus-L
 /// > - **GitHub**: [PaddlePaddle/PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR)
@@ -28,7 +29,7 @@ impl crate::Config {
             .with_model_ixx(1, 2, 800)
             .with_model_ixx(1, 3, 800)
             .with_model_ixx(2, 1, 2) // scale factors
-            .with_class_confs(&[0.5])
+            .with_class_confs(&[0.35])
             .with_resize_alg(crate::ResizeAlg::Interpolation(
                 crate::ResizeFilter::Bilinear,
             ))
@@ -49,5 +50,15 @@ impl crate::Config {
             .with_version(2.into())
             .with_class_names(&crate::NAMES_PP_DOC_LAYOUT_V2_25)
             .with_model_file("v2.onnx")
+    }
+
+    /// PP-DocLayoutV3 configuration (25 classes with reading order)
+    /// PP-DocLayoutV3 is specifically engineered to handle non-planar document images.
+    /// It can directly predict multi-point bounding boxes for layout elements—as opposed to standard two-point boxes—and determine logical reading orders for skewed and curved surfaces within a single forward pass, significantly reducing cascading errors.
+    pub fn pp_doclayout_v3() -> Self {
+        Self::pp_doclayout()
+            .with_version(3.into())
+            .with_class_names(&crate::NAMES_PP_DOC_LAYOUT_V2_25)
+            .with_model_file("v3.onnx")
     }
 }
