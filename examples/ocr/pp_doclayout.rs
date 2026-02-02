@@ -41,6 +41,7 @@ pub fn config(args: &PPDoclayoutArgs) -> Result<Config> {
     let config = match args.ver {
         Version(1, _, _) => Config::pp_doclayout_v1_plus_l(),
         Version(2, _, _) => Config::pp_doclayout_v2(),
+        Version(3, _, _) => Config::pp_doclayout_v3(),
         _ => anyhow::bail!("Unsupported version"),
     }
     .with_dtype_all(args.dtype)

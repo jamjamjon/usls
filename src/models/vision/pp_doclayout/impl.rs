@@ -5,10 +5,10 @@ use rayon::prelude::*;
 
 use crate::{
     elapsed_module, inputs, Config, DynConf, Engine, Engines, FromConfig, Hbb, Image,
-    ImageProcessor, Model, Module, Version, Xs, X, Y,
+    ImageProcessor, Mask, Model, Module, Ops, Version, Xs, X, Y,
 };
 
-/// RT-DETR: Real-Time Detection Transformer
+/// PP-DocLayoutsss-v1/v2/v3
 #[derive(Debug, Builder)]
 pub struct PPDocLayout {
     pub height: usize,
@@ -153,6 +153,68 @@ impl PPDocLayout {
                             y_bboxes.into_iter().map(|(hbb, _, _)| hbb).collect();
 
                         Some(Y::default().with_hbbs(&y_bboxes))
+                    })
+                    .collect();
+
+                Ok(ys)
+            }
+            Version(3, _, _) => {
+                // preds: [batch * max_det, 7]，[label_index, score, xmin, ymin, xmax, ymax, reading_order]
+                let preds_reshaped = preds.to_shape([self.batch, self.max_det, 7])?;
+                let preds_masks = xs
+                    .get::<f32>(2)
+                    .ok_or_else(|| anyhow::anyhow!("Failed to get masks"))?;
+                let preds_masks = preds_masks.to_shape([self.batch, self.max_det, 200, 200])?;
+
+                let ys: Vec<Y> = preds_reshaped
+                    .axis_iter(Axis(0))
+                    .into_par_iter()
+                    .zip(preds_masks.axis_iter(Axis(0)).into_par_iter())
+                    .enumerate()
+                    .filter_map(|(idx, (preds, preds_masks))| {
+                        let info = &self.processor.images_transform_info[idx];
+                        let (image_height, image_width) = (info.height_src, info.width_src);
+
+                        let mut items: Vec<(Hbb, Mask, usize)> = preds
+                            .outer_iter()
+                            .zip(preds_masks.outer_iter())
+                            .filter_map(|(pred_slice, pred_mask)| {
+                                let slice = pred_slice.as_slice()?;
+                                let hbb = f(slice)?;
+                                let order = slice[6] as usize;
+                                let (mh, mw) = (pred_mask.shape()[0], pred_mask.shape()[1]);
+                                let (ih, iw) = (image_height, image_width);
+                                let mask_f32: Vec<f32> =
+                                    pred_mask.iter().map(|&x| 1. / (1. + (-x).exp())).collect();
+                                let mask_f32: Vec<f32> = Ops::interpolate_1d(
+                                    &mask_f32, mw as _, mh as _, iw as _, ih as _, false,
+                                )
+                                .ok()?;
+                                let mask_u8: Vec<u8> = mask_f32
+                                    .into_iter()
+                                    .map(|x| if x <= 0.5 { 0 } else { 1 })
+                                    .collect();
+
+                                let mut mask = Mask::new(&mask_u8, iw as _, ih as _).ok()?;
+
+                                if let Some(id) = hbb.id() {
+                                    mask = mask.with_id(id);
+                                }
+                                if let Some(name) = hbb.name() {
+                                    mask = mask.with_name(name);
+                                }
+                                if let Some(confidence) = hbb.confidence() {
+                                    mask = mask.with_confidence(confidence);
+                                }
+
+                                Some((hbb, mask, order))
+                            })
+                            .collect();
+
+                        items.sort_by(|a, b| a.2.cmp(&b.2));
+                        let hbbs: Vec<Hbb> = items.iter().map(|(h, _, _)| h.clone()).collect();
+                        let masks: Vec<Mask> = items.into_iter().map(|(_, m, _)| m).collect();
+                        Some(Y::default().with_hbbs(&hbbs).with_masks(&masks))
                     })
                     .collect();
 

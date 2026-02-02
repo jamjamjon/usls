@@ -36,6 +36,10 @@ cargo run -F cuda-full -F vlm --example ocr -- picodet-layout --device cuda:0 --
 
 ## PP-DocLayout v1/v2
 cargo run -F cuda-full -F vlm --example ocr -- pp-doclayout --device cuda:0 --processor-device cuda:0 --source images/academic.jpg --ver 1 --dtype fp32
+
+
+## PP-DocLayout v3
+cargo run -F cuda-full -F vlm --example ocr -- pp-doclayout --device cuda:0 --processor-device cuda:0 --source images/vl1.58.png --ver 3 --dtype fp32
 ```
 
 ### Table structure recognition
@@ -53,3 +57,4 @@ cargo run -F cuda-full -F vlm --example ocr -- slanet --device cuda:0 --processo
 ![](https://github.com/jamjamjon/assets/releases/download/db/demo-table-ch.png)
 ![](https://github.com/jamjamjon/assets/releases/download/db/demo-sign.png)
 ![](https://github.com/jamjamjon/assets/releases/download/yolo/demo-doclayout-yolo.png)
+![](https://github.com/jamjamjon/assets/releases/download/pp-doclayout/demo-v3.jpg)
