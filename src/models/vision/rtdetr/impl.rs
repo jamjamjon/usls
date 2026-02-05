@@ -5,7 +5,7 @@ use rayon::prelude::*;
 
 use crate::{
     elapsed_module, inputs, Config, DynConf, Engine, Engines, FromConfig, Hbb, Image,
-    ImageProcessor, Model, Module, Xs, X, Y,
+    ImageProcessor, Model, Module, ResizeModeType, Xs, X, Y,
 };
 
 /// RT-DETR: Real-Time Detection Transformer
@@ -87,6 +87,14 @@ impl Model for RTDETR {
 
 impl RTDETR {
     fn postprocess(&self, outputs: &Xs) -> Result<Vec<Y>> {
+        let resize_mode = match self.processor.resize_mode_type() {
+            Some(ResizeModeType::Letterbox) => ResizeModeType::Letterbox,
+            Some(ResizeModeType::FitAdaptive) => ResizeModeType::FitAdaptive,
+            Some(ResizeModeType::FitExact) => ResizeModeType::FitExact,
+            Some(x) => anyhow::bail!("Unsupported resize mode for RTDETR postprocess: {x:?}. Supported: FitExact, FitAdaptive, Letterbox"),
+            _ => anyhow::bail!("No resize mode specified. Supported: FitExact, FitAdaptive, Letterbox"),
+        };
+
         let labels = outputs
             .get::<i64>(0)
             .ok_or_else(|| anyhow::anyhow!("Failed to get labels"))?;
@@ -106,7 +114,6 @@ impl RTDETR {
             .filter_map(|(idx, ((labels, boxes), scores))| {
                 let info = &self.processor.images_transform_info[idx];
                 let (image_height, image_width) = (info.height_src, info.width_src);
-                let ratio = self.processor.images_transform_info[idx].height_scale;
                 let y_bboxes: Vec<Hbb> = scores
                     .iter()
                     .enumerate()
@@ -116,24 +123,57 @@ impl RTDETR {
                             return None;
                         }
 
-                        // filter out class id
                         if !self.classes_excluded.is_empty()
                             && self.classes_excluded.contains(&class_id)
                         {
                             return None;
                         }
 
-                        // filter by class id
                         if !self.classes_retained.is_empty()
                             && !self.classes_retained.contains(&class_id)
                         {
                             return None;
                         }
-                        let xyxy = boxes.slice(s![i, ..]).mapv(|x| x / ratio);
-                        let x1 = xyxy[0].max(0.0).min(image_width as _);
-                        let y1 = xyxy[1].max(0.0).min(image_height as _);
-                        let x2 = xyxy[2].max(0.0).min(image_width as _);
-                        let y2 = xyxy[3].max(0.0).min(image_height as _);
+
+                        let xyxy_raw = boxes.slice(s![i, ..]);
+                        let (x1, y1, x2, y2) = match resize_mode {
+                            ResizeModeType::FitExact => {
+                                let scale_x = image_width as f32 / self.width as f32;
+                                let scale_y = image_height as f32 / self.height as f32;
+                                (
+                                    xyxy_raw[0] * scale_x,
+                                    xyxy_raw[1] * scale_y,
+                                    xyxy_raw[2] * scale_x,
+                                    xyxy_raw[3] * scale_y,
+                                )
+                            }
+                            ResizeModeType::Letterbox => {
+                                let ratio = info.height_scale;
+                                let pad_w = info.width_pad;
+                                let pad_h = info.height_pad;
+                                (
+                                    (xyxy_raw[0] - pad_w) / ratio,
+                                    (xyxy_raw[1] - pad_h) / ratio,
+                                    (xyxy_raw[2] - pad_w) / ratio,
+                                    (xyxy_raw[3] - pad_h) / ratio,
+                                )
+                            }
+                            ResizeModeType::FitAdaptive => {
+                                let ratio = info.height_scale;
+                                (
+                                    xyxy_raw[0] / ratio,
+                                    xyxy_raw[1] / ratio,
+                                    xyxy_raw[2] / ratio,
+                                    xyxy_raw[3] / ratio,
+                                )
+                            }
+                            _ => unreachable!(),
+                        };
+
+                        let x1 = x1.max(0.0).min(image_width as _);
+                        let y1 = y1.max(0.0).min(image_height as _);
+                        let x2 = x2.max(0.0).min(image_width as _);
+                        let y2 = y2.max(0.0).min(image_height as _);
                         let mut hbb = Hbb::default()
                             .with_xyxy(x1, y1, x2, y2)
                             .with_confidence(score)

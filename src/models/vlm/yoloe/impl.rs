@@ -12,7 +12,7 @@ use crate::{
     elapsed_module, inputs,
     models::vision::{BoxType, YOLOPredsFormat, YOLO},
     Config, DynConf, Engine, Engines, FromConfig, Hbb, Image, ImageProcessor, Model, Module,
-    NmsOps, TextProcessor, Version, XView, Xs, YOLOEPrompt, X, Y,
+    NmsOps, ResizeModeType, TextProcessor, Version, XView, Xs, YOLOEPrompt, X, Y,
 };
 
 /// YOLOE with prompt-based inference (textual or visual prompts).
@@ -424,10 +424,15 @@ impl YOLOEPromptBased {
         let (image_embedding, mask, nc) = {
             let image_embedding = self.processor.process(std::slice::from_ref(image))?;
             let info = &self.processor.images_transform_info()[0];
-            let resize_mode = self
+            let resize_mode = match self
                 .processor
-                .resize_mode_type()
-                .unwrap_or(crate::ResizeModeType::FitAdaptive);
+                .resize_mode_type() {
+                    Some(ResizeModeType::Letterbox) => ResizeModeType::Letterbox,
+                    Some(ResizeModeType::FitAdaptive) => ResizeModeType::FitAdaptive,
+                    Some(ResizeModeType::FitExact) => ResizeModeType::FitExact,
+                    Some(x) => anyhow::bail!("Unsupported resize mode for YOLOEPromptBased: {x:?}. Supported: FitExact, FitAdaptive, Letterbox"),
+                    _ => anyhow::bail!("No resize mode specified. Supported: FitExact, FitAdaptive, Letterbox"),
+                };
 
             let downsample_scale = 8.0;
             let (prompt_height, prompt_width) = (
@@ -488,16 +493,7 @@ impl YOLOEPromptBased {
                                 (y + h) * scale_y,
                             )
                         }
-                        _ => {
-                            let ratio = info.height_scale;
-                            let scale_factor = ratio / downsample_scale;
-                            (
-                                x * scale_factor,
-                                y * scale_factor,
-                                (x + w) * scale_factor,
-                                (y + h) * scale_factor,
-                            )
-                        }
+                        _ => unreachable!(),
                     };
 
                 let x1_f = x1_transformed.max(0.0).min(mask_w_f32 - 1.0);
@@ -576,10 +572,21 @@ impl YOLOEPromptBased {
 
             let info = &self.processor.images_transform_info[idx];
             let (image_height, image_width) = (info.height_src, info.width_src);
-            let resize_mode = self
-                .processor
-                .resize_mode_type()
-                .unwrap_or(crate::ResizeModeType::FitAdaptive);
+            let resize_mode = match self.processor.resize_mode_type() {
+                Some(ResizeModeType::Letterbox) => ResizeModeType::Letterbox,
+                Some(ResizeModeType::FitAdaptive) => ResizeModeType::FitAdaptive,
+                Some(ResizeModeType::FitExact) => ResizeModeType::FitExact,
+                Some(x) => {
+                    tracing::error!("Unsupported resize mode for YOLOEPromptBased: {x:?}. Supported: FitExact, FitAdaptive, Letterbox");
+                    return None;
+                }
+                _ => {
+                    tracing::error!(
+                        "No resize mode specified. Supported: FitExact, FitAdaptive, Letterbox"
+                    );
+                    return None;
+                }
+            };
 
             // ObjectDetection
             let slice_bboxes = slice_bboxes?;
@@ -673,15 +680,7 @@ impl YOLOEPromptBased {
                             bbox.3 / ratio,
                         )
                     }
-                    _ => {
-                        let ratio = info.height_scale;
-                        (
-                            bbox.0 / ratio,
-                            bbox.1 / ratio,
-                            bbox.2 / ratio,
-                            bbox.3 / ratio,
-                        )
-                    }
+                    _ => unreachable!(),
                 };
 
                 let (x, y, w, h) = match self.layout.box_type()? {

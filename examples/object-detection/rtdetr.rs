@@ -9,7 +9,7 @@ pub struct RtdetrArgs {
     pub scale: Scale,
 
     /// Version: 1, 2, 4
-    #[arg(long, global = true, default_value = "4")]
+    #[arg(long, global = true, default_value = "2")]
     pub ver: Version,
 
     /// Dtype: fp32, fp16, q4f16, etc.

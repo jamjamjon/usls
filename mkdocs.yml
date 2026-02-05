@@ -78,7 +78,7 @@ nav:
     - Config System: guides/config.md
     - Data Loading: guides/dataloader.md
     - Execution Providers: guides/ep.md
-    - DType & Precision: guides/dtype.md
+    - DType & Quantization: guides/dtype.md
     - Device Management: guides/device.md
     - Results: guides/results.md
     - Annotator: guides/annotator.md

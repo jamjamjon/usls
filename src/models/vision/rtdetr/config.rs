@@ -47,7 +47,7 @@ impl crate::Config {
             .with_model_ixx(0, 1, 3)
             .with_model_ixx(0, 2, 640)
             .with_model_ixx(0, 3, 640)
-            .with_resize_mode_type(crate::ResizeModeType::FitAdaptive)
+            .with_resize_mode_type(crate::ResizeModeType::Letterbox) // FitAdaptive
             .with_class_confs(&[0.5])
             .with_class_names(&NAMES_COCO_80)
     }

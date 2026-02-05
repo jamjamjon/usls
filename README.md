@@ -14,14 +14,6 @@
     </a>
 </p>
 
-
-<br/>
-
-<p align="center">
-  <a href="https://jamjamjon.github.io/usls/">📘 <strong>Documentation</strong></a> | 
-  <a href="./examples/README.md">🌟 <strong>Examples</strong></a> 
-</p>
-
 <br/>
 
 **usls** is a cross-platform Rust library powered by ONNX Runtime for efficient inference of SOTA vision and vision-language models (***typically under 1B parameters***).
@@ -35,87 +27,119 @@
 ## 🌟 Highlights
 
 - **⚡ High Performance**: Multi-threading, SIMD, and CUDA-accelerated processing
-- **🌐 Cross-Platform**: Linux, macOS, Windows with ONNX Runtime execution providers (CUDA, TensorRT, CoreML, OpenVINO, DirectML, etc.)
+- **✨ Cross-Platform**: Linux, macOS, Windows with ONNX Runtime execution providers (CUDA, TensorRT, CoreML, OpenVINO, DirectML, etc.)
+- **🎯 Precision Support**: FP32, FP16, INT8, UINT8, Q4, Q4F16, BNB4, and more
+- **🛠️ Full-Stack Suite**: `DataLoader`, `Annotator`, and `Viewer` for complete workflows
 - **🏗️ Unified API**: Single `Model` trait inference with `run()`/`forward()`/`encode_images()`/`encode_texts()` and unified `Y` output
 - **📥 Auto-Management**: Automatic model download (HuggingFace/GitHub), caching and path resolution
 - **📦 Multiple Inputs**: Image, directory, video, webcam, stream and combinations
-- **🎯 Precision Support**: FP32, FP16, INT8, UINT8, Q4, Q4F16, BNB4, and more
-- **🛠️ Full-Stack Suite**: `DataLoader`, `Annotator`, and `Viewer` for complete workflows
-- **🌱 Model Ecosystem**: 50+ SOTA vision and VLM models
+- **🌱 Model Ecosystem**: **50+** SOTA vision and VLM models
 
 ## 🚀 Quick Start
 
 Run the **YOLO-Series demo** to explore models with different tasks, precision and execution providers:
 
 - **Tasks**: `detect`, `segment`, `pose`, `classify`, `obb`
-- **Versions**: `YOLOv5`, `YOLOv6`, `YOLOv7`, `YOLOv8`, `YOLOv9`, `YOLOv10`, `YOLO11`, `YOLOv12`, `YOLOv13`, `YOLO26`
+- **Versions**: `v5`, `v6`, `v7`, `v8`, `v9`, `v10`, `11`, `12`, `v13`, `26`
 - **Scales**: `n`, `s`, `m`, `l`, `x`
-- **Precision**: `fp32`, `fp16`, `q8`, `q4`, `q4f16`, `bnb4`
+- **Precision**: `fp32`, `fp16`, `q8`, `int8`, `q4`, `q4f16`, `bnb4`, and more
 - **Execution Providers**: `CPU`, `CUDA`, `TensorRT`, `TensorRT-RTX`, `CoreML`, `OpenVINO`, and more
 
+<details open>
+<summary><strong>CPU</strong></summary>
 
 ```bash
-# CPU: Object detection with YOLO26n (FP16)
 cargo run -r --example yolo -- --task detect --ver 26 --scale n --dtype fp16
-
-# CUDA model + CPU processor: Instance segmentation with YOLO11m
-cargo run -r -F cuda --example yolo -- --task segment --ver 11 --scale m --device cuda:0 --processor-device cpu
-
-# CUDA model + CUDA processor: Pose estimation with YOLOv8m
-cargo run -r -F cuda-full --example yolo -- --task pose --ver 8 --scale s --device cuda:0 --processor-device cuda:0
-
-# TensorRT model + CPU processor
-cargo run -r -F tensorrt --example yolo -- --device tensorrt:0 --processor-device cpu
-
-# TensorRT model + CUDA processor (CUDA 12.4)
-cargo run -r -F tensorrt-cuda-12040 --example yolo -- --device tensorrt:0 --processor-device cuda:0
-
-# TensorRT-RTX model + CUDA processor
-cargo run -r -F nvrtx-full --example yolo -- --device nvrtx:0 --processor-device cuda:0
-
-# TensorRT-RTX model + CPU processor
-cargo run -r -F nvrtx --example yolo -- --device nvrtx:0
-
-# Apple Silicon CoreML
-cargo run -r -F coreml --example yolo -- --device coreml
-
-# Intel OpenVINO (CPU/GPU/VPU)
-cargo run -r -F openvino -F ort-load-dynamic --example yolo -- --device openvino:CPU
-
-# Show all available options
-cargo run -r --example yolo -- --help
 ```
 
+</details>
+
+<details>
+<summary><strong>Nvidia CUDA + CUDA Image Processor</strong></summary>
+
+```bash
+cargo run -r -F cuda --example yolo -- --task segment --ver 11 --scale m --device cuda:0 --processor-device cuda:0
+```
+
+</details>
 
 
-### Performance
+<details>
+<summary><strong>Nvidia TensorRT + CUDA Image Processor</strong></summary>
 
->**Environment:** NVIDIA RTX 3060Ti (TensorRT-10.11.0.33, CUDA 12.8, TensorRT-RTX-1.3.0.35) / Intel i5-12400F  
+```bash
+cargo run -r -F tensorrt-full --example yolo -- --device tensorrt:0 --processor-device cuda:0
+```
+
+</details>
+
+
+
+<details>
+<summary><strong>Nvidia TensorRT-RTX + CUDA Image Processor</strong></summary>
+
+```bash
+cargo run -r -F nvrtx-full --example yolo -- --device nvrtx:0 --processor-device cuda:0
+```
+
+</details>
+
+
+<details>
+<summary><strong>Apple Silicon CoreML</strong></summary>
+
+```bash
+cargo run -r -F coreml --example yolo -- --device coreml
+```
+
+</details>
+
+
+<details>
+<summary><strong>Intel OpenVINO (CPU/GPU/VPU)</strong></summary>
+
+```bash
+cargo run -r -F openvino -F ort-load-dynamic --example yolo -- --device openvino:CPU
+```
+
+</details>
+
+<details>
+<summary><strong>📊 Performance Benchmarks</strong></summary>
+
+>**Environment:** NVIDIA RTX 3060Ti (TensorRT-10.11.0.33, CUDA 12.8, TensorRT-RTX-1.3.0.35) / Intel i5-12400F
 >
->**Setup:** YOLO26n, COCO2017 validation set (5,000 images), Resolution: 640x640, Conf thresholds: [0.35, 0.3, ..]
+>**Setup:** YOLO26 Detection, COCO2017-val (5,000 images), 640x640, Conf thresholds: [0.35, 0.3, ..]
 >
 > ***Results are for rough reference only.***
 
 
-| EP | Image<br>Processor | DType | Batch | Preprocess | Inference | Postprocess | Total |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| TensorRT | CUDA | FP16 | 1 | ~233µs | ~1.3ms | ~14µs | **~1.55ms** |
-| TensorRT-RTX | CUDA | FP32 | 1 | ~233µs | ~2.0ms | ~10µs | **~2.24ms** |
-| TensorRT-RTX | CUDA | FP16 | 1 | ❓ | ❓ | ❓ | ❓ |
-| CUDA | CUDA | FP32 | 1 | ~233µs | ~5.0ms | ~17µs | **~5.25ms** |
-| CUDA | CUDA | FP16 | 1 | ~233µs | ~3.6ms | ~17µs | **~3.85ms** |
-| CUDA | CPU | FP32 | 1 | ~800µs | ~6.5ms | ~14µs | **~7.31ms** |
-| CUDA | CPU | FP16 | 1 | ~800µs | ~5.0ms | ~14µs | **~5.81ms** |
-| CPU | CPU | FP32 | 1 | ~970µs | ~20.5ms | ~14µs | **~21.48ms** |
-| CPU | CPU | FP16 | 1 | ~970µs | ~25.0ms | ~14µs | **~25.98ms** |
-| TensorRT | CUDA | FP16 | **8** | ~1.2ms | ~6.0ms | ~55µs | **~7.26ms** |
-| TensorRT | CPU | FP16 | **8** | ~18.0ms | ~25.5ms | ~55µs | **~43.56ms** |
+| Scale | EP | Image<br>Processor | DType | Batch | Preprocess | Inference | Postprocess | Total |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| n | TensorRT | CUDA | FP16 | 1 | ~233µs | ~1.3ms | ~14µs | **~1.55ms** |
+| n | TensorRT-RTX | CUDA | FP32 | 1 | ~233µs | ~2.0ms | ~10µs | **~2.24ms** |
+| n | TensorRT-RTX | CUDA | FP16 | 1 | ❓ | ❓ | ❓ | ❓ |
+| n | CUDA | CUDA | FP32 | 1 | ~233µs | ~5.0ms | ~17µs | **~5.25ms** |
+| n | CUDA | CUDA | FP16 | 1 | ~233µs | ~3.6ms | ~17µs | **~3.85ms** |
+| n | CUDA | CPU | FP32 | 1 | ~800µs | ~6.5ms | ~14µs | **~7.31ms** |
+| n | CUDA | CPU | FP16 | 1 | ~800µs | ~5.0ms | ~14µs | **~5.81ms** |
+| n | CPU | CPU | FP32 | 1 | ~970µs | ~20.5ms | ~14µs | **~21.48ms** |
+| n | CPU | CPU | FP16 | 1 | ~970µs | ~25.0ms | ~14µs | **~25.98ms** |
+| n | TensorRT | CUDA | FP16 | **8** | ~1.2ms | ~6.0ms | ~55µs | **~7.26ms** |
+| n | TensorRT | CPU | FP16 | **8** | ~18.0ms | ~25.5ms | ~55µs | **~43.56ms** |
+| **m** | TensorRT | CUDA | FP16 | 1 | ~233µs | ~3.6ms | ~14µs | **~3.85ms** |
+| **m** | TensorRT | CUDA | Int8 | 1 | ~233µs | ~2.6ms | ~14µs | **~2.84ms** |
+| **m** | CUDA | CUDA | FP32 | 1 | ~233µs | ~16.1ms | ~17µs | **~16.35ms** |
+| **m** | CUDA | CUDA | FP16 | 1 | ~233µs | ~8.8ms | ~17µs | **~9.05ms** |
 
 
-## Documentation
+</details>
 
-- <a href="https://jamjamjon.github.io/usls/">📖 <strong>Documentation</strong></a>
-- <a href="./examples/README.md">🌟 <strong>Examples</strong></a> 
+## What's Next?
+
+- <a href="https://jamjamjon.github.io/usls/">📖 <strong>Online Documentation</strong></a>
+- <a href="https://docs.rs/usls/latest/usls/">📚 <strong>API Reference</strong></a>
+- <a href="./examples/README.md">🚀 <strong>Examples</strong></a> 
 
 
 ## 🤝 Contributing

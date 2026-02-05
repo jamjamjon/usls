@@ -3,31 +3,49 @@
 pub enum DType {
     #[default]
     Auto,
-    Int4,
-    Int8,
-    Int16,
-    Int32,
-    Int64,
-    Uint4,
-    Uint8,
-    Uint16,
-    Uint32,
+    // 128-bit
+    Complex128,
+
+    // 64-bit
+    Complex64,
     Uint64,
-    Fp16,
-    Fp32,
+    Int64,
     Fp64,
+    Uint32,
+
+    // 32-bit
+    Int32,
+    Fp32,
+
+    // 16-bit
+    Int16,
+    Uint16,
+    Fp16,
     Bf16,
-    Bnb4,
-    Q4,
-    Q4f16,
+
+    // 8-bit and mixed
+    Int8,
+    Uint8,
     Q8,
     Fp8e4m3fn,
     Fp8e4m3fnuz,
     Fp8e5m2,
     Fp8e5m2fnuz,
+    S8u8,
+    U8u8,
+    S8s8,
+    W8a8,
+    W8a16,
+
+    // 4-bit and mixed
+    Bnb4,
+    Q4,
+    Q4f16,
+    W4a8,
+    W4a16,
+    Int4,
+    Uint4,
     Fp4e2m1,
-    Complex64,
-    Complex128,
 }
 
 impl std::str::FromStr for DType {
@@ -61,6 +79,13 @@ impl std::str::FromStr for DType {
             "f4e2m1" => Ok(Self::Fp4e2m1),
             "complex64" => Ok(Self::Complex64),
             "complex128" => Ok(Self::Complex128),
+            "u8u8" => Ok(Self::U8u8),
+            "s8u8" => Ok(Self::S8u8),
+            "s8s8" => Ok(Self::S8s8),
+            "w8a8" => Ok(Self::W8a8),
+            "w8a16" => Ok(Self::W8a16),
+            "w4a8" => Ok(Self::W4a8),
+            "w4a16" => Ok(Self::W4a16),
             x => anyhow::bail!("Unsupported DType: {x}"),
         }
     }
@@ -70,10 +95,12 @@ impl DType {
     pub fn size_in_bytes(self) -> usize {
         match self {
             Self::Auto => 4, // default to f32
-            Self::Int4 | Self::Uint4 | Self::Bnb4 | Self::Q4 | Self::Fp4e2m1 => 1, // sub-byte, min 1
-            Self::Int8 | Self::Uint8 | Self::Q8 => 1,
-            Self::Fp8e4m3fn | Self::Fp8e4m3fnuz | Self::Fp8e5m2 | Self::Fp8e5m2fnuz => 1,
             Self::Int16 | Self::Uint16 | Self::Fp16 | Self::Bf16 | Self::Q4f16 => 2,
+            Self::Int4 | Self::Uint4 | Self::Bnb4 | Self::Q4 | Self::Fp4e2m1 => 1,
+            Self::Int8 | Self::Uint8 | Self::Q8 | Self::S8u8 | Self::U8u8 | Self::S8s8 => 1,
+            Self::W8a8 | Self::W4a8 => 1,
+            Self::W8a16 | Self::W4a16 => 2,
+            Self::Fp8e4m3fn | Self::Fp8e4m3fnuz | Self::Fp8e5m2 | Self::Fp8e5m2fnuz => 1,
             Self::Int32 | Self::Uint32 | Self::Fp32 => 4,
             Self::Int64 | Self::Uint64 | Self::Fp64 | Self::Complex64 => 8,
             Self::Complex128 => 16,
@@ -110,6 +137,13 @@ impl std::fmt::Display for DType {
             Self::Fp4e2m1 => "f4e2m1",
             Self::Complex64 => "complex64",
             Self::Complex128 => "complex128",
+            Self::U8u8 => "u8u8",
+            Self::S8u8 => "s8u8",
+            Self::S8s8 => "s8s8",
+            Self::W8a8 => "w8a8",
+            Self::W8a16 => "w8a16",
+            Self::W4a8 => "w4a8",
+            Self::W4a16 => "w4a16",
         };
         write!(f, "{x}")
     }

@@ -2,17 +2,24 @@ use crate::Config;
 
 // ===== Macros for generating EP configuration functions =====
 
-/// Generate functions for specific modules (Model, Visual, Textual, Encoder).
+/// Generate functions for specific modules (Model, Visual, Textual, etc.).
 ///
 /// Pattern: `with_<module>_<ep>_<field>()`
-///
-/// # Parameters
-/// - `$ep`: Execution provider name
-/// - `$field`: Configuration field name
-/// - `$ty`: Field type
-/// - `$module`: Module names (variadic)
 macro_rules! impl_ep_for_modules {
-    ($ep:ident, $field:ident, $ty:ty, $($module:ident),+) => {
+    ($ep:ident, $field:ident, String, $($module:ident),+) => {
+        $(
+            paste::paste! {
+                #[doc = "Set `" $ep "." $field "` for the `" $module "` module."]
+                pub fn [<with_ $module:snake _ $ep _ $field>](mut self, x: impl Into<String>) -> Self {
+                    if let Some(config) = self.modules.get_mut(&crate::Module::$module) {
+                        config.ep.$ep.$field = x.into();
+                    }
+                    self
+                }
+            }
+        )+
+    };
+    ($ep:ident, $field:ident, $ty:ident, $($module:ident),+) => {
         $(
             paste::paste! {
                 #[doc = "Set `" $ep "." $field "` for the `" $module "` module."]
@@ -30,13 +37,19 @@ macro_rules! impl_ep_for_modules {
 /// Generate function for a specific module parameter.
 ///
 /// Pattern: `with_<ep>_<field>_module()`
-///
-/// # Parameters
-/// - `$ep`: Execution provider name
-/// - `$field`: Configuration field name
-/// - `$ty`: Field type
 macro_rules! impl_ep_for_module {
-    ($ep:ident, $field:ident, $ty:ty) => {
+    ($ep:ident, $field:ident, String) => {
+        paste::paste! {
+            #[doc = "Set `" $ep "." $field "` for a specific module."]
+            pub fn [<with_ $ep _ $field _ module>](mut self, module: crate::Module, x: impl Into<String>) -> Self {
+                if let Some(config) = self.modules.get_mut(&module) {
+                    config.ep.$ep.$field = x.into();
+                }
+                self
+            }
+        }
+    };
+    ($ep:ident, $field:ident, $ty:ident) => {
         paste::paste! {
             #[doc = "Set `" $ep "." $field "` for a specific module."]
             pub fn [<with_ $ep _ $field _ module>](mut self, module: crate::Module, x: $ty) -> Self {
@@ -52,18 +65,25 @@ macro_rules! impl_ep_for_module {
 /// Generate function for all modules.
 ///
 /// Pattern: `with_<ep>_<field>_all()`
-///
-/// # Parameters
-/// - `$ep`: Execution provider name
-/// - `$field`: Configuration field name
-/// - `$ty`: Field type
 macro_rules! impl_ep_for_all {
-    ($ep:ident, $field:ident, $ty:ty) => {
+    ($ep:ident, $field:ident, String) => {
+        paste::paste! {
+            #[doc = "Apply `" $ep "." $field "` to all modules."]
+            pub fn [<with_ $ep _ $field _ all>](mut self, x: impl Into<String>) -> Self {
+                let val = x.into();
+                for config in self.modules.values_mut() {
+                    config.ep.$ep.$field = val.clone();
+                }
+                self
+            }
+        }
+    };
+    ($ep:ident, $field:ident, $ty:ident) => {
         paste::paste! {
             #[doc = "Apply `" $ep "." $field "` to all modules."]
             pub fn [<with_ $ep _ $field _ all>](mut self, x: $ty) -> Self {
                 for config in self.modules.values_mut() {
-                    config.ep.$ep.$field = x;
+                    config.ep.$ep.$field = x.clone();
                 }
                 self
             }
@@ -72,16 +92,8 @@ macro_rules! impl_ep_for_all {
 }
 
 /// Generate all three patterns for an EP field.
-///
-/// This macro combines [`impl_ep_for_modules!`], [`impl_ep_for_module!`], and [`impl_ep_for_all!`]
-/// to generate a complete set of configuration functions for a given execution provider field.
-///
-/// # Parameters
-/// - `$ep`: Execution provider name
-/// - `$field`: Configuration field name
-/// - `$ty`: Field type
 macro_rules! impl_ep_field {
-    ($ep:ident, $field:ident, $ty:ty) => {
+    ($ep:ident, $field:ident, $ty:ident) => {
         impl_ep_for_modules!(
             $ep,
             $field,
@@ -128,6 +140,7 @@ impl Config {
     impl_ep_field!(tensorrt, dla, bool);
     impl_ep_field!(tensorrt, dla_core, u32);
     impl_ep_field!(tensorrt, int8_use_native_calibration_table, bool);
+    impl_ep_field!(tensorrt, int8_calibration_table_name, String);
     impl_ep_field!(tensorrt, detailed_build_log, bool);
 
     // ---------------- coreml -----------------------

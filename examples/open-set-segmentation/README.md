@@ -64,7 +64,7 @@ cargo run -F cuda-full -F vlm --example open-set-segmentation -- sam3-image \
 
 ```bash
 cargo run -r -F tensorrt-full -F vlm --example open-set-segmentation -- sam3-image \
---visual-encoder-dtype f16 --visual-encoder-device tensorrt:0 \
+--visual-encoder-dtype int8 --visual-encoder-device tensorrt:0 \
 --textual-encoder-dtype f16 --textual-encoder-device tensorrt:0 \
 --decoder-dtype f16 --decoder-device tensorrt:0 \
 --processor-device cuda:0 \

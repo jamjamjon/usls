@@ -8,11 +8,10 @@ This guide will help you get up and running with the library in just a few minut
 Let's run the **YOLO-Series demo** to explore models with different tasks, precision and execution providers:
 
 - **Tasks**: `detect`, `segment`, `pose`, `classify`, `obb`
-- **Versions**: `5`, `6`, `7`, `8`, `9`, `10`, `11`, `12`, `13`, `26`
+- **Versions**: `v5`, `v6`, `v7`, `v8`, `v9`, `v10`, `11`, `12`, `v13`, `26`
 - **Scales**: `n`, `s`, `m`, `l`, `x`
-- **Precision (DType)**: `fp32`, `fp16`, `q8`, `q4`, `q4f16`, `bnb4`
-- **Devices**: `cpu`, `cuda:0`, `tensorrt:0`, `coreml`, `openvino:CPU`
-
+- **Precision**: `fp32`, `fp16`, `q8`, `int8`, `q4`, `q4f16`, `bnb4`, and more
+- **Execution Providers**: `CPU`, `CUDA`, `TensorRT`, `TensorRT-RTX`, `CoreML`, `OpenVINO`, and more
 
 !!! example "First, clone the repository and navigate to the project root"
 
@@ -24,21 +23,21 @@ Let's run the **YOLO-Series demo** to explore models with different tasks, preci
 
 !!! example "Then, run the demo:"
 
-    === "CPU (Default)"
+    === "CPU"
 
         ```bash
         # Object detection with YOLO26n (FP16)
         cargo run -r --example yolo -- --task detect --ver 26 --scale n --dtype fp16
         ```
 
-    === "NVIDIA GPU (CUDA)"
+    === "NVIDIA (CUDA)"
 
         ```bash
         # Requires "cuda-full" feature
         cargo run -r -F cuda-full --example yolo -- --task segment --ver 11 --scale m --device cuda:0 --processor-device cuda:0
         ```
 
-    === "NVIDIA GPU (TensorRT)"
+    === "NVIDIA (TensorRT)"
 
         ```bash
         # Requires "tensorrt-full" feature
