@@ -5,7 +5,7 @@ use rayon::prelude::*;
 
 use crate::{
     elapsed_module, Config, DynConf, Engine, Engines, FromConfig, Hbb, Image, ImageProcessor,
-    Keypoint, Model, Module, Xs, X, Y,
+    Keypoint, Model, Module, ResizeModeType, Xs, X, Y,
 };
 
 /// RTMO: Real-Time Multi-Object Detection
@@ -72,6 +72,14 @@ impl Model for RTMO {
 
 impl RTMO {
     fn postprocess(&self, outputs: &Xs) -> Result<Vec<Y>> {
+        let resize_mode = match self.processor.resize_mode_type() {
+            Some(ResizeModeType::Letterbox) => ResizeModeType::Letterbox,
+            Some(ResizeModeType::FitAdaptive) => ResizeModeType::FitAdaptive,
+            Some(ResizeModeType::FitExact) => ResizeModeType::FitExact,
+            Some(x) => anyhow::bail!("Unsupported resize mode for RTMO postprocess: {x:?}. Supported: FitExact, FitAdaptive, Letterbox"),
+            _ => anyhow::bail!("No resize mode specified. Supported: FitExact, FitAdaptive, Letterbox"),
+        };
+
         let x0 = outputs
             .get::<f32>(0)
             .ok_or_else(|| anyhow::anyhow!("Failed to get output 0"))?;
@@ -86,8 +94,7 @@ impl RTMO {
                 .enumerate()
                 .map(|(idx, (batch_bboxes, batch_kpts))| {
                     let info = &self.processor.images_transform_info[idx];
-                    let (height_original, width_original, ratio) =
-                        (info.height_src, info.width_src, info.height_scale);
+                    let (height_original, width_original) = (info.height_src, info.width_src);
 
                     let mut y_bboxes = Vec::new();
                     let mut y_kpts: Vec<Vec<Keypoint>> = Vec::new();
@@ -95,11 +102,40 @@ impl RTMO {
                         .axis_iter(Axis(0))
                         .zip(batch_kpts.axis_iter(Axis(0)))
                     {
-                        // bbox
-                        let x1 = xyxyc[0] / ratio;
-                        let y1 = xyxyc[1] / ratio;
-                        let x2 = xyxyc[2] / ratio;
-                        let y2 = xyxyc[3] / ratio;
+                        // Transform bbox coordinates based on resize mode
+                        let (x1, y1, x2, y2) = match resize_mode {
+                            ResizeModeType::FitExact => {
+                                let scale_x = width_original as f32 / self.width as f32;
+                                let scale_y = height_original as f32 / self.height as f32;
+                                (
+                                    xyxyc[0] * scale_x,
+                                    xyxyc[1] * scale_y,
+                                    xyxyc[2] * scale_x,
+                                    xyxyc[3] * scale_y,
+                                )
+                            }
+                            ResizeModeType::Letterbox => {
+                                let ratio = info.height_scale;
+                                let pad_w = info.width_pad;
+                                let pad_h = info.height_pad;
+                                (
+                                    (xyxyc[0] - pad_w) / ratio,
+                                    (xyxyc[1] - pad_h) / ratio,
+                                    (xyxyc[2] - pad_w) / ratio,
+                                    (xyxyc[3] - pad_h) / ratio,
+                                )
+                            }
+                            ResizeModeType::FitAdaptive => {
+                                let ratio = info.height_scale;
+                                (
+                                    xyxyc[0] / ratio,
+                                    xyxyc[1] / ratio,
+                                    xyxyc[2] / ratio,
+                                    xyxyc[3] / ratio,
+                                )
+                            }
+                            _ => unreachable!(),
+                        };
                         let confidence = xyxyc[4];
 
                         if confidence < self.confs[0] {
@@ -118,11 +154,27 @@ impl RTMO {
                                 .with_name("Person"),
                         );
 
-                        // keypoints
+                        // keypoints - transform based on resize mode
                         let mut kpts_ = Vec::new();
                         for (i, kpt) in kpts.axis_iter(Axis(0)).enumerate() {
-                            let x = kpt[0] / ratio;
-                            let y = kpt[1] / ratio;
+                            let (x, y) = match resize_mode {
+                                ResizeModeType::FitExact => {
+                                    let scale_x = width_original as f32 / self.width as f32;
+                                    let scale_y = height_original as f32 / self.height as f32;
+                                    (kpt[0] * scale_x, kpt[1] * scale_y)
+                                }
+                                ResizeModeType::Letterbox => {
+                                    let ratio = info.height_scale;
+                                    let pad_w = info.width_pad;
+                                    let pad_h = info.height_pad;
+                                    ((kpt[0] - pad_w) / ratio, (kpt[1] - pad_h) / ratio)
+                                }
+                                ResizeModeType::FitAdaptive => {
+                                    let ratio = info.height_scale;
+                                    (kpt[0] / ratio, kpt[1] / ratio)
+                                }
+                                _ => unreachable!(),
+                            };
                             let c = kpt[2];
                             if c < self.kconfs[i] {
                                 kpts_.push(Keypoint::default());

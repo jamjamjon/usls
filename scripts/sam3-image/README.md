@@ -51,7 +51,7 @@ uv run inference_v2.py \
   --image ../../assets/kids.jpg \
   --text "shoe" \
   --model-dir ./onnx-models-v2 \
-    --tokenizer /path/to/tokenizer.json \
+  --tokenizer /path/to/tokenizer.json \
   --output output-text-v2.png \
   --device cuda \
   --image-height 1008 --image-width 1008
@@ -61,8 +61,7 @@ uv run inference_v2.py \
   --image ../../assets/kids.jpg \
   --boxes "pos:480,290,110,360" \
   --model-dir ./onnx-models-v2 \
-    --tokenizer /path/to/tokenizer.json \
-    --tokenizer /path/to/tokenizer.json \
+  --tokenizer /path/to/tokenizer.json \
   --output output-box-v2.png \
   --device cuda \
   --image-height 1008 --image-width 1008
@@ -72,7 +71,7 @@ uv run inference_v2.py \
   --image ../../assets/kids.jpg \
   --boxes "pos:480,290,110,360;neg:370,280,115,375" \
   --model-dir ./onnx-models-v2 \
-    --tokenizer /path/to/tokenizer.json \
+  --tokenizer /path/to/tokenizer.json \
   --output output-box-posneg-v2.png \
   --device cuda \
   --image-height 1008 --image-width 1008

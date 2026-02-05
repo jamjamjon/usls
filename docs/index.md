@@ -25,45 +25,43 @@ hide:
 
 ---
 
-## ✨ Features
-
 <div class="grid cards" markdown>
 
 -   :material-lightning-bolt:{ .lg .middle } **High Performance**
 
     ---
 
-    Multi-threading, SIMD, and CUDA-accelerated processing with ONNX Runtime execution providers
+    **Multi-threading**, **SIMD**, and **CUDA**-accelerated processing with ONNX Runtime execution providers
 
 -   :material-laptop:{ .lg .middle } **Cross-Platform**
 
     ---
 
-    Linux, macOS, Windows with support for CUDA, TensorRT, CoreML, OpenVINO, DirectML
+    **Linux**, **macOS**, **Windows** with support for **CUDA**, **TensorRT**, **CoreML**, **OpenVINO**, **DirectML**
 
 -   :material-cube-outline:{ .lg .middle } **Unified API**
 
     ---
 
-    Single `Model` trait with `run()`/`forward()` and unified `Y` output for all models
+    Single **`Model`** trait with **`run()`**/**`forward()`** and unified **`Y`** output for all models
 
 -   :material-download:{ .lg .middle } **Auto-Management**
 
     ---
 
-    Automatic model download from HuggingFace/GitHub, caching and path resolution
+    Automatic model download from **HuggingFace**/**GitHub**, caching and path resolution
 
 -   :material-folder-multiple:{ .lg .middle } **Multiple Inputs**
 
     ---
 
-    Support for images, directories, videos, webcam, streams and combinations
+    Support for **images**, **directories**, **videos**, **webcam**, **streams** and **all combinations**
 
 -   :material-gauge:{ .lg .middle } **Precision Support**
 
     ---
 
-    FP32, FP16, INT8, UINT8, Q4, Q4F16, BNB4, and more quantization options
+    **FP32**, **FP16**, **INT8**, **Q4**, **Q4F16**, **BNB4**, and more quantization options
 
 -   :material-toolbox:{ .lg .middle } **Full-Stack Suite**
 
@@ -75,6 +73,6 @@ hide:
 
     ---
 
-    50+ SOTA vision and VLM models ready to use
+    50+ SOTA **vision** and **VLM** models ready to use
 
 </div>

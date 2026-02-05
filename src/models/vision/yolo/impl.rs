@@ -324,19 +324,15 @@ impl YOLO {
         #[cfg(not(feature = "coreml"))]
         let use_rayon_for_candidates = !matches!(self.version.map(|v| v.0), Some(10 | 26));
 
-        let resize_mode = self
+        let resize_mode = match self
             .processor
-            .resize_mode_type()
-            .unwrap_or(ResizeModeType::FitAdaptive);
-
-        if !matches!(
-            resize_mode,
-            ResizeModeType::Letterbox | ResizeModeType::FitAdaptive | ResizeModeType::FitExact
-        ) {
-            anyhow::bail!(
-                "Unsupported resize mode for YOLO postprocess: {resize_mode:?}. Only FitExact/FitAdaptive/Letterbox are supported."
-            );
-        }
+            .resize_mode_type() {
+                Some(ResizeModeType::Letterbox) => ResizeModeType::Letterbox,
+                Some(ResizeModeType::FitAdaptive) => ResizeModeType::FitAdaptive,
+                Some(ResizeModeType::FitExact) => ResizeModeType::FitExact,
+                Some(x) => anyhow::bail!("Unsupported resize mode for YOLO postprocess: {x:?}. Supported: FitExact, FitAdaptive, Letterbox"),
+                _ => anyhow::bail!("No resize mode specified. Supported: FitExact, FitAdaptive, Letterbox"),
+            };
 
         let preds = outputs
             .get::<f32>(0)
@@ -461,9 +457,7 @@ impl YOLO {
                         let ratio = info.height_scale;
                         (bbox.0 / ratio, bbox.1 / ratio, bbox.2 / ratio, bbox.3 / ratio)
                     }
-                    _ => {
-                        unreachable!()
-                    }
+                    _ => unreachable!()
                 };
 
                 let (cx, cy, x, y, w, h) = match self.layout.box_type()? {

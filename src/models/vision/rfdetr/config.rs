@@ -46,7 +46,7 @@ impl crate::Config {
         Self::default()
             .with_name("rfdetr")
             .with_model_batch_size_min_opt_max(1, 1, 4)
-            .with_resize_mode_type(crate::ResizeModeType::FitAdaptive)
+            .with_resize_mode_type(crate::ResizeModeType::Letterbox) // FitAdaptive
             .with_image_mean([0.485, 0.456, 0.406])
             .with_image_std([0.229, 0.224, 0.225])
             .with_class_names(&NAMES_COCO_91)

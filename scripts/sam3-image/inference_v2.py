@@ -327,7 +327,7 @@ def main():
 
     model_dir = Path(args.model_dir)
     engine = Sam3ONNXInferenceV2(
-        vision_encoder_path=str(model_dir / "vision-encoder-fp16.onnx"),
+        vision_encoder_path=str(model_dir / "vision-encoder-q4f16.onnx"),
         text_encoder_path=str(model_dir / "text-encoder-q4f16.onnx"),
         decoder_path=str(model_dir / "geo-encoder-mask-decoder-q4f16.onnx"),
         tokenizer_path=args.tokenizer,

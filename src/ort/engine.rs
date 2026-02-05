@@ -1134,9 +1134,10 @@ impl Engine {
         // threads
         builder =
             builder.with_intra_threads(config.num_intra_threads.unwrap_or(n_threads_available))?;
-        builder = builder.with_inter_threads(config.num_inter_threads.unwrap_or(2))?;
+        builder = builder.with_inter_threads(config.num_inter_threads.unwrap_or(8))?;
 
         // optimization
+        #[cfg(not(feature = "tensorrt"))]
         if let Some(level) = config.graph_opt_level {
             builder = builder.with_optimization_level(match level {
                 0 => GraphOptimizationLevel::Disable,
@@ -1145,6 +1146,11 @@ impl Engine {
                 3 => GraphOptimizationLevel::Level3,
                 _ => anyhow::bail!("Invalid graph optimization level: {level}"),
             })?;
+        }
+        #[cfg(feature = "tensorrt")]
+        {
+            tracing::info!("Disabling ort graph optimization for TensorRT. `ort_graph_opt_level` setting is ignored.");
+            builder = builder.with_optimization_level(GraphOptimizationLevel::Disable)?;
         }
 
         let session = builder.commit_from_file(model_file)?;
