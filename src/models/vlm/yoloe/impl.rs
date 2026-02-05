@@ -12,7 +12,7 @@ use crate::{
     elapsed_module, inputs,
     models::vision::{BoxType, YOLOPredsFormat, YOLO},
     Config, DynConf, Engine, Engines, FromConfig, Hbb, Image, ImageProcessor, Model, Module,
-    NmsOps, TextProcessor, Version, XView, Xs, YOLOEPrompt, X, Y,
+    NmsOps, ResizeModeType, TextProcessor, Version, XView, Xs, YOLOEPrompt, X, Y,
 };
 
 /// YOLOE with prompt-based inference (textual or visual prompts).
@@ -572,15 +572,21 @@ impl YOLOEPromptBased {
 
             let info = &self.processor.images_transform_info[idx];
             let (image_height, image_width) = (info.height_src, info.width_src);
-            let resize_mode = match self
-                .processor
-                .resize_mode_type() {
-                    Some(ResizeModeType::Letterbox) => ResizeModeType::Letterbox,
-                    Some(ResizeModeType::FitAdaptive) => ResizeModeType::FitAdaptive,
-                    Some(ResizeModeType::FitExact) => ResizeModeType::FitExact,
-                    Some(x) => anyhow::bail!("Unsupported resize mode for YOLOEPromptBased: {x:?}. Supported: FitExact, FitAdaptive, Letterbox"),
-                    _ => anyhow::bail!("No resize mode specified. Supported: FitExact, FitAdaptive, Letterbox"),
-                };
+            let resize_mode = match self.processor.resize_mode_type() {
+                Some(ResizeModeType::Letterbox) => ResizeModeType::Letterbox,
+                Some(ResizeModeType::FitAdaptive) => ResizeModeType::FitAdaptive,
+                Some(ResizeModeType::FitExact) => ResizeModeType::FitExact,
+                Some(x) => {
+                    tracing::error!("Unsupported resize mode for YOLOEPromptBased: {x:?}. Supported: FitExact, FitAdaptive, Letterbox");
+                    return None;
+                }
+                _ => {
+                    tracing::error!(
+                        "No resize mode specified. Supported: FitExact, FitAdaptive, Letterbox"
+                    );
+                    return None;
+                }
+            };
 
             // ObjectDetection
             let slice_bboxes = slice_bboxes?;
