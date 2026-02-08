@@ -4,10 +4,7 @@ use ndarray::Axis;
 use rayon::prelude::*;
 use std::collections::HashMap;
 
-use crate::{
-    elapsed_module, Config, Engine, Engines, FromConfig, Image, ImageProcessor, Model, Module, Xs,
-    X, Y,
-};
+use crate::{Config, Engine, Engines, FromConfig, Image, ImageProcessor, Model, Module, Xs, X, Y};
 
 /// MODNet: Trimap-Free Portrait Matting in Real Time
 #[derive(Builder, Debug)]
@@ -64,9 +61,9 @@ impl Model for MobileGaze {
     }
 
     fn run(&mut self, engines: &mut Engines, images: Self::Input<'_>) -> Result<Vec<Y>> {
-        let xs = elapsed_module!("MobileGaze", "preprocess", self.processor.process(images)?);
-        let ys = elapsed_module!("MobileGaze", "inference", engines.run(&Module::Model, &xs)?);
-        elapsed_module!("MobileGaze", "postprocess", self.postprocess(&ys))
+        let xs = crate::perf!("MobileGaze::preprocess", self.processor.process(images)?);
+        let ys = crate::perf!("MobileGaze::inference", engines.run(&Module::Model, &xs)?);
+        crate::perf!("MobileGaze::postprocess", self.postprocess(&ys))
     }
 }
 

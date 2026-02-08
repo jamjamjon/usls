@@ -28,7 +28,7 @@ fn main() -> Result<()> {
     let config = args::config(&cli.args)?.commit()?;
     run::<BiRefNet>(config, &cli.source, &annotator)?;
 
-    usls::perf(false);
+    usls::perf_chart();
     Ok(())
 }
 

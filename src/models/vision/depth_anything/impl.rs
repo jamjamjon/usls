@@ -3,8 +3,8 @@ use anyhow::Result;
 use rayon::prelude::*;
 
 use crate::{
-    elapsed_module, Config, Engine, Engines, FromConfig, Image, ImageProcessor, Mask, Model,
-    Module, Ops, Task, Version, XView, Xs, Y,
+    Config, Engine, Engines, FromConfig, Image, ImageProcessor, Mask, Model, Module, Ops, Task,
+    Version, XView, Xs, Y,
 };
 
 /// Depth Anything: Unleashing the Power of Large-Scale Unlabeled Data
@@ -65,11 +65,7 @@ impl Model for DepthAnything {
     }
 
     fn run(&mut self, engines: &mut Engines, images: Self::Input<'_>) -> Result<Vec<Y>> {
-        let x = elapsed_module!(
-            "DepthAnything",
-            "preprocess",
-            self.processor.process(images)?
-        );
+        let x = crate::perf!("DepthAnything::preprocess", self.processor.process(images)?);
 
         // Note: For multi-view depth estimation (v3), all input images are treated as views of the same scene.
         let x = if let Task::MultiocularDepthEstimation = self.task {
@@ -78,12 +74,8 @@ impl Model for DepthAnything {
             x
         };
 
-        let ys = elapsed_module!(
-            "DepthAnything",
-            "inference",
-            engines.run(&Module::Model, &x)?
-        );
-        elapsed_module!("DepthAnything", "postprocess", self.postprocess(&ys))
+        let ys = crate::perf!("DepthAnything::inference", engines.run(&Module::Model, &x)?);
+        crate::perf!("DepthAnything::postprocess", self.postprocess(&ys))
     }
 }
 

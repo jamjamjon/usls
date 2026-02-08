@@ -7,8 +7,8 @@ use regex::Regex;
 use tracing::info;
 
 use crate::{
-    elapsed_module, Config, DynConf, Engine, Engines, FromConfig, Hbb, Image, ImageProcessor,
-    Keypoint, Mask, Model, Module, NmsOps, Obb, Ops, Prob, ResizeModeType, Task, Version, Xs, Y,
+    Config, DynConf, Engine, Engines, FromConfig, Hbb, Image, ImageProcessor, Keypoint, Mask,
+    Model, Module, NmsOps, Obb, Ops, Prob, ResizeModeType, Task, Version, Xs, Y,
 };
 
 use super::{BoxType, YOLOPredsFormat};
@@ -311,9 +311,9 @@ impl Model for YOLO {
     }
 
     fn run(&mut self, engines: &mut Engines, xs: Self::Input<'_>) -> Result<Vec<crate::Y>> {
-        let ys = elapsed_module!("YOLO", "preprocess", self.processor.process(xs)?);
-        let ys = elapsed_module!("YOLO", "inference", engines.run(&Module::Model, &ys)?);
-        elapsed_module!("YOLO", "postprocess", self.postprocess(&ys))
+        let ys = crate::perf!("YOLO::preprocess", self.processor.process(xs)?);
+        let ys = crate::perf!("YOLO::inference", engines.run(&Module::Model, &ys)?);
+        crate::perf!("YOLO::postprocess", self.postprocess(&ys))
     }
 }
 

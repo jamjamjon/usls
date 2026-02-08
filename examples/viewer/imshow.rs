@@ -58,6 +58,8 @@ fn main() -> anyhow::Result<()> {
             viewer.write_video_frame(&images[0])?;
         }
     }
+    usls::perf_chart();
+    usls::perf_dashboard();
 
     Ok(())
 }

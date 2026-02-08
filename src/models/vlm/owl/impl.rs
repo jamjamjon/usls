@@ -4,8 +4,8 @@ use ndarray::{s, Axis};
 use rayon::prelude::*;
 
 use crate::{
-    elapsed_module, inputs, Config, DynConf, Engine, Engines, FromConfig, Hbb, Image,
-    ImageProcessor, Model, Module, TextProcessor, Xs, X, Y,
+    inputs, Config, DynConf, Engine, Engines, FromConfig, Hbb, Image, ImageProcessor, Model,
+    Module, TextProcessor, Xs, X, Y,
 };
 
 /// OwlViT v2 model for open-vocabulary object detection.
@@ -96,10 +96,9 @@ impl Model for OWLv2 {
 
     fn run(&mut self, engines: &mut Engines, images: Self::Input<'_>) -> Result<Vec<Y>> {
         let image_embeddings =
-            elapsed_module!("OWLv2", "preprocess", self.image_processor.process(images)?);
-        let ys = elapsed_module!(
-            "OWLv2",
-            "inference",
+            crate::perf!("OWLv2::preprocess", self.image_processor.process(images)?);
+        let ys = crate::perf!(
+            "OWLv2::inference",
             engines.run(
                 &Module::Model,
                 inputs![
@@ -109,7 +108,7 @@ impl Model for OWLv2 {
                 ]?
             )?
         );
-        elapsed_module!("OWLv2", "postprocess", self.postprocess(&ys))
+        crate::perf!("OWLv2::postprocess", self.postprocess(&ys))
     }
 }
 

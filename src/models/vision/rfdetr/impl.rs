@@ -4,8 +4,8 @@ use ndarray::{s, Axis};
 use rayon::prelude::*;
 
 use crate::{
-    elapsed_module, Config, DynConf, Engine, Engines, FromConfig, Hbb, Image, ImageProcessor, Mask,
-    Model, Module, Ops, ResizeModeType, Xs, Y,
+    Config, DynConf, Engine, Engines, FromConfig, Hbb, Image, ImageProcessor, Mask, Model, Module,
+    Ops, ResizeModeType, Xs, Y,
 };
 
 /// RF-DETR: SOTA Real-Time Object Detection Model
@@ -67,9 +67,9 @@ impl Model for RFDETR {
     }
 
     fn run(&mut self, engines: &mut Engines, images: Self::Input<'_>) -> Result<Vec<Y>> {
-        let y = elapsed_module!("RFDETR", "preprocess", self.processor.process(images)?);
-        let ys = elapsed_module!("RFDETR", "inference", engines.run(&Module::Model, &y)?);
-        elapsed_module!("RFDETR", "postprocess", self.postprocess(&ys))
+        let y = crate::perf!("RFDETR::preprocess", self.processor.process(images)?);
+        let ys = crate::perf!("RFDETR::inference", engines.run(&Module::Model, &y)?);
+        crate::perf!("RFDETR::postprocess", self.postprocess(&ys))
     }
 }
 

@@ -44,7 +44,7 @@ fn main() -> anyhow::Result<()> {
         }
     }?;
 
-    usls::perf(false);
+    usls::perf_chart();
 
     Ok(())
 }

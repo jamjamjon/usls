@@ -5,8 +5,8 @@ use rayon::prelude::*;
 use std::fmt::Write;
 
 use crate::{
-    elapsed_module, inputs, Config, DynConf, Engine, Engines, FromConfig, Hbb, Image,
-    ImageProcessor, Model, Module, TextProcessor, Xs, X, Y,
+    inputs, Config, DynConf, Engine, Engines, FromConfig, Hbb, Image, ImageProcessor, Model,
+    Module, TextProcessor, Xs, X, Y,
 };
 
 /// Grounding DINO model for open-vocabulary object detection.
@@ -119,9 +119,8 @@ impl Model for GroundingDINO {
 
     fn run(&mut self, engines: &mut Engines, images: Self::Input<'_>) -> Result<Vec<Y>> {
         // Preprocess
-        let image_embeddings = elapsed_module!(
-            "GroundingDINO",
-            "preprocess",
+        let image_embeddings = crate::perf!(
+            "GroundingDINO::preprocess",
             self.image_processor.process(images)?
         );
 
@@ -136,9 +135,8 @@ impl Model for GroundingDINO {
         let position_ids = position_ids.insert_axis(0)?.repeat(0, self.batch)?;
 
         // Inference
-        let ys = elapsed_module!(
-            "GroundingDINO",
-            "inference",
+        let ys = crate::perf!(
+            "GroundingDINO::inference",
             engines.run(
                 &Module::Model,
                 inputs![
@@ -151,7 +149,7 @@ impl Model for GroundingDINO {
         );
 
         // Postprocess
-        elapsed_module!("GroundingDINO", "postprocess", self.postprocess(&ys))
+        crate::perf!("GroundingDINO::postprocess", self.postprocess(&ys))
     }
 }
 

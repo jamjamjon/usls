@@ -10,8 +10,8 @@ use std::num::NonZeroUsize;
 use std::sync::Arc;
 
 use crate::{
-    elapsed_module, inputs, Config, DynConf, Engine, Engines, FromConfig, Hbb, Image,
-    ImageProcessor, Mask, Model, Module, Ops, Sam3Prompt, TextProcessor, Xs, X, Y,
+    inputs, Config, DynConf, Engine, Engines, FromConfig, Hbb, Image, ImageProcessor, Mask, Model,
+    Module, Ops, Sam3Prompt, TextProcessor, Xs, X, Y,
 };
 
 #[derive(Builder, Debug)]
@@ -165,20 +165,18 @@ impl Sam3Image {
     }
 
     fn encode_images(&mut self, engines: &mut Engines, xs: &[Image]) -> Result<[DynValue; 4]> {
-        let xs_ = elapsed_module!(
-            "Sam3Image",
-            "encode-images/preprocess",
+        let xs_ = crate::perf!(
+            "Sam3Image::encode-images/preprocess",
             self.image_processor.process(xs)?
         );
-        let ys = elapsed_module!(
-            "Sam3Image",
-            "encode-images/vision-encoder",
+        let ys = crate::perf!(
+            "Sam3Image::encode-images/vision-encoder",
             engines.run(&Module::VisualEncoder, &xs_)?
         );
 
         // Keep the batched tensors as-is (batch dimension == xs.len()).
         // This is critical for efficiently decoding few-images + many-prompts.
-        elapsed_module!("Sam3Image", "encode-images/fpn", {
+        crate::perf!("Sam3Image::encode-images/fpn", {
             let out = ys.into_inner();
             let fpn: Vec<DynValue> = (0..4)
                 .map(|i| {
@@ -217,9 +215,8 @@ impl Sam3Image {
                     .flat_map(|e| e.get_attention_mask().iter().map(|&m| m as f32))
                     .collect(),
             )?;
-            let ys = elapsed_module!(
-                "Sam3Image",
-                "textual-encoder",
+            let ys = crate::perf!(
+                "Sam3Image::textual-encoder",
                 engines.run(&Module::TextualEncoder, inputs![ids, mask]?)?
             );
 
@@ -341,14 +338,10 @@ impl Sam3Image {
         }
 
         // encode images
-        let fpn = elapsed_module!(
-            "Sam3Image",
-            "encode-images",
-            self.encode_images(engines, xs)?
-        );
+        let fpn = crate::perf!("Sam3Image::encode-images", self.encode_images(engines, xs)?);
 
         // encode all text prompts
-        let texts: Vec<_> = elapsed_module!("Sam3Image", "encode-text-prompts", {
+        let texts: Vec<_> = crate::perf!("Sam3Image::encode-text-prompts", {
             // update class names
             self.names = prompts.iter().map(|p| p.text.clone()).collect();
 
@@ -373,7 +366,7 @@ impl Sam3Image {
                 .collect()
         });
 
-        elapsed_module!("Sam3Image", "decode-all-images", {
+        crate::perf!("Sam3Image::decode-all-images", {
             let infos = self.image_processor.images_transform_info().to_vec();
 
             let (mh, mw) = (
@@ -388,7 +381,7 @@ impl Sam3Image {
             if batch == 1 {
                 let info = &infos[0];
                 let (sx, sy) = (mw / info.width_src as f32, mh / info.height_src as f32);
-                elapsed_module!("Sam3Image", "decode-all-prompts", {
+                crate::perf!("Sam3Image::decode-all-prompts", {
                     for (pi, prompt) in prompts.iter().enumerate() {
                         let (text_feat, text_mask) = &texts[pi];
                         let (boxes, labels) = if prompt.should_use_geometry() {
@@ -410,9 +403,8 @@ impl Sam3Image {
                             )
                         };
 
-                        let ys = elapsed_module!(
-                            "Sam3Image",
-                            "decoder",
+                        let ys = crate::perf!(
+                            "Sam3Image::decoder",
                             engines.run(
                                 &Module::Decoder,
                                 inputs![
@@ -428,9 +420,8 @@ impl Sam3Image {
                             )?
                         );
 
-                        let r = elapsed_module!(
-                            "Sam3Image",
-                            "postprocess",
+                        let r = crate::perf!(
+                            "Sam3Image::postprocess",
                             self.postprocess(
                                 &ys,
                                 info.height_src as _,
@@ -449,7 +440,7 @@ impl Sam3Image {
 
             // Few-images + many-prompts path:
             // Run decoder once per prompt with batch==#images.
-            elapsed_module!("Sam3Image", "decode-all-prompts", {
+            crate::perf!("Sam3Image::decode-all-prompts", {
                 for (pi, prompt) in prompts.iter().enumerate() {
                     let (text_feat, text_mask) = &texts[pi];
 
@@ -479,9 +470,8 @@ impl Sam3Image {
                         )
                     };
 
-                    let ys = elapsed_module!(
-                        "Sam3Image",
-                        "decoder",
+                    let ys = crate::perf!(
+                        "Sam3Image::decoder",
                         engines.run(
                             &Module::Decoder,
                             inputs![
@@ -498,9 +488,8 @@ impl Sam3Image {
                     );
 
                     for (img_idx, info) in infos.iter().enumerate() {
-                        let r = elapsed_module!(
-                            "Sam3Image",
-                            "postprocess",
+                        let r = crate::perf!(
+                            "Sam3Image::postprocess",
                             self.postprocess(
                                 &ys,
                                 info.height_src as _,

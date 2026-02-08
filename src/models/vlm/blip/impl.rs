@@ -3,8 +3,8 @@ use anyhow::Result;
 use ndarray::{s, Axis};
 
 use crate::{
-    elapsed_module, inputs, Config, Engine, Engines, FromConfig, Image, ImageProcessor,
-    LogitsSampler, Model, Module, TextProcessor, X, Y,
+    inputs, Config, Engine, Engines, FromConfig, Image, ImageProcessor, LogitsSampler, Model,
+    Module, TextProcessor, X, Y,
 };
 
 /// BLIP: Bootstrapping Language-Image Pre-training
@@ -69,14 +69,12 @@ impl Model for Blip {
     }
 
     fn run(&mut self, engines: &mut Engines, (images, text): Self::Input<'_>) -> Result<Vec<Y>> {
-        let image_embeds = elapsed_module!(
-            "BLIP",
-            "encode_images",
+        let image_embeds = crate::perf!(
+            "BLIP::encode_images",
             self.encode_images_internal(engines, images)?
         );
-        elapsed_module!(
-            "BLIP",
-            "generate",
+        crate::perf!(
+            "BLIP::generate",
             self.generate_internal(engines, &image_embeds, text)
         )
     }

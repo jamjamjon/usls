@@ -1,25 +1,5 @@
-#![allow(dead_code)]
 use std::collections::HashMap;
 use std::time::Duration;
-
-/// A macro to measure the execution time of a given code block and optionally log the result.
-#[macro_export]
-#[doc(hidden)]
-macro_rules! elapsed {
-    ($code:expr) => {{
-        let t = std::time::Instant::now();
-        let ret = $code;
-        let duration = t.elapsed();
-        (duration, ret)
-    }};
-    ($label:expr, $ts:expr, $code:expr) => {{
-        let t = std::time::Instant::now();
-        let ret = $code;
-        let duration = t.elapsed();
-        $ts.push($label, duration);
-        ret
-    }};
-}
 
 /// Time series collection for performance measurement and profiling.
 #[derive(aksr::Builder, Debug, Default, Clone, PartialEq)]

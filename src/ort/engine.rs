@@ -16,8 +16,8 @@ use std::{
 use tracing::{info, warn};
 
 use crate::{
-    elapsed_global, human_bytes_binary, onnx, DType, Device, EngineInputs, FromConfig, Iiix,
-    MinOptMax, ORTConfig, Ops, XAny, Xs, X,
+    human_bytes_binary, onnx, DType, Device, EngineInputs, FromConfig, Iiix, MinOptMax, ORTConfig,
+    Ops, XAny, Xs, X,
 };
 
 /// ONNX Runtime tensor attributes containing names, data types, dimensions, and index mapping.
@@ -104,7 +104,6 @@ impl FromConfig for Engine {
         let span = tracing::info_span!("engine_init", spec = %config.spec);
         let _enter = span.enter();
 
-        let name = format!("[{}] ort_initialization", config.spec);
         let mut params: usize = 0;
         let mut wbmems: usize = 0;
         let metadata: ONNXMetadata;
@@ -113,7 +112,7 @@ impl FromConfig for Engine {
         let inputs_minoptmax: Vec<Vec<MinOptMax>>;
         let session: Session;
 
-        elapsed_global!(&name, {
+        crate::perf!(&format!("ORT Engine ({})::init", config.spec), {
             let proto = Self::load_onnx(&config.file)?;
             let graph = match &proto.graph {
                 Some(graph) => graph,
@@ -236,8 +235,7 @@ impl Engine {
             // run with alignment (uses internal conversion)
             for i in 0..num_dry_run {
                 pb.inc(1);
-                let name = format!("[{}] ort_dry_run_{}", self.spec, i);
-                elapsed_global!(&name, {
+                crate::perf!(&format!("ORT Engine ({})::dry-run-{}", self.spec, i), {
                     let _ = self.run(&xs)?;
                 });
             }
@@ -273,7 +271,7 @@ impl Engine {
                     // XAny path: supports zero-copy CUDA inputs
                     // Note: CUDA outputs will be transferred to CPU in Xs::get_actual()
                     let inputs: Vec<SessionInputValue<'_>> =
-                        elapsed_global!(&format!("[{}] ort_preprocessing", self.spec), {
+                        crate::perf!(&format!("ORT Engine ({})::preprocess", self.spec), {
                             let mut result = Vec::with_capacity(tensors.len());
                             for (tensor, dtype) in tensors.iter().zip(self.inputs.dtypes.iter()) {
                                 match tensor {
@@ -299,8 +297,8 @@ impl Engine {
                             }
                             result
                         });
-                    elapsed_global!(
-                        &format!("[{}] ort_inference", self.spec),
+                    crate::perf!(
+                        &format!("ORT Engine ({})::inference", self.spec),
                         session.run(&inputs[..])?
                     )
                 }
@@ -314,7 +312,7 @@ impl Engine {
                     if all_f32_standard {
                         // Fast path: zero-copy for all inputs
                         let inputs: Vec<SessionInputValue<'_>> =
-                            elapsed_global!(&format!("[{}] ort_preprocessing", self.spec), {
+                            crate::perf!(&format!("ORT Engine ({})::preprocess", self.spec), {
                                 xs.iter()
                                     .map(|x| {
                                         let tensor_ref =
@@ -324,22 +322,22 @@ impl Engine {
                                     })
                                     .collect()
                             });
-                        elapsed_global!(
-                            &format!("[{}] ort_inference", self.spec),
+                        crate::perf!(
+                            &format!("ORT Engine ({})::inference", self.spec),
                             session.run(&inputs[..])?
                         )
                     } else {
                         // Slow path: dtype alignment needed
                         let aligned: Vec<SessionInputValue<'static>> =
-                            elapsed_global!(&format!("[{}] ort_preprocessing", self.spec), {
+                            crate::perf!(&format!("ORT Engine ({})::preprocess", self.spec), {
                                 let mut result = Vec::with_capacity(xs.len());
                                 for (x, dtype) in xs.iter().zip(self.inputs.dtypes.iter()) {
                                     result.push(Self::preprocess(x, dtype)?.into());
                                 }
                                 result
                             });
-                        elapsed_global!(
-                            &format!("[{}] ort_inference", self.spec),
+                        crate::perf!(
+                            &format!("ORT Engine ({})::inference", self.spec),
                             session.run(&aligned[..])?
                         )
                     }
@@ -357,14 +355,14 @@ impl Engine {
 
                         if !any_needs_convert {
                             // Fast path: all dtypes match, use array directly without allocation
-                            elapsed_global!(
-                                &format!("[{}] ort_inference", self.spec),
+                            crate::perf!(
+                                &format!("ORT Engine ({})::inference", self.spec),
                                 session.run(&input_values[..])?
                             )
                         } else {
                             // Slow path: need dtype conversion
-                            let aligned: Vec<SessionInputValue<'v>> = elapsed_global!(
-                                &format!("[{}] ort_preprocessing", self.spec),
+                            let aligned: Vec<SessionInputValue<'v>> = crate::perf!(
+                                &format!("ORT Engine ({})::preprocess", self.spec),
                                 {
                                     let mut xs_ = Vec::with_capacity(input_values.len());
                                     for (input_value, dtype_expected) in
@@ -405,8 +403,8 @@ impl Engine {
                                 }
                             );
 
-                            elapsed_global!(
-                                &format!("[{}] ort_inference", self.spec),
+                            crate::perf!(
+                                &format!("ORT Engine ({})::inference", self.spec),
                                 session.run(&aligned[..])?
                             )
                         }
@@ -423,14 +421,14 @@ impl Engine {
 
                         if !any_needs_convert {
                             // Fast path: all dtypes match
-                            elapsed_global!(
-                                &format!("[{}] ort_inference", self.spec),
+                            crate::perf!(
+                                &format!("ORT Engine ({})::inference", self.spec),
                                 session.run(input_values)?
                             )
                         } else {
                             // Slow path: need dtype conversion
-                            let aligned: Vec<SessionInputValue<'i>> = elapsed_global!(
-                                &format!("[{}] ort_preprocessing", self.spec),
+                            let aligned: Vec<SessionInputValue<'i>> = crate::perf!(
+                                &format!("ORT Engine ({})::preprocess", self.spec),
                                 {
                                     let mut xs_ = Vec::with_capacity(input_values.len());
                                     for (input_value, dtype_expected) in
@@ -469,14 +467,14 @@ impl Engine {
                                 }
                             );
 
-                            elapsed_global!(
-                                &format!("[{}] ort_inference", self.spec),
+                            crate::perf!(
+                                &format!("ORT Engine ({})::inference", self.spec),
                                 session.run(&aligned[..])?
                             )
                         }
                     }
-                    input_values => elapsed_global!(
-                        &format!("[{}] ort_inference", self.spec),
+                    input_values => crate::perf!(
+                        &format!("ORT Engine ({})::inference", self.spec),
                         session.run(input_values)?
                     ),
                 },
@@ -1502,7 +1500,7 @@ impl Engine {
     }
 
     pub fn profile(&self) {
-        crate::global_ts_manager().print_global_summary();
+        crate::perf_chart();
     }
 
     pub fn info(&self) {

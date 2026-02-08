@@ -21,6 +21,9 @@ pub mod models;
 pub mod ort;
 
 #[doc(hidden)]
+pub mod perf;
+
+#[doc(hidden)]
 pub mod processor;
 
 #[doc(hidden)]
@@ -43,7 +46,8 @@ pub mod annotator;
 
 #[doc(inline)]
 pub use {
-    config::*, dataloader::*, models::*, ort::*, processor::*, results::*, tensor::*, utils::*,
+    config::*, dataloader::*, models::*, ort::*, perf::*, processor::*, results::*, tensor::*,
+    utils::*,
 };
 
 #[cfg(feature = "annotator")]

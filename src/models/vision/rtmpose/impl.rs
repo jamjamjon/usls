@@ -5,8 +5,8 @@ use rayon::prelude::*;
 use std::f32::consts::PI;
 
 use crate::{
-    elapsed_module, Config, DynConf, Engine, Engines, FromConfig, Hbb, Image, ImageProcessor,
-    Keypoint, Model, Module, XAny, Xs, X, Y,
+    Config, DynConf, Engine, Engines, FromConfig, Hbb, Image, ImageProcessor, Keypoint, Model,
+    Module, XAny, Xs, X, Y,
 };
 
 struct CentersAndScales {
@@ -74,9 +74,9 @@ impl Model for RTMPose {
     fn run(&mut self, engines: &mut Engines, input: Self::Input<'_>) -> Result<Vec<Y>> {
         let images = input;
         let (xs, centers_and_scales) =
-            elapsed_module!("RTMPose", "preprocess", self.preprocess(images)?);
-        let ys = elapsed_module!("RTMPose", "inference", engines.run(&Module::Model, &xs)?);
-        let y = elapsed_module!("RTMPose", "postprocess", {
+            crate::perf!("RTMPose::preprocess", self.preprocess(images)?);
+        let ys = crate::perf!("RTMPose::inference", engines.run(&Module::Model, &xs)?);
+        let y = crate::perf!("RTMPose::postprocess", {
             self.postprocess(&ys, centers_and_scales)?
         });
 

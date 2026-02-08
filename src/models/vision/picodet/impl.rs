@@ -4,8 +4,8 @@ use ndarray::Axis;
 use rayon::prelude::*;
 
 use crate::{
-    elapsed_module, inputs, Config, DynConf, Engine, Engines, FromConfig, Hbb, Image,
-    ImageProcessor, Model, Module, Xs, X, Y,
+    inputs, Config, DynConf, Engine, Engines, FromConfig, Hbb, Image, ImageProcessor, Model,
+    Module, Xs, X, Y,
 };
 
 /// PP-PicoDet: A Better Real-Time Object Detector
@@ -60,7 +60,7 @@ impl Model for PicoDet {
     }
 
     fn run(&mut self, engines: &mut Engines, images: Self::Input<'_>) -> Result<Vec<Y>> {
-        let x1 = elapsed_module!("PicoDet", "preprocess", self.processor.process(images)?);
+        let x1 = crate::perf!("PicoDet::preprocess", self.processor.process(images)?);
         let x2: X = self
             .processor
             .images_transform_info
@@ -68,12 +68,11 @@ impl Model for PicoDet {
             .map(|x| vec![x.height_scale, x.width_scale])
             .collect::<Vec<_>>()
             .try_into()?;
-        let ys = elapsed_module!(
-            "PicoDet",
-            "inference",
+        let ys = crate::perf!(
+            "PicoDet::inference",
             engines.run(&Module::Model, inputs![&x1, x2]?)?
         );
-        elapsed_module!("PicoDet", "postprocess", self.postprocess(&ys))
+        crate::perf!("PicoDet::postprocess", self.postprocess(&ys))
     }
 }
 

@@ -61,7 +61,7 @@ fn main() -> Result<()> {
                 .display(),
         ))?;
     }
-    usls::perf(false);
+    usls::perf_chart();
 
     Ok(())
 }

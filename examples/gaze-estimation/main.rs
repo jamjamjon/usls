@@ -60,7 +60,7 @@ fn main() -> Result<()> {
             run::<YOLO, MobileGaze>(yolo_config, mobile_gaze_config, &cli, &annotator)
         }
     }?;
-    usls::perf(false);
+    usls::perf_chart();
 
     Ok(())
 }
