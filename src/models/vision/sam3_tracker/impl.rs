@@ -3,8 +3,8 @@ use anyhow::Result;
 use ndarray::{s, Array4};
 
 use crate::{
-    elapsed_module, Config, Engine, Engines, FromConfig, Image, ImageProcessor, Mask, Model,
-    Module, Ops, Sam3Prompt, X, Y,
+    Config, Engine, Engines, FromConfig, Image, ImageProcessor, Mask, Model, Module, Ops,
+    Sam3Prompt, X, Y,
 };
 
 /// Sam3Tracker - Segment Anything Model 3 with point and box prompts.
@@ -57,9 +57,8 @@ impl Sam3Tracker {
             return Ok(vec![]);
         }
 
-        let image_embeddings = elapsed_module!(
-            "Sam3Tracker",
-            "vision-encoder",
+        let image_embeddings = crate::perf!(
+            "Sam3Tracker::vision-encoder",
             self.encode_images(engines, xs)?
         );
 
@@ -225,9 +224,8 @@ impl Sam3Tracker {
             emb1.clone(),
             emb2.clone(),
         ];
-        let decoder_outputs = elapsed_module!(
-            "Sam3Tracker",
-            "decoder",
+        let decoder_outputs = crate::perf!(
+            "Sam3Tracker::decoder",
             engines.run(&Module::Decoder, &args)?
         );
 

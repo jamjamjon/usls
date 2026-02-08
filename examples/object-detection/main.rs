@@ -91,7 +91,7 @@ fn main() -> Result<()> {
             run::<DFINE>(config, &cli.source, &annotator)
         }
     }?;
-    usls::perf(false);
+    usls::perf_chart();
 
     Ok(())
 }

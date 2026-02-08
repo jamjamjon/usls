@@ -4,8 +4,8 @@ use ndarray::Axis;
 use rayon::prelude::*;
 
 use crate::{
-    elapsed_module, Config, DynConf, Engine, Engines, FromConfig, Hbb, Image, ImageProcessor, Mask,
-    Model, Module, Obb, Ops, Polygon, Xs, X, Y,
+    Config, DynConf, Engine, Engines, FromConfig, Hbb, Image, ImageProcessor, Mask, Model, Module,
+    Obb, Ops, Polygon, Xs, X, Y,
 };
 
 /// DB (Differentiable Binarization) model for text detection.
@@ -69,9 +69,9 @@ impl Model for DB {
     }
 
     fn run(&mut self, engines: &mut Engines, images: Self::Input<'_>) -> Result<Vec<Y>> {
-        let x = elapsed_module!("DB", "preprocess", self.processor.process(images)?);
-        let ys = elapsed_module!("DB", "inference", engines.run(&Module::Model, &x)?);
-        elapsed_module!("DB", "postprocess", self.postprocess(&ys))
+        let x = crate::perf!("DB::preprocess", self.processor.process(images)?);
+        let ys = crate::perf!("DB::inference", engines.run(&Module::Model, &x)?);
+        crate::perf!("DB::postprocess", self.postprocess(&ys))
     }
 }
 

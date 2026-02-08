@@ -4,8 +4,8 @@ use ndarray::{s, Axis};
 use rayon::prelude::*;
 
 use crate::{
-    elapsed_module, inputs, Config, DynConf, Engine, Engines, FromConfig, Hbb, Image,
-    ImageProcessor, Model, Module, ResizeModeType, Xs, X, Y,
+    inputs, Config, DynConf, Engine, Engines, FromConfig, Hbb, Image, ImageProcessor, Model,
+    Module, ResizeModeType, Xs, X, Y,
 };
 
 /// RT-DETR: Real-Time Detection Transformer
@@ -72,16 +72,15 @@ impl Model for RTDETR {
     }
 
     fn run(&mut self, engines: &mut Engines, images: Self::Input<'_>) -> Result<Vec<Y>> {
-        let x1 = elapsed_module!("RTDETR", "preprocess", self.processor.process(images)?);
+        let x1 = crate::perf!("RTDETR::preprocess", self.processor.process(images)?);
         let x2 = X::from(vec![self.height as f32, self.width as f32])
             .insert_axis(0)?
             .repeat(0, self.batch)?;
-        let ys = elapsed_module!(
-            "RTDETR",
-            "inference",
+        let ys = crate::perf!(
+            "RTDETR::inference",
             engines.run(&Module::Model, inputs![&x1, x2]?)?
         );
-        elapsed_module!("RTDETR", "postprocess", self.postprocess(&ys))
+        crate::perf!("RTDETR::postprocess", self.postprocess(&ys))
     }
 }
 

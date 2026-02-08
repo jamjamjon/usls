@@ -4,8 +4,8 @@ use ndarray::{s, Axis};
 use rayon::prelude::*;
 
 use crate::{
-    elapsed_module, inputs, models::vlm::florence2::Quantizer, Config, Engine, FromConfig, Hbb,
-    Image, ImageProcessor, LogitsSampler, Polygon, Scale, Task, TextProcessor, X, Y,
+    inputs, models::vlm::florence2::Quantizer, Config, Engine, FromConfig, Hbb, Image,
+    ImageProcessor, LogitsSampler, Polygon, Scale, Task, TextProcessor, X, Y,
 };
 
 /// Florence2: Unified Vision-Language Model for Various Tasks
@@ -139,7 +139,7 @@ impl Florence2 {
     }
 
     pub fn forward(&mut self, xs_visual: &[Image], x_textual: &Task) -> Result<Vec<Y>> {
-        let visual_embeddings = elapsed_module!("Florence2", "visual-encode", {
+        let visual_embeddings = crate::perf!("Florence2::visual-encode", {
             let xs = self.image_processor.process(xs_visual)?;
             self.batch = xs_visual.len(); // update
             let ys = self.vision_encoder.run(inputs![&xs]?)?;
@@ -149,15 +149,15 @@ impl Florence2 {
             )
         });
 
-        let textual_embedding = elapsed_module!("Florence2", "textual-encode", {
+        let textual_embedding = crate::perf!("Florence2::textual-encode", {
             self.encode_text(x_textual, xs_visual)?
         });
 
-        let generated = elapsed_module!("Florence2", "generate-then-decode", {
+        let generated = crate::perf!("Florence2::generate-then-decode", {
             self.generate_then_decode(&visual_embeddings, &textual_embedding)?
         });
 
-        let ys = elapsed_module!("Florence2", "postprocess", {
+        let ys = crate::perf!("Florence2::postprocess", {
             self.postprocess(&generated, xs_visual, x_textual)?
         });
 

@@ -174,11 +174,9 @@ impl Annotator {
     /// # }
     /// ```
     pub fn annotate<T: Drawable>(&self, image: &Image, drawable: &T) -> anyhow::Result<Image> {
-        crate::elapsed_annotator!("annotate_total", {
-            let mut rgba8 = crate::elapsed_annotator!("RgbImage->RgbaImage", image.to_rgba8());
-            self.draw_inplace(&mut rgba8, drawable)?;
-            Ok(rgba8.into())
-        })
+        let mut rgba8 = crate::perf!("Annotator::rgb -> rgba", image.to_rgba8());
+        self.draw_inplace(&mut rgba8, drawable)?;
+        Ok(rgba8.into())
     }
 
     pub fn draw_inplace<T: Drawable>(
@@ -186,8 +184,8 @@ impl Annotator {
         rgba8: &mut image::RgbaImage,
         drawable: &T,
     ) -> anyhow::Result<()> {
-        let ctx = crate::elapsed_annotator!("context_creation", self.create_context());
-        crate::elapsed_annotator!("drawable_render", drawable.draw(&ctx, rgba8)?);
+        let ctx = crate::perf!("Annotator::create-ctx", self.create_context());
+        crate::perf!("Annotator::render", drawable.draw(&ctx, rgba8)?);
         Ok(())
     }
 

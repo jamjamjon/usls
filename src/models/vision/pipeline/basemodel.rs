@@ -2,8 +2,8 @@ use anyhow::Result;
 use ort::tensor::TensorElementType;
 
 use crate::{
-    elapsed_module, Config, Device, Engine, Engines, FromConfig, Image, ImageProcessor, Model,
-    Module, Scale, Task, Version, X,
+    Config, Device, Engine, Engines, FromConfig, Image, ImageProcessor, Model, Module, Scale, Task,
+    Version, X,
 };
 
 pub type BaseModelVisual = BaseImageModel;
@@ -31,10 +31,9 @@ pub struct BaseImageModel {
 impl BaseImageModel {
     /// Complete encoding pipeline: preprocess + inference
     pub fn encode(&mut self, engines: &mut Engines, xs: &[Image]) -> Result<X> {
-        let xs = elapsed_module!("BaseImageModel", "preprocess", self.processor.process(xs)?);
-        let y = elapsed_module!(
-            "BaseImageModel",
-            "inference",
+        let xs = crate::perf!("BaseImageModel::preprocess", self.processor.process(xs)?);
+        let y = crate::perf!(
+            "BaseImageModel::inference",
             engines
                 .run(&Module::Model, &xs)?
                 .get::<f32>(0)

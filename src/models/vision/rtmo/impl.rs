@@ -4,8 +4,8 @@ use ndarray::Axis;
 use rayon::prelude::*;
 
 use crate::{
-    elapsed_module, Config, DynConf, Engine, Engines, FromConfig, Hbb, Image, ImageProcessor,
-    Keypoint, Model, Module, ResizeModeType, Xs, X, Y,
+    Config, DynConf, Engine, Engines, FromConfig, Hbb, Image, ImageProcessor, Keypoint, Model,
+    Module, ResizeModeType, Xs, X, Y,
 };
 
 /// RTMO: Real-Time Multi-Object Detection
@@ -64,9 +64,9 @@ impl Model for RTMO {
     }
 
     fn run(&mut self, engines: &mut Engines, images: Self::Input<'_>) -> Result<Vec<Y>> {
-        let x = elapsed_module!("RTMO", "preprocess", self.processor.process(images)?);
-        let ys = elapsed_module!("RTMO", "inference", engines.run(&Module::Model, &x)?);
-        elapsed_module!("RTMO", "postprocess", self.postprocess(&ys))
+        let x = crate::perf!("RTMO::preprocess", self.processor.process(images)?);
+        let ys = crate::perf!("RTMO::inference", engines.run(&Module::Model, &x)?);
+        crate::perf!("RTMO::postprocess", self.postprocess(&ys))
     }
 }
 

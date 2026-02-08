@@ -9,7 +9,7 @@ use std::num::NonZeroUsize;
 use std::sync::Arc;
 
 use crate::{
-    elapsed_module, inputs,
+    inputs,
     models::vision::{BoxType, YOLOPredsFormat, YOLO},
     Config, DynConf, Engine, Engines, FromConfig, Hbb, Image, ImageProcessor, Model, Module,
     NmsOps, ResizeModeType, TextProcessor, Version, XView, Xs, YOLOEPrompt, X, Y,
@@ -150,11 +150,11 @@ impl Model for YOLOEPromptBased {
     fn run(&mut self, engines: &mut Engines, (images, prompt): Self::Input<'_>) -> Result<Vec<Y>> {
         // Determine prompt type and get/compute embedding
         let (embedding, nc) = if prompt.is_textual() {
-            elapsed_module!("YOLOE-Prompt-Based", "encode-textual-prompt", {
+            crate::perf!("YOLOE-Prompt-Based::encode-textual-prompt", {
                 self.get_or_compute_textual_embedding(engines, prompt)?
             })
         } else if prompt.is_visual() {
-            elapsed_module!("YOLOE-Prompt-Based", "encode-visual-prompt", {
+            crate::perf!("YOLOE-Prompt-Based::encode-visual-prompt", {
                 self.get_or_compute_visual_embedding(engines, prompt)?
             })
         } else {
@@ -164,13 +164,12 @@ impl Model for YOLOEPromptBased {
         // Update nc for visual prompts (can vary per prompt)
         self.nc = nc;
 
-        let xs_images = elapsed_module!(
-            "YOLOE-Prompt-Based",
-            "preprocess",
+        let xs_images = crate::perf!(
+            "YOLOE-Prompt-Based::preprocess",
             self.processor.process(images)?
         );
 
-        let ys = elapsed_module!("YOLOE-Prompt-Based", "inference", {
+        let ys = crate::perf!("YOLOE-Prompt-Based::inference", {
             let dims = embedding.dims();
 
             if prompt.is_textual() {
@@ -224,7 +223,7 @@ impl Model for YOLOEPromptBased {
             }
         });
 
-        elapsed_module!("YOLOE-Prompt-Based", "postprocess", self.postprocess(&ys))
+        crate::perf!("YOLOE-Prompt-Based::postprocess", self.postprocess(&ys))
     }
 }
 

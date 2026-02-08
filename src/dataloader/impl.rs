@@ -184,82 +184,99 @@ impl TryFrom<&str> for DataLoader {
 impl DataLoader {
     /// Create DataLoader from a unified source.
     pub fn new<S: Into<Source>>(source: S) -> Result<Self> {
-        let source = source.into();
+        crate::perf!("DataLoader::new", {
+            let source = source.into();
 
-        let mut nfi = 0;
-        let mut nfv = 0;
+            let mut nfi = 0;
+            #[allow(unused_mut)]
+            let mut nfv = 0;
 
-        for task in source.tasks() {
-            match task {
-                SourceType::Image(_) | SourceType::DynamicImage(_) | SourceType::ImageUrl(_) => {
-                    nfi += 1;
-                }
-                #[cfg(feature = "video")]
-                SourceType::Video(p) => {
-                    if let Ok(decoder) = video_rs::decode::Decoder::new(p.clone()) {
-                        match decoder.frames() {
-                            Ok(0) => {
-                                tracing::warn!(
-                                    "Video decoder returned 0 frames for {:?}, treating as stream",
-                                    p
+            for task in source.tasks() {
+                match task {
+                    SourceType::Image(_)
+                    | SourceType::DynamicImage(_)
+                    | SourceType::ImageUrl(_) => {
+                        nfi += 1;
+                    }
+                    #[cfg(not(feature = "video"))]
+                    SourceType::Video(x) => {
+                        anyhow::bail!(
+                            "Video support requires the `video` feature flag. Source: {x:?}",
+                        )
+                    }
+                    #[cfg(not(feature = "video"))]
+                    SourceType::Stream(x) => {
+                        anyhow::bail!(
+                            "Stream support requires the `video` feature flag. Source: {x:?}",
+                        )
+                    }
+                    #[cfg(not(feature = "video"))]
+                    SourceType::Webcam(x) => {
+                        anyhow::bail!(
+                            "Webcam support requires the `video` feature flag. Source: {x:?}",
+                        )
+                    }
+                    #[cfg(feature = "video")]
+                    SourceType::Video(p) => {
+                        if let Ok(decoder) = video_rs::decode::Decoder::new(p.clone()) {
+                            match decoder.frames() {
+                                Ok(0) => {
+                                    tracing::warn!(
+                                    "Video decoder returned 0 frames for {p:?}, treating as stream",
                                 );
-                                nfv = u64::MAX;
-                            }
-                            Err(e) => {
-                                tracing::warn!(
-                                    "Failed to get frame count for {:?}: {}, treating as stream",
-                                    p,
-                                    e
+                                    nfv = u64::MAX;
+                                }
+                                Err(e) => {
+                                    tracing::warn!(
+                                    "Failed to get frame count for {p:?}: {e}, treating as stream",
                                 );
-                                nfv = u64::MAX;
-                            }
-                            Ok(x) => {
-                                tracing::info!("Video {:?} has {} frames", p, x);
-                                if nfv != u64::MAX {
-                                    nfv += x;
+                                    nfv = u64::MAX;
+                                }
+                                Ok(x) => {
+                                    tracing::info!("Video {p:?} has {x} frames");
+                                    if nfv != u64::MAX {
+                                        nfv += x;
+                                    }
                                 }
                             }
+                        } else {
+                            tracing::warn!("Failed to initialize video decoder for {p:?}, treating as 1 static item");
+                            nfv += 1;
                         }
-                    } else {
-                        tracing::warn!("Failed to initialize video decoder for {:?}, treating as 1 static item", p);
-                        nfv += 1;
                     }
+                    #[cfg(feature = "video")]
+                    SourceType::Stream(_) | SourceType::Webcam(_) => {
+                        nfv = u64::MAX;
+                    }
+                    _ => {}
                 }
-                #[cfg(not(feature = "video"))]
-                SourceType::Video(_) => {
-                    nfi += 1;
-                }
-                SourceType::Stream(_) | SourceType::Webcam(_) => {
-                    nfv = u64::MAX;
-                }
-                _ => {}
             }
-        }
 
-        let nf = if nfv == u64::MAX { u64::MAX } else { nfi + nfv };
+            let nf = if nfv == u64::MAX { u64::MAX } else { nfi + nfv };
 
-        tracing::info!(
-            "Found {} tasks, total estimated items: {} (images: {}, video frames: {})",
-            source.tasks().len(),
-            if nf == u64::MAX {
-                "Infinity".to_string()
-            } else {
-                nf.to_string()
-            },
-            nfi,
-            if nfv == u64::MAX {
-                "Infinity".to_string()
-            } else {
-                nfv.to_string()
-            }
-        );
+            tracing::info!(
+                "Found {} tasks, total estimated items: {} (images: {}, video frames: {})",
+                source.tasks().len(),
+                if nf == u64::MAX {
+                    "Infinity".to_string()
+                } else {
+                    nf.to_string()
+                },
+                nfi,
+                if nfv == u64::MAX {
+                    "Infinity".to_string()
+                } else {
+                    nfv.to_string()
+                }
+            );
 
-        Ok(Self {
-            source,
-            nf,
-            nfi,
-            nfv,
-            ..Default::default()
+            Ok(Self {
+                source,
+                nf,
+                nfi,
+                nfv,
+                ..Default::default()
+            })
         })
     }
 
@@ -273,6 +290,24 @@ impl DataLoader {
         self.try_read_nth(0)
     }
 
+    fn read_image_based_on_source(task: &SourceType) -> Option<Image> {
+        crate::perf!("DataLoader::read-image", {
+            match task {
+                SourceType::Image(p) => {
+                    crate::perf!("DataLoader::read-image::pathbuf", Image::try_read(p).ok())
+                }
+                SourceType::ImageUrl(url) => {
+                    crate::perf!("DataLoader::read-image::url", Image::try_read(url).ok())
+                }
+                SourceType::DynamicImage(img) => crate::perf!(
+                    "DataLoader::read-image::dynamic",
+                    Some(Image::from(img.clone()))
+                ),
+                _ => None,
+            }
+        })
+    }
+
     /// Load the image at the specified index.
     pub fn try_read_nth(&self, index: usize) -> Result<Image> {
         if self.source.has_video_or_stream() {
@@ -281,16 +316,7 @@ impl DataLoader {
         let tasks = self.source.tasks();
         tasks
             .get(index)
-            .and_then(|task| match task {
-                SourceType::Image(p) => {
-                    crate::elapsed_dataloader!("image_decode", Image::try_read(p)).ok()
-                }
-                SourceType::ImageUrl(url) => {
-                    crate::elapsed_dataloader!("image_decode", Image::try_read(url)).ok()
-                }
-                SourceType::DynamicImage(img) => Some(Image::from(img.clone())),
-                _ => None,
-            })
+            .and_then(Self::read_image_based_on_source)
             .ok_or_else(|| anyhow::anyhow!("No valid image found at index {index}"))
     }
 
@@ -320,25 +346,14 @@ impl DataLoader {
         }
 
         let tasks = self.source.tasks();
-        let images: Vec<Image> = crate::elapsed_dataloader!("parallel_load_range", {
-            tasks
-                .iter()
-                .skip(start)
-                .take(end - start)
-                .collect::<Vec<_>>()
-                .into_par_iter()
-                .filter_map(|task| match task {
-                    SourceType::Image(p) => {
-                        crate::elapsed_dataloader!("single_image_read", Image::try_read(p)).ok()
-                    }
-                    SourceType::ImageUrl(url) => {
-                        crate::elapsed_dataloader!("single_image_read", Image::try_read(url)).ok()
-                    }
-                    SourceType::DynamicImage(img) => Some(Image::from(img.clone())),
-                    _ => None,
-                })
-                .collect()
-        });
+        let images: Vec<Image> = tasks
+            .iter()
+            .skip(start)
+            .take(end - start)
+            .collect::<Vec<_>>()
+            .into_par_iter()
+            .filter_map(Self::read_image_based_on_source)
+            .collect();
 
         Ok(images)
     }
@@ -413,24 +428,10 @@ impl DataLoader {
                     break;
                 }
 
-                let loaded: Vec<Image> = crate::elapsed_dataloader!("parallel_chunk_load", {
-                    chunk
-                        .into_par_iter()
-                        .filter_map(|task| match task {
-                            SourceType::Image(p) => {
-                                crate::elapsed_dataloader!("single_image_read", Image::try_read(p))
-                                    .ok()
-                            }
-                            SourceType::ImageUrl(url) => crate::elapsed_dataloader!(
-                                "single_image_read",
-                                Image::try_read(url)
-                            )
-                            .ok(),
-                            SourceType::DynamicImage(img) => Some(Image::from(img)),
-                            _ => None,
-                        })
-                        .collect()
-                });
+                let loaded: Vec<Image> = chunk
+                    .into_par_iter()
+                    .filter_map(|task| Self::read_image_based_on_source(&task))
+                    .collect();
 
                 for img in loaded {
                     images.push(img);
@@ -452,13 +453,16 @@ impl DataLoader {
                     #[cfg(feature = "video")]
                     SourceType::Video(p) => {
                         if let Ok(mut decoder) = video_rs::decode::Decoder::new(p.clone()) {
-                            Self::decode_video(
-                                &mut decoder,
-                                nfv_skip,
-                                batch_size,
-                                &sender,
-                                &mut images,
-                                Some(p),
+                            crate::perf!(
+                                "DataLoader::decode-video/stream",
+                                Self::decode_video(
+                                    &mut decoder,
+                                    nfv_skip,
+                                    batch_size,
+                                    &sender,
+                                    &mut images,
+                                    Some(p),
+                                )
                             );
                         }
                     }
@@ -468,20 +472,26 @@ impl DataLoader {
                             let source_path = std::path::PathBuf::from(url.as_str());
                             let location: video_rs::location::Location = url.into();
                             if let Ok(mut decoder) = video_rs::decode::Decoder::new(location) {
-                                Self::decode_video(
-                                    &mut decoder,
-                                    nfv_skip,
-                                    batch_size,
-                                    &sender,
-                                    &mut images,
-                                    Some(source_path),
+                                crate::perf!(
+                                    "DataLoader::decode-video/stream",
+                                    Self::decode_video(
+                                        &mut decoder,
+                                        nfv_skip,
+                                        batch_size,
+                                        &sender,
+                                        &mut images,
+                                        Some(source_path),
+                                    )
                                 );
                             }
                         }
                     }
                     #[cfg(feature = "video")]
                     SourceType::Webcam(index) => {
-                        Self::decode_webcam(index, nfv_skip, batch_size, &sender, &mut images);
+                        crate::perf!(
+                            "DataLoader::decode-webcam",
+                            Self::decode_webcam(index, nfv_skip, batch_size, &sender, &mut images)
+                        );
                     }
                     _ => {
                         tracing::error!("Unexpected task type in producer thread: {:?}", task);
@@ -590,15 +600,26 @@ impl DataLoader {
                     let mut decoded = ffmpeg::util::frame::video::Video::empty();
                     let mut cnt = 0;
                     for (stream, packet) in ictx.packets() {
-                        if stream.index() == stream_index
-                            && decoder.send_packet(&packet).is_ok()
-                            && decoder.receive_frame(&mut decoded).is_ok()
-                        {
-                            cnt += 1;
-                            if (cnt - 1) % (nfv_skip + 1) != 0 {
-                                continue;
-                            }
+                        if stream.index() != stream_index {
+                            continue;
+                        }
 
+                        // Stage 1: Decode — packet → decoded frame
+                        let ok = crate::perf!("DataLoader::decode-webcam::decode", {
+                            decoder.send_packet(&packet).is_ok()
+                                && decoder.receive_frame(&mut decoded).is_ok()
+                        });
+                        if !ok {
+                            continue;
+                        }
+
+                        cnt += 1;
+                        if (cnt - 1) % (nfv_skip + 1) != 0 {
+                            continue;
+                        }
+
+                        // Stage 2: Convert — scale + row copy → Image
+                        let img = crate::perf!("DataLoader::decode-webcam::convert", {
                             let mut rgb_frame = ffmpeg::util::frame::video::Video::empty();
                             scaler.run(&decoded, &mut rgb_frame).ok();
 
@@ -606,30 +627,26 @@ impl DataLoader {
                             let height = rgb_frame.height();
                             let frame_data = rgb_frame.data(0);
                             let stride = rgb_frame.stride(0);
-
-                            let rgb_data: Vec<u8> =
-                                crate::elapsed_dataloader!("webcam_frame_decode", {
-                                    let mut data =
-                                        Vec::with_capacity((width * height * 3) as usize);
-                                    for y in 0..height as usize {
-                                        let row = &frame_data
-                                            [y * stride..y * stride + (width as usize) * 3];
-                                        data.extend_from_slice(row);
-                                    }
-                                    data
-                                });
-
-                            if let Some(rgb8) = image::RgbImage::from_raw(width, height, rgb_data) {
+                            let mut data = Vec::with_capacity((width * height * 3) as usize);
+                            for y in 0..height as usize {
+                                let row =
+                                    &frame_data[y * stride..y * stride + (width as usize) * 3];
+                                data.extend_from_slice(row);
+                            }
+                            image::RgbImage::from_raw(width, height, data).map(|rgb8| {
                                 let mut img = Image::from(rgb8);
                                 img.source = Some(format!("Webcam {index}").into());
-                                images.push(img);
+                                img
+                            })
+                        });
 
-                                if images.len() >= batch_size {
-                                    let to_send =
-                                        std::mem::replace(images, Vec::with_capacity(batch_size));
-                                    if sender.send(to_send).is_err() {
-                                        return;
-                                    }
+                        if let Some(img) = img {
+                            images.push(img);
+                            if images.len() >= batch_size {
+                                let to_send =
+                                    std::mem::replace(images, Vec::with_capacity(batch_size));
+                                if sender.send(to_send).is_err() {
+                                    return;
                                 }
                             }
                         }
@@ -653,38 +670,39 @@ impl DataLoader {
     ) {
         let (w, h) = decoder.size();
         let mut cnt = 0;
-        for frame in decoder.decode_iter() {
-            match frame {
-                Ok((ts, frame)) => {
-                    cnt += 1;
-                    if (cnt - 1) % (nfv_skip + 1) != 0 {
-                        continue;
-                    }
+        let mut iter = decoder.decode_iter();
+        loop {
+            // Stage 1: Decode — codec decode (expensive I/O + codec work)
+            let frame = crate::perf!("DataLoader::decode-video/stream::read", iter.next());
+            let (ts, frame) = match frame {
+                Some(Ok(x)) => x,
+                Some(Err(_)) | None => break,
+            };
 
-                    let rgb8: image::RgbImage = crate::elapsed_dataloader!("video_frame_decode", {
-                        match image::ImageBuffer::from_raw(
-                            w as _,
-                            h as _,
-                            frame.into_raw_vec_and_offset().0,
-                        ) {
-                            Some(x) => x,
-                            None => continue,
-                        }
-                    });
+            cnt += 1;
+            if (cnt - 1) % (nfv_skip + 1) != 0 {
+                continue;
+            }
 
-                    // Image
-                    let mut img = Image::from(rgb8).with_timestamp(ts.as_secs_f64());
-                    img.source = source.clone();
-                    images.push(img);
+            // Stage 2: Convert — buffer reinterpretation → Image
+            let img = crate::perf!("DataLoader::decode-video/stream::convert", {
+                image::ImageBuffer::from_raw(w as _, h as _, frame.into_raw_vec_and_offset().0).map(
+                    |rgb8: image::RgbImage| {
+                        let mut img = Image::from(rgb8).with_timestamp(ts.as_secs_f64());
+                        img.source = source.clone();
+                        img
+                    },
+                )
+            });
 
-                    if images.len() >= batch_size {
-                        let to_send = std::mem::replace(images, Vec::with_capacity(batch_size));
-                        if sender.send(to_send).is_err() {
-                            return;
-                        }
+            if let Some(img) = img {
+                images.push(img);
+                if images.len() >= batch_size {
+                    let to_send = std::mem::replace(images, Vec::with_capacity(batch_size));
+                    if sender.send(to_send).is_err() {
+                        return;
                     }
                 }
-                Err(_) => break,
             }
         }
     }

@@ -139,6 +139,7 @@ cargo run -r -F openvino -F ort-load-dynamic --example yolo -- --device openvino
 
 - <a href="https://jamjamjon.github.io/usls/">📖 <strong>Online Documentation</strong></a>
 - <a href="https://docs.rs/usls/latest/usls/">📚 <strong>API Reference</strong></a>
+- <a href="https://jamjamjon.github.io/usls/model-zoo/overview/">📦 <strong>Model Zoo</strong></a>
 - <a href="./examples/README.md">🚀 <strong>Examples</strong></a> 
 
 

@@ -3,8 +3,8 @@ use anyhow::Result;
 use ndarray::{s, Axis};
 
 use crate::{
-    elapsed_module, inputs, Config, DynConf, Engine, Engines, FromConfig, Image, ImageProcessor,
-    Mask, Model, Module, Ops, X, Y,
+    inputs, Config, DynConf, Engine, Engines, FromConfig, Image, ImageProcessor, Mask, Model,
+    Module, Ops, X, Y,
 };
 
 use super::super::sam::SamPrompt;
@@ -64,8 +64,8 @@ impl Model for SAM2 {
     }
 
     fn run(&mut self, engines: &mut Engines, (images, prompts): Self::Input<'_>) -> Result<Vec<Y>> {
-        let embeddings = elapsed_module!("SAM2", "encode", self.encode(engines, images)?);
-        elapsed_module!("SAM2", "decode", self.decode(engines, &embeddings, prompts))
+        let embeddings = crate::perf!("SAM2::encode", self.encode(engines, images)?);
+        crate::perf!("SAM2::decode", self.decode(engines, &embeddings, prompts))
     }
 }
 

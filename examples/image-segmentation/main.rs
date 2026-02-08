@@ -134,7 +134,7 @@ fn main() -> Result<()> {
             run_sam3_tracker(config, &cli.source, args)
         }
     }?;
-    usls::perf(false);
+    usls::perf_chart();
 
     Ok(())
 }

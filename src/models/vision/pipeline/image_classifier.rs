@@ -4,8 +4,7 @@ use ndarray::Axis;
 use rayon::prelude::*;
 
 use crate::{
-    elapsed_module, Config, Engine, Engines, FromConfig, Image, ImageProcessor, Model, Module,
-    Prob, Xs, Y,
+    Config, Engine, Engines, FromConfig, Image, ImageProcessor, Model, Module, Prob, Xs, Y,
 };
 
 /// ImageClassifier - A classification model implementing the Model trait.
@@ -97,17 +96,15 @@ impl Model for ImageClassifier {
     }
 
     fn run(&mut self, engines: &mut Engines, input: Self::Input<'_>) -> Result<Vec<Y>> {
-        let xs = elapsed_module!(
-            "Image-Classifier",
-            "preprocess",
+        let xs = crate::perf!(
+            "Image-Classifier::preprocess",
             self.processor.process(input)?
         );
-        let ys = elapsed_module!(
-            "Image-Classifier",
-            "inference",
+        let ys = crate::perf!(
+            "Image-Classifier::inference",
             engines.run(&Module::Model, &xs)?
         );
-        let ys = elapsed_module!("Image-Classifier", "postprocess", self.postprocess(&ys)?);
+        let ys = crate::perf!("Image-Classifier::postprocess", self.postprocess(&ys)?);
 
         Ok(ys)
     }

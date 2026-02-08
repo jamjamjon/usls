@@ -84,7 +84,7 @@ fn main() -> Result<()> {
         }
     }
 
-    usls::perf(false);
+    usls::perf_chart();
 
     Ok(())
 }

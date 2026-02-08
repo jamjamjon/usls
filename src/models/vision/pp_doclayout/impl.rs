@@ -4,8 +4,8 @@ use ndarray::Axis;
 use rayon::prelude::*;
 
 use crate::{
-    elapsed_module, inputs, Config, DynConf, Engine, Engines, FromConfig, Hbb, Image,
-    ImageProcessor, Mask, Model, Module, Ops, Version, Xs, X, Y,
+    inputs, Config, DynConf, Engine, Engines, FromConfig, Hbb, Image, ImageProcessor, Mask, Model,
+    Module, Ops, Version, Xs, X, Y,
 };
 
 /// PP-DocLayoutsss-v1/v2/v3
@@ -68,7 +68,7 @@ impl Model for PPDocLayout {
         let x0 = X::from(vec![self.height as f32, self.width as f32])
             .insert_axis(0)?
             .repeat(0, self.batch)?;
-        let x1 = elapsed_module!("PPDocLayout", "preprocess", self.processor.process(images)?);
+        let x1 = crate::perf!("PPDocLayout::preprocess", self.processor.process(images)?);
         let x2 = X::from_shape_vec_generic(
             [self.batch, 2],
             self.processor
@@ -77,12 +77,11 @@ impl Model for PPDocLayout {
                 .flat_map(|x| [x.height_scale, x.width_scale])
                 .collect::<Vec<_>>(),
         )?;
-        let ys = elapsed_module!(
-            "PPDocLayout",
-            "inference",
+        let ys = crate::perf!(
+            "PPDocLayout::inference",
             engines.run(&Module::Model, inputs![x0, &x1, x2]?)?
         );
-        elapsed_module!("PPDocLayout", "postprocess", self.postprocess(&ys))
+        crate::perf!("PPDocLayout::postprocess", self.postprocess(&ys))
     }
 }
 

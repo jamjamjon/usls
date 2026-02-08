@@ -2,10 +2,7 @@ use aksr::Builder;
 use anyhow::Result;
 use ndarray::s;
 
-use crate::{
-    elapsed_module, Config, Engine, Engines, FromConfig, Image, ImageProcessor, Model, Module, Xs,
-    X, Y,
-};
+use crate::{Config, Engine, Engines, FromConfig, Image, ImageProcessor, Model, Module, Xs, X, Y};
 
 /// Swin2SR: SwinV2 Transformer for Super-Resolution
 #[derive(Debug, Builder)]
@@ -49,13 +46,12 @@ impl Model for Swin2SR {
         images
             .iter()
             .map(|image| {
-                let x = elapsed_module!(
-                    "Swin2SR",
-                    "preprocess",
+                let x = crate::perf!(
+                    "Swin2SR::preprocess",
                     self.processor.process(std::slice::from_ref(image))?
                 );
-                let ys = elapsed_module!("Swin2SR", "inference", engines.run(&Module::Model, &x)?);
-                elapsed_module!("Swin2SR", "postprocess", self.postprocess_one(&ys))
+                let ys = crate::perf!("Swin2SR::inference", engines.run(&Module::Model, &x)?);
+                crate::perf!("Swin2SR::postprocess", self.postprocess_one(&ys))
             })
             .collect()
     }

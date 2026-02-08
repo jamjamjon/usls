@@ -5,8 +5,8 @@ use rayon::prelude::*;
 use std::str::FromStr;
 
 use crate::{
-    elapsed_module, inputs, Config, Engine, Engines, FromConfig, Image, ImageProcessor,
-    LogitsSampler, Model, Module, Scale, TextProcessor, X, Y,
+    inputs, Config, Engine, Engines, FromConfig, Image, ImageProcessor, LogitsSampler, Model,
+    Module, Scale, TextProcessor, X, Y,
 };
 
 /// TrOCR model variants for different text types.
@@ -132,11 +132,11 @@ impl Model for TrOCR {
 
     fn run(&mut self, engines: &mut Engines, images: Self::Input<'_>) -> Result<Vec<Y>> {
         let encoder_hidden_states =
-            elapsed_module!("TrOCR", "encode", self.encode_internal(engines, images)?);
-        let generated = elapsed_module!("TrOCR", "generate", {
+            crate::perf!("TrOCR::encode", self.encode_internal(engines, images)?);
+        let generated = crate::perf!("TrOCR::generate", {
             self.generate_internal(engines, &encoder_hidden_states)?
         });
-        elapsed_module!("TrOCR", "decode", self.decode_internal(generated))
+        crate::perf!("TrOCR::decode", self.decode_internal(generated))
     }
 }
 

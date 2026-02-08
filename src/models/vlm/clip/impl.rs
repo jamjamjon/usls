@@ -2,8 +2,8 @@ use aksr::Builder;
 use anyhow::Result;
 
 use crate::{
-    elapsed_module, inputs, Config, Engine, Engines, FromConfig, Image, ImageProcessor, Model,
-    Module, TextProcessor, X, Y,
+    inputs, Config, Engine, Engines, FromConfig, Image, ImageProcessor, Model, Module,
+    TextProcessor, X, Y,
 };
 
 /// CLIP: Contrastive Language-Image Pre-Training
@@ -62,17 +62,12 @@ impl Model for Clip {
     }
 
     fn encode_images(&mut self, engines: &mut Engines, images: &[Image]) -> Result<Y> {
-        let ys = elapsed_module!("CLIP", "visual-preprocess", {
+        let ys = crate::perf!("CLIP::visual-preprocess", {
             self.image_processor.process(images)?
         });
-        let ys = elapsed_module!(
-            "CLIP",
-            "visual-inference",
-            engines.run(&Module::Visual, &ys)?
-        );
-        let y = elapsed_module!(
-            "CLIP",
-            "visual-postprocess",
+        let ys = crate::perf!("CLIP::visual-inference", engines.run(&Module::Visual, &ys)?);
+        let y = crate::perf!(
+            "CLIP::visual-postprocess",
             ys.get::<f32>(0)
                 .ok_or_else(|| anyhow::anyhow!("Failed to get visual output"))?
                 .to_owned()
@@ -82,7 +77,7 @@ impl Model for Clip {
     }
 
     fn encode_texts(&mut self, engines: &mut Engines, texts: &[&str]) -> Result<Y> {
-        let ys = elapsed_module!("CLIP", "textual-preprocess", {
+        let ys = crate::perf!("CLIP::textual-preprocess", {
             let encodings: Vec<f32> = self
                 .text_processor
                 .encode_texts_ids(texts, true)?
@@ -92,14 +87,12 @@ impl Model for Clip {
             let shape = &[texts.len(), encodings.len() / texts.len()];
             X::from_shape_vec(shape, encodings)?
         });
-        let ys = elapsed_module!(
-            "CLIP",
-            "textual-inference",
+        let ys = crate::perf!(
+            "CLIP::textual-inference",
             engines.run(&Module::Textual, inputs![ys]?)?
         );
-        let y = elapsed_module!(
-            "CLIP",
-            "textual-postprocess",
+        let y = crate::perf!(
+            "CLIP::textual-postprocess",
             ys.get::<f32>(0)
                 .ok_or_else(|| anyhow::anyhow!("Failed to get textual output"))?
                 .to_owned()

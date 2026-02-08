@@ -4,8 +4,8 @@ use ndarray::Axis;
 use rayon::prelude::*;
 
 use crate::{
-    elapsed_module, Config, DynConf, Engine, Engines, FromConfig, Image, ImageProcessor, Model,
-    Module, Text, Xs, X, Y,
+    Config, DynConf, Engine, Engines, FromConfig, Image, ImageProcessor, Model, Module, Text, Xs,
+    X, Y,
 };
 
 /// SVTR (Scene Text Recognition) model for text recognition.
@@ -61,9 +61,9 @@ impl Model for SVTR {
     }
 
     fn run(&mut self, engines: &mut Engines, images: Self::Input<'_>) -> Result<Vec<Y>> {
-        let x = elapsed_module!("SVTR", "preprocess", self.processor.process(images)?);
-        let ys = elapsed_module!("SVTR", "inference", engines.run(&Module::Model, &x)?);
-        elapsed_module!("SVTR", "postprocess", self.postprocess(&ys))
+        let x = crate::perf!("SVTR::preprocess", self.processor.process(images)?);
+        let ys = crate::perf!("SVTR::inference", engines.run(&Module::Model, &x)?);
+        crate::perf!("SVTR::postprocess", self.postprocess(&ys))
     }
 }
 

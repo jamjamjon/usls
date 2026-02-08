@@ -4,8 +4,8 @@ use ndarray::{s, Axis};
 use rand::{prelude::*, rng};
 
 use crate::{
-    elapsed_module, inputs, Config, DynConf, Engine, Engines, FromConfig, Image, ImageProcessor,
-    Mask, Model, Module, Ops, Polygon, SamKind, SamPrompt, X, Y,
+    inputs, Config, DynConf, Engine, Engines, FromConfig, Image, ImageProcessor, Mask, Model,
+    Module, Ops, Polygon, SamKind, SamPrompt, X, Y,
 };
 
 /// Segment Anything Model (SAM) for image segmentation.
@@ -84,8 +84,8 @@ impl Model for SAM {
     }
 
     fn run(&mut self, engines: &mut Engines, (images, prompts): Self::Input<'_>) -> Result<Vec<Y>> {
-        let embeddings = elapsed_module!("SAM", "encode", self.encode(engines, images)?);
-        elapsed_module!("SAM", "decode", self.decode(engines, &embeddings, prompts))
+        let embeddings = crate::perf!("SAM::encode", self.encode(engines, images)?);
+        crate::perf!("SAM::decode", self.decode(engines, &embeddings, prompts))
     }
 }
 

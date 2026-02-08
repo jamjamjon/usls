@@ -62,7 +62,7 @@ fn main() -> Result<()> {
             run::<OWLv2>(config, &cli.source, &annotator)
         }
     }?;
-    usls::perf(false);
+    usls::perf_chart();
 
     Ok(())
 }
