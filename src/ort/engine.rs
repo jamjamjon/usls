@@ -8,7 +8,6 @@ use ort::{
     tensor::TensorElementType,
     value::{DynValue, Value},
 };
-use prost::Message;
 use std::{
     collections::{HashMap, HashSet},
     sync::Arc,
@@ -113,7 +112,7 @@ impl FromConfig for Engine {
         let session: Session;
 
         crate::perf!(&format!("ORT Engine ({})::init", config.spec), {
-            let proto = Self::load_onnx(&config.file)?;
+            let proto = crate::load_onnx(&config.file)?;
             let graph = match &proto.graph {
                 Some(graph) => graph,
                 None => {
@@ -1346,17 +1345,17 @@ impl Engine {
         Ok(OrtTensorAttr::new(names, dtypes, dimss, vec![]))
     }
 
-    pub fn load_onnx<P: AsRef<std::path::Path>>(p: P) -> Result<onnx::ModelProto> {
-        let path_ref = p.as_ref();
-        let f = std::fs::read(path_ref).map_err(|err| {
-            anyhow::anyhow!("Failed to read ONNX file '{path_ref:?}': {err}. Error: {err}")
-        })?;
-        onnx::ModelProto::decode(f.as_slice()).map_err(|err| {
-            anyhow::anyhow!(
-                "Failed to read the ONNX model: The file might be incomplete or corrupted. More detailed: {err}"
-            )
-        })
-    }
+    // pub fn load_onnx<P: AsRef<std::path::Path>>(p: P) -> Result<onnx::ModelProto> {
+    //     let path_ref = p.as_ref();
+    //     let f = std::fs::read(path_ref).map_err(|err| {
+    //         anyhow::anyhow!("Failed to read ONNX file '{path_ref:?}': {err}. Error: {err}")
+    //     })?;
+    //     onnx::ModelProto::decode(f.as_slice()).map_err(|err| {
+    //         anyhow::anyhow!(
+    //             "Failed to read the ONNX model: The file might be incomplete or corrupted. More detailed: {err}"
+    //         )
+    //     })
+    // }
 
     pub fn batch(&self) -> &MinOptMax {
         &self.inputs.minoptmax[0][0]

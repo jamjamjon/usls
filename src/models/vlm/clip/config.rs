@@ -13,13 +13,31 @@
 /// >
 /// > # Model Variants
 /// >
-/// > - **clip-vit-b16**: ViT-B/16 model for general image-text tasks
-/// > - **clip-vit-b32**: ViT-B/32 model for general image-text tasks
-/// > - **clip-vit-l14**: ViT-L/14 model for general image-text tasks
-/// > - **jina-clip-v1**: Jina CLIP v1 with improved performance
-/// > - **jina-clip-v2**: Jina CLIP v2 with 512x512 resolution
-/// > - **mobileclip-s0/s1/s2/b/blt**: MobileCLIP variants for mobile devices
-/// > - **mobileclip2-s0/s2/s3/s4/b/l14**: MobileCLIP v2 variants
+/// > ## OpenAI CLIP
+/// > - **clip-vit-b16**: ViT-B/16 (85M params)
+/// > - **clip-vit-b32**: ViT-B/32 (87M params)
+/// > - **clip-vit-l14**: ViT-L/14 (304M params)
+/// >
+/// > ## Jina CLIP
+/// > - **jina-clip-v1**: Improved performance, 224x224
+/// > - **jina-clip-v2**: 512x512 resolution, better accuracy
+/// >
+/// > ## MobileCLIP (Apple)
+/// > - **mobileclip-s0/s1/s2**: Small variants (0-2)
+/// > - **mobileclip-b**: Base variant
+/// > - **mobileclip-blt**: Base with large text encoder
+/// >
+/// > ## MobileCLIP v2
+/// > - **mobileclip2-s0/s2/s4/b/l14**: Enhanced mobile variants
+/// >
+/// > ## SigLIP (Google DeepMind)
+/// > - **siglip-b16-224/256/384/512**: Base models, patch16
+/// > - **siglip-l16-256/384**: Large models, patch16
+/// >
+/// > ## SigLIP v2 (Google DeepMind)
+/// > - **siglip2-b16-224/256/384/512**: Base models v2
+/// > - **siglip2-l16-256/384/512**: Large models v2
+/// > - **siglip2-so400m-patch14/16**: 400M parameter models
 /// >
 /// > # Implemented Features / Tasks
 /// >
@@ -27,7 +45,9 @@
 /// > - [X] **Image-Text Retrieval**: Retrieve relevant text for images
 /// > - [X] **Text-Image Retrieval**: Retrieve relevant images for text
 /// > - [X] **Mobile Optimization**: Lightweight models for mobile devices
-/// > - [X] **Multi-Scale Support**: Various input resolutions
+/// > - [X] **Multi-Scale Support**: Various input resolutions (224, 256, 384, 512)
+/// > - [X] **Dual Encoder Architecture**: Separate vision and text encoders
+/// > - [X] **Contrastive Learning**: Image-text similarity scoring
 /// >
 /// Model configuration for `CLIP`
 ///
@@ -196,5 +216,306 @@ impl crate::Config {
         Self::mobileclip2()
             .with_textual_file("l-14-textual.onnx")
             .with_visual_file("l-14-visual.onnx")
+    }
+
+    pub fn siglip() -> Self {
+        Self::clip()
+            .with_name("clip")
+            .with_batch_size_min_opt_max_all(1, 1, 8) // batch size
+            .with_visual_ixx(0, 1, 3) // channel
+            .with_textual_ixx(0, 1, 64) // seq len
+            .with_image_mean([0.5, 0.5, 0.5])
+            .with_image_std([0.5, 0.5, 0.5])
+            .with_model_max_length(64)
+    }
+
+    /// SigLIP Base, patch16, 224x224
+    pub fn siglip_b16_224() -> Self {
+        Self::siglip()
+            .with_visual_ixx(0, 2, 224)
+            .with_visual_ixx(0, 3, 224)
+            .with_tokenizer_file("Xenova/siglip-base-patch16-224/tokenizer.json")
+            .with_tokenizer_config_file("Xenova/siglip-base-patch16-224/tokenizer_config.json")
+            .with_special_tokens_map_file("Xenova/siglip-base-patch16-224/special_tokens_map.json")
+            .with_textual_file("Xenova/siglip-base-patch16-224/onnx/text_model.onnx")
+            .with_visual_file("Xenova/siglip-base-patch16-224/onnx/vision_model.onnx")
+    }
+
+    /// SigLIP Base, patch16, 256x256
+    pub fn siglip_b16_256() -> Self {
+        Self::siglip()
+            .with_textual_file("Xenova/siglip-base-patch16-256/onnx/text_model.onnx")
+            .with_visual_file("Xenova/siglip-base-patch16-256/onnx/vision_model.onnx")
+            .with_visual_ixx(0, 2, 256)
+            .with_visual_ixx(0, 3, 256)
+            .with_tokenizer_file("Xenova/siglip-base-patch16-256/tokenizer.json")
+            .with_tokenizer_config_file("Xenova/siglip-base-patch16-256/tokenizer_config.json")
+            .with_special_tokens_map_file("Xenova/siglip-base-patch16-256/special_tokens_map.json")
+    }
+
+    /// SigLIP Base, patch16, 384x384
+    pub fn siglip_b16_384() -> Self {
+        Self::siglip()
+            .with_textual_file("Xenova/siglip-base-patch16-384/onnx/text_model.onnx")
+            .with_visual_file("Xenova/siglip-base-patch16-384/onnx/vision_model.onnx")
+            .with_visual_ixx(0, 2, 384)
+            .with_visual_ixx(0, 3, 384)
+            .with_tokenizer_file("Xenova/siglip-base-patch16-384/tokenizer.json")
+            .with_tokenizer_config_file("Xenova/siglip-base-patch16-384/tokenizer_config.json")
+            .with_special_tokens_map_file("Xenova/siglip-base-patch16-384/special_tokens_map.json")
+    }
+
+    /// SigLIP Base, patch16, 512x512
+    pub fn siglip_b16_512() -> Self {
+        Self::siglip()
+            .with_textual_file("Xenova/siglip-base-patch16-512/onnx/text_model.onnx")
+            .with_visual_file("Xenova/siglip-base-patch16-512/onnx/vision_model.onnx")
+            .with_visual_ixx(0, 2, 512)
+            .with_visual_ixx(0, 3, 512)
+            .with_tokenizer_file("Xenova/siglip-base-patch16-512/tokenizer.json")
+            .with_tokenizer_config_file("Xenova/siglip-base-patch16-512/tokenizer_config.json")
+            .with_special_tokens_map_file("Xenova/siglip-base-patch16-512/special_tokens_map.json")
+    }
+
+    /// SigLIP Large, patch16, 256x256
+    pub fn siglip_l16_256() -> Self {
+        Self::siglip()
+            .with_textual_file("Xenova/siglip-large-patch16-256/onnx/text_model.onnx")
+            .with_visual_file("Xenova/siglip-large-patch16-256/onnx/vision_model.onnx")
+            .with_visual_ixx(0, 2, 256)
+            .with_visual_ixx(0, 3, 256)
+            .with_tokenizer_file("Xenova/siglip-large-patch16-256/tokenizer.json")
+            .with_tokenizer_config_file("Xenova/siglip-large-patch16-256/tokenizer_config.json")
+            .with_special_tokens_map_file("Xenova/siglip-large-patch16-256/special_tokens_map.json")
+    }
+
+    /// SigLIP Large, patch16, 384x384
+    pub fn siglip_l16_384() -> Self {
+        Self::siglip()
+            .with_textual_file("Xenova/siglip-large-patch16-384/onnx/text_model.onnx")
+            .with_visual_file("Xenova/siglip-large-patch16-384/onnx/vision_model.onnx")
+            .with_visual_ixx(0, 2, 384)
+            .with_visual_ixx(0, 3, 384)
+            .with_tokenizer_file("Xenova/siglip-large-patch16-384/tokenizer.json")
+            .with_tokenizer_config_file("Xenova/siglip-large-patch16-384/tokenizer_config.json")
+            .with_special_tokens_map_file("Xenova/siglip-large-patch16-384/special_tokens_map.json")
+    }
+
+    /// SigLIP v2 Base, patch16, 224x224
+    pub fn siglip2_b16_224() -> Self {
+        Self::siglip()
+            .with_visual_ixx(0, 2, 224)
+            .with_visual_ixx(0, 3, 224)
+            .with_tokenizer_file("onnx-community/siglip2-base-patch16-224-ONNX/tokenizer.json")
+            .with_tokenizer_config_file(
+                "onnx-community/siglip2-base-patch16-224-ONNX/tokenizer_config.json",
+            )
+            .with_special_tokens_map_file(
+                "onnx-community/siglip2-base-patch16-224-ONNX/special_tokens_map.json",
+            )
+            .with_textual_file("onnx-community/siglip2-base-patch16-224-ONNX/onnx/text_model.onnx")
+            .with_visual_file("onnx-community/siglip2-base-patch16-224-ONNX/onnx/vision_model.onnx")
+    }
+
+    /// SigLIP v2 Base, patch16, 256x256
+    pub fn siglip2_b16_256() -> Self {
+        Self::siglip()
+            .with_visual_ixx(0, 2, 256)
+            .with_visual_ixx(0, 3, 256)
+            .with_tokenizer_file("onnx-community/siglip2-base-patch16-256-ONNX/tokenizer.json")
+            .with_tokenizer_config_file(
+                "onnx-community/siglip2-base-patch16-256-ONNX/tokenizer_config.json",
+            )
+            .with_special_tokens_map_file(
+                "onnx-community/siglip2-base-patch16-256-ONNX/special_tokens_map.json",
+            )
+            .with_textual_file("onnx-community/siglip2-base-patch16-256-ONNX/onnx/text_model.onnx")
+            .with_visual_file("onnx-community/siglip2-base-patch16-256-ONNX/onnx/vision_model.onnx")
+    }
+
+    /// SigLIP v2 Base, patch16, 384x384
+    pub fn siglip2_b16_384() -> Self {
+        Self::siglip()
+            .with_visual_ixx(0, 2, 384)
+            .with_visual_ixx(0, 3, 384)
+            .with_tokenizer_file("onnx-community/siglip2-base-patch16-384-ONNX/tokenizer.json")
+            .with_tokenizer_config_file(
+                "onnx-community/siglip2-base-patch16-384-ONNX/tokenizer_config.json",
+            )
+            .with_special_tokens_map_file(
+                "onnx-community/siglip2-base-patch16-384-ONNX/special_tokens_map.json",
+            )
+            .with_textual_file("onnx-community/siglip2-base-patch16-384-ONNX/onnx/text_model.onnx")
+            .with_visual_file("onnx-community/siglip2-base-patch16-384-ONNX/onnx/vision_model.onnx")
+    }
+
+    /// SigLIP v2 Base, patch16, 512x512
+    pub fn siglip2_b16_512() -> Self {
+        Self::siglip()
+            .with_visual_ixx(0, 2, 512)
+            .with_visual_ixx(0, 3, 512)
+            .with_tokenizer_file("onnx-community/siglip2-base-patch16-512-ONNX/tokenizer.json")
+            .with_tokenizer_config_file(
+                "onnx-community/siglip2-base-patch16-512-ONNX/tokenizer_config.json",
+            )
+            .with_special_tokens_map_file(
+                "onnx-community/siglip2-base-patch16-512-ONNX/special_tokens_map.json",
+            )
+            .with_textual_file("onnx-community/siglip2-base-patch16-512-ONNX/onnx/text_model.onnx")
+            .with_visual_file("onnx-community/siglip2-base-patch16-512-ONNX/onnx/vision_model.onnx")
+    }
+
+    /// SigLIP v2 Large, patch16, 256x256
+    pub fn siglip2_l16_256() -> Self {
+        Self::siglip()
+            .with_visual_ixx(0, 2, 256)
+            .with_visual_ixx(0, 3, 256)
+            .with_tokenizer_file("onnx-community/siglip2-large-patch16-256-ONNX/tokenizer.json")
+            .with_tokenizer_config_file(
+                "onnx-community/siglip2-large-patch16-256-ONNX/tokenizer_config.json",
+            )
+            .with_special_tokens_map_file(
+                "onnx-community/siglip2-large-patch16-256-ONNX/special_tokens_map.json",
+            )
+            .with_textual_file("onnx-community/siglip2-large-patch16-256-ONNX/onnx/text_model.onnx")
+            .with_visual_file(
+                "onnx-community/siglip2-large-patch16-256-ONNX/onnx/vision_model.onnx",
+            )
+    }
+
+    /// SigLIP v2 Large, patch16, 384x384
+    pub fn siglip2_l16_384() -> Self {
+        Self::siglip()
+            .with_visual_ixx(0, 2, 384)
+            .with_visual_ixx(0, 3, 384)
+            .with_tokenizer_file("onnx-community/siglip2-large-patch16-384-ONNX/tokenizer.json")
+            .with_tokenizer_config_file(
+                "onnx-community/siglip2-large-patch16-384-ONNX/tokenizer_config.json",
+            )
+            .with_special_tokens_map_file(
+                "onnx-community/siglip2-large-patch16-384-ONNX/special_tokens_map.json",
+            )
+            .with_textual_file("onnx-community/siglip2-large-patch16-384-ONNX/onnx/text_model.onnx")
+            .with_visual_file(
+                "onnx-community/siglip2-large-patch16-384-ONNX/onnx/vision_model.onnx",
+            )
+    }
+
+    /// SigLIP v2 Large, patch16, 512x512
+    pub fn siglip2_l16_512() -> Self {
+        Self::siglip()
+            .with_visual_ixx(0, 2, 512)
+            .with_visual_ixx(0, 3, 512)
+            .with_tokenizer_file("onnx-community/siglip2-large-patch16-512-ONNX/tokenizer.json")
+            .with_tokenizer_config_file(
+                "onnx-community/siglip2-large-patch16-512-ONNX/tokenizer_config.json",
+            )
+            .with_special_tokens_map_file(
+                "onnx-community/siglip2-large-patch16-512-ONNX/special_tokens_map.json",
+            )
+            .with_textual_file("onnx-community/siglip2-large-patch16-512-ONNX/onnx/text_model.onnx")
+            .with_visual_file(
+                "onnx-community/siglip2-large-patch16-512-ONNX/onnx/vision_model.onnx",
+            )
+    }
+
+    /// SigLIP v2 400M, patch14, 224x224
+    pub fn siglip2_so400m_patch14_224() -> Self {
+        Self::siglip()
+            .with_visual_ixx(0, 2, 224)
+            .with_visual_ixx(0, 3, 224)
+            .with_tokenizer_file("onnx-community/siglip2-so400m-patch14-224-ONNX/tokenizer.json")
+            .with_tokenizer_config_file(
+                "onnx-community/siglip2-so400m-patch14-224-ONNX/tokenizer_config.json",
+            )
+            .with_special_tokens_map_file(
+                "onnx-community/siglip2-so400m-patch14-224-ONNX/special_tokens_map.json",
+            )
+            .with_textual_file(
+                "onnx-community/siglip2-so400m-patch14-224-ONNX/onnx/text_model.onnx",
+            )
+            .with_visual_file(
+                "onnx-community/siglip2-so400m-patch14-224-ONNX/onnx/vision_model.onnx",
+            )
+    }
+
+    /// SigLIP v2 400M, patch14, 384x384
+    pub fn siglip2_so400m_patch14_384() -> Self {
+        Self::siglip()
+            .with_visual_ixx(0, 2, 384)
+            .with_visual_ixx(0, 3, 384)
+            .with_tokenizer_file("onnx-community/siglip2-so400m-patch14-384-ONNX/tokenizer.json")
+            .with_tokenizer_config_file(
+                "onnx-community/siglip2-so400m-patch14-384-ONNX/tokenizer_config.json",
+            )
+            .with_special_tokens_map_file(
+                "onnx-community/siglip2-so400m-patch14-384-ONNX/special_tokens_map.json",
+            )
+            .with_textual_file(
+                "onnx-community/siglip2-so400m-patch14-384-ONNX/onnx/text_model.onnx",
+            )
+            .with_visual_file(
+                "onnx-community/siglip2-so400m-patch14-384-ONNX/onnx/vision_model.onnx",
+            )
+    }
+
+    /// SigLIP v2 400M, patch16, 256x256
+    pub fn siglip2_so400m_patch16_256() -> Self {
+        Self::siglip()
+            .with_visual_ixx(0, 2, 256)
+            .with_visual_ixx(0, 3, 256)
+            .with_tokenizer_file("onnx-community/siglip2-so400m-patch16-256-ONNX/tokenizer.json")
+            .with_tokenizer_config_file(
+                "onnx-community/siglip2-so400m-patch16-256-ONNX/tokenizer_config.json",
+            )
+            .with_special_tokens_map_file(
+                "onnx-community/siglip2-so400m-patch16-256-ONNX/special_tokens_map.json",
+            )
+            .with_textual_file(
+                "onnx-community/siglip2-so400m-patch16-256-ONNX/onnx/text_model.onnx",
+            )
+            .with_visual_file(
+                "onnx-community/siglip2-so400m-patch16-256-ONNX/onnx/vision_model.onnx",
+            )
+    }
+
+    /// SigLIP v2 400M, patch16, 384x384
+    pub fn siglip2_so400m_patch16_384() -> Self {
+        Self::siglip()
+            .with_visual_ixx(0, 2, 384)
+            .with_visual_ixx(0, 3, 384)
+            .with_tokenizer_file("onnx-community/siglip2-so400m-patch16-384-ONNX/tokenizer.json")
+            .with_tokenizer_config_file(
+                "onnx-community/siglip2-so400m-patch16-384-ONNX/tokenizer_config.json",
+            )
+            .with_special_tokens_map_file(
+                "onnx-community/siglip2-so400m-patch16-384-ONNX/special_tokens_map.json",
+            )
+            .with_textual_file(
+                "onnx-community/siglip2-so400m-patch16-384-ONNX/onnx/text_model.onnx",
+            )
+            .with_visual_file(
+                "onnx-community/siglip2-so400m-patch16-384-ONNX/onnx/vision_model.onnx",
+            )
+    }
+
+    /// SigLIP v2 400M, patch16, 512x512
+    pub fn siglip2_so400m_patch16_512() -> Self {
+        Self::siglip()
+            .with_visual_ixx(0, 2, 512)
+            .with_visual_ixx(0, 3, 512)
+            .with_tokenizer_file("onnx-community/siglip2-so400m-patch16-512-ONNX/tokenizer.json")
+            .with_tokenizer_config_file(
+                "onnx-community/siglip2-so400m-patch16-512-ONNX/tokenizer_config.json",
+            )
+            .with_special_tokens_map_file(
+                "onnx-community/siglip2-so400m-patch16-512-ONNX/special_tokens_map.json",
+            )
+            .with_textual_file(
+                "onnx-community/siglip2-so400m-patch16-512-ONNX/onnx/text_model.onnx",
+            )
+            .with_visual_file(
+                "onnx-community/siglip2-so400m-patch16-512-ONNX/onnx/vision_model.onnx",
+            )
     }
 }

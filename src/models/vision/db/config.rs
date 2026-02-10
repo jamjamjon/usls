@@ -63,8 +63,8 @@ impl crate::Config {
 
     fn ppocr_det_v5() -> Self {
         Self::db()
-            .with_model_ixx(0, 2, (608, 640, 1600))
-            .with_model_ixx(0, 3, (608, 640, 1600))
+            .with_model_ixx(0, 2, (608, 960, 1600))
+            .with_model_ixx(0, 3, (608, 960, 1600))
     }
 
     /// PaddleOCR v5 mobile detection

@@ -18,7 +18,7 @@
 
     ---
 
-    visualization, video I/O, model hub, and annotation utilities.
+    visualization, video I/O, and annotation utilities.
 
     [:octicons-arrow-right-24: Utilities &rarr;](./utils.md)
 

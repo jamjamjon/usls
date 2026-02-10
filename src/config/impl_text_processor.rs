@@ -17,17 +17,17 @@ impl crate::Config {
         self
     }
 
-    // /// Set maximum number of tokens to generate.
-    // pub fn with_max_tokens(mut self, n: u64) -> Self {
-    //     self.text_processor.max_tokens = Some(n);
-    //     self
-    // }
+    /// Set maximum number of tokens to generate.
+    pub fn with_max_tokens(mut self, n: u64) -> Self {
+        self.text_processor.max_tokens = Some(n);
+        self
+    }
 
-    // /// Set whether to ignore the end-of-sequence token.
-    // pub fn with_ignore_eos(mut self, ignore_eos: bool) -> Self {
-    //     self.text_processor.ignore_eos = ignore_eos;
-    //     self
-    // }
+    /// Set whether to ignore the end-of-sequence token.
+    pub fn with_ignore_eos(mut self, ignore_eos: bool) -> Self {
+        self.text_processor.ignore_eos = ignore_eos;
+        self
+    }
 
     /// Set special tokens map file.
     pub fn with_special_tokens_map_file(mut self, file: impl Into<String>) -> Self {
@@ -38,6 +38,16 @@ impl crate::Config {
     /// Set config file path (for tokenizer).
     pub fn with_config_file(mut self, file: impl Into<String>) -> Self {
         self.text_processor.config_file = Some(file.into());
+        self
+    }
+
+    pub fn with_temperature(mut self, temperature: f32) -> Self {
+        self.text_processor.temperature = temperature;
+        self
+    }
+
+    pub fn with_topp(mut self, topp: f32) -> Self {
+        self.text_processor.topp = topp;
         self
     }
 }

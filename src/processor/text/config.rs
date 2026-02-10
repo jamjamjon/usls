@@ -24,6 +24,10 @@ pub struct TextProcessorConfig {
     pub temperature: f32,
     /// Top-p parameter for nucleus sampling.
     pub topp: f32,
+    /// Maximum number of tokens to generate.
+    pub max_tokens: Option<u64>,
+    /// Whether to ignore the end-of-sequence token.
+    pub ignore_eos: bool,
 }
 
 impl Default for TextProcessorConfig {
@@ -38,38 +42,72 @@ impl Default for TextProcessorConfig {
             vocab_file: None,
             temperature: 1.0,
             topp: 0.9,
+            max_tokens: Default::default(),
+            ignore_eos: Default::default(),
         }
     }
 }
 
 impl TextProcessorConfig {
-    // TODO
     /// Build tokenizer from configuration.
     pub fn try_build_tokenizer(&self) -> anyhow::Result<Tokenizer> {
+        tracing::debug!("Building tokenizer from config");
         let mut hub = crate::Hub::default();
+
+        // Resolve tokenizer file: check cache first, then fetch
         let mut tokenizer: Tokenizer = match &self.tokenizer_file {
             None => return Err(anyhow::anyhow!("tokenizer_file is required")),
-            Some(file) => Tokenizer::from_file(hub.try_fetch(file)?)
-                .map_err(|err| anyhow::anyhow!("Failed to build tokenizer: {err}"))?,
+            Some(file) => {
+                let path = if let Some(cached) = hub.cached(file) {
+                    tracing::debug!("Tokenizer file cache hit: {cached}");
+                    cached
+                } else {
+                    tracing::debug!("Tokenizer file not cached, requesting fetch: {file}");
+                    hub.try_fetch(file)?
+                };
+                Tokenizer::from_file(&path).map_err(|err| {
+                    anyhow::anyhow!("Failed to build tokenizer from '{path}': {err}")
+                })?
+            }
         };
 
+        // TODO
+        // Resolve tokenizer config file for pad_id
         let pad_id = match &self.tokenizer_config_file {
             None => 0u32,
-            Some(file) => match hub.try_fetch(file) {
-                Ok(x) => {
-                    let config: serde_json::Value =
-                        serde_json::from_str(&std::fs::read_to_string(x)?)?;
-                    config["pad_token_id"].as_u64().unwrap_or(0) as u32
+            Some(file) => {
+                let path = if let Some(cached) = hub.cached(file) {
+                    tracing::debug!("Tokenizer config file cache hit: {cached}");
+                    Some(cached)
+                } else {
+                    tracing::debug!("Tokenizer config file not cached, requesting fetch: {file}");
+                    hub.try_fetch(file).ok()
+                };
+                match path {
+                    Some(x) => {
+                        let config: serde_json::Value =
+                            serde_json::from_str(&std::fs::read_to_string(&x)?)?;
+                        let id = config["pad_token_id"].as_u64().unwrap_or(0) as u32;
+                        tracing::debug!("Resolved pad_token_id: {id}");
+                        id
+                    }
+                    None => 0u32,
                 }
-                Err(_) => 0u32,
-            },
+            }
         };
 
         let mut max_length = None;
         let mut pad_token = String::from("[PAD]");
 
+        // TODO
+        // Resolve tokenizer config for max_length and pad_token
         if let Some(file) = &self.tokenizer_config_file {
-            if let Ok(x) = hub.try_fetch(file) {
+            let path = if let Some(cached) = hub.cached(file) {
+                Some(cached)
+            } else {
+                hub.try_fetch(file).ok()
+            };
+            if let Some(x) = path {
                 let tokenizer_config: serde_json::Value =
                     serde_json::from_str(&std::fs::read_to_string(x)?)?;
                 max_length = tokenizer_config["model_max_length"].as_u64();
@@ -77,15 +115,23 @@ impl TextProcessorConfig {
                     .as_str()
                     .unwrap_or("[PAD]")
                     .to_string();
+                tracing::debug!(
+                    "Tokenizer config resolved: max_length={:?}, pad_token='{}'",
+                    max_length,
+                    pad_token
+                );
             }
         }
 
+        // TODO
+        // Apply padding and truncation
         let tokenizer = match self.model_max_length {
             Some(n) => {
                 let n = match max_length {
                     None => n,
                     Some(x) => x.min(n),
                 };
+                tracing::debug!("Applying fixed padding: length={n}, pad_id={pad_id}");
                 tokenizer
                     .with_padding(Some(PaddingParams {
                         strategy: PaddingStrategy::Fixed(n as _),
@@ -96,30 +142,39 @@ impl TextProcessorConfig {
                     .clone()
             }
             None => match max_length {
-                Some(n) => tokenizer
-                    .with_padding(Some(PaddingParams {
-                        strategy: PaddingStrategy::BatchLongest,
-                        pad_token,
-                        pad_id,
-                        ..Default::default()
-                    }))
-                    .with_truncation(Some(TruncationParams {
-                        max_length: n as _,
-                        ..Default::default()
-                    }))
-                    .map_err(|err| anyhow::anyhow!("Failed to truncate: {err}"))?
-                    .clone(),
-                None => tokenizer
-                    .with_padding(Some(PaddingParams {
-                        strategy: PaddingStrategy::BatchLongest,
-                        pad_token,
-                        pad_id,
-                        ..Default::default()
-                    }))
-                    .clone(),
+                Some(n) => {
+                    tracing::debug!("Applying batch-longest padding with truncation: max_length={n}, pad_id={pad_id}");
+                    tokenizer
+                        .with_padding(Some(PaddingParams {
+                            strategy: PaddingStrategy::BatchLongest,
+                            pad_token,
+                            pad_id,
+                            ..Default::default()
+                        }))
+                        .with_truncation(Some(TruncationParams {
+                            max_length: n as _,
+                            ..Default::default()
+                        }))
+                        .map_err(|err| anyhow::anyhow!("Failed to truncate: {err}"))?
+                        .clone()
+                }
+                None => {
+                    tracing::debug!(
+                        "Applying batch-longest padding without truncation, pad_id={pad_id}"
+                    );
+                    tokenizer
+                        .with_padding(Some(PaddingParams {
+                            strategy: PaddingStrategy::BatchLongest,
+                            pad_token,
+                            pad_id,
+                            ..Default::default()
+                        }))
+                        .clone()
+                }
             },
         };
 
+        tracing::debug!("Tokenizer built successfully");
         Ok(tokenizer.into())
     }
 }

@@ -34,14 +34,6 @@ pub struct InferenceParams {
     pub db_unclip_ratio: Option<f32>,
     pub db_binary_thresh: Option<f32>,
     pub token_level_class: bool,
-    /// Maximum number of tokens to generate.
-    pub max_tokens: Option<u64>,
-    /// Whether to ignore the end-of-sequence token.
-    pub ignore_eos: bool,
-    // /// Temperature parameter for text generation.
-    // pub temperature: f32,
-    // /// Top-p parameter for nucleus sampling.
-    // pub topp: f32,
 
     // Task-specific parameters
     #[cfg(feature = "vision")]
@@ -83,10 +75,6 @@ impl Default for InferenceParams {
             find_contours: Default::default(),
             up_scale: 2.0,
             text_names: Default::default(),
-            max_tokens: Default::default(),
-            ignore_eos: Default::default(),
-            // temperature: 1.0,
-            // topp: 0.9,
             token_level_class: Default::default(),
             #[cfg(feature = "vision")]
             yolo_preds_format: Default::default(),

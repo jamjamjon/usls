@@ -21,6 +21,7 @@ pub struct Y {
     pub masks: Vec<Mask>,
     pub images: Vec<Image>,
     pub embedding: X,
+    pub last_hidden_state: X, // un-pooled, [B, T, D] / [B, N, D]
     pub extra: HashMap<String, X>,
 }
 
@@ -56,7 +57,10 @@ impl std::fmt::Debug for Y {
             s.field("Images", &self.images);
         }
         if !self.embedding.is_empty() {
-            s.field("Embeddings", &self.embedding);
+            s.field("Embedding", &self.embedding);
+        }
+        if !self.last_hidden_state.is_empty() {
+            s.field("LastHiddenState(un-pooled)", &self.last_hidden_state);
         }
         if !self.extra.is_empty() {
             s.field("Extra", &self.extra);
@@ -77,6 +81,7 @@ impl Y {
             && self.masks.is_empty()
             && self.images.is_empty()
             && self.embedding.is_empty()
+            && self.last_hidden_state.is_empty()
             && self.extra.is_empty()
     }
 }

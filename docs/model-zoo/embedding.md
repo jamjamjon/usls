@@ -13,5 +13,7 @@ hide:
 | [jina-clip-v1](https://huggingface.co/jinaai/jina-clip-v1) | Vision-Language Embedding | [demo](https://github.com/jamjamjon/usls/tree/main/examples/embedding) | ✅ | ❓ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | [jina-clip-v2](https://huggingface.co/jinaai/jina-clip-v2) | Vision-Language Embedding | [demo](https://github.com/jamjamjon/usls/tree/main/examples/embedding) | ✅ | ❓ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | [mobileclip](https://github.com/apple/ml-mobileclip) | Vision-Language Embedding | [demo](https://github.com/jamjamjon/usls/tree/main/examples/embedding) | ✅ | ❓ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| [SigLIP](https://huggingface.co/collections/google/siglip) | Vision-Language Embedding | [demo](https://github.com/jamjamjon/usls/tree/main/examples/embedding) | ✅ | ❓ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| [SigLIPv2](https://huggingface.co/collections/google/siglip2) | Vision-Language Embedding | [demo](https://github.com/jamjamjon/usls/tree/main/examples/embedding) | ✅ | ❓ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | [DINOv2](https://github.com/facebookresearch/dinov2) | Vision Embedding | [demo](https://github.com/jamjamjon/usls/tree/main/examples/embedding) | ✅ | ❓ | ✅ | ❌ | ❌ | ❌ | ❌ |
 | [DINOv3](https://github.com/facebookresearch/dinov3) | Vision Embedding | [demo](https://github.com/jamjamjon/usls/tree/main/examples/embedding) | ✅ | ❓ | ✅ | ✅ | ✅ | ✅ | ✅ |

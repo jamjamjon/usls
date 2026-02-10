@@ -102,18 +102,6 @@ impl crate::Config {
         self
     }
 
-    /// Set max tokens.
-    pub fn with_max_tokens(mut self, max_tokens: u64) -> Self {
-        self.inference.max_tokens = Some(max_tokens);
-        self
-    }
-
-    /// Set ignore eos flag.
-    pub fn with_ignore_eos(mut self, ignore_eos: bool) -> Self {
-        self.inference.ignore_eos = ignore_eos;
-        self
-    }
-
     /// Get class confidences (accessor for inference params).
     pub fn class_confs(&self) -> &[f32] {
         &self.inference.class_confs
@@ -134,16 +122,6 @@ impl crate::Config {
         self.inference.token_level_class = token_level_class;
         self
     }
-
-    // pub fn with_temperature(mut self, temperature: f32) -> Self {
-    //     self.inference.temperature = temperature;
-    //     self
-    // }
-
-    // pub fn with_topp(mut self, topp: f32) -> Self {
-    //     self.inference.topp = topp;
-    //     self
-    // }
 
     /// Get text confidences.
     pub fn text_confs(&self) -> &[f32] {

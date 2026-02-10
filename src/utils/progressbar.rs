@@ -166,6 +166,28 @@ impl PB {
             ])
     }
 
+    pub fn fetch_stream() -> Self {
+        let pb = Self {
+            inner: ProgressBar::new_spinner(),
+            prefix: "Fetching",
+            completion_prefix: "Fetched",
+            ..Default::default()
+        };
+        pb.apply_style(false);
+        pb.with_layout(vec![
+            PBComponent::Prefix,
+            PBComponent::Message,
+            PBComponent::BinaryBytes,
+            PBComponent::BinarySpeed,
+        ])
+        .with_completion_layout(vec![
+            PBComponent::FinishedPrefix,
+            PBComponent::Message,
+            PBComponent::BinaryBytes,
+            PBComponent::InElapsed,
+        ])
+    }
+
     pub fn iterating(total: u64) -> Self {
         let counter = if total == u64::MAX {
             PBComponent::CounterWithInfinity

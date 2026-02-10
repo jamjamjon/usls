@@ -4,7 +4,7 @@ use usls::{Config, DType, Device};
 
 #[derive(Args, Debug)]
 pub struct ClipArgs {
-    /// Variant: clip-b16, clip-b32, clip-l14, jina-clip-v1, jina-clip-v2, mobileclip-s0, mobileclip-s1, mobileclip-s2, mobileclip-b, mobileclip-blt, mobileclip2-s0, mobileclip2-s2, mobileclip2-s4, mobileclip2-b, mobileclip2-l14
+    /// Variant: clip-b16, clip-b32, clip-l14, jina-clip-v1, jina-clip-v2, mobileclip-s0, mobileclip-s1, mobileclip-s2, mobileclip-b, mobileclip-blt, mobileclip2-s0, mobileclip2-s2, mobileclip2-s4, mobileclip2-b, mobileclip2-l14, siglip-b16-224, siglip-b16-256, siglip-b16-384, siglip-b16-512, siglip-l16-256, siglip-l16-384, siglip2-b16-224, siglip2-b16-256, siglip2-b16-384, siglip2-b16-512, siglip2-l16-256, siglip2-l16-384, siglip2-l16-512, siglip2-so400m-patch14-224, siglip2-so400m-patch14-384, siglip2-so400m-patch16-256, siglip2-so400m-patch16-384, siglip2-so400m-patch16-512
     #[arg(long, default_value = "mobileclip2-s0")]
     pub variant: String,
 
@@ -62,6 +62,24 @@ pub fn config(args: &ClipArgs) -> Result<Config> {
         "mobileclip2-s4" => Config::mobileclip2_s4(),
         "mobileclip2-b" => Config::mobileclip2_b(),
         "mobileclip2-l14" => Config::mobileclip2_l14(),
+        "siglip-b16-224" => Config::siglip_b16_224(),
+        "siglip-b16-256" => Config::siglip_b16_256(),
+        "siglip-b16-384" => Config::siglip_b16_384(),
+        "siglip-b16-512" => Config::siglip_b16_512(),
+        "siglip-l16-256" => Config::siglip_l16_256(),
+        "siglip-l16-384" => Config::siglip_l16_384(),
+        "siglip2-b16-224" => Config::siglip2_b16_224(),
+        "siglip2-b16-256" => Config::siglip2_b16_256(),
+        "siglip2-b16-384" => Config::siglip2_b16_384(),
+        "siglip2-b16-512" => Config::siglip2_b16_512(),
+        "siglip2-l16-256" => Config::siglip2_l16_256(),
+        "siglip2-l16-384" => Config::siglip2_l16_384(),
+        "siglip2-l16-512" => Config::siglip2_l16_512(),
+        "siglip2-so400m-patch14-224" => Config::siglip2_so400m_patch14_224(),
+        "siglip2-so400m-patch14-384" => Config::siglip2_so400m_patch14_384(),
+        "siglip2-so400m-patch16-256" => Config::siglip2_so400m_patch16_256(),
+        "siglip2-so400m-patch16-384" => Config::siglip2_so400m_patch16_384(),
+        "siglip2-so400m-patch16-512" => Config::siglip2_so400m_patch16_512(),
         _ => anyhow::bail!("Unsupported CLIP variant: {}", args.variant),
     }
     .with_visual_dtype(args.visual_dtype)
