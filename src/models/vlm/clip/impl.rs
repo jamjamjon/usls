@@ -1,5 +1,6 @@
 use aksr::Builder;
 use anyhow::Result;
+use ndarray::Dimension;
 
 use crate::{
     inputs, Config, Engine, Engines, FromConfig, Image, ImageProcessor, Model, Module,
@@ -66,14 +67,22 @@ impl Model for Clip {
             self.image_processor.process(images)?
         });
         let ys = crate::perf!("CLIP::visual-inference", engines.run(&Module::Visual, &ys)?);
-        let y = crate::perf!(
-            "CLIP::visual-postprocess",
-            ys.get::<f32>(0)
-                .ok_or_else(|| anyhow::anyhow!("Failed to get visual output"))?
-                .to_owned()
-        );
+        let y = crate::perf!("CLIP::visual-postprocess", {
+            let mut y = Y::default();
+            for i in 0..ys.len() {
+                if let Some(x) = ys.get::<f32>(i) {
+                    match x.dim().ndim() {
+                        2 => y = y.with_embedding(x.to_owned()),
+                        3 => y = y.with_last_hidden_state(x.to_owned()),
+                        _ => continue,
+                    }
+                }
+            }
 
-        Ok(Y::default().with_embedding(y))
+            y
+        });
+
+        Ok(y)
     }
 
     fn encode_texts(&mut self, engines: &mut Engines, texts: &[&str]) -> Result<Y> {
@@ -91,13 +100,21 @@ impl Model for Clip {
             "CLIP::textual-inference",
             engines.run(&Module::Textual, inputs![ys]?)?
         );
-        let y = crate::perf!(
-            "CLIP::textual-postprocess",
-            ys.get::<f32>(0)
-                .ok_or_else(|| anyhow::anyhow!("Failed to get textual output"))?
-                .to_owned()
-        );
+        let y = crate::perf!("CLIP::textual-postprocess", {
+            let mut y = Y::default();
+            for i in 0..ys.len() {
+                if let Some(x) = ys.get::<f32>(i) {
+                    match x.dim().ndim() {
+                        2 => y = y.with_embedding(x.to_owned()),
+                        3 => y = y.with_last_hidden_state(x.to_owned()),
+                        _ => continue,
+                    }
+                }
+            }
 
-        Ok(Y::default().with_embedding(y))
+            y
+        });
+
+        Ok(y)
     }
 }

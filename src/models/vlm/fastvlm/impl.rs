@@ -206,7 +206,7 @@ impl Model for FastVLM {
         let text_embed = Engine::from_config(config.take_module(&Module::Textual)?)?;
         let decoder = Engine::from_config(config.take_module(&Module::TextualDecoderMerged)?)?;
 
-        let max_length = config.inference.max_tokens.unwrap_or(1024);
+        let max_length = config.text_processor.max_tokens.unwrap_or(1024);
         let image_token = "<image>".to_string();
         let image_token_id = 151646;
         let eos_token = "<|im_end|>".to_string();

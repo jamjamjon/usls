@@ -52,7 +52,6 @@ cudarc = { version = "0.19", optional = true, default-features = false, features
   "dynamic-linking"
 ] }
 ureq = { version = "3.1.4", default-features = false, features = ["rustls", "gzip"] }
-hf-hub = { version = "0.4.3", default-features = false, features = ["ureq", "rustls-tls"], optional = true }
 tokenizers = { version = "0.22.1", optional = true }
 lru = { version = "0.16.2", default-features = false }
 
@@ -199,9 +198,6 @@ image-pnm = ["image/pnm"]
 image-qoi = ["image/qoi"]
 image-tga = ["image/tga"]
 image-all-formats = ["image/default-formats"]
-
-# Hugging Face hub support (for downloading models from Hugging Face)
-hf-hub = ["dep:hf-hub"]
 
 # Model Zoo
 vision = []

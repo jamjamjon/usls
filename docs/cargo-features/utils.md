@@ -5,7 +5,6 @@
 | ***`annotator`*** | Annotation | Draw bounding boxes, keypoints, masks on images | `ab_glyph`, `imageproc` | ✓ |
 | **`viewer`** | Visualization | Real-time image/video display (like OpenCV `imshow`) | `minifb` | x |
 | **`video`** | I/O | Video read/write streaming support | `video-rs` | x |
-| **`hf-hub`** | Model Hub | Download models from Hugging Face | `hf-hub` | x |
 
 !!! tip "Usage Example"
     ```toml

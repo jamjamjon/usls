@@ -251,8 +251,8 @@ impl Model for SmolVLM {
         let eos_token_id = 49279;
         let image_token_id = 49190;
         let image_seq_len = 64;
-        let max_length = config.inference.max_tokens.unwrap_or(1024);
-        let ignore_eos = config.inference.ignore_eos;
+        let max_length = config.text_processor.max_tokens.unwrap_or(1024);
+        let ignore_eos = config.text_processor.ignore_eos;
         let scale = config
             .scale
             .take()

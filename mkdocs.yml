@@ -76,6 +76,7 @@ nav:
   - Guides:
     - Overview: guides/overview.md
     - Config System: guides/config.md
+    - Hub (GitHub / Hugging Face): guides/hub.md
     - Data Loading: guides/dataloader.md
     - Execution Providers: guides/ep.md
     - DType & Quantization: guides/dtype.md
