@@ -135,13 +135,253 @@ cargo run -r -F openvino -F ort-load-dynamic --example yolo -- --device openvino
 
 </details>
 
-## What's Next?
+## 🔍 What's Next?
 
 - <a href="https://jamjamjon.github.io/usls/">📖 <strong>Online Documentation</strong></a>
 - <a href="https://docs.rs/usls/latest/usls/">📚 <strong>API Reference</strong></a>
 - <a href="https://jamjamjon.github.io/usls/model-zoo/overview/">📦 <strong>Model Zoo</strong></a>
 - <a href="./examples/README.md">🚀 <strong>Examples</strong></a> 
 
+
+## 📦 Model Zoo
+
+> [!NOTE]
+>
+> **Status:** ✅ **Supported**  |  ❓ **Unknown**  |  ❌ **Not Supported For Now**
+
+🔍 All ONNX models are available from the [ONNX Models Repository](https://github.com/jamjamjon/assets)
+
+<details closed>
+<summary><b>🔥 YOLO-Series</b></summary>
+
+| Model | Task / Description | Demo | Dynamic Batch | TensorRT | FP32 | FP16 | Q8 | Q4f16 | BNB4 |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| [YOLOv5](https://github.com/ultralytics/yolov5) | Image Classification<br />Object Detection<br />Instance Segmentation | [demo](./examples/yolo) | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ | 
+| [YOLOv6](https://github.com/meituan/YOLOv6) | Object Detection | [demo](./examples/yolo) | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ | 
+| [YOLOv7](https://github.com/WongKinYiu/yolov7) | Object Detection | [demo](./examples/yolo) | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ | 
+| [YOLOv8](https://github.com/ultralytics/ultralytics) | Object Detection<br />Instance Segmentation<br />Image Classification<br />Oriented Object Detection<br />Keypoint Detection | [demo](./examples/yolo) | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ | 
+| [YOLO11](https://github.com/ultralytics/ultralytics) | Object Detection<br />Instance Segmentation<br />Image Classification<br />Oriented Object Detection<br />Keypoint Detection | [demo](./examples/yolo) | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ | 
+| [YOLOv9](https://github.com/WongKinYiu/yolov9) | Object Detection | [demo](./examples/yolo) | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ | 
+| [YOLOv10](https://github.com/THU-MIG/yolov10) | Object Detection | [demo](./examples/yolo) | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ | 
+| [YOLOv12](https://github.com/sunsmarterjie/yolov12) | Image Classification<br />Object Detection<br />Instance Segmentation | [demo](./examples/yolo) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | 
+| [YOLOv13](https://github.com/iMoonLab/yolov13) | Object Detection | [demo](./examples/yolo) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | 
+| [YOLO26](https://github.com/ultralytics/ultralytics) | Object Detection<br />Instance Segmentation<br />Image Classification<br />Oriented Object Detection<br />Keypoint Detection | [demo](./examples/yolo) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | 
+
+</details>
+
+
+<details closed>
+<summary><b>🏷️ Image Classification & Tagging</b></summary>
+
+| Model | Task / Description | Demo | Dynamic Batch | TensorRT | FP32 | FP16 | Q8 | Q4f16 | BNB4 |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| [BEiT](https://github.com/microsoft/unilm/tree/master/beit) | Image Classification | [demo](./examples/image-classification) | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ | 
+| [ConvNeXt](https://github.com/facebookresearch/ConvNeXt) | Image Classification | [demo](./examples/image-classification) | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ | 
+| [FastViT](https://github.com/apple/ml-fastvit) | Image Classification | [demo](./examples/image-classification) | ✅ | ✅| ✅ | ✅| ❌ | ❌ | ❌ | 
+| [MobileOne](https://github.com/apple/ml-mobileone) | Image Classification | [demo](./examples/image-classification) | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ | 
+| [DeiT](https://github.com/facebookresearch/deit) | Image Classification | [demo](./examples/image-classification) | ✅ | ✅ | ✅ | ✅| ❌ | ❌ | ❌ | 
+| [RAM](https://github.com/xinyu1205/recognize-anything) | Image Tagging | [demo](./examples/image-classification) | ✅ | ❓| ✅ | ✅| ✅ | ✅ | ✅ |
+| [RAM++](https://github.com/xinyu1205/recognize-anything) | Image Tagging | [demo](./examples/image-classification) | ✅ | ❓ | ✅ | ✅ | ✅ | ✅ | ✅ |
+
+</details>
+
+
+<details closed>
+<summary><b>🎯 Object Detection</b></summary>
+
+| Model | Task / Description | Demo | Dynamic Batch | TensorRT | FP32 | FP16 | Q8 | Q4f16 | BNB4 |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| [RT-DETRv1](https://github.com/lyuwenyu/RT-DETR) | Object Detection | [demo](./examples/object-detection) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | 
+| [RT-DETRv2](https://github.com/lyuwenyu/RT-DETR) | Object Detection | [demo](./examples/object-detection) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅  | 
+| [RT-DETRv4](https://github.com/RT-DETRs/RT-DETRv4) | Object Detection | [demo](./examples/object-detection) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅  | 
+| [RF-DETR](https://github.com/roboflow/rf-detr) | Object Detection | [demo](./examples/object-detection)| ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | 
+| [PP-PicoDet](https://github.com/PaddlePaddle/PaddleDetection/tree/release/2.8/configs/picodet) | Object Detection | [demo](./examples/ocr) | ❌ | ❓  | ✅ | ❌ | ❌ | ❌ | ❌ | 
+| [D-FINE](https://github.com/manhbd-22022602/D-FINE) | Object Detection | [demo](./examples/object-detection) | ✅ | ❓  | ✅  | ❌ | ❌ | ❌ | ❌ | ❌ | 
+| [DEIM](https://github.com/ShihuaHuang95/DEIM) | Object Detection | [demo](./examples/object-detection) | ✅ | ❓  | ✅  | ❌ | ❌ | ❌ | ❌ | ❌ | 
+| [DEIMv2](https://github.com/Intellindust-AI-Lab/DEIMv2) | Object Detection | [demo](./examples/object-detection) | ✅ | ❓  |✅ | ✅ | ✅ | ✅ | ✅ | ✅ | 
+
+</details>
+
+<details closed>
+<summary><b>🎨 Image Segmentation</b></summary>
+
+| Model | Task / Description | Demo | Dynamic Batch | TensorRT | FP32 | FP16 | Q8 | Q4f16 | BNB4 |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| [SAM](https://github.com/facebookresearch/segment-anything) | Segment Anything | [demo](./examples/image-segmentation) | ✅ | ❓ | ✅ | ❌ | ❌ | ❌ | ❌ |  
+| [SAM-HQ](https://github.com/SysCV/sam-hq) | Segment Anything | [demo](./examples/image-segmentation) | ✅ | ❓ | ✅ | ❌ | ❌ | ❌ | ❌ | 
+| [MobileSAM](https://github.com/ChaoningZhang/MobileSAM) | Segment Anything | [demo](./examples/image-segmentation) | ✅ |❓ | ✅ | ❌ | ❌ | ❌ | ❌ |  
+| [EdgeSAM](https://github.com/chongzhou96/EdgeSAM) | Segment Anything | [demo](./examples/image-segmentation) | ✅ | ❓ | ✅ | ❌ | ❌ | ❌ | ❌ | 
+| [YOLOE-v8/11-Prompt-Free](https://github.com/THU-MIG/yoloe) | Open-Set Detection And Segmentation | [demo](./examples/image-segmentation/yoloe_prompt_free) | ✅ | ✅ | ✅  | ✅  | ✅  | ✅  | ✅  |
+| [YOLOE-26-Prompt-Free](https://github.com/ultralytics/ultralytics) | Open-Set Detection And Segmentation | [demo](./examples/image-segmentation/yoloe_prompt_free) | ✅ | ✅ | ✅  | ✅  | ✅  | ✅  | ✅  |
+| [FastSAM](https://github.com/CASIA-IVA-Lab/FastSAM) | Instance Segmentation | [demo](./examples/image-segmentation) | ✅ | ✅ | ✅  | ✅  | ✅  | ✅  | ✅  |
+| [SAM2](https://github.com/facebookresearch/segment-anything-2) | Segment Anything | [demo](./examples/image-segmentation) | ✅ | ❓ | ✅ | ❌ | ❌  | ❌ | ❌ |  
+| [SAM3-Tracker](https://github.com/facebookresearch/segment-anything-3) | Segment Anything | [demo](./examples/image-segmentation) | ✅ | ✅ | ✅  | ✅  | ✅  | ✅  | ✅  |
+| [BiRefNet - COD](https://github.com/ZhengPeng7/BiRefNet) | Camouflaged Object Detection | [demo](./examples/birefnet) | ✅ | ❓ | ✅ | ✅ | ✅ | ✅ |  ✅ |
+| [BiRefNet - DIS](https://github.com/ZhengPeng7/BiRefNet) | Dichotomous Image Segmentation | [demo](./examples/birefnet) | ✅ | ❓ | ✅ | ✅ | ✅ | ✅ |  ✅ |
+| [BiRefNet - HRSOD](https://github.com/ZhengPeng7/BiRefNet) | High-Resolution Salient Object Detection | [demo](./examples/birefnet) | ✅ | ❓ | ✅ | ✅ | ✅ | ✅ |  ✅ |
+| [BiRefNet - Massive](https://github.com/ZhengPeng7/BiRefNet) | Multi-Dataset Robust Segmentation | [demo](./examples/birefnet) | ✅ | ❓ | ✅ | ✅ | ✅ | ✅ |  ✅ |
+
+
+</details>
+
+<details closed>
+<summary><b>✨ Background Removal</b></summary>
+
+| Model | Task / Description | Demo | Dynamic Batch | TensorRT | FP32 | FP16 | Q8 | Q4f16 | BNB4 |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| [RMBG](https://huggingface.co/briaai/RMBG-2.0) | Image Segmentation<br />Background Removal | [demo](./examples/background-removal) | ✅ | ❓ |✅  | ✅  | ✅  | ✅  | ✅  |
+| [BEN2](https://huggingface.co/PramaLLC/BEN2) | Image Segmentation<br />Background Removal | [demo](./examples/background-removal) | ✅ | ❓ |✅  | ✅  | ❌ | ❌ | ❌ |
+
+</details>
+
+<details closed>
+<summary><b>👀 Gaze Estimation</b></summary>
+
+| Model | Task / Description | Demo | Dynamic Batch | TensorRT | FP32 | FP16 | Q8 | Q4f16 | BNB4 |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| [MobileGaze](https://github.com/yakhyo/gaze-estimation) | Eye Gaze Estimation | [demo](./examples/pose-estimation) | ✅ | ❓ |✅  | ✅  | ✅  | ✅  | ✅  |
+
+</details>
+
+<details closed>
+<summary><b>✂️ Image Matting & Portrait Segmentation</b></summary>
+
+| Model | Task / Description | Demo | Dynamic Batch | TensorRT | FP32 | FP16 | Q8 | Q4f16 | BNB4 |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| [MODNet](https://github.com/ZHKKKe/MODNet) | Image Matting | [demo](./examples/image-matting) | ✅ |  ❓ | ✅  | ✅  | ✅  | ❌  | ❌  |
+| [MediaPipe Selfie](https://ai.google.dev/edge/mediapipe/solutions/vision/image_segmenter) | Image Segmentation | [demo](./examples/image-matting) | ✅ |  ❓ | ✅  | ✅  | ✅  | ❌  | ❌  |
+| [BiRefNet - Portrait](https://github.com/ZhengPeng7/BiRefNet) | Portrait Background Removal | [demo](./examples/birefnet) | ✅ | ❓ | ✅ | ✅ | ✅ | ✅ |  ✅ |
+| [BiRefNet - Matting](https://github.com/ZhengPeng7/BiRefNet) | Portrait Matting & Background Removal | [demo](./examples/birefnet) | ✅ | ❓ | ✅ | ✅ | ✅ | ✅ |  ✅ |
+| [BiRefNet - HR Matting](https://github.com/ZhengPeng7/BiRefNet) | High-Resolution Portrait Matting | [demo](./examples/birefnet) | ✅ | ❓ | ✅ | ✅ | ✅ | ✅ |  ✅ |
+| [BiRefNet - General](https://github.com/ZhengPeng7/BiRefNet) | General Purpose Segmentation | [demo](./examples/birefnet) | ✅ | ❓ | ✅ | ✅ | ✅ | ✅ |  ✅ |
+| [BiRefNet - HR General](https://github.com/ZhengPeng7/BiRefNet) | High-Resolution General Segmentation | [demo](./examples/birefnet) | ✅ | ❓ | ✅ | ✅ | ✅ | ✅ |  ✅ |
+| [BiRefNet - Lite General](https://github.com/ZhengPeng7/BiRefNet) | Lightweight General Segmentation (2K) | [demo](./examples/birefnet) | ✅ | ❓ | ✅ | ✅ | ✅ | ✅ |  ✅ |
+| [BiRefNet - General Tiny](https://github.com/ZhengPeng7/BiRefNet) | Lightweight General Segmentation with Swin-V1-Tiny | [demo](./examples/birefnet) | ✅ | ❓ | ✅ | ✅ | ✅ | ✅ |  ✅ |
+
+</details>
+
+
+
+<details closed>
+<summary><b>🗺️ Open-Set Detection & Segmentation</b></summary>
+
+| Model | Task / Description | Demo | Dynamic Batch | TensorRT | FP32 | FP16 | Q8 | Q4f16 | BNB4 |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| [GroundingDINO](https://github.com/IDEA-Research/GroundingDINO) | Open-Set Detection With Language | [demo](./examples/open-set-detection) | ✅ | ❓ | ✅  | ✅  | ✅  | ✅  | ✅  |
+| [MM-GDINO](https://github.com/open-mmlab/mmdetection/blob/main/configs/mm_grounding_dino/README.md) | Open-Set Detection With Language | [demo](./examples/open-set-detection) | ✅ | ❓ | ✅  | ✅  | ✅  | ✅  | ✅  |
+| [LLMDet](https://github.com/iSEE-Laboratory/LLMDet) | Open-Set Detection With Language | [demo](./examples/open-set-detection) | ✅ | ❓ | ✅  | ✅  | ✅  | ✅  | ✅  |
+| [OWLv2](https://huggingface.co/google/owlv2-base-patch16-ensemble) | Open-Set Object Detection | [demo](./examples/open-set-detection) | ✅ | ❓  | ✅ | ✅   | ❌ | ❌ | ❌ |
+| [YOLO-World](https://github.com/AILab-CVC/YOLO-World) | Open-Set Detection With Language | [demo](./examples/yolo) | ✅ | ✅ |✅  | ✅  | ✅  | ✅  | ✅  |
+| [YOLOE-Prompt-Based](https://github.com/THU-MIG/yoloe) | Open-Set Detection And Segmentation | [demo](./examples/open-set-segmentation) | ✅ | ✅ | ✅  | ✅  | ✅  | ✅  | ✅  |
+| [YOLOE-26-Prompt-Based](https://github.com/ultralytics/ultralytics) | Open-Set Detection And Segmentation | [demo](./examples/open-set-segmentation) | ✅ | ✅ | ✅  | ✅  | ✅  | ✅  | ✅  |
+| [SAM3-Image](https://github.com/facebookresearch/segment-anything-3) | Open-Set Detection And Segmentation| [demo](./examples/open-set-segmentation) | ✅ | ✅ | ✅  | ✅  | ✅  | ✅  | ✅  |
+
+</details>
+
+
+<details closed>
+<summary><b>🏃 Multi-Object Tracking</b></summary>
+
+| Model | Task / Description | Demo | Dynamic Batch | TensorRT | FP32 | FP16 | Q8 | Q4f16 | BNB4 |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| [ByteTrack](https://github.com/FoundationVision/ByteTrack) | Multi-Object Tracking | [demo](./examples/mot) | ❌ | ❌  | ❌ | ❌ | ❌ | ❌ | ❌ |
+
+</details>
+
+
+<details closed>
+<summary><b>💎 Image Super-Resolution</b></summary>
+
+| Model | Task / Description | Demo | Dynamic Batch | TensorRT | FP32 | FP16 | Q8 | Q4f16 | BNB4 |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| [Swin2SR](https://github.com/mv-lab/swin2sr) | Image Restoration | [demo](./examples/super-resolution) | ✅ |  ❓ | ✅  | ✅  | ✅  | ✅  | ✅  |
+| [APISR](https://github.com/Kiteretsu77/APISR) | Anime Super-Resolution | [demo](./examples/super-resolution) | ✅ |  ❓ | ✅  | ✅  | ✅  | ✅  | ✅  |
+
+</details>
+
+
+<details closed>
+<summary><b>🤸 Pose Estimation</b></summary>
+
+| Model | Task / Description | Demo | Dynamic Batch | TensorRT | FP32 | FP16 | Q8 | Q4f16 | BNB4 |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| [RTMPose](https://github.com/open-mmlab/mmpose/tree/dev-1.x/projects/rtmpose) | Keypoint Detection | [demo](./examples/pose-estimation) | ✅ | ❓ |  ✅  | ✅  | ✅  | ✅  | ✅  |
+| [DWPose](https://github.com/IDEA-Research/DWPose) | Keypoint Detection | [demo](./examples/pose-estimation) | ✅ | ❓ |  ✅  | ✅  | ✅  | ✅  | ✅  |
+| [RTMW](https://arxiv.org/abs/2407.08634) | Keypoint Detection | [demo](./examples/pose-estimation) | ✅ | ❓ |  ✅  | ✅  | ✅  | ✅  | ✅  |
+| [RTMO](https://github.com/open-mmlab/mmpose/tree/main/projects/rtmo) | Keypoint Detection | [demo](./examples/pose-estimation) | ✅ | ❓ |  ✅  | ✅  | ✅  | ✅  | ❌  |
+
+</details>
+
+<details closed>
+<summary><b>🔍 OCR & Document Understanding</b></summary>
+
+| Model | Task / Description | Demo | Dynamic Batch | TensorRT | FP32 | FP16 | Q8 | Q4f16 | BNB4 |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| [DB (PaddleOCR det v4 / v5)](https://arxiv.org/abs/1911.08947) | Text Detection | [demo](./examples/ocr) | ✅ | ❓ | ✅ | ✅ | ❌ | ❌ | ❌ |
+| [FAST](https://github.com/czczup/FAST) | Text Detection | [demo](./examples/ocr) | ✅ | ❓ | ✅ | ✅ | ❌ | ❌ | ❌ |
+| [LinkNet](https://arxiv.org/abs/1707.03718) | Text Detection | [demo](./examples/ocr) | ✅ | ❓ | ✅ | ✅ | ❌ | ❌ | ❌ |
+| [SVTR (PaddleOCR rec v4 / v5)](https://arxiv.org/abs/2205.00159) | Text Recognition | [demo](./examples/ocr) | ✅ | ❓ | ✅ | ✅ | ❌ | ❌ | ❌ |
+| [TrOCR](https://huggingface.co/microsoft/trocr-base-printed) | Text Recognition | [demo](./examples/ocr) | ✅ | ❓ | ✅ | ✅ | ❌ | ❌ | ❌ |
+| [SLANet (PaddleOCR tab v4 / v5)](https://paddlepaddle.github.io/PaddleOCR/latest/algorithm/table_recognition/algorithm_table_slanet.html) | Table Recognition | [demo](./examples/ocr) | ✅ | ❓ | ✅ | ✅ | ❌ | ❌ | ❌ |
+| [DocLayout-YOLO](https://github.com/opendatalab/DocLayout-YOLO) | Object Detection | [demo](./examples/ocr) | ✅ | ❓ | ✅ | ✅ | ✅ | ❌ | ❌ |
+| [PP-DocLayout-v1-Plus-L](https://huggingface.co/PaddlePaddle/PP-DocLayout_plus-L) | Object Detection | [demo](./examples/ocr) | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ |
+| [PP-DocLayout-v2](https://huggingface.co/PaddlePaddle/PP-DocLayoutV2) | Object Detection | [demo](./examples/ocr) | ✅ | ❓ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| [PP-DocLayout-v3](https://huggingface.co/PaddlePaddle/PP-DocLayoutV3) | Object Detection | [demo](./examples/ocr) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+
+</details>
+
+<details closed>
+<summary><b>🧩 Vision-Language Models (VLM)</b></summary>
+
+| Model | Task / Description | Demo | Dynamic Batch | TensorRT | FP32 | FP16 | Q8 | Q4f16 | BNB4 |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| [BLIP](https://github.com/salesforce/BLIP) | Image Captioning | [demo](./examples/vlm) | ✅ | ❓ | ✅ |❓ | ❌ | ❌ | ❌ |
+| [Florence2](https://arxiv.org/abs/2311.06242) | A Variety of Vision Tasks | [demo](./examples/vlm) | ✅ | ❓ | ✅ |✅  | ❌ | ❌ | ❌ |
+| [Moondream2](https://github.com/vikhyat/moondream/tree/main) | Open-Set Object Detection<br />Open-Set Keypoints Detection<br />Image Captioning<br />Visual Question Answering | [demo](./examples/vlm) | ✅ | ❓  | ❌ | ❌ |✅  | ✅  | ❌ |
+| [SmolVLM](https://huggingface.co/HuggingFaceTB/SmolVLM-256M-Instruct) | Visual Question Answering | [demo](./examples/vlm) | ✅ | ❓| ✅ | ❓ | ❓ | ❓ | ❓ | 
+| [SmolVLM2](https://huggingface.co/HuggingFaceTB/SmolVLM-256M-Instruct) | Visual Question Answering | [demo](./examples/vlm) | ✅ | ❓| ✅ | ❓ | ❓ | ❓ | ❓ | 
+| [FastVLM](https://github.com/apple/ml-fastvlm) | Vision Language Models | [demo](./examples/vlm) | ✅ |  ❓ | ✅  | ✅|✅  | ✅ | ✅ |
+
+</details>
+
+
+<details closed>
+<summary><b>🧬 Embedding Model</b></summary>
+
+| Model | Task / Description | Demo | Dynamic Batch | TensorRT | FP32 | FP16 | Q8 | Q4f16 | BNB4 |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| [CLIP](https://github.com/openai/CLIP) | Vision-Language Embedding | [demo](./examples/embedding) | ✅ | ❓ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| [jina-clip-v1](https://huggingface.co/jinaai/jina-clip-v1) | Vision-Language Embedding | [demo](./examples/embedding) | ✅ | ❓ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| [jina-clip-v2](https://huggingface.co/jinaai/jina-clip-v2) | Vision-Language Embedding | [demo](./examples/embedding) | ✅ | ❓ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| [mobileclip](https://github.com/apple/ml-mobileclip) | Vision-Language Embedding | [demo](./examples/embedding) | ✅ | ❓ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| [SigLIP](https://huggingface.co/collections/google/siglip) | Vision-Language Embedding | [demo](./examples/embedding) | ✅ | ❓ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| [SigLIPv2](https://huggingface.co/collections/google/siglip2) | Vision-Language Embedding | [demo](./examples/embedding) | ✅ | ❓ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| [DINOv2](https://github.com/facebookresearch/dinov2) | Vision Embedding | [demo](./examples/embedding) | ✅ | ❓ | ✅ | ❌ | ❌ | ❌ | ❌ |
+| [DINOv3](https://github.com/facebookresearch/dinov3) | Vision Embedding | [demo](./examples/embedding) | ✅ | ❓ | ✅ | ✅ | ✅ | ✅ | ✅ |
+</details>
+
+<details closed>
+<summary><b>📐 Depth Estimation</b></summary>
+
+| Model | Task / Description | Demo | Dynamic Batch | TensorRT | FP32 | FP16 | Q8 | Q4f16 | BNB4 |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| [DepthAnything v1](https://github.com/LiheYoung/Depth-Anything) | Monocular Depth Estimation | [demo](./examples/depth-estimation) | ✅ | ❓ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| [DepthAnything v2](https://github.com/LiheYoung/Depth-Anything) | Monocular Depth Estimation | [demo](./examples/depth-estimation) | ✅ | ❓ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| [DepthPro](https://github.com/apple/ml-depth-pro) | Monocular Depth Estimation | [demo](./examples/depth-estimation) | ✅ | ❓ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| [Depth-Anything-3](https://github.com/ByteDance-Seed/Depth-Anything-3) | Monocular<br>Metric<br>Multi-View | [demo](./examples/depth-estimation) | ✅ | ❓ | ✅ | ✅ | ✅ | ✅ | ✅ |
+
+</details>
+
+
+<details closed>
+<summary><b>🌌 Others</b></summary>
+
+| Model | Task / Description | Demo | Dynamic Batch | TensorRT | FP32 | FP16 | Q8 | Q4f16 | BNB4 |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| [Sapiens](https://github.com/facebookresearch/sapiens/tree/main) | Foundation for Human Vision Models | [demo](./examples/sapiens) | ✅ | ❓ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| [YOLOPv2](https://arxiv.org/abs/2208.11434) | Panoptic Driving | [demo](./examples/image-segmentation) | ✅ | ❓ | ✅ | ❌ | ❌ | ❌ | ❌ |
+
+</details>
 
 ## 🤝 Contributing
 
