@@ -29,7 +29,7 @@ pub struct Sam3Image {
 
 impl Sam3Image {
     fn extract_f32(val: &DynValue) -> Result<ArrayD<f32>> {
-        use ort::tensor::TensorElementType as TE;
+        use ort::value::TensorElementType as TE;
         use ort::value::ValueType;
         match val.dtype() {
             ValueType::Tensor { ty, .. } => match ty {
@@ -54,7 +54,7 @@ impl Sam3Image {
         }
 
         use ort::memory::AllocationDevice;
-        use ort::tensor::TensorElementType as TE;
+        use ort::value::TensorElementType as TE;
         use ort::value::ValueType;
 
         let owned = text_feat
@@ -198,7 +198,7 @@ impl Sam3Image {
         let mut res = Vec::with_capacity(texts.len());
         for chunk in texts.chunks(self.text_batch) {
             use ort::memory::AllocationDevice;
-            use ort::tensor::TensorElementType as TE;
+            use ort::value::TensorElementType as TE;
             use ort::value::ValueType;
 
             let encs = self.text_processor.encode_texts(chunk, true)?;

@@ -6,8 +6,8 @@ use half::{bf16, f16};
 use ndarray::Array;
 use num_traits::{cast, NumCast};
 use ort::{
-    memory::AllocationDevice, session::SessionOutputs, tensor::PrimitiveTensorElementType,
-    tensor::TensorElementType, value::ValueType,
+    memory::AllocationDevice, session::SessionOutputs, value::PrimitiveTensorElementType,
+    value::TensorElementType, value::ValueType,
 };
 use rayon::prelude::*;
 use std::{

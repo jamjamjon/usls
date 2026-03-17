@@ -69,7 +69,8 @@ nav:
     - Integration: getting-started/integration.md
   - Cargo Features: 
     - Overview: cargo-features/overview.md
-    - ONNX Runtime & EP: cargo-features/ort.md
+    - ONNX Runtime Version: cargo-features/ort.md
+    - Execution Provider: cargo-features/ep.md
     - Image Formats: cargo-features/image-formats.md
     - Model Categories: cargo-features/models.md
     - Utilities: cargo-features/utils.md

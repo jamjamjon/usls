@@ -26,7 +26,7 @@ impl<'a> TryFrom<&'a XAny> for ort::session::SessionInputValue<'a> {
             XAny::Device(cuda_tensor) => {
                 // Zero-copy CUDA path: create ORT CUDA tensor directly
                 use ort::memory::{AllocationDevice, AllocatorType, MemoryInfo, MemoryType};
-                use ort::tensor::Shape;
+                use ort::value::Shape;
                 use ort::value::TensorRefMut;
 
                 // Create MemoryInfo for CUDA device

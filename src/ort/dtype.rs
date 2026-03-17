@@ -1,4 +1,4 @@
-use ort::tensor::TensorElementType;
+use ort::value::TensorElementType;
 
 impl From<TensorElementType> for crate::DType {
     fn from(dtype: TensorElementType) -> Self {

@@ -4,9 +4,8 @@ use half::{bf16, f16};
 use ndarray::{Array, IxDyn};
 use ort::{
     execution_providers::ExecutionProvider,
-    session::{builder::GraphOptimizationLevel, input::SessionInputs, Session, SessionInputValue},
-    tensor::TensorElementType,
-    value::{DynValue, Value},
+    session::{builder::GraphOptimizationLevel, Session, SessionInputValue, SessionInputs},
+    value::{DynValue, TensorElementType, Value},
 };
 use std::{
     collections::{HashMap, HashSet},
@@ -493,7 +492,7 @@ impl Engine {
         dtype: &TensorElementType,
     ) -> Result<SessionInputValue<'a>> {
         use ort::memory::{AllocationDevice, AllocatorType, MemoryInfo, MemoryType};
-        use ort::tensor::Shape;
+        use ort::value::Shape;
         use ort::value::TensorRefMut;
 
         // Only f32 is supported for now (can extend later)
@@ -1129,25 +1128,32 @@ impl Engine {
         }
 
         // threads
-        builder =
-            builder.with_intra_threads(config.num_intra_threads.unwrap_or(n_threads_available))?;
-        builder = builder.with_inter_threads(config.num_inter_threads.unwrap_or(8))?;
+        builder = builder
+            .with_intra_threads(config.num_intra_threads.unwrap_or(n_threads_available))
+            .map_err(|e| anyhow::anyhow!("Failed to set intra threads: {e}"))?;
+        builder = builder
+            .with_inter_threads(config.num_inter_threads.unwrap_or(8))
+            .map_err(|e| anyhow::anyhow!("Failed to set inter threads: {e}"))?;
 
         // optimization
         #[cfg(not(feature = "tensorrt"))]
         if let Some(level) = config.graph_opt_level {
-            builder = builder.with_optimization_level(match level {
-                0 => GraphOptimizationLevel::Disable,
-                1 => GraphOptimizationLevel::Level1,
-                2 => GraphOptimizationLevel::Level2,
-                3 => GraphOptimizationLevel::Level3,
-                _ => anyhow::bail!("Invalid graph optimization level: {level}"),
-            })?;
+            builder = builder
+                .with_optimization_level(match level {
+                    0 => GraphOptimizationLevel::Disable,
+                    1 => GraphOptimizationLevel::Level1,
+                    2 => GraphOptimizationLevel::Level2,
+                    3 => GraphOptimizationLevel::Level3,
+                    _ => anyhow::bail!("Invalid graph optimization level: {level}"),
+                })
+                .map_err(|e| anyhow::anyhow!("Failed to set graph optimization level: {e}"))?;
         }
         #[cfg(feature = "tensorrt")]
         {
             tracing::info!("Disabling ort graph optimization for TensorRT. `ort_graph_opt_level` setting is ignored.");
-            builder = builder.with_optimization_level(GraphOptimizationLevel::Disable)?;
+            builder = builder
+                .with_optimization_level(GraphOptimizationLevel::Disable)
+                .map_err(|e| anyhow::anyhow!("Failed to disable graph optimization: {e}"))?;
         }
 
         let session = builder.commit_from_file(model_file)?;

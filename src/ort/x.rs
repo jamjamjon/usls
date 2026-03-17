@@ -15,7 +15,7 @@ use ::ort::value::Tensor as OrtTensor;
 
 impl<A> TryFrom<&crate::X<A>> for OrtTensor<A>
 where
-    A: Clone + 'static + ::ort::tensor::PrimitiveTensorElementType + std::fmt::Debug,
+    A: Clone + 'static + ::ort::value::PrimitiveTensorElementType + std::fmt::Debug,
 {
     type Error = anyhow::Error;
 
@@ -29,7 +29,7 @@ where
 
 impl<A> TryFrom<&&crate::X<A>> for OrtTensor<A>
 where
-    A: Clone + 'static + ::ort::tensor::PrimitiveTensorElementType + std::fmt::Debug,
+    A: Clone + 'static + ::ort::value::PrimitiveTensorElementType + std::fmt::Debug,
 {
     type Error = anyhow::Error;
 
@@ -40,7 +40,7 @@ where
 
 impl<A> TryFrom<crate::X<A>> for OrtTensor<A>
 where
-    A: Clone + 'static + ::ort::tensor::PrimitiveTensorElementType + std::fmt::Debug,
+    A: Clone + 'static + ::ort::value::PrimitiveTensorElementType + std::fmt::Debug,
 {
     type Error = anyhow::Error;
 
@@ -69,7 +69,7 @@ where
 
 impl<A> TryFrom<crate::X<A>> for ::ort::session::SessionInputValue<'static>
 where
-    A: Clone + 'static + ::ort::tensor::PrimitiveTensorElementType + std::fmt::Debug,
+    A: Clone + 'static + ::ort::value::PrimitiveTensorElementType + std::fmt::Debug,
 {
     type Error = anyhow::Error;
 
@@ -84,7 +84,7 @@ where
 /// - **Non-contiguous layout**: auto-fallback to copy (creates owned tensor)
 impl<'a, A> TryFrom<crate::XView<'a, A>> for ::ort::session::SessionInputValue<'a>
 where
-    A: Clone + 'static + ::ort::tensor::PrimitiveTensorElementType + std::fmt::Debug,
+    A: Clone + 'static + ::ort::value::PrimitiveTensorElementType + std::fmt::Debug,
 {
     type Error = anyhow::Error;
 
@@ -118,7 +118,7 @@ where
 /// ```
 impl<A> TryFrom<&crate::X<A>> for ::ort::session::SessionInputValue<'static>
 where
-    A: Clone + 'static + ::ort::tensor::PrimitiveTensorElementType + std::fmt::Debug,
+    A: Clone + 'static + ::ort::value::PrimitiveTensorElementType + std::fmt::Debug,
 {
     type Error = anyhow::Error;
 

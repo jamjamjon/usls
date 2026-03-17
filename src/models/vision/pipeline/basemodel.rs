@@ -1,5 +1,5 @@
 use anyhow::Result;
-use ort::tensor::TensorElementType;
+use ort::value::TensorElementType;
 
 use crate::{
     Config, Device, Engine, Engines, FromConfig, Image, ImageProcessor, Model, Module, Scale, Task,

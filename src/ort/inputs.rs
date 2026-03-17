@@ -1,4 +1,4 @@
-use ort::session::{input::SessionInputs, SessionInputValue};
+use ort::session::{SessionInputValue, SessionInputs};
 
 use crate::{XAny, X};
 
