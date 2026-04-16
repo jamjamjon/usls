@@ -348,8 +348,10 @@ impl Sam3Image {
             let mut uncached = Vec::new();
             let mut seen = HashSet::new();
             for p in prompts {
-                if seen.insert(&p.text) && !self.text_cache.contains(&p.text) {
-                    uncached.push(p.text.as_str());
+                if seen.insert(&p.text) {
+                    if self.text_cache.get(&p.text).is_none() {
+                        uncached.push(p.text.as_str());
+                    }
                 }
             }
 
