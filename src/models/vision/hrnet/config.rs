@@ -44,7 +44,9 @@ impl crate::Config {
 
     /// HRNet for 384x288 input
     pub fn hrnet_384() -> Self {
-        Self::hrnet().with_model_ixx(0, 2, 384).with_model_ixx(0, 3, 288)
+        Self::hrnet()
+            .with_model_ixx(0, 2, 384)
+            .with_model_ixx(0, 3, 288)
     }
 
     /// Base configuration for 17-keypoint COCO body pose estimation
