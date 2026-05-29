@@ -18,6 +18,12 @@ pub struct ORTConfig {
     pub num_intra_threads: Option<usize>,
     pub num_inter_threads: Option<usize>,
     pub ep: EpConfig,
+    /// Optional GitHub release owner to fetch the model from.
+    /// Defaults to the [`Hub`] default (`jamjamjon`) when `None`.
+    pub hub_owner: Option<String>,
+    /// Optional GitHub release repository to fetch the model from.
+    /// Defaults to the [`Hub`] default (`assets`) when `None`.
+    pub hub_repo: Option<String>,
 }
 
 impl Default for ORTConfig {
@@ -34,11 +40,26 @@ impl Default for ORTConfig {
             num_intra_threads: None,
             num_inter_threads: None,
             ep: EpConfig::default(),
+            hub_owner: None,
+            hub_repo: None,
         }
     }
 }
 
 impl ORTConfig {
+    /// Build a [`Hub`] honoring any per-model `hub_owner` / `hub_repo` overrides,
+    /// falling back to the [`Hub`] defaults (`jamjamjon/assets`) otherwise.
+    fn build_hub(&self) -> Hub {
+        let mut hub = Hub::default();
+        if let Some(owner) = &self.hub_owner {
+            hub = hub.with_owner(owner);
+        }
+        if let Some(repo) = &self.hub_repo {
+            hub = hub.with_repo(repo);
+        }
+        hub
+    }
+
     pub fn try_commit(mut self, name: &str) -> Result<Self> {
         tracing::debug!(
             "Model commit: resolving '{}' with file '{}'",
@@ -70,7 +91,7 @@ impl ORTConfig {
                     );
                     let stem = try_fetch_file_stem(&self.file)?;
                     self.spec = format!("{name}/{owner}-{repo}-{tag}-{stem}");
-                    self.file = Hub::default().try_fetch(&self.file)?;
+                    self.file = self.build_hub().try_fetch(&self.file)?;
                 }
                 None => {
                     // Not an explicit GitHub URL — could be a HuggingFace Hub path or
@@ -137,7 +158,7 @@ impl ORTConfig {
                     );
 
                     // Phase 1: Check if any candidate is already cached locally (no HTTP)
-                    let mut hub = Hub::default();
+                    let mut hub = self.build_hub();
                     let mut fetch_success = false;
                     for file in &candidates {
                         if let Some(cached_path) = hub.cached(file) {
@@ -221,7 +242,7 @@ impl ORTConfig {
                             )
                         })?;
                         let file_path = format!("{base}/{f}");
-                        match Hub::default().try_fetch(&file_path) {
+                        match self.build_hub().try_fetch(&file_path) {
                             Ok(local) => {
                                 tracing::debug!(
                                     "Successfully fetched external data file: {} -> {}",
