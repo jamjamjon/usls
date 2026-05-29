@@ -127,8 +127,7 @@ impl HRNet {
         let shape = heatmaps.shape();
         anyhow::ensure!(
             shape.len() == 4,
-            "HRNet expects a 4D heatmap output [batch, nk, h, w], got shape {:?}",
-            shape
+            "HRNet expects a 4D heatmap output [batch, nk, h, w], got shape {shape:?}",
         );
         let total_crops = shape[0];
         self.nk = shape[1];
