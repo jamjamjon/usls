@@ -323,21 +323,13 @@ impl Config {
         }
     );
 
-    impl_ort_field!(
-        hub_owner,
-        &str,
-        |config: &mut crate::ORTConfig, x: &str| {
-            config.hub_owner = Some(x.to_string());
-        }
-    );
+    impl_ort_field!(hub_owner, &str, |config: &mut crate::ORTConfig, x: &str| {
+        config.hub_owner = Some(x.to_string());
+    });
 
-    impl_ort_field!(
-        hub_repo,
-        &str,
-        |config: &mut crate::ORTConfig, x: &str| {
-            config.hub_repo = Some(x.to_string());
-        }
-    );
+    impl_ort_field!(hub_repo, &str, |config: &mut crate::ORTConfig, x: &str| {
+        config.hub_repo = Some(x.to_string());
+    });
 
     // ---------------- Special: batch -----------------------
     impl_batch_for_modules!(
