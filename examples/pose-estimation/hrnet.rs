@@ -67,7 +67,7 @@ pub fn config(args: &HrnetArgs) -> Result<Config> {
         }
         ("w32", false) => Config::hrnet_w32_133(),
         ("w48", false) => Config::hrnet_w48_133(),
-        (w, _) => anyhow::bail!("Unsupported HRNet width: {} (expected w32 or w48)", w),
+        (w, _) => anyhow::bail!("Unsupported HRNet width: {w} (expected w32 or w48)"),
     };
 
     // Allow overriding with a local file (e.g. the sample end2end.hrnet_w48.onnx)
