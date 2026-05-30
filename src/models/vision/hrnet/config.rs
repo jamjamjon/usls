@@ -32,9 +32,6 @@ impl crate::Config {
     pub fn hrnet() -> Self {
         Self::default()
             .with_name("hrnet")
-            // DarkPose weights are hosted on the `wep21/assets` GitHub release.
-            .with_model_hub_owner("wep21")
-            .with_model_hub_repo("assets")
             .with_model_ixx(0, 0, 1)
             .with_model_ixx(0, 1, 3)
             .with_model_ixx(0, 2, 256)
@@ -68,7 +65,9 @@ impl crate::Config {
 
     /// HRNet-w32, 17-keypoint COCO body, 256x192 (DarkPose)
     pub fn hrnet_w32_17() -> Self {
-        Self::hrnet_17().with_model_file("hrnet-w32-coco-256x192-dark.onnx")
+        Self::hrnet_17().with_model_file(
+            "https://github.com/wep21/assets/releases/download/hrnet/hrnet-w32-coco-256x192-dark.onnx",
+        )
     }
 
     /// HRNet-w32, 17-keypoint COCO body, 384x288 (DarkPose)
@@ -76,12 +75,16 @@ impl crate::Config {
         Self::hrnet_17()
             .with_model_ixx(0, 2, 384)
             .with_model_ixx(0, 3, 288)
-            .with_model_file("hrnet-w32-coco-384x288-dark.onnx")
+            .with_model_file(
+                "https://github.com/wep21/assets/releases/download/hrnet/hrnet-w32-coco-384x288-dark.onnx",
+            )
     }
 
     /// HRNet-w48, 17-keypoint COCO body, 256x192 (DarkPose)
     pub fn hrnet_w48_17() -> Self {
-        Self::hrnet_17().with_model_file("hrnet-w48-coco-256x192-dark.onnx")
+        Self::hrnet_17().with_model_file(
+            "https://github.com/wep21/assets/releases/download/hrnet/hrnet-w48-coco-256x192-dark.onnx",
+        )
     }
 
     /// HRNet-w48, 17-keypoint COCO body, 384x288 (DarkPose)
@@ -89,12 +92,16 @@ impl crate::Config {
         Self::hrnet_17()
             .with_model_ixx(0, 2, 384)
             .with_model_ixx(0, 3, 288)
-            .with_model_file("hrnet-w48-coco-384x288-dark.onnx")
+            .with_model_file(
+                "https://github.com/wep21/assets/releases/download/hrnet/hrnet-w48-coco-384x288-dark.onnx",
+            )
     }
 
     /// HRNet-w32, 133-keypoint COCO-WholeBody, 256x192 (DarkPose)
     pub fn hrnet_w32_133() -> Self {
-        Self::hrnet_133().with_model_file("hrnet-w32-coco-wholebody-256x192-dark.onnx")
+        Self::hrnet_133().with_model_file(
+            "https://github.com/wep21/assets/releases/download/hrnet/hrnet-w32-coco-wholebody-256x192-dark.onnx",
+        )
     }
 
     /// HRNet-w48, 133-keypoint COCO-WholeBody, 384x288 (DarkPose)
@@ -102,6 +109,8 @@ impl crate::Config {
         Self::hrnet_133()
             .with_model_ixx(0, 2, 384)
             .with_model_ixx(0, 3, 288)
-            .with_model_file("hrnet-w48-coco-wholebody-384x288-dark.onnx")
+            .with_model_file(
+                "https://github.com/wep21/assets/releases/download/hrnet/hrnet-w48-coco-wholebody-384x288-dark.onnx",
+            )
     }
 }

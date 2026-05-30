@@ -18,12 +18,6 @@ pub struct ORTConfig {
     pub num_intra_threads: Option<usize>,
     pub num_inter_threads: Option<usize>,
     pub ep: EpConfig,
-    /// Optional GitHub release owner to fetch the model from.
-    /// Defaults to the [`Hub`] default (`jamjamjon`) when `None`.
-    pub hub_owner: Option<String>,
-    /// Optional GitHub release repository to fetch the model from.
-    /// Defaults to the [`Hub`] default (`assets`) when `None`.
-    pub hub_repo: Option<String>,
 }
 
 impl Default for ORTConfig {
@@ -40,26 +34,11 @@ impl Default for ORTConfig {
             num_intra_threads: None,
             num_inter_threads: None,
             ep: EpConfig::default(),
-            hub_owner: None,
-            hub_repo: None,
         }
     }
 }
 
 impl ORTConfig {
-    /// Build a [`Hub`] honoring any per-model `hub_owner` / `hub_repo` overrides,
-    /// falling back to the [`Hub`] defaults (`jamjamjon/assets`) otherwise.
-    fn build_hub(&self) -> Hub {
-        let mut hub = Hub::default();
-        if let Some(owner) = &self.hub_owner {
-            hub = hub.with_owner(owner);
-        }
-        if let Some(repo) = &self.hub_repo {
-            hub = hub.with_repo(repo);
-        }
-        hub
-    }
-
     pub fn try_commit(mut self, name: &str) -> Result<Self> {
         tracing::debug!(
             "Model commit: resolving '{}' with file '{}'",
@@ -81,7 +60,7 @@ impl ORTConfig {
 
             // Remote
             match Hub::is_valid_github_release_url(&self.file) {
-                Some((owner, repo, tag, _file_name)) => {
+                Some((owner, repo, tag, file_name)) => {
                     // Explicit GitHub release URL detected
                     tracing::debug!(
                         "Explicit GitHub URL detected: {}/{} (tag: {})",
@@ -89,9 +68,78 @@ impl ORTConfig {
                         repo,
                         tag
                     );
-                    let stem = try_fetch_file_stem(&self.file)?;
-                    self.spec = format!("{name}/{owner}-{repo}-{tag}-{stem}");
-                    self.file = self.build_hub().try_fetch(&self.file)?;
+
+                    // Build candidate URLs based on dtype, matching the logic
+                    // used for bare filenames in the None branch below.
+                    let candidates: Vec<String> = match self.dtype {
+                        _d @ (DType::Auto | DType::Fp32) => {
+                            vec![self.file.clone()]
+                        }
+                        dtype => {
+                            let mut base = file_name.clone();
+                            let suffix = base.split_off(base.len() - 5); // 5 -> ".onnx"
+                            ['-', '_', '.']
+                                .iter()
+                                .map(|delim| {
+                                    format!(
+                                        "https://github.com/{owner}/{repo}/releases/download/{tag}/{base}{delim}{dtype}{suffix}"
+                                    )
+                                })
+                                .collect()
+                        }
+                    };
+                    tracing::debug!(
+                        "Generated {} candidate URLs for resolution: {:?}",
+                        candidates.len(),
+                        candidates
+                    );
+
+                    let mut hub = Hub::default();
+                    let mut fetch_success = false;
+                    for candidate in &candidates {
+                        // Phase 1: check cache
+                        if let Some(cached_path) = hub.cached(candidate) {
+                            self.file = cached_path;
+                            let stem = try_fetch_file_stem(candidate)?;
+                            self.spec = format!("{name}/{owner}-{repo}-{tag}-{stem}");
+                            tracing::debug!(
+                                "Cache hit: {} -> {}",
+                                candidate,
+                                &self.file
+                            );
+                            fetch_success = true;
+                            break;
+                        }
+                        // Phase 2: remote fetch
+                        match hub.try_fetch(candidate) {
+                            Ok(f) => {
+                                self.file = f;
+                                let stem = try_fetch_file_stem(candidate)?;
+                                self.spec = format!("{name}/{owner}-{repo}-{tag}-{stem}");
+                                tracing::debug!(
+                                    "Successfully resolved candidate '{}' to spec: {}",
+                                    candidate,
+                                    &self.spec
+                                );
+                                fetch_success = true;
+                                break;
+                            }
+                            Err(err) => {
+                                tracing::warn!(
+                                    "Failed to download candidate '{candidate}': {err}"
+                                );
+                            }
+                        }
+                    }
+
+                    if !fetch_success {
+                        anyhow::bail!(
+                            "Failed to fetch ONNX model file from URL. \
+                             None of the generated candidates could be resolved. \
+                             Please verify the model file path: {:?}",
+                            self.file
+                        );
+                    }
                 }
                 None => {
                     // Not an explicit GitHub URL — could be a HuggingFace Hub path or
@@ -158,7 +206,7 @@ impl ORTConfig {
                     );
 
                     // Phase 1: Check if any candidate is already cached locally (no HTTP)
-                    let mut hub = self.build_hub();
+                    let mut hub = Hub::default();
                     let mut fetch_success = false;
                     for file in &candidates {
                         if let Some(cached_path) = hub.cached(file) {
@@ -242,7 +290,7 @@ impl ORTConfig {
                             )
                         })?;
                         let file_path = format!("{base}/{f}");
-                        match self.build_hub().try_fetch(&file_path) {
+                        match Hub::default().try_fetch(&file_path) {
                             Ok(local) => {
                                 tracing::debug!(
                                     "Successfully fetched external data file: {} -> {}",
