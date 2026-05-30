@@ -348,24 +348,27 @@ impl Sam3Image {
             let mut uncached = Vec::new();
             let mut seen = HashSet::new();
             for p in prompts {
-                if seen.insert(&p.text) {
-                    if self.text_cache.get(&p.text).is_none() {
-                        uncached.push(p.text.as_str());
-                    }
+                if seen.insert(&p.text) && self.text_cache.get(&p.text).is_none() {
+                    uncached.push(p.text.as_str());
                 }
             }
 
             let unique_prompts_count = seen.len();
             if unique_prompts_count > self.text_cache.cap().get() {
                 // If the number of unique prompts in the current batch exceeds the cache capacity, force an expansion.
-                self.text_cache.resize(NonZeroUsize::new(unique_prompts_count).unwrap());
+                self.text_cache
+                    .resize(NonZeroUsize::new(unique_prompts_count).unwrap());
             }
 
             if !uncached.is_empty() {
                 let encoded_feats = self.encode_texts(engines, &uncached)?;
 
                 if encoded_feats.len() != uncached.len() {
-                    bail!("Encoded features length mismatch: expected {}, got {}", uncached.len(), encoded_feats.len());
+                    bail!(
+                        "Encoded features length mismatch: expected {}, got {}",
+                        uncached.len(),
+                        encoded_feats.len()
+                    );
                 }
 
                 for (text, feat) in uncached.iter().zip(encoded_feats) {
