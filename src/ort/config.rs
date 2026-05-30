@@ -102,11 +102,7 @@ impl ORTConfig {
                             self.file = cached_path;
                             let stem = try_fetch_file_stem(candidate)?;
                             self.spec = format!("{name}/{owner}-{repo}-{tag}-{stem}");
-                            tracing::debug!(
-                                "Cache hit: {} -> {}",
-                                candidate,
-                                &self.file
-                            );
+                            tracing::debug!("Cache hit: {} -> {}", candidate, &self.file);
                             fetch_success = true;
                             break;
                         }
@@ -125,9 +121,7 @@ impl ORTConfig {
                                 break;
                             }
                             Err(err) => {
-                                tracing::warn!(
-                                    "Failed to download candidate '{candidate}': {err}"
-                                );
+                                tracing::warn!("Failed to download candidate '{candidate}': {err}");
                             }
                         }
                     }
