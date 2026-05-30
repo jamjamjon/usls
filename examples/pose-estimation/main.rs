@@ -1,11 +1,12 @@
 use anyhow::Result;
 use clap::{Parser, Subcommand};
 use usls::{
-    models::{DWPose, RTMPose, RTMO, YOLO},
+    models::{DWPose, HRNet, RTMPose, RTMO, YOLO},
     Annotator, Config, DataLoader, Model, Scale, Source, Y,
 };
 
 mod dwpose;
+mod hrnet;
 mod rtmo;
 mod rtmpose;
 mod rtmw;
@@ -29,6 +30,7 @@ struct Cli {
 #[derive(Subcommand)]
 enum Commands {
     Dwpose(dwpose::DwposeArgs),
+    Hrnet(hrnet::HrnetArgs),
     Rtmo(rtmo::RtmoArgs),
     Rtmpose(rtmpose::RtmposeArgs),
     Rtmw(rtmw::RtmwArgs),
@@ -126,6 +128,34 @@ fn main() -> Result<()> {
                                 (usls::SKELETON_COCO_19, usls::SKELETON_COLOR_COCO_19).into()
                             } else {
                                 (usls::SKELETON_HALPE_27, usls::SKELETON_COLOR_HALPE_27).into()
+                            })
+                            .show_id(false)
+                            .show_confidence(false)
+                            .show_name(false),
+                    ),
+            )
+        }
+        Commands::Hrnet(args) => {
+            let yolo_config = yolo_config
+                .with_model_device(args.device)
+                .with_image_processor_device(args.processor_device)
+                .commit()?;
+            let pose_config = hrnet::config(args)?.commit()?;
+            let is_coco = args.is_coco;
+            run_with_detector::<YOLO, HRNet>(
+                yolo_config,
+                pose_config,
+                &cli.source,
+                "hrnet",
+                &annotator
+                    .with_hbb_style(usls::HbbStyle::default().with_draw_fill(true))
+                    .with_keypoint_style(
+                        usls::KeypointStyle::default()
+                            .with_radius(if is_coco { 2 } else { 1 })
+                            .with_skeleton(if is_coco {
+                                (usls::SKELETON_COCO_19, usls::SKELETON_COLOR_COCO_19).into()
+                            } else {
+                                (usls::SKELETON_COCO_65, usls::SKELETON_COLOR_COCO_65).into()
                             })
                             .show_id(false)
                             .show_confidence(false)
