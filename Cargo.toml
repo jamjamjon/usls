@@ -52,7 +52,7 @@ cudarc = { version = "0.19", optional = true, default-features = false, features
   "dynamic-linking"
 ] }
 ureq = { version = "3.1.4", default-features = false, features = ["rustls", "gzip"] }
-tokenizers = { version = "0.22.1", optional = true }
+tokenizers = { version = "0.23.1", optional = true }
 lru = { version = "0.16.2", default-features = false }
 
 
