@@ -1,10 +1,11 @@
 use anyhow::Result;
 use clap::{Parser, Subcommand};
 use usls::{
-    models::{DWPose, HRNet, RTMPose, RTMO, YOLO},
+    models::{CIGPose, DWPose, HRNet, RTMPose, RTMO, YOLO},
     Annotator, Config, DataLoader, Model, Scale, Source, Y,
 };
 
+mod cigpose;
 mod dwpose;
 mod hrnet;
 mod rtmo;
@@ -29,6 +30,7 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
+    Cigpose(cigpose::CigposeArgs),
     Dwpose(dwpose::DwposeArgs),
     Hrnet(hrnet::HrnetArgs),
     Rtmo(rtmo::RtmoArgs),
@@ -105,6 +107,34 @@ fn main() -> Result<()> {
                         .show_confidence(false)
                         .show_name(false),
                 ),
+            )
+        }
+        Commands::Cigpose(args) => {
+            let yolo_config = yolo_config
+                .with_model_device(args.device)
+                .with_image_processor_device(args.processor_device)
+                .commit()?;
+            let pose_config = cigpose::config(args)?.commit()?;
+            let is_coco = args.is_coco;
+            run_with_detector::<YOLO, CIGPose>(
+                yolo_config,
+                pose_config,
+                &cli.source,
+                "cigpose",
+                &annotator
+                    .with_hbb_style(usls::HbbStyle::default().with_draw_fill(true))
+                    .with_keypoint_style(
+                        usls::KeypointStyle::default()
+                            .with_radius(if is_coco { 2 } else { 1 })
+                            .with_skeleton(if is_coco {
+                                (usls::SKELETON_COCO_19, usls::SKELETON_COLOR_COCO_19).into()
+                            } else {
+                                (usls::SKELETON_COCO_65, usls::SKELETON_COLOR_COCO_65).into()
+                            })
+                            .show_id(false)
+                            .show_confidence(false)
+                            .show_name(false),
+                    ),
             )
         }
         Commands::Rtmpose(args) => {
