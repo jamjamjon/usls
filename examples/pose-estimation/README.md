@@ -19,6 +19,11 @@ cargo run -F cuda-full --example pose-estimation -- rtmw --dtype f16 --device cu
 cargo run -F cuda-full --example pose-estimation -- rtmpose --dtype f32 --device cuda:0 --processor-device cuda:0 
 ```
 
+### CIGPose
+```bash
+cargo run -F cuda-full --example pose-estimation -- cigpose --dtype f16 --device cuda:0 --processor-device cuda:0
+```
+
 ### DWPose
 ```bash
 cargo run -F cuda-full --example pose-estimation -- dwpose --dtype f16 --device cuda:0 --processor-device cuda:0 
