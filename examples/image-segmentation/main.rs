@@ -2,11 +2,13 @@ use anyhow::Result;
 use clap::{Parser, Subcommand};
 use usls::{
     models::{
-        FastSAM, Sam3Prompt, Sam3Tracker, SamPrompt, YOLOEPromptFree, YOLOPv2, RFDETR, SAM, SAM2,
+        ECDetSeg, FastSAM, Sam3Prompt, Sam3Tracker, SamPrompt, YOLOEPromptFree, YOLOPv2, RFDETR,
+        SAM, SAM2,
     },
     Annotator, Config, DataLoader, Model, Source,
 };
 
+mod ecdetseg;
 mod fastsam;
 mod rfdetr;
 mod sam;
@@ -36,6 +38,7 @@ struct Cli {
 #[derive(Subcommand)]
 enum Commands {
     Rfdetr(rfdetr::RfdetrArgs),
+    Ecdetseg(ecdetseg::EcdetsegArgs),
     YoloePromptFree(yoloe_prompt_free::YoloePromptFreeArgs),
     Sam(sam::SamArgs),
     Sam2(sam2::Sam2Args),
@@ -88,6 +91,12 @@ fn main() -> Result<()> {
                 .with_class_confs(&cli.confs)
                 .commit()?;
             run::<RFDETR>(config, &cli.source, &annotator)
+        }
+        Commands::Ecdetseg(args) => {
+            let config = ecdetseg::config(args)?
+                .with_class_confs(&cli.confs)
+                .commit()?;
+            run::<ECDetSeg>(config, &cli.source, &annotator)
         }
         Commands::YoloePromptFree(args) => {
             let config = yoloe_prompt_free::config(args)?

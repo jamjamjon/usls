@@ -214,6 +214,7 @@ cargo run -r -F openvino -F ort-load-dynamic --example yolo -- --device openvino
 | [YOLOE-v8/11-Prompt-Free](https://github.com/THU-MIG/yoloe) | Open-Set Detection And Segmentation | [demo](./examples/image-segmentation/yoloe_prompt_free) | ✅ | ✅ | ✅  | ✅  | ✅  | ✅  | ✅  |
 | [YOLOE-26-Prompt-Free](https://github.com/ultralytics/ultralytics) | Open-Set Detection And Segmentation | [demo](./examples/image-segmentation/yoloe_prompt_free) | ✅ | ✅ | ✅  | ✅  | ✅  | ✅  | ✅  |
 | [FastSAM](https://github.com/CASIA-IVA-Lab/FastSAM) | Instance Segmentation | [demo](./examples/image-segmentation) | ✅ | ✅ | ✅  | ✅  | ✅  | ✅  | ✅  |
+| [EdgeCrafter (ECDetSeg)](https://github.com/Intellindust-AI-Lab/EdgeCrafter) | Instance Segmentation | [demo](./examples/image-segmentation) | ❓ | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ |
 | [SAM2](https://github.com/facebookresearch/segment-anything-2) | Segment Anything | [demo](./examples/image-segmentation) | ✅ | ❓ | ✅ | ❌ | ❌  | ❌ | ❌ |  
 | [SAM3-Tracker](https://github.com/facebookresearch/segment-anything-3) | Segment Anything | [demo](./examples/image-segmentation) | ✅ | ✅ | ✅  | ✅  | ✅  | ✅  | ✅  |
 | [BiRefNet - COD](https://github.com/ZhengPeng7/BiRefNet) | Camouflaged Object Detection | [demo](./examples/birefnet) | ✅ | ❓ | ✅ | ✅ | ✅ | ✅ |  ✅ |

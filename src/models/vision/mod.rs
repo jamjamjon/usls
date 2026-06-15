@@ -35,6 +35,7 @@ mod yolo;
 mod yolop;
 
 // Segmentation
+mod ecdetseg;
 mod fastsam;
 mod mediapipe_segmenter;
 mod sam;
@@ -106,6 +107,7 @@ pub use depth_pro::*;
 pub use dinov2::*;
 pub use dinov3::*;
 pub use dwpose::*;
+pub use ecdetseg::*;
 pub use fast::*;
 pub use fastsam::*;
 pub use fastvit::*;
