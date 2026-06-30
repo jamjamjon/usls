@@ -11,6 +11,12 @@ The latest generation of Segment Anything Model (SAM3) optimized for image-based
 
 **Note**: For SAM3 with box/point prompts, see the [sam3-tracker example](../image-segmentation/README.md#sam3-tracker).
 
+### SAM3-LiteText
+SAM3-Image with the heavy text encoder replaced by a distilled MobileCLIP text encoder ([arXiv:2602.12173](https://arxiv.org/abs/2602.12173)). The ViT-H vision encoder, geometry encoder and mask decoder are kept intact, so it reuses the SAM3-Image vision/decoder ONNX and only swaps the text encoder.
+- Same prompts and interface as SAM3-Image (`Sam3Image` model).
+- Variants (`--variant`): `s0` (MobileCLIP-S0), `s1` (MobileCLIP-S1), `l` (MobileCLIP2-L).
+- Text-encoder ONNX: [wep21/assets `sam3-litetext`](https://github.com/wep21/assets/releases/tag/sam3-litetext); vision/decoder ONNX: [jamjamjon/assets `sam3`](https://github.com/jamjamjon/assets/releases/tag/sam3).
+
 ### YOLOEPromptBased
 YOLOE with prompt support for flexible object detection and segmentation.
 - `Visual`: Uses a visual prompt (image + bounding box) to find similar objects.
@@ -127,6 +133,27 @@ cargo run -F cuda-full -F vlm --example open-set-segmentation -- sam3-image \
 --processor-device cuda:0 \
 --source assets/oven.jpg \
 -p "handle;neg:40,183,278,21"
+```
+
+### SAM3-LiteText
+
+Same prompts/format as SAM3-Image (`Sam3Image` model), with a lightweight MobileCLIP text encoder. Select the variant with `--variant {s0,s1,l}`.
+
+```bash
+cargo run -F cuda-full -F vlm --example open-set-segmentation -- sam3-litetext \
+--variant s0 \
+--visual-encoder-dtype f16 --visual-encoder-device cuda:0 \
+--textual-encoder-dtype fp16 --textual-encoder-device cuda:0 \
+--decoder-dtype f16 --decoder-device cuda:0 \
+--processor-device cuda:0 \
+--source ./assets/dog.jpg \
+-p dog
+```
+
+```bash
+# CPU
+cargo run -F vlm --example open-set-segmentation -- sam3-litetext \
+--variant s0 --source ./assets/dog.jpg -p dog
 ```
 
 #### Prompt Format

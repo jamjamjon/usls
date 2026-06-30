@@ -57,4 +57,45 @@ impl Config {
             .with_decoder_ixx(6, 1, (1, 1, 8)) // input_boxes
             .with_decoder_ixx(7, 1, (1, 1, 8)) // input_boxes_labels
     }
+
+    /// SAM3-LiteText: the SAM3 image model with the heavy text encoder replaced by
+    /// a distilled MobileCLIP text encoder (arXiv:2602.12173). The ViT-H vision
+    /// encoder, geometry encoder and mask decoder are kept intact, so these presets
+    /// reuse the SAM3 image vision/decoder ONNX and only swap the text encoder.
+    ///
+    /// Variants (HuggingFace `vil-uob/sam3-litetext-{s0,s1,l}`):
+    /// - **s0**: MobileCLIP-S0 text encoder
+    /// - **s1**: MobileCLIP-S1 text encoder
+    /// - **l**:  MobileCLIP2-L text encoder
+    fn sam3_litetext(variant: &str, name: &'static str) -> Self {
+        Self::sam3_image()
+            .with_name(name)
+            // Vision + geometry/mask decoder are reused verbatim from the SAM3 image
+            // release (full URLs so they stay on jamjamjon/assets regardless of name).
+            .with_visual_encoder_file(
+                "https://github.com/jamjamjon/assets/releases/download/sam3/vision-encoder.onnx",
+            )
+            .with_decoder_file(
+                "https://github.com/jamjamjon/assets/releases/download/sam3/geo-encoder-mask-decoder.onnx",
+            )
+            // Only the lightweight MobileCLIP text encoder is variant-specific.
+            .with_textual_encoder_file(format!(
+                "https://github.com/wep21/assets/releases/download/sam3-litetext/sam3-litetext-{variant}-text-encoder.onnx"
+            ))
+    }
+
+    /// SAM3-LiteText S0 (MobileCLIP-S0 text encoder).
+    pub fn sam3_litetext_s0() -> Self {
+        Self::sam3_litetext("s0", "sam3-litetext-s0")
+    }
+
+    /// SAM3-LiteText S1 (MobileCLIP-S1 text encoder).
+    pub fn sam3_litetext_s1() -> Self {
+        Self::sam3_litetext("s1", "sam3-litetext-s1")
+    }
+
+    /// SAM3-LiteText L (MobileCLIP2-L text encoder).
+    pub fn sam3_litetext_l() -> Self {
+        Self::sam3_litetext("l", "sam3-litetext-l")
+    }
 }
