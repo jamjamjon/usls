@@ -70,14 +70,9 @@ impl Config {
     fn sam3_litetext(variant: &str, name: &'static str) -> Self {
         Self::sam3_image()
             .with_name(name)
-            // Vision + geometry/mask decoder are reused verbatim from the SAM3 image
-            // release (full URLs so they stay on jamjamjon/assets regardless of name).
-            .with_visual_encoder_file(
-                "https://github.com/jamjamjon/assets/releases/download/sam3/vision-encoder.onnx",
-            )
-            .with_decoder_file(
-                "https://github.com/jamjamjon/assets/releases/download/sam3/geo-encoder-mask-decoder.onnx",
-            )
+            // Vision + geometry/mask decoder are reused verbatim from the SAM3 image release.
+            .with_visual_encoder_file("sam3/vision-encoder.onnx")
+            .with_decoder_file("sam3/geo-encoder-mask-decoder.onnx")
             // Only the lightweight MobileCLIP text encoder is variant-specific.
             .with_textual_encoder_file(format!(
                 "https://github.com/wep21/assets/releases/download/sam3-litetext/sam3-litetext-{variant}-text-encoder.onnx"
