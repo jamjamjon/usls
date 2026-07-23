@@ -9,6 +9,11 @@ This directory contains examples for human pose estimation models.
 cargo run -F cuda-full --example pose-estimation -- rtmo --dtype f16 --device cuda:0 --processor-device cuda:0 
 ```
 
+### ECPose
+```bash
+cargo run -F cuda-full --example pose-estimation -- ecpose --scale s --dtype fp16 --device cuda:0 --processor-device cuda:0
+```
+
 ### RTMW
 ```bash
 cargo run -F cuda-full --example pose-estimation -- rtmw --dtype f16 --device cuda:0 --processor-device cuda:0 

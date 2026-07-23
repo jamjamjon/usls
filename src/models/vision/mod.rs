@@ -7,7 +7,7 @@
 //! - **Classification**: `beit`, `convnext`, `deit`, `fastvit`, `mobileone` (config-only, use with `ImageClassifier`)
 //! - **Detection**: `yolo`, `yolop`, `rtdetr`, `rfdetr`, `picodet`, `d_fine`, `deim`, `deimv2`
 //! - **Segmentation**: `sam`, `sam2`, `mediapipe_segmenter`, `sapiens`
-//! - **Pose**: `rtmpose`, `rtmw`, `dwpose`, `rtmo`, `hrnet`, `cigpose`
+//! - **Pose**: `rtmpose`, `rtmw`, `dwpose`, `rtmo`, `hrnet`, `cigpose`, `ecpose`
 //! - **Depth**: `depth_anything`, `depth_pro`
 //! - **Feature**: `dinov2`, `dinov3`, `clip`, `blip`, `ram`
 //! - **OCR**: `db`, `fast`, `linknet`, `svtr`, `slanet`
@@ -47,6 +47,7 @@ mod yoloe_prompt_free;
 // Pose Estimation
 mod cigpose;
 mod dwpose;
+mod ecpose;
 mod hrnet;
 mod rtmo;
 mod rtmpose;
@@ -108,6 +109,7 @@ pub use dinov2::*;
 pub use dinov3::*;
 pub use dwpose::*;
 pub use ecdetseg::*;
+pub use ecpose::*;
 pub use fast::*;
 pub use fastsam::*;
 pub use fastvit::*;
