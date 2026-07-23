@@ -1,12 +1,13 @@
 use anyhow::Result;
 use clap::{Parser, Subcommand};
 use usls::{
-    models::{CIGPose, DWPose, HRNet, RTMPose, RTMO, YOLO},
+    models::{CIGPose, DWPose, ECPose, HRNet, RTMPose, RTMO, YOLO},
     Annotator, Config, DataLoader, Model, Scale, Source, Y,
 };
 
 mod cigpose;
 mod dwpose;
+mod ecpose;
 mod hrnet;
 mod rtmo;
 mod rtmpose;
@@ -32,6 +33,7 @@ struct Cli {
 enum Commands {
     Cigpose(cigpose::CigposeArgs),
     Dwpose(dwpose::DwposeArgs),
+    Ecpose(ecpose::EcposeArgs),
     Hrnet(hrnet::HrnetArgs),
     Rtmo(rtmo::RtmoArgs),
     Rtmpose(rtmpose::RtmposeArgs),
@@ -65,6 +67,38 @@ fn main() -> Result<()> {
         Commands::Rtmo(args) => {
             let config = rtmo::config(args)?.commit()?;
             let mut model = RTMO::new(config)?;
+            let dl = DataLoader::new(&cli.source)?
+                .with_batch(model.batch() as _)
+                .with_progress_bar(true)
+                .stream()?;
+
+            for xs in &dl {
+                let ys = model.forward(&xs)?;
+                for (x, y) in xs.iter().zip(ys.iter()) {
+                    if !y.is_empty() {
+                        annotator.annotate(x, y)?.save(format!(
+                            "{}.jpg",
+                            usls::Dir::Current
+                                .base_dir_with_subs(&["runs/pose-estimation", model.spec()])?
+                                .join(usls::timestamp(None))
+                                .display()
+                        ))?;
+                    }
+                }
+            }
+            Ok(())
+        }
+        Commands::Ecpose(args) => {
+            let config = ecpose::config(args)?.commit()?;
+            let mut model = ECPose::new(config)?;
+            let annotator = annotator.with_keypoint_style(
+                usls::KeypointStyle::default()
+                    .with_radius(2)
+                    .with_skeleton((usls::SKELETON_COCO_19, usls::SKELETON_COLOR_COCO_19).into())
+                    .show_id(false)
+                    .show_confidence(false)
+                    .show_name(false),
+            );
             let dl = DataLoader::new(&cli.source)?
                 .with_batch(model.batch() as _)
                 .with_progress_bar(true)
