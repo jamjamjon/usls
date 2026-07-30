@@ -16,7 +16,7 @@ Hardware acceleration for inference. Enable the one matching your hardware.
 | `onednn` | Intel | Deep Neural Network Library |
 | `cann` | Huawei | Ascend NPU |
 | `rknpu` | Rockchip | NPU acceleration |
-| `armnn` | ARM | Neural Network SDK |
+| `armnn` | ARM | Neural Network SDK (removed in recent ONNX Runtime; prefer `acl`/`xnnpack`) |
 | `xnnpack` | Mobile | CPU optimization |
 | `webgpu` | Web | WebGPU/Chrome |
 | `nnapi` | Android | Neural Networks API |

@@ -3,7 +3,7 @@ use anyhow::Result;
 use half::{bf16, f16};
 use ndarray::{Array, IxDyn};
 use ort::{
-    execution_providers::ExecutionProvider,
+    ep::ExecutionProvider,
     session::{builder::GraphOptimizationLevel, Session, SessionInputValue, SessionInputs},
     value::{DynValue, TensorElementType, Value},
 };
@@ -133,7 +133,7 @@ impl FromConfig for Engine {
                     params += param;
                     let param = Ops::make_divisible(param, byte_alignment);
                     let n = Self::get_ort_dtype_from_proto_dtype_id(tensor_proto.data_type)
-                        .map(|x| x.byte_size(1))
+                        .and_then(|x| x.byte_size(1))
                         .unwrap_or_default();
                     let wbmem = param * n;
                     wbmems += wbmem;
@@ -147,7 +147,7 @@ impl FromConfig for Engine {
                             params += param;
                             let param = Ops::make_divisible(param, byte_alignment);
                             let n = Self::get_ort_dtype_from_proto_dtype_id(tensor.data_type)
-                                .map(|x| x.byte_size(1))
+                                .and_then(|x| x.byte_size(1))
                                 .unwrap_or_default();
 
                             let wbmem = param * n;
@@ -595,7 +595,7 @@ impl Engine {
                 #[cfg(feature = "nvrtx")]
                 {
                     let (spec_min, spec_opt, spec_max) =
-                        Self::generate_shape_specs(&inputs.names, &inputs_minoptmax)?;
+                        Self::generate_shape_specs(&inputs.names, inputs_minoptmax)?;
 
                     let ep = ort::ep::nvrtx::NVRTX::default()
                         .with_device_id(id as _)
@@ -637,7 +637,7 @@ impl Engine {
                     let cache_path =
                         crate::Dir::Cache.crate_dir_default_with_subs(&["caches", "tensorrt"])?;
 
-                    let mut ep = ort::execution_providers::TensorRTExecutionProvider::default()
+                    let mut ep = ort::ep::TensorRT::default()
                         .with_device_id(id as i32)
                         .with_max_workspace_size(config.ep.tensorrt.max_workspace_size)
                         .with_builder_optimization_level(
@@ -695,7 +695,7 @@ impl Engine {
 
                 #[cfg(feature = "cuda")]
                 {
-                    let ep = ort::execution_providers::CUDAExecutionProvider::default()
+                    let ep = ort::ep::CUDA::default()
                         .with_device_id(id as i32)
                         .with_conv_max_workspace(config.ep.cuda.conv_max_workspace)
                         .with_prefer_nhwc(config.ep.cuda.prefer_nhwc)
@@ -720,11 +720,9 @@ impl Engine {
                 }
                 #[cfg(feature = "coreml")]
                 {
-                    use ort::execution_providers::coreml::{
-                        ComputeUnits, ModelFormat, SpecializationStrategy,
-                    };
+                    use ort::ep::coreml::{ComputeUnits, ModelFormat, SpecializationStrategy};
 
-                    let ep = ort::execution_providers::CoreMLExecutionProvider::default()
+                    let ep = ort::ep::CoreML::default()
                         .with_model_cache_dir(
                             crate::Dir::Cache
                                 .crate_dir_default_with_subs(&["caches", "coreml"])?
@@ -770,8 +768,7 @@ impl Engine {
                 }
                 #[cfg(feature = "directml")]
                 {
-                    let ep = ort::execution_providers::DirectMLExecutionProvider::default()
-                        .with_device_id(id as i32);
+                    let ep = ort::ep::DirectML::default().with_device_id(id as i32);
                     match ep.is_available() {
                         Ok(true) => {
                             ep.register(&mut builder).map_err(|err| {
@@ -791,7 +788,7 @@ impl Engine {
                 }
                 #[cfg(feature = "openvino")]
                 {
-                    let ep = ort::execution_providers::OpenVINOExecutionProvider::default()
+                    let ep = ort::ep::OpenVINO::default()
                         .with_device_type(dt)
                         .with_num_threads(config.ep.openvino.num_threads)
                         .with_dynamic_shapes(config.ep.openvino.dynamic_shapes)
@@ -822,7 +819,7 @@ impl Engine {
                 }
                 #[cfg(feature = "onednn")]
                 {
-                    let ep = ort::execution_providers::OneDNNExecutionProvider::default()
+                    let ep = ort::ep::OneDNN::default()
                         .with_arena_allocator(config.ep.onednn.arena_allocator);
                     match ep.is_available() {
                         Ok(true) => {
@@ -843,7 +840,7 @@ impl Engine {
                 }
                 #[cfg(feature = "cann")]
                 {
-                    let ep = ort::execution_providers::CANNExecutionProvider::default()
+                    let ep = ort::ep::CANN::default()
                         .with_device_id(id as i32)
                         .with_cann_graph(config.ep.cann.graph_inference)
                         .with_dump_graphs(config.ep.cann.dump_graphs)
@@ -867,8 +864,7 @@ impl Engine {
                 }
                 #[cfg(feature = "qnn")]
                 {
-                    let ep = ort::execution_providers::QNNExecutionProvider::default()
-                        .with_device_id(id as i32);
+                    let ep = ort::ep::QNN::default().with_device_id(id as i32);
                     match ep.is_available() {
                         Ok(true) => {
                             ep.register(&mut builder)
@@ -887,7 +883,7 @@ impl Engine {
                 }
                 #[cfg(feature = "migraphx")]
                 {
-                    let ep = ort::execution_providers::MIGraphXExecutionProvider::default()
+                    let ep = ort::ep::MIGraphX::default()
                         .with_device_id(id as i32)
                         .with_fp16(config.ep.migraphx.fp16)
                         .with_exhaustive_tune(config.ep.migraphx.exhaustive_tune);
@@ -911,7 +907,7 @@ impl Engine {
                 }
                 #[cfg(feature = "xnnpack")]
                 {
-                    let ep = ort::execution_providers::XNNPACKExecutionProvider::default();
+                    let ep = ort::ep::XNNPACK::default();
                     match ep.is_available() {
                         Ok(true) => {
                             ep.register(&mut builder).map_err(|err| {
@@ -931,7 +927,7 @@ impl Engine {
                 }
                 #[cfg(feature = "rknpu")]
                 {
-                    let ep = ort::execution_providers::RKNPUExecutionProvider::default();
+                    let ep = ort::ep::RKNPU::default();
                     match ep.is_available() {
                         Ok(true) => {
                             ep.register(&mut builder).map_err(|err| {
@@ -951,8 +947,7 @@ impl Engine {
                 }
                 #[cfg(feature = "acl")]
                 {
-                    let ep = ort::execution_providers::ACLExecutionProvider::default()
-                        .with_fast_math(true);
+                    let ep = ort::ep::ACL::default().with_fast_math(true);
                     match ep.is_available() {
                         Ok(true) => {
                             ep.register(&mut builder)
@@ -971,7 +966,7 @@ impl Engine {
                 }
                 #[cfg(feature = "nnapi")]
                 {
-                    let ep = ort::execution_providers::NNAPIExecutionProvider::default()
+                    let ep = ort::ep::NNAPI::default()
                         .with_cpu_only(config.ep.nnapi.cpu_only)
                         .with_disable_cpu(config.ep.nnapi.disable_cpu)
                         .with_fp16(config.ep.nnapi.fp16)
@@ -995,8 +990,10 @@ impl Engine {
                         .replace("#FEATURE", "armnn"));
                 }
                 #[cfg(feature = "armnn")]
+                #[allow(deprecated)]
+                // removed from ONNX Runtime; kept for older runtimes
                 {
-                    let ep = ort::execution_providers::ArmNNExecutionProvider::default()
+                    let ep = ort::ep::ArmNN::default()
                         .with_arena_allocator(config.ep.armnn.arena_allocator);
                     match ep.is_available() {
                         Ok(true) => {
@@ -1017,13 +1014,12 @@ impl Engine {
                 }
                 #[cfg(feature = "vitis")]
                 {
-                    let ep = ort::execution_providers::VitisAIExecutionProvider::default()
-                        .with_cache_dir(
-                            crate::Dir::Cache
-                                .crate_dir_default_with_subs(&["caches", "vitis"])?
-                                .display()
-                                .to_string(),
-                        );
+                    let ep = ort::ep::Vitis::default().with_cache_dir(
+                        crate::Dir::Cache
+                            .crate_dir_default_with_subs(&["caches", "vitis"])?
+                            .display()
+                            .to_string(),
+                    );
                     match ep.is_available() {
                         Ok(true) => {
                             ep.register(&mut builder).map_err(|err| {
@@ -1043,7 +1039,7 @@ impl Engine {
                 }
                 #[cfg(feature = "tvm")]
                 {
-                    let ep = ort::execution_providers::TVMExecutionProvider::default();
+                    let ep = ort::ep::TVM::default();
                     match ep.is_available() {
                         Ok(true) => {
                             ep.register(&mut builder)
@@ -1062,13 +1058,15 @@ impl Engine {
                 }
                 #[cfg(feature = "azure")]
                 {
-                    let ep = ort::execution_providers::AzureExecutionProvider::default();
+                    let ep = ort::ep::Azure::default();
                     match ep.is_available() {
                         Ok(true) => {
                             ep.register(&mut builder).map_err(|err| {
                                 anyhow::anyhow!("Failed to register Azure: {err}")
                             })?;
-                            builder = builder.with_extensions()?;
+                            builder = builder.with_extensions().map_err(|err| {
+                                anyhow::anyhow!("Failed to enable ort extensions: {err}")
+                            })?;
                         }
                         _ => anyhow::bail!(compile_help.replace("#EP", "Azure")),
                     }
@@ -1083,7 +1081,7 @@ impl Engine {
                 }
                 #[cfg(feature = "webgpu")]
                 {
-                    let ep = ort::execution_providers::WebGPUExecutionProvider::default();
+                    let ep = ort::ep::WebGPU::default();
                     match ep.is_available() {
                         Ok(true) => {
                             ep.register(&mut builder).map_err(|err| {
@@ -1103,8 +1101,7 @@ impl Engine {
                 }
                 #[cfg(feature = "rocm")]
                 {
-                    let ep = ort::execution_providers::ROCmExecutionProvider::default()
-                        .with_device_id(id as i32);
+                    let ep = ort::ep::ROCm::default().with_device_id(id as i32);
                     match ep.is_available() {
                         Ok(true) => {
                             ep.register(&mut builder)
@@ -1115,8 +1112,8 @@ impl Engine {
                 }
             }
             Device::Cpu(_) => {
-                let ep = ort::execution_providers::CPUExecutionProvider::default()
-                    .with_arena_allocator(config.ep.cpu.arena_allocator);
+                let ep =
+                    ort::ep::CPU::default().with_arena_allocator(config.ep.cpu.arena_allocator);
                 match ep.is_available() {
                     Ok(true) => {
                         ep.register(&mut builder)

@@ -25,6 +25,7 @@ impl From<TensorElementType> for crate::DType {
             TensorElementType::Complex128 => Self::Complex128,
             TensorElementType::Bool => Self::Uint8,
             TensorElementType::String | TensorElementType::Undefined => Self::Auto,
+            _ => Self::Auto,
         }
     }
 }

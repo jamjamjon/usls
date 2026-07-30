@@ -10,7 +10,7 @@ ONNX Runtime configuration and API version management.
 
 ### API Version Selection
 
-This library supports ONNX Runtime versions 1.17 through 1.24 via API version features.
+This library supports ONNX Runtime versions 1.17 through 1.28 via API version features.
 
 | Feature | ONNX Runtime | Requirements |
 |---------|--------------|--------------|
@@ -21,11 +21,15 @@ This library supports ONNX Runtime versions 1.17 through 1.24 via API version fe
 | `ort-api-21` | v1.21 | - |
 | `ort-api-22` | v1.22 | - |
 | `ort-api-23` | v1.23 | - |
-| `ort-api-24` | v1.24 | **Default** - Latest features |
+| `ort-api-24` | v1.24 | - |
+| `ort-api-25` | v1.25 | - |
+| `ort-api-26` | v1.26 | - |
+| `ort-api-27` | v1.27 | - |
+| `ort-api-28` | v1.28 | **Default** - Latest features |
 
 !!! tip "API Version Selection"
     ```toml
-    # Default uses api-24 (latest)
+    # Default uses api-28 (latest)
     usls = { version = "0.2", features = ["vision"] }
     
     # Specify API version explicitly

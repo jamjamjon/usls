@@ -40,10 +40,11 @@ fast_image_resize = { version = "5.5.0", default-features = false, features = ["
 minifb = { version = "0.28.0", optional = true }
 video-rs = { version = "0.11.0", features = ["ndarray"], optional = true }
 ndarray-npy = { version = "0.10", optional = true  }
-ort = { version = "=2.0.0-rc.12", default-features = false, features = [
+ort = { version = "=2.0.0-rc.13", default-features = false, features = [
   "tls-rustls",
   "copy-dylibs",
   "half",
+  "ndarray",
   "std",
 ] }
 cudarc = { version = "0.19", optional = true, default-features = false, features = [
@@ -75,7 +76,7 @@ strip = true
 
 
 [features]
-default = ["ort-download-binaries", "vision", "annotator", "ort-api-24"]
+default = ["ort-download-binaries", "vision", "annotator", "ort-api-28"]
 
 # ONNXRuntime loading strategies
 ort-download-binaries = ["ort/download-binaries"]
@@ -90,6 +91,10 @@ ort-api-21 = ["ort/api-21"]
 ort-api-22 = ["ort/api-22"]
 ort-api-23 = ["ort/api-23"]
 ort-api-24 = ["ort/api-24"]
+ort-api-25 = ["ort/api-25"]
+ort-api-26 = ["ort/api-26"]
+ort-api-27 = ["ort/api-27"]
+ort-api-28 = ["ort/api-28"]
 
 # Cuda features (Internal use)
 cuda-runtime = ["dep:cudarc"]
